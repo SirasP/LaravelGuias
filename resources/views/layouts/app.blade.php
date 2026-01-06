@@ -23,23 +23,29 @@
 
 <body class="font-sans antialiased">
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900" x-data="{}">
-        @include('layouts.navigation')
-        
-        @isset($header)
-            <header class=" top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div class="w-full px-4 sm:px-6 lg:px-8">
+
+        <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            
+            {{-- Header superior --}}
+            @isset($header)
+                <div class="w-full px-4 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-gray-700">
                     <div class="h-16 flex items-center justify-start">
                         {{ $header }}
                     </div>
                 </div>
-            </header>
-        @endisset
+            @endisset
 
+            {{-- Navbar --}}
+            @include('layouts.navigation')
 
-        <main class="pt-0 pb-6">
+        </header>
+
+        <main class="pb-6">
             {{ $slot }}
         </main>
+
     </div>
 </body>
+
 
 </html>
