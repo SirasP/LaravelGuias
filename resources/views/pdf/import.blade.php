@@ -45,42 +45,212 @@
                         </ul>
                     </div>
                 @endif
+                <div class="grid grid-cols-12 gap-6 items-start">
+                    <div class="col-span-12 lg:col-span-6">
+                        <form method="POST" enctype="multipart/form-data" x-data="excelUpload()"
+                            @submit.prevent="onSubmit" class="space-y-4">
 
-                <form method="POST" action="" enctype="multipart/form-data" id="excelForm">
-    @csrf
+                            @csrf
 
-    <select id="excelType" class="mb-3 border rounded px-2 py-1">
-        <option value="qc">Excel VT (GDD)</option>
-        <option value="rfp">Excel RFP</option>
-    </select>
+                            <!-- Tipo de Excel -->
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700">
+                                    Tipo de Excel
+                                </label>
+                                <select id="excelType" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                       focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="qc">Excel VT (GDD)</option>
+                                    <option value="rfp">Excel RFP</option>
+                                </select>
+                            </div>
 
-    <input type="file" name="excel" required>
+                            <!-- Dropzone -->
+                            <div class="rounded-xl border-2 border-dashed p-6 transition"
+                                :class="dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50'"
+                                @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false"
+                                @drop.prevent="onDrop">
 
-    <button class="mt-3 btn">Importar Excel</button>
-</form>
-<form method="POST" action="{{ route('pdf.import.xml') }}" enctype="multipart/form-data">
-    @csrf
+                                <div class="flex flex-col items-center gap-2 text-center">
+                                    <div class="text-sm font-semibold text-gray-800">
+                                        Arrastra tu Excel aquí
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        o selecciónalo desde tu equipo (.xlsx / .xls)
+                                    </div>
 
-    <div class="mb-4">
-        <label class="block font-semibold mb-1">Importar XML SII</label>
-        <input type="file" name="xmls[]" multiple accept=".xml"
-            class="border rounded p-2 w-full">
-    </div>
+                                    <input x-ref="file" type="file" name="excel" accept=".xlsx,.xls" class="hidden"
+                                        @change="onPick" required>
 
-    <button class="px-4 py-2 bg-green-600 text-white rounded">
-        Importar XML
-    </button>
-</form>
-<script>
-    const form = document.getElementById('excelForm');
-    const sel = document.getElementById('excelType');
+                                    <button type="button" class="mt-3 inline-flex items-center px-4 py-2 rounded-lg
+                           bg-white border border-gray-300 text-sm font-medium
+                           hover:bg-gray-100" @click="$refs.file.click()" :disabled="submitting">
+                                        Elegir archivo
+                                    </button>
 
-    form.addEventListener('submit', () => {
-        form.action = sel.value === 'rfp'
-            ? "{{ route('excel.import.rfp') }}"
-            : "{{ route('excel.import.qc') }}";
-    });
-</script>
+                                    <div class="mt-2 text-xs text-gray-400" x-show="!file">
+                                        Solo un archivo a la vez
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Archivo seleccionado -->
+                            <div x-show="file" class="border rounded-lg bg-white">
+                                <div class="flex items-center justify-between px-3 py-2">
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-medium truncate" x-text="file.name"></div>
+                                        <div class="text-xs text-gray-500" x-text="formatBytes(file.size)"></div>
+                                    </div>
+
+                                    <button type="button"
+                                        class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200" @click="clear"
+                                        :disabled="submitting">
+                                        Quitar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="flex items-center justify-between pt-2">
+                                <div class="text-xs text-gray-500">
+                                    El tipo de Excel se procesa según la selección (VT / RFP)
+                                </div>
+
+                                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg
+                       bg-indigo-600 text-white text-sm font-semibold
+                       hover:bg-indigo-700
+                       disabled:opacity-60 disabled:cursor-not-allowed" :disabled="!file || submitting">
+
+                                    <!-- icono -->
+                                    <svg x-show="!submitting" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12v9m0-9l-3 3m3-3l3 3M12 3v9" />
+                                    </svg>
+
+                                    <!-- spinner -->
+                                    <svg x-show="submitting" class="animate-spin w-4 h-4"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                    </svg>
+
+                                    <span x-text="submitting ? 'Importando…' : 'Importar Excel'"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-6">
+                        <form method="POST" action="{{ route('pdf.import.xml') }}" enctype="multipart/form-data"
+                            x-data="xmlUpload()" @submit.prevent="onSubmit" class="space-y-4">
+
+                            @csrf
+
+                            <!-- Dropzone -->
+                            <div class="rounded-xl border-2 border-dashed p-6 transition"
+                                :class="dragging ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50'"
+                                @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false"
+                                @drop.prevent="onDrop">
+
+                                <div class="flex flex-col items-center gap-2 text-center">
+                                    <div class="text-sm font-semibold text-gray-800">
+                                        Arrastra y suelta tus XML SII aquí
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        Puedes subir varios archivos a la vez (.xml)
+                                    </div>
+
+                                    <input x-ref="file" type="file" name="xmls[]" accept=".xml" multiple class="hidden"
+                                        @change="onPick" required>
+
+                                    <button type="button" class="mt-3 inline-flex items-center px-4 py-2 rounded-lg
+                           bg-white border border-gray-300 text-sm font-medium
+                           hover:bg-gray-100" @click="$refs.file.click()" :disabled="submitting">
+                                        Elegir archivos
+                                    </button>
+
+                                    <div class="mt-2 text-xs text-gray-400" x-show="files.length === 0">
+                                        Tip: puedes subir varios XML juntos
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lista de archivos -->
+                            <div x-show="files.length > 0" class="border rounded-lg overflow-hidden bg-white">
+                                <div class="flex items-center justify-between px-3 py-2 border-b">
+                                    <div class="text-sm font-semibold">
+                                        Archivos seleccionados (<span x-text="files.length"></span>)
+                                    </div>
+
+                                    <button type="button" class="text-xs text-gray-600 hover:underline"
+                                        @click="clearAll" :disabled="submitting">
+                                        Limpiar todo
+                                    </button>
+                                </div>
+
+                                <template x-for="(f, idx) in files" :key="f._key">
+                                    <div class="flex items-center justify-between px-3 py-2 border-b last:border-b-0">
+                                        <div class="min-w-0">
+                                            <div class="text-sm truncate" x-text="f.name"></div>
+                                            <div class="text-xs text-gray-500" x-text="formatBytes(f.size)"></div>
+                                        </div>
+
+                                        <button type="button"
+                                            class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                                            @click="removeAt(idx)" :disabled="submitting">
+                                            Quitar
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="flex items-center justify-between pt-2">
+                                <div class="text-xs text-gray-500">
+                                    Los XML se validan y se ignoran duplicados automáticamente
+                                </div>
+
+                                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg
+                       bg-emerald-600 text-white text-sm font-semibold
+                       hover:bg-emerald-700
+                       disabled:opacity-60 disabled:cursor-not-allowed" :disabled="files.length === 0 || submitting">
+
+                                    <!-- icono -->
+                                    <svg x-show="!submitting" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12v9m0-9l-3 3m3-3l3 3M12 3v9" />
+                                    </svg>
+
+                                    <!-- spinner -->
+                                    <svg x-show="submitting" class="animate-spin w-4 h-4"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                    </svg>
+
+                                    <span x-text="submitting ? 'Importando…' : 'Importar XML'"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
+                <script>
+                    const form = document.getElementById('excelForm');
+                    const sel = document.getElementById('excelType');
+
+                    form.addEventListener('submit', () => {
+                        form.action = sel.value === 'rfp'
+                            ? "{{ route('excel.import.rfp') }}"
+                            : "{{ route('excel.import.qc') }}";
+                    });
+                </script>
 
 
             </div>
