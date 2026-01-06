@@ -26,7 +26,7 @@
         @include('layouts.navigation')
         
         @isset($header)
-            <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <header class=" top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div class="w-full px-4 sm:px-6 lg:px-8">
                     <div class="h-16 flex items-center justify-start">
                         {{ $header }}

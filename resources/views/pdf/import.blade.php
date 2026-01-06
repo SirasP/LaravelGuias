@@ -25,17 +25,7 @@
 
         </div>
     </x-slot>
-@php
-function xmlLineValue(string $line): string
-{
-    // Caso normal: "Ruta/Ruta: valor"
-    if (str_contains($line, ':')) {
-        return trim(explode(':', $line, 2)[1]);
-    }
 
-    return $line;
-}
-@endphp
 
     <div class="py-6">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
