@@ -32,7 +32,7 @@
         {{-- HEADER DE CONTEXTO (NORMAL, NO STICKY) --}}
         @isset($header)
             <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div class="w-full px-4 sm:px-4 lg:px-8">
+                <div class="w-full px-12 sm:px-4 lg:px-8">
                     <div class="h-16 flex items-center">
                         {{ $header }}
                     </div>
