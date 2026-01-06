@@ -405,10 +405,13 @@ class ExcelOutTransferController extends Controller
     }
     public function export(Request $request)
     {
+
+
         $q = trim((string) $request->get('q', ''));
         $exists = $request->get('exists');
         $orderBy = $request->get('order_by', 'fecha_prevista');
         $dir = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $onlyGuia = trim((string) $request->get('guia', ''));
 
         // ===== 1) Tipos de bandejas (dinámico) =====
         $trayTypes = DB::table('excel_out_transfer_lines')
@@ -638,10 +641,25 @@ class ExcelOutTransferController extends Controller
         // ===== 3) meta limpio (comillas externas + escapes) =====
         $metaClean = "REPLACE(TRIM(BOTH '\"' FROM p.meta), '\\\\\"', '\"')";
 
+        $pdfOnePerGuia = DB::table('pdf_imports as p')
+            ->selectRaw("
+        TRIM(LEADING '0' FROM p.guia_no) as guia_norm,
+        MAX(p.id) as pdf_id
+    ")
+            ->groupByRaw("TRIM(LEADING '0' FROM p.guia_no)");
         // ===== 4) Query principal =====
         $query = ExcelOutTransfer::query()
-            ->from('excel_out_transfers as e')
 
+            ->from('excel_out_transfers as e');
+        // 🔥 EXPORT SOLO UNA GUÍA (ANTES DE LOS JOINS)
+        if ($onlyGuia !== '') {
+            $query->whereRaw(
+                "TRIM(LEADING '0' FROM e.guia_entrega) = TRIM(LEADING '0' FROM ?)",
+                [$onlyGuia]
+            );
+        }
+
+        $query
             // 🔥 SOLO TRANSFERS REALES
             ->where('e.estado', 'Realizado')
 
@@ -657,13 +675,15 @@ class ExcelOutTransferController extends Controller
             // ===============================
             // JOIN con PDFs
             // ===============================
-            ->leftJoin('pdf_imports as p', function ($join) {
+            ->leftJoinSub($pdfOnePerGuia, 'pg', function ($join) {
                 $join->on(
-                    DB::raw("TRIM(LEADING '0' FROM p.guia_no)"),
+                    DB::raw("TRIM(LEADING '0' FROM e.guia_entrega)"),
                     '=',
-                    DB::raw("TRIM(LEADING '0' FROM e.guia_entrega)")
+                    'pg.guia_norm'
                 );
             })
+            ->leftJoin('pdf_imports as p', 'p.id', '=', 'pg.pdf_id')
+
             ->leftJoinSub($pdfBandejasAgg, 'pb', function ($join) {
                 $join->on('pb.pdf_import_id', '=', 'p.id');
             })
@@ -700,6 +720,7 @@ class ExcelOutTransferController extends Controller
         0
     ) as pdf_bandejas_recibidas
 "),
+
 
 
                 DB::raw("JSON_UNQUOTE(JSON_EXTRACT($metaClean, '$.guia_pesaje')) as pdf_guia_pesaje"),
@@ -880,7 +901,7 @@ class ExcelOutTransferController extends Controller
                 $values[] = $kg; // float
 
                 // 3️⃣ Vista / PDF
-               // $text = $this->formatKgCL($kg); // string
+                // $text = $this->formatKgCL($kg); // string
             }
 
 
@@ -906,18 +927,7 @@ class ExcelOutTransferController extends Controller
             ->getNumberFormat()
             ->setFormatCode('0');
 
-        foreach ($values as $i => $v) {
-            $cell = Coordinate::stringFromColumnIndex($i + 1) . $rowNum;
-
-            if (is_numeric($v)) {
-                $sheet->setCellValueExplicit($cell, (float) $v, DataType::TYPE_NUMERIC);
-                $sheet->getStyle($cell)
-                    ->getNumberFormat()
-                    ->setFormatCode('#,##0.0');
-            } else {
-                $sheet->setCellValue($cell, $v);
-            }
-        }
+       
 
 
         for ($i = 1; $i <= count($headers); $i++) {
