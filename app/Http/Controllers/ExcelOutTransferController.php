@@ -487,9 +487,12 @@ class ExcelOutTransferController extends Controller
         WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0]{3}$' THEN
           CAST(SUBSTRING_INDEX(CAST(l.cantidad AS CHAR), '.', 1) AS DECIMAL(18,3))
 
-        -- 14.976 / 4.020 (string) => 14976 / 4020
-        WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0-9]{3}$' THEN
-          CAST(REPLACE(CAST(l.cantidad AS CHAR), '.', '') AS DECIMAL(18,3))
+       -- 14.976 / 4.020 => miles SOLO para BANDEJAS (NO KG)
+        WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0-9]{3}$'
+            AND UPPER(COALESCE(l.producto,'')) LIKE '%BANDE%'
+        THEN
+        CAST(REPLACE(CAST(l.cantidad AS CHAR), '.', '') AS DECIMAL(18,3))
+
 
         -- 366,60 => 366.60
         WHEN INSTR(CAST(l.cantidad AS CHAR), ',') > 0 AND INSTR(CAST(l.cantidad AS CHAR), '.') = 0 THEN
@@ -519,7 +522,15 @@ class ExcelOutTransferController extends Controller
   END
 )";
 
-
+        $kgNormFrambuesa = "(
+  CAST(
+    REPLACE(
+      REPLACE(CAST(l.cantidad AS CHAR), '.', ''),
+      ',', '.'
+    ) AS DECIMAL(18,3)
+  ) / 1000
+)";
+        ;
         // ===== 2) Subquery agregado con columnas dinámicas =====
         $linesAgg = DB::table('excel_out_transfer_lines as l')
             ->selectRaw("l.excel_out_transfer_id as transfer_id")
@@ -583,12 +594,23 @@ class ExcelOutTransferController extends Controller
       SUM(
         CASE
           WHEN TRIM(UPPER(COALESCE(l.producto,''))) = ?
-         THEN {$kgNormFixed}
+          THEN (
+            CASE
+              -- 🔥 FIX REAL para Frambuesa (ANTES de kgNorm)
+              WHEN ? = 'FRAMBUESA ORGÁNICA WAKEFIELD'
+              THEN {$kgNormFrambuesa}
+
+              -- resto intacto
+              ELSE {$kgNormFixed}
+            END
+          )
           ELSE 0
         END
       ) as {$alias}
-    ", [$t]);
+    ", [$t, $t]);
         }
+
+
         // ===== 2c) Subquery BANDEJAS desde PDF =====
         $pdfBandejasAgg = DB::table('pdf_lines as pl')
             ->selectRaw('pl.pdf_import_id')
@@ -784,39 +806,11 @@ class ExcelOutTransferController extends Controller
         }
 
         $rowNum = 2;
+
+
         foreach ($rows as $r) {
-            $pdfKgsRaw = $r->pdf_kgs_recibido ?? null;
+            $pdfKgs = $this->normalizePdfKg($r->pdf_kgs_recibido);
 
-            if (is_numeric($pdfKgsRaw)) {
-                // Si viene como 5.7224 → son toneladas → pasar a kg
-                if ($pdfKgsRaw < 100) {
-                    $pdfKgs = $pdfKgsRaw * 1000;
-                } else {
-                    $pdfKgs = (float) $pdfKgsRaw;
-                }
-
-            } elseif (is_string($pdfKgsRaw)) {
-                $v = trim($pdfKgsRaw);
-
-                // 2.454,33
-                if (preg_match('/^\d{1,3}(\.\d{3})*,\d+$/', $v)) {
-                    $pdfKgs = (float) str_replace(',', '.', str_replace('.', '', $v));
-
-                    // 2454,33
-                } elseif (preg_match('/^\d+,\d+$/', $v)) {
-                    $pdfKgs = (float) str_replace(',', '.', $v);
-
-                    // fallback
-                } elseif (is_numeric($v)) {
-                    $pdfKgs = (float) $v;
-
-                } else {
-                    $pdfKgs = '';
-                }
-
-            } else {
-                $pdfKgs = '';
-            }
 
 
 
@@ -869,23 +863,33 @@ class ExcelOutTransferController extends Controller
             }
 
 
-            // valores por producto KG
+            // valores por producto KG (desde Odoo / BD)
             foreach ($productTypes as $t) {
                 $alias = 'prod_' . substr(md5($t), 0, 10);
-                $v = $r->{$alias} ?? 0;
+                $raw = $r->{$alias} ?? null;
 
-                // fuerza número real
-                $values[] = (float) $v;
+                $kg = $this->kgFromOdoo($raw);
+
+                // 🔥 ODOO mezcla kg / toneladas
+                // TONELADAS solo si < 20 y con decimales reales
+                if ($kg !== null && $kg < 20 && fmod($kg, 1.0) !== 0.0) {
+                    $kg = $kg * 1000;
+                }
+
+                // 2️⃣ Export Excel
+                $values[] = $kg; // float
+
+                // 3️⃣ Vista / PDF
+               // $text = $this->formatKgCL($kg); // string
             }
+
+
+
 
             foreach ($values as $i => $v) {
                 $cell = Coordinate::stringFromColumnIndex($i + 1) . $rowNum;
 
-                if (is_numeric($v)) {
-                    $sheet->setCellValueExplicit($cell, (float) $v, DataType::TYPE_NUMERIC);
-                } else {
-                    $sheet->setCellValue($cell, $v ?? '');
-                }
+                $sheet->setCellValue($cell, $v ?? '');
             }
 
             $rowNum++;
@@ -901,6 +905,20 @@ class ExcelOutTransferController extends Controller
         $sheet->getStyle("M2:M{$lastDataRow}")
             ->getNumberFormat()
             ->setFormatCode('0');
+
+        foreach ($values as $i => $v) {
+            $cell = Coordinate::stringFromColumnIndex($i + 1) . $rowNum;
+
+            if (is_numeric($v)) {
+                $sheet->setCellValueExplicit($cell, (float) $v, DataType::TYPE_NUMERIC);
+                $sheet->getStyle($cell)
+                    ->getNumberFormat()
+                    ->setFormatCode('#,##0.0');
+            } else {
+                $sheet->setCellValue($cell, $v);
+            }
+        }
+
 
         for ($i = 1; $i <= count($headers); $i++) {
             $col = Coordinate::stringFromColumnIndex($i);
@@ -920,11 +938,99 @@ class ExcelOutTransferController extends Controller
     }
 
 
+    public function formatKgCL($value): string
+    {
+        if ($value === null) {
+            return '';
+        }
 
+        $v = (float) $value;
 
+        // entero → sin miles
+        if (fmod($v, 1.0) === 0.0) {
+            return (string) ((int) $v);
+        }
 
+        // decimal → coma decimal, sin miles
+        // max 2 decimales, sin ceros basura
+        $s = rtrim(rtrim(number_format($v, 2, ',', ''), '0'), ',');
 
+        return $s;
+    }
 
+    public function kgFromOdoo($raw): ?float
+    {
+        if ($raw === null)
+            return null;
+
+        // viene de BD / Odoo → ya es decimal con punto
+        if (is_int($raw) || is_float($raw)) {
+            return (float) $raw;
+        }
+
+        $raw = trim((string) $raw);
+        if ($raw === '')
+            return null;
+
+        // texto tipo "971.100" / "249.000" / "1.673"
+        if (is_numeric($raw)) {
+            return (float) $raw;
+        }
+
+        return null;
+    }
+
+    public function normalizeKgFromOdoo($raw): ?float
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        $v = (float) $raw;
+
+        // 1️⃣ si es entero exacto → kilos
+        if (fmod($v, 1.0) === 0.0) {
+            return $v;
+        }
+
+        // 2️⃣ si es < 20 y tiene decimales → toneladas
+        if ($v < 20) {
+            return $v * 1000;
+        }
+
+        // 3️⃣ resto → kilos con decimales
+        return $v;
+    }
+
+    public function normalizePdfKg($raw): ?float
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        $s = trim((string) $raw);
+        if ($s === '') {
+            return null;
+        }
+
+        // 1️⃣ Formato chileno: 99.000,00 → 99000
+        if (preg_match('/^\d{1,3}(\.\d{3})*,\d+$/', $s)) {
+            $num = (float) str_replace(',', '.', str_replace('.', '', $s));
+        }
+        // 2️⃣ 971.100 / 1.658
+        elseif (is_numeric($s)) {
+            $num = (float) $s;
+        } else {
+            return null;
+        }
+
+        // 3️⃣ TONELADAS SOLO si el valor original es < 20
+        if ($num < 20) {
+            return $num * 1000;
+        }
+
+        return $num;
+    }
 
 }
 
