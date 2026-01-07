@@ -697,8 +697,6 @@ THEN CAST(
             ->groupBy('pl.pdf_import_id');
 
 
-
-
         ;
 
         $linesAgg->groupBy('l.excel_out_transfer_id');

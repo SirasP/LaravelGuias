@@ -13,15 +13,18 @@ use App\Http\Controllers\Guias\ComfrutGuiaController;
 use App\Http\Controllers\ExcelOutTransferController;
 use App\Http\Controllers\CamionController;
 use App\Http\Controllers\AgrakExportController;
+use App\Http\Controllers\Inventario\DashboardController;
 /*
 |--------------------------------------------------------------------------
 | HOME
 |--------------------------------------------------------------------------
 */
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('index');
+})->name('index');
 
+Route::get('/', [DashboardController::class, 'index'])
+    ->name('index');
 /*
 |--------------------------------------------------------------------------
 | INVENTARIO (todos los usuarios autenticados)

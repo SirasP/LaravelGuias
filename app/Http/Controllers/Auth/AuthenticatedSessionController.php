@@ -29,7 +29,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->forget('url.intended'); // 🔥 importante
 
-        return redirect()->route('inventario.index');
+        return redirect()->route('index');
     }
 
     /**

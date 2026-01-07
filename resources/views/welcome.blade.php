@@ -39,8 +39,9 @@
             </p>
 
             <div class="space-y-3">
-                <a href="/historial" class="block w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
-                    Ver Historial
+               <a href="{{ route('index') }}"
+                        class="block w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+                            Ir al Inventario
                 </a>
 
                 <form method="POST" action="{{ route('logout') }}">
