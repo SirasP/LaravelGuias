@@ -10,26 +10,79 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // KPIs (mock)
-        $kilosHoy = 1254.750;
-        $kilosMes = 32890.420;
-        $kilosTotal = 1845230.125;
+        // 📅 Últimos 9 días (incluye hoy)
+        $from = Carbon::now()->subDays(9)->startOfDay();
 
-        // DATOS PARA EL GRÁFICO (últimos 7 días)
-        $chartLabels = collect(range(6, 0))
-            ->map(fn($i) => now()->subDays($i)->format('d/m'));
+        /*
+        |--------------------------------------------------------------------------
+        | GRÁFICO: kilos reales por día (Frambuesa)
+        |--------------------------------------------------------------------------
+        */
+        $rows = DB::table('excel_out_transfer_lines as l')
+            ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
+            ->where('l.producto', 'Frambuesa Orgánica WakeField')
+            ->whereDate('t.fecha_prevista', '>=', $from)
+            ->select(
+                DB::raw('DATE(t.fecha_prevista) as fecha'),
+                DB::raw("
+                    ROUND(
+                        SUM(
+                            CASE
+                                WHEN l.cantidad = FLOOR(l.cantidad)
+                                    THEN l.cantidad / 1000
+                                ELSE l.cantidad
+                            END
+                        ),
+                        3
+                    ) as kilos_reales
+                ")
+            )
+            ->groupBy(DB::raw('DATE(t.fecha_prevista)'))
+            ->orderBy('fecha')
+            ->get();
 
-        $chartLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-        $chartData = [820, 950, 1100, 980, 1250, 1400, 1254];
+        /*
+        |--------------------------------------------------------------------------
+        | KPI: total últimos 5 días
+        |--------------------------------------------------------------------------
+        */
+        $kpi5Dias = $rows->sum('kilos_reales');
 
-        return view('index', compact(
-            'kilosHoy',
-            'kilosMes',
-            'kilosTotal',
-            'chartLabels',
-            'chartData'
-        ));
+        /*
+        |--------------------------------------------------------------------------
+        | TABLA: detalle por producto (últimos 5 días)
+        |--------------------------------------------------------------------------
+        */
+        $productos = DB::table('excel_out_transfer_lines as l')
+            ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
+            ->where('l.producto', 'Frambuesa Orgánica WakeField')
+            ->whereDate('t.fecha_prevista', '>=', $from)
+            ->select(
+                'l.producto',
+                DB::raw("
+                    ROUND(
+                        SUM(
+                            CASE
+                                WHEN l.cantidad = FLOOR(l.cantidad)
+                                    THEN l.cantidad / 1000
+                                ELSE l.cantidad
+                            END
+                        ),
+                        3
+                    ) as total_kilos
+                ")
+            )
+            ->groupBy('l.producto')
+            ->orderByDesc('total_kilos')
+            ->get();
+
+        return view('index', [
+            'chartLabels' => $rows->map(
+                fn($r) => Carbon::parse($r->fecha)->format('d-m')
+            ),
+            'chartData' => $rows->pluck('kilos_reales'),
+            'kpi5Dias' => $kpi5Dias,
+            'productos' => $productos,
+        ]);
     }
-
-
 }
