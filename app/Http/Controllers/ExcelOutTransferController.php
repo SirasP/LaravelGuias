@@ -762,7 +762,6 @@ THEN CAST(
         0
     ) as pdf_kgs_recibido
 "),
-
                 DB::raw("
     COALESCE(
         CAST(
