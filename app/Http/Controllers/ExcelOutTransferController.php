@@ -581,7 +581,8 @@ class ExcelOutTransferController extends Controller
             $linesAgg->selectRaw("
         SUM(
             CASE
-                WHEN TRIM(UPPER(COALESCE(l.producto,''))) = ?
+               WHEN TRIM(UPPER(COALESCE(l.producto,''))) LIKE CONCAT(?, '%')
+
                 THEN {$qtyNorm}
                 ELSE 0
             END
@@ -620,6 +621,7 @@ class ExcelOutTransferController extends Controller
             ->selectRaw("
         SUM(
             CASE
+                -- 1️⃣ Material: 2634
                 WHEN pl.content LIKE 'Material:%'
                 THEN CAST(
                     REPLACE(
@@ -628,9 +630,51 @@ class ExcelOutTransferController extends Controller
                         '.'
                     ) AS DECIMAL(10,2)
                 )
+
+                -- 2️⃣ bandejas_total: 2634
+                WHEN pl.content LIKE 'bandejas_total:%'
+                THEN CAST(
+                    REPLACE(
+                        REGEXP_SUBSTR(pl.content, '[0-9]+([.,][0-9]+)?$'),
+                        ',',
+                        '.'
+                    ) AS DECIMAL(10,2)
+                )
+
+                -- 3️⃣ Líneas tipo 501001R → TOMAR LA CANTIDAD (antes de los kilos)
+                WHEN pl.content REGEXP '^[0-9]+R'
+THEN CAST(
+    REGEXP_SUBSTR(
+        pl.content,
+        '[0-9]+(?=\\\\s+[0-9]+,[0-9]{2}$)'
+    ) AS UNSIGNED
+)
+
+
                 ELSE 0
             END
         ) AS bandejas_material_total
+    ")
+            ->groupBy('pl.pdf_import_id');
+
+
+        $pdfKgsAgg = DB::table('pdf_lines as pl')
+            ->selectRaw('pl.pdf_import_id')
+            ->selectRaw("
+        SUM(
+            CASE
+                -- línea tipo: 501001R ... 110 262,00
+                WHEN pl.content REGEXP '^[0-9]+R'
+                THEN CAST(
+                    REPLACE(
+                        REGEXP_SUBSTR(pl.content, '[0-9]+,[0-9]{2}$'),
+                        ',',
+                        '.'
+                    ) AS DECIMAL(10,2)
+                )
+                ELSE 0
+            END
+        ) AS kgs_total
     ")
             ->groupBy('pl.pdf_import_id');
 
@@ -687,7 +731,9 @@ class ExcelOutTransferController extends Controller
             ->leftJoinSub($pdfBandejasAgg, 'pb', function ($join) {
                 $join->on('pb.pdf_import_id', '=', 'p.id');
             })
-
+            ->leftJoinSub($pdfKgsAgg, 'pk', function ($join) {
+                $join->on('pk.pdf_import_id', '=', 'p.id');
+            })
             ->leftJoinSub($linesAgg, 'la', function ($join) {
                 $join->on('la.transfer_id', '=', 'e.id');
             })
@@ -705,7 +751,18 @@ class ExcelOutTransferController extends Controller
                 'p.doc_fecha as pdf_doc_fecha',
                 'p.template as pdf_template',
 
-                DB::raw("JSON_UNQUOTE(JSON_EXTRACT($metaClean, '$.kgs_recibido')) as pdf_kgs_recibido"),
+                DB::raw("
+    COALESCE(
+        CAST(
+            JSON_UNQUOTE(
+                JSON_EXTRACT($metaClean, '$.kgs_recibido')
+            ) AS DECIMAL(10,2)
+        ),
+        pk.kgs_total,
+        0
+    ) as pdf_kgs_recibido
+"),
+
                 DB::raw("
     COALESCE(
         CAST(
@@ -927,7 +984,7 @@ class ExcelOutTransferController extends Controller
             ->getNumberFormat()
             ->setFormatCode('0');
 
-       
+
 
 
         for ($i = 1; $i <= count($headers); $i++) {
