@@ -19,7 +19,8 @@ class DashboardController extends Controller
         $chartLabels = collect(range(6, 0))
             ->map(fn($i) => now()->subDays($i)->format('d/m'));
 
-        $chartData = collect([820, 950, 1100, 980, 1250, 1400, 1254]);
+        $chartLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+        $chartData = [820, 950, 1100, 980, 1250, 1400, 1254];
 
         return view('index', compact(
             'kilosHoy',

@@ -10,20 +10,22 @@
         </div>
     </x-slot>
 
-    <div class="py-6">
-        <div class="mx-auto px-4 sm:px-6 lg:px-8">
+    {{-- CONTENEDOR QUE ROMPE EL min-h-screen --}}
+    <div class="max-w-7xl mx-auto px-4 py-2">
 
-            {{-- GRÁFICO --}}
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-8">
-                <h3 class="text-lg font-semibold mb-4">
-                    Kilos enviados (últimos 7 días)
-                </h3>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="text-base font-semibold mb-2">
+                Kilos enviados (últimos 7 días)
+            </h3>
 
+            <div class="relative h-40">
                 <canvas id="kilosChart"></canvas>
             </div>
-
         </div>
+
     </div>
+
+
 
     {{-- Chart.js --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
