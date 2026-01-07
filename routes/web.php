@@ -20,11 +20,14 @@ use App\Http\Controllers\Inventario\DashboardController;
 |--------------------------------------------------------------------------
 */
 Route::get('/', function () {
-    return view('index');
+    if (!auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    return view('index'); // resources/views/index.blade.php
 })->name('index');
 
-Route::get('/', [DashboardController::class, 'index'])
-    ->name('index');
+/*
 /*
 |--------------------------------------------------------------------------
 | INVENTARIO (todos los usuarios autenticados)
@@ -36,7 +39,7 @@ Route::middleware(['auth', 'role:admin,operator'])
     ->group(function () {
 
         Route::get('/', function () {
-            return view('inventario.index');
+            return view('index');
         })->name('index');
 
         Route::get('/productos', [App\Http\Controllers\Inventario\ProductosController::class, 'index'])->name('productos');
