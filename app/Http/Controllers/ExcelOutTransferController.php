@@ -678,6 +678,27 @@ THEN CAST(
     ")
             ->groupBy('pl.pdf_import_id');
 
+        $pdfKgsQtyRef = DB::table('pdf_lines as pl')
+            ->selectRaw('pl.pdf_import_id')
+            ->selectRaw("
+        MAX(
+            CASE
+                WHEN pl.content LIKE '%QtyRef:%'
+                THEN CAST(
+                    REGEXP_SUBSTR(
+                        pl.content,
+                        '[0-9]+(\\.[0-9]+)?'
+                    ) AS DECIMAL(18,3)
+                )
+                ELSE NULL
+            END
+        ) AS kgs_qtyref
+    ")
+            ->groupBy('pl.pdf_import_id');
+
+
+
+
         ;
 
         $linesAgg->groupBy('l.excel_out_transfer_id');
@@ -731,6 +752,8 @@ THEN CAST(
             ->leftJoinSub($pdfBandejasAgg, 'pb', function ($join) {
                 $join->on('pb.pdf_import_id', '=', 'p.id');
             })
+            ->leftJoinSub($pdfKgsQtyRef, 'kq', fn($j) => $j->on('kq.pdf_import_id', '=', 'p.id'))
+
             ->leftJoinSub($pdfKgsAgg, 'pk', function ($join) {
                 $join->on('pk.pdf_import_id', '=', 'p.id');
             })
@@ -753,15 +776,20 @@ THEN CAST(
 
                 DB::raw("
     COALESCE(
+        kq.kgs_qtyref,
         CAST(
             JSON_UNQUOTE(
-                JSON_EXTRACT($metaClean, '$.kgs_recibido')
-            ) AS DECIMAL(10,2)
+                JSON_EXTRACT(
+                    $metaClean,
+                    '$.kgs_recibido'
+                )
+            ) AS DECIMAL(18,3)
         ),
         pk.kgs_total,
         0
-    ) as pdf_kgs_recibido
+    ) AS pdf_kgs_recibido
 "),
+
                 DB::raw("
     COALESCE(
         CAST(
