@@ -19,13 +19,9 @@ use App\Http\Controllers\Inventario\DashboardController;
 | HOME
 |--------------------------------------------------------------------------
 */
-Route::get('/', function () {
-    if (!auth()->check()) {
-        return redirect()->route('login');
-    }
-
-    return view('index'); // resources/views/index.blade.php
-})->name('index');
+Route::get('/', [DashboardController::class, 'index'])
+    ->middleware('auth')
+    ->name('index');
 
 /*
 /*
