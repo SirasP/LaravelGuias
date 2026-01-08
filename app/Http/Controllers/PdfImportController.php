@@ -1828,7 +1828,16 @@ class PdfImportController extends Controller
     {
         $get = fn(string $name) =>
             (string) ($xml->xpath('//*[local-name()="' . $name . '"]')[0] ?? null);
+        $totalKilos = 0;
 
+        foreach ($xml->xpath('//*[local-name()="Detalle"]') as $det) {
+            $qty = (float) ($det->xpath('./*[local-name()="QtyItem"]')[0] ?? 0);
+            $unm = strtoupper((string) ($det->xpath('./*[local-name()="UnmdItem"]')[0] ?? ''));
+
+            if ($unm === 'KG') {
+                $totalKilos += $qty;
+            }
+        }
         // 🔥 GD REAL
         $guia = $this->extractGuiaFromDetalles($xml);
 
@@ -1845,7 +1854,7 @@ class PdfImportController extends Controller
         return [
             'guia_no' => $guia,
             'doc_fecha' => $get('FchEmis'),
-            'productor' => $emisorRzn, // mantiene compatibilidad
+            'productor' => $emisorRzn,
             'lines' => $lines,
 
             'meta' => [
@@ -1853,19 +1862,21 @@ class PdfImportController extends Controller
                 'tipo_dte' => 46,
                 'folio_sii' => $get('Folio'),
 
+                // 🔥🔥🔥 ESTO FALTABA
+                'kgs_recibido' => $totalKilos > 0 ? $totalKilos : null,
+
                 'emisor' => [
                     'rut' => $emisorRut,
                     'razon_social' => $emisorRzn,
                 ],
-
                 'receptor' => [
                     'rut' => $receptorRut,
                     'razon_social' => $receptorRzn,
                 ],
-
                 'items' => $items,
             ],
         ];
+
 
     }
     private function extractAllXmlLines(SimpleXMLElement $xml): array
@@ -1939,7 +1950,7 @@ class PdfImportController extends Controller
 
         return $lines;
     }
-   
+
 
     public function ver(int $id)
     {

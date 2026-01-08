@@ -47,7 +47,7 @@
                 @endif
                 <div class="grid grid-cols-12 gap-6 items-start">
                     <div class="col-span-12 lg:col-span-6">
-                        <form method="POST" enctype="multipart/form-data" x-data="excelUpload()"
+                        <form id="excelForm" method="POST" enctype="multipart/form-data" x-data="excelUpload()"
                             @submit.prevent="onSubmit" class="space-y-4">
 
                             @csrf
