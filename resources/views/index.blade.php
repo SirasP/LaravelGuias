@@ -31,7 +31,7 @@
         {{-- GRÁFICO --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Kilos enviados — últimos 5 días
+                Kilos enviados — últimos 30 días
             </h3>
 
             <div class="relative h-48">
