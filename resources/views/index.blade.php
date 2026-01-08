@@ -5,7 +5,7 @@
                 Dashboard Inventario
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Resumen últimos 30 días
+                Resumen últimos 40 días
             </p>
         </div>
     </x-slot>
@@ -14,7 +14,7 @@
 
         {{-- KPI --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <p class="text-sm text-gray-500">Total enviado últimos 30 días</p>
+            <p class="text-sm text-gray-500">Total enviado últimos 40 días</p>
             <p class="text-2xl font-bold text-green-600">
                 @php
     $kpi = (float) $kpi5Dias;
@@ -29,7 +29,7 @@
         </div>
 {{-- KPI CENTROS --}}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-    <p class="text-sm text-gray-500">Total informado por centros (últimos 30 días)</p>
+    <p class="text-sm text-gray-500">Total informado por centros (últimos 40 días)</p>
     <p class="text-2xl font-bold text-indigo-600">
         @php
             $kpiC = (float) $kpiCentros;
@@ -46,7 +46,7 @@
         {{-- GRÁFICO --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Kilos enviados — últimos 30 días
+                Kilos enviados — últimos 40 días
             </h3>
 
             <div class="relative h-48">
@@ -55,14 +55,14 @@
 
             @if (empty($chartLabels) || count($chartLabels) === 0)
                 <p class="text-sm text-gray-500 mt-3">
-                    No hay datos para los últimos 30 días.
+                    No hay datos para los últimos 40 días.
                 </p>
             @endif
         </div>
 {{-- GRÁFICO CENTROS --}}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
     <h3 class="font-semibold mb-3">
-        Kilos informados por centros — últimos 30 días
+        Kilos informados por centros — últimos 40 días
     </h3>
 
     <div class="relative h-48">
