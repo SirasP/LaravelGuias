@@ -12,11 +12,19 @@
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
 
-        {{-- KPI 5 DÍAS --}}
+        {{-- KPI --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <p class="text-sm text-gray-500">Total enviado últimos 10 días</p>
             <p class="text-2xl font-bold text-green-600">
-                {{ $kpi5Dias }} kg
+                @php
+    $kpi = (float) $kpi5Dias;
+
+    $kpiFormatted = $kpi == floor($kpi)
+        ? number_format($kpi, 1, ',', '.')   // entero → 1 decimal
+        : number_format($kpi, 2, ',', '.');  // decimal → 2 decimales
+@endphp
+
+{{ $kpiFormatted }} kg
             </p>
         </div>
 
@@ -37,7 +45,7 @@
             @endif
         </div>
 
-        {{-- TABLA RESUMEN --}}
+        {{-- TABLA --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">Detalle por producto</h3>
 
@@ -54,7 +62,17 @@
                             <tr class="border-b last:border-0">
                                 <td class="py-2">{{ $p->producto }}</td>
                                 <td class="py-2 text-right font-medium">
-                                    {{ $p->total_kilos }}
+    @php
+    $v = (float) $p->total_kilos;
+
+    $vFormatted = $v == floor($v)
+        ? number_format($v, 1, ',', '.')   // entero → 1 decimal
+        : number_format($v, 2, ',', '.');  // decimal → 2 decimales
+@endphp
+
+{{ $vFormatted }}
+
+
                                 </td>
                             </tr>
                         @empty
@@ -75,60 +93,70 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 
     <script>
-document.addEventListener('DOMContentLoaded', function () {
+    
+function formatCL(value) {
+    const n = Number(value);
+    if (isNaN(n)) return value;
 
-    const ctx = document.getElementById('kilosChart');
-    if (!ctx) return;
+    // 1 decimal si es entero, hasta 2 si viene con decimales
+    const str = n % 1 === 0
+        ? n.toFixed(1)
+        : n.toFixed(2);
 
-    const labels = @json($chartLabels ?? []);
-    const dataValues = @json($chartData ?? []);
+    // punto → coma
+    return str.replace('.', ',');
+}
 
-    if (!labels.length || !dataValues.length) return;
 
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Kilos enviados',
-                data: dataValues,
-                backgroundColor: '#3b82f6',
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function (ctx) {
-                            const v = ctx.parsed.y ?? 0;
-                            return v.toLocaleString('es-CL', {
-                                minimumFractionDigits: 3,
-                                maximumFractionDigits: 3
-                            }) + ' kg';
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const ctx = document.getElementById('kilosChart');
+        if (!ctx) return;
+
+        const labels = @json($chartLabels ?? []);
+        const dataValues = @json($chartData ?? []).map(Number);
+
+        // DEBUG (puedes borrar después)
+        console.log(dataValues);
+
+        if (!labels.length || !dataValues.length) return;
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Kilos enviados',
+                    data: dataValues,
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return formatCL(ctx.parsed.y) + ' kg';
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function (value) {
-                            return value.toLocaleString('es-CL', {
-                                minimumFractionDigits: 3,
-                                maximumFractionDigits: 3
-                            }) + ' kg';
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return formatCL(value) + ' kg';
+                            }
                         }
                     }
                 }
             }
-        }
+        });
     });
-});
-</script>
-
+    </script>
 </x-app-layout>

@@ -1939,6 +1939,24 @@ class PdfImportController extends Controller
 
         return $lines;
     }
+   
+
+    public function ver(int $id)
+    {
+        $import = PdfImport::findOrFail($id);
+
+        if (!Storage::disk(config('filesystems.default'))->exists($import->stored_path)) {
+            abort(404, 'Archivo no encontrado');
+        }
+
+        return response()->file(
+            Storage::disk(config('filesystems.default'))->path($import->stored_path),
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $import->original_name . '"'
+            ]
+        );
+    }
 
 
 }

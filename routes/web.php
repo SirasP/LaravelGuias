@@ -326,3 +326,9 @@ Route::post('/agrak', [CamionController::class, 'store'])
 
 Route::get('/agrak/export', [AgrakExportController::class, 'exportAll'])
     ->name('agrak.export');
+
+
+Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'ver'])
+    ->middleware('auth')
+    ->whereNumber('id')
+    ->name('pdf.ver');
