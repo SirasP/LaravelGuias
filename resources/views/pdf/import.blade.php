@@ -146,6 +146,7 @@
                         <form method="POST" action="{{ route('pdf.import.xml') }}" enctype="multipart/form-data"
                             x-data="xmlUpload()" @submit.prevent="onSubmit" class="space-y-4">
 
+
                             @csrf
 
                             <!-- Dropzone -->
@@ -382,6 +383,45 @@
             </div>
         </div>
     </div>
+    <script>
+        function excelUpload() {
+            return {
+                file: null,
+                dragging: false,
+                submitting: false,
+
+                onPick(e) {
+                    this.file = e.target.files[0] || null;
+                },
+
+                clear() {
+                    this.file = null;
+                    this.$refs.file.value = '';
+                },
+
+                onSubmit() {
+                    if (this.submitting) return;
+                    if (!this.file) return;
+
+                    this.submitting = true;
+
+                    // 🔥 ESTO ES LO QUE FALTABA
+                    this.$el.submit();
+                },
+
+                formatBytes(bytes) {
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let i = 0;
+                    let n = bytes;
+                    while (n >= 1024 && i < units.length - 1) {
+                        n /= 1024;
+                        i++;
+                    }
+                    return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+                }
+            }
+        }
+    </script>
 
     <script>
         function pdfUploader() {
@@ -461,4 +501,79 @@
             }
         }
     </script>
+    <script>
+        function xmlUpload() {
+            return {
+                dragging: false,
+                submitting: false,
+                files: [],
+
+                onPick(e) {
+                    const picked = Array.from(e.target.files || []);
+                    this.mergeFiles(picked);
+                    this.syncInput();
+                },
+
+                onDrop(e) {
+                    this.dragging = false;
+                    const dropped = Array.from(e.dataTransfer.files || [])
+                        .filter(f => (f.name || '').toLowerCase().endsWith('.xml'));
+
+                    this.mergeFiles(dropped);
+                    this.syncInput();
+                },
+
+                mergeFiles(incoming) {
+                    const key = (f) => `${f.name}__${f.size}__${f.lastModified}`;
+                    const existing = new Set(this.files.map(key));
+
+                    for (const f of incoming) {
+                        if (!existing.has(key(f))) {
+                            f._key = key(f);
+                            this.files.push(f);
+                            existing.add(key(f));
+                        }
+                    }
+                },
+
+                removeAt(idx) {
+                    this.files.splice(idx, 1);
+                    this.syncInput();
+                },
+
+                clearAll() {
+                    this.files = [];
+                    this.syncInput();
+                },
+
+                syncInput() {
+                    const dt = new DataTransfer();
+                    for (const f of this.files) dt.items.add(f);
+                    this.$refs.file.files = dt.files;
+                },
+
+                onSubmit() {
+                    if (this.submitting) return;
+                    if (!this.files.length) return;
+
+                    this.submitting = true;
+
+                    // 🔥🔥🔥 ESTO ES LO CRÍTICO
+                    this.$el.submit();
+                },
+
+                formatBytes(bytes) {
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let i = 0;
+                    let n = bytes;
+                    while (n >= 1024 && i < units.length - 1) {
+                        n /= 1024;
+                        i++;
+                    }
+                    return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+                }
+            }
+        }
+    </script>
+
 </x-app-layout>
