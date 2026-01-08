@@ -566,7 +566,7 @@ class PdfImportController extends Controller
         $pdftotext = '/usr/bin/pdftotext';
 
         $process = new Process([$pdftotext, '-layout', $pdfPath, '-']);
-        $process->setTimeout(60);
+        $process->setTimeout(120);
         $process->run();
 
         if (!$process->isSuccessful()) {

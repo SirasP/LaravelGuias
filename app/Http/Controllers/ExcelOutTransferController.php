@@ -95,6 +95,7 @@ class ExcelOutTransferController extends Controller
         // CONTADORES (MISMA REGLA)
         // ============================
         $baseCountQuery = ExcelOutTransfer::query()
+            ->where('estado', 'Realizado')
             ->whereNotNull('guia_entrega')
             ->whereRaw("TRIM(guia_entrega) <> ''");
 

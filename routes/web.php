@@ -229,6 +229,7 @@ Route::middleware(['auth', 'role:admin,operator'])->group(function () {
     Route::get('/pdf/imports/{id}', [PdfImportController::class, 'showJson'])
         ->whereNumber('id')
         ->name('pdf.import.show');
+      
 
     Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'show'])
         ->whereNumber('id')
@@ -328,7 +329,3 @@ Route::get('/agrak/export', [AgrakExportController::class, 'exportAll'])
     ->name('agrak.export');
 
 
-Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'ver'])
-    ->middleware('auth')
-    ->whereNumber('id')
-    ->name('pdf.ver');

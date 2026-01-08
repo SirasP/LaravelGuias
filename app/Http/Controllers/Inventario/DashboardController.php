@@ -67,17 +67,50 @@ class DashboardController extends Controller
             )
             ->groupBy('l.producto')
             ->get();
+        // ======================
+        // 📊 KILOS INFORMADOS POR CENTROS (PDF / EXCEL / XML)
+        // ======================
+        
+        $centrosRows = DB::table('pdf_imports as p')
+            ->whereNotNull('p.meta')
+            ->whereDate('p.created_at', '>=', $from)
+            ->select(
+                DB::raw('DATE(p.created_at) as fecha'),
+                DB::raw("
+                    SUM(
+                        CAST(
+                            JSON_UNQUOTE(JSON_EXTRACT(p.meta, '$.kgs_recibido'))
+                            AS DECIMAL(18,3)
+                        )
+                    ) as kilos_centros
+                ")
+            )
+            ->whereRaw("JSON_EXTRACT(p.meta, '$.kgs_recibido') IS NOT NULL")
+            ->groupBy(DB::raw('DATE(p.created_at)'))
+            ->orderBy('fecha')
+            ->get();
+
+        // KPI total centros
+        $kpiCentros = (float) $centrosRows->sum('kilos_centros');
 
         // ======================
         // 📤 VISTA
         // ======================
         return view('index', [
+            // 👇 lo que ya tienes
             'chartLabels' => $rows->map(
                 fn($r) => Carbon::parse($r->fecha)->format('d-m')
             ),
             'chartData' => $rows->pluck('kilos_reales')->map(fn($v) => (float) $v),
             'kpi5Dias' => (float) $rows->sum('kilos_reales'),
             'productos' => $productos,
+
+            // 👇 NUEVO (CENTROS)
+            'centrosLabels' => $centrosRows->map(
+                fn($r) => Carbon::parse($r->fecha)->format('d-m')
+            ),
+            'centrosData' => $centrosRows->pluck('kilos_centros')->map(fn($v) => (float) $v),
+            'kpiCentros' => $kpiCentros,
         ]);
     }
 }

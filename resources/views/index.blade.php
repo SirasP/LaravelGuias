@@ -27,6 +27,21 @@
 {{ $kpiFormatted }} kg
             </p>
         </div>
+{{-- KPI CENTROS --}}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <p class="text-sm text-gray-500">Total informado por centros (últimos 30 días)</p>
+    <p class="text-2xl font-bold text-indigo-600">
+        @php
+            $kpiC = (float) $kpiCentros;
+
+            $kpiCFormatted = $kpiC == floor($kpiC)
+                ? number_format($kpiC, 1, ',', '.')
+                : number_format($kpiC, 2, ',', '.');
+        @endphp
+
+        {{ $kpiCFormatted }} kg
+    </p>
+</div>
 
         {{-- GRÁFICO --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
@@ -44,6 +59,22 @@
                 </p>
             @endif
         </div>
+{{-- GRÁFICO CENTROS --}}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <h3 class="font-semibold mb-3">
+        Kilos informados por centros — últimos 30 días
+    </h3>
+
+    <div class="relative h-48">
+        <canvas id="centrosChart"></canvas>
+    </div>
+
+    @if (empty($centrosLabels) || count($centrosLabels) === 0)
+        <p class="text-sm text-gray-500 mt-3">
+            No hay datos informados por centros.
+        </p>
+    @endif
+</div>
 
         {{-- TABLA --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
@@ -159,4 +190,54 @@ function formatCL(value) {
         });
     });
     </script>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const ctx2 = document.getElementById('centrosChart');
+    if (!ctx2) return;
+
+    const labels2 = @json($centrosLabels ?? []);
+    const data2 = @json($centrosData ?? []).map(Number);
+ console.log(data2);
+    if (!labels2.length || !data2.length) return;
+
+    new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: labels2,
+            datasets: [{
+                label: 'Kilos centros',
+                data: data2,
+                backgroundColor: '#6366f1',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            return formatCL(ctx.parsed.y) + ' kg';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return formatCL(value) + ' kg';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+
 </x-app-layout>
