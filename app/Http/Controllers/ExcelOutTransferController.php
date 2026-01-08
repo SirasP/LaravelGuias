@@ -97,7 +97,13 @@ class ExcelOutTransferController extends Controller
         $baseCountQuery = ExcelOutTransfer::query()
             ->where('estado', 'Realizado')
             ->whereNotNull('guia_entrega')
-            ->whereRaw("TRIM(guia_entrega) <> ''");
+            ->whereRaw("TRIM(guia_entrega) <> ''")
+
+            // 🔥 SOLO TRANSFERS REALES
+            ->whereNotNull('patente')
+            ->whereRaw("TRIM(patente) <> ''")
+            ->whereNotNull('chofer')
+            ->whereRaw("TRIM(chofer) <> ''");
 
         if ($q !== '') {
             $baseCountQuery->where(function ($w) use ($q) {
