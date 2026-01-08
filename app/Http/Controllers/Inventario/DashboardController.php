@@ -17,7 +17,6 @@ class DashboardController extends Controller
          * Formato Excel / Odoo:
          * - separador miles: ,
          * - decimal: .
-         * Ej: "1,170.70" → 1170.70 kg
          */
         $kgFromRaw = "
             CAST(
@@ -30,34 +29,11 @@ class DashboardController extends Controller
         ";
 
         // ======================
-        // 📊 GRÁFICO POR DÍA
-        // ======================
-        $rows = DB::table('excel_out_transfer_lines as l')
-            ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
-
-            // 🔒 NO mostrar guías NULAS
-            ->where('t.estado', '<>', 'NULA')
-
-            ->where('l.producto', 'Frambuesa Orgánica WakeField')
-            ->whereNotNull(DB::raw("JSON_EXTRACT(l.raw, '$.L')"))
-            ->whereDate('t.fecha_prevista', '>=', $from)
-            ->select(
-                DB::raw('DATE(t.fecha_prevista) as fecha'),
-                DB::raw("SUM($kgFromRaw) as kilos_reales")
-            )
-            ->groupBy(DB::raw('DATE(t.fecha_prevista)'))
-            ->orderBy('fecha')
-            ->get();
-
-        // ======================
-        // 📋 TABLA POR PRODUCTO
+        // 📋 TABLA POR PRODUCTO (ODOO)
         // ======================
         $productos = DB::table('excel_out_transfer_lines as l')
             ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
-
-            // 🔒 misma regla
             ->where('t.estado', '<>', 'NULA')
-
             ->where('l.producto', 'Frambuesa Orgánica WakeField')
             ->whereNotNull(DB::raw("JSON_EXTRACT(l.raw, '$.L')"))
             ->whereDate('t.fecha_prevista', '>=', $from)
@@ -67,50 +43,100 @@ class DashboardController extends Controller
             )
             ->groupBy('l.producto')
             ->get();
+
         // ======================
-        // 📊 KILOS INFORMADOS POR CENTROS (PDF / EXCEL / XML)
+        // 📊 GRÁFICO DIARIO (ODOO vs CENTROS)
         // ======================
-        
-        $centrosRows = DB::table('pdf_imports as p')
-            ->whereNotNull('p.meta')
-            ->whereDate('p.created_at', '>=', $from)
+        $rows = DB::table('excel_out_transfers as t')
+
+            // ===============================
+            // ODOO → kilos desde líneas
+            // ===============================
+            ->leftJoin(DB::raw("
+                (
+                    SELECT
+                        l.excel_out_transfer_id,
+                        SUM(
+                            CAST(
+                                REPLACE(
+                                    JSON_UNQUOTE(JSON_EXTRACT(l.raw, '$.L')),
+                                    ',',
+                                    ''
+                                ) AS DECIMAL(18,3)
+                            )
+                        ) AS kilos_odoo
+                    FROM excel_out_transfer_lines l
+                    WHERE JSON_EXTRACT(l.raw, '$.L') IS NOT NULL
+                    GROUP BY l.excel_out_transfer_id
+                ) odoo
+            "), 'odoo.excel_out_transfer_id', '=', 't.id')
+
+            // ===============================
+            // CENTROS → PDF / XML / EXCEL
+            // ===============================
+            ->leftJoin(DB::raw("
+                (
+                    SELECT
+                        p.guia_no,
+                        SUM(
+                            CAST(
+                                JSON_UNQUOTE(
+                                    COALESCE(
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
+                                    )
+                                ) AS DECIMAL(18,3)
+                            )
+                        ) AS kilos_centro
+                    FROM pdf_imports p
+                    WHERE
+                        COALESCE(
+                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
+                        ) IS NOT NULL
+                    GROUP BY p.guia_no
+                ) centros
+            "), DB::raw('CAST(centros.guia_no AS CHAR)'), '=', DB::raw('CAST(t.guia_entrega AS CHAR)'))
+
+            // ===============================
+            // FILTROS REALES (IGUAL QUE LARAVEL)
+            // ===============================
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereDate('t.fecha_prevista', '>=', $from)
+
+            // ===============================
+            // AGRUPACIÓN DIARIA
+            // ===============================
             ->select(
-                DB::raw('DATE(p.created_at) as fecha'),
-                DB::raw("
-                    SUM(
-                        CAST(
-                            JSON_UNQUOTE(JSON_EXTRACT(p.meta, '$.kgs_recibido'))
-                            AS DECIMAL(18,3)
-                        )
-                    ) as kilos_centros
-                ")
+                DB::raw('DATE(t.fecha_prevista) as fecha'),
+                DB::raw('SUM(odoo.kilos_odoo) as kilos_odoo'),
+                DB::raw('SUM(COALESCE(centros.kilos_centro, 0)) as kilos_centros'),
+                DB::raw('SUM(odoo.kilos_odoo) - SUM(COALESCE(centros.kilos_centro, 0)) as diferencia')
             )
-            ->whereRaw("JSON_EXTRACT(p.meta, '$.kgs_recibido') IS NOT NULL")
-            ->groupBy(DB::raw('DATE(p.created_at)'))
+            ->groupBy(DB::raw('DATE(t.fecha_prevista)'))
             ->orderBy('fecha')
             ->get();
-
-        // KPI total centros
-        $kpiCentros = (float) $centrosRows->sum('kilos_centros');
 
         // ======================
         // 📤 VISTA
         // ======================
         return view('index', [
-            // 👇 lo que ya tienes
-            'chartLabels' => $rows->map(
-                fn($r) => Carbon::parse($r->fecha)->format('d-m')
-            ),
-            'chartData' => $rows->pluck('kilos_reales')->map(fn($v) => (float) $v),
-            'kpi5Dias' => (float) $rows->sum('kilos_reales'),
+            'chartLabels' => $rows->map(fn($r) => Carbon::parse($r->fecha)->format('d-m')),
+            'chartData' => $rows->pluck('kilos_odoo')->map(fn($v) => (float) $v),
+            'centrosData' => $rows->pluck('kilos_centros')->map(fn($v) => (float) $v),
+
             'productos' => $productos,
 
-            // 👇 NUEVO (CENTROS)
-            'centrosLabels' => $centrosRows->map(
-                fn($r) => Carbon::parse($r->fecha)->format('d-m')
-            ),
-            'centrosData' => $centrosRows->pluck('kilos_centros')->map(fn($v) => (float) $v),
-            'kpiCentros' => $kpiCentros,
+            'kpi5Dias' => (float) $rows->sum('kilos_odoo'),
+            'kpiCentros' => (float) $rows->sum('kilos_centros'),
         ]);
     }
 }

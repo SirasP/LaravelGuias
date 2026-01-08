@@ -71,52 +71,12 @@
 
     @if (empty($centrosLabels) || count($centrosLabels) === 0)
         <p class="text-sm text-gray-500 mt-3">
-            No hay datos informados por centros.
+            
         </p>
     @endif
 </div>
 
-        {{-- TABLA --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <h3 class="font-semibold mb-3">Detalle por producto</h3>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="text-gray-500 border-b">
-                        <tr>
-                            <th class="text-left py-2">Producto</th>
-                            <th class="text-right py-2">Kilos</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($productos as $p)
-                            <tr class="border-b last:border-0">
-                                <td class="py-2">{{ $p->producto }}</td>
-                                <td class="py-2 text-right font-medium">
-    @php
-    $v = (float) $p->total_kilos;
-
-    $vFormatted = $v == floor($v)
-        ? number_format($v, 1, ',', '.')   // entero → 1 decimal
-        : number_format($v, 2, ',', '.');  // decimal → 2 decimales
-@endphp
-
-{{ $vFormatted }}
-
-
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="2" class="py-4 text-center text-gray-500">
-                                    Sin registros
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+      
 
     </div>
 
@@ -190,24 +150,38 @@ function formatCL(value) {
         });
     });
     </script>
-    <script>
+   <script>
+function formatCL(value) {
+    const n = Number(value);
+    if (isNaN(n)) return value;
+
+    const str = n % 1 === 0
+        ? n.toFixed(1)
+        : n.toFixed(2);
+
+    return str.replace('.', ',');
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
     const ctx2 = document.getElementById('centrosChart');
     if (!ctx2) return;
 
-    const labels2 = @json($centrosLabels ?? []);
-    const data2 = @json($centrosData ?? []).map(Number);
- console.log(data2);
-    if (!labels2.length || !data2.length) return;
+    // 🔥 USAR LAS MISMAS FECHAS DEL DASHBOARD
+    const labels = @json($chartLabels ?? []);
+    const data = @json($centrosData ?? []).map(Number);
+
+    console.log('CENTROS:', data);
+
+    if (!labels.length || !data.length) return;
 
     new Chart(ctx2, {
         type: 'bar',
         data: {
-            labels: labels2,
+            labels: labels,
             datasets: [{
-                label: 'Kilos centros',
-                data: data2,
+                label: 'Kilos informados por centros',
+                data: data,
                 backgroundColor: '#6366f1',
                 borderRadius: 6
             }]
@@ -239,5 +213,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+
 
 </x-app-layout>
