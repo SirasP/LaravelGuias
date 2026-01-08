@@ -5,7 +5,7 @@
                 Dashboard Inventario
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Resumen últimos 5 días
+                Resumen últimos 30 días
             </p>
         </div>
     </x-slot>
@@ -14,7 +14,7 @@
 
         {{-- KPI --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <p class="text-sm text-gray-500">Total enviado últimos 10 días</p>
+            <p class="text-sm text-gray-500">Total enviado últimos 30 días</p>
             <p class="text-2xl font-bold text-green-600">
                 @php
     $kpi = (float) $kpi5Dias;
@@ -40,7 +40,7 @@
 
             @if (empty($chartLabels) || count($chartLabels) === 0)
                 <p class="text-sm text-gray-500 mt-3">
-                    No hay datos para los últimos 5 días.
+                    No hay datos para los últimos 30 días.
                 </p>
             @endif
         </div>
