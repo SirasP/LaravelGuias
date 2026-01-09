@@ -28,6 +28,7 @@ class DashboardController extends Controller
             )
         ";
 
+
         // ======================
         // 📋 TABLA POR PRODUCTO (ODOO)
         // ======================
@@ -43,6 +44,7 @@ class DashboardController extends Controller
             )
             ->groupBy('l.producto')
             ->get();
+
 
         // ======================
         // 📊 GRÁFICO DIARIO (ODOO vs CENTROS)
@@ -74,31 +76,33 @@ class DashboardController extends Controller
             // ===============================
             // CENTROS → PDF / XML / EXCEL
             // ===============================
-            ->leftJoin(DB::raw("
-                (
-                    SELECT
-                        p.guia_no,
-                        SUM(
-                            CAST(
-                                JSON_UNQUOTE(
-                                    COALESCE(
-                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
-                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
-                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
-                                    )
-                                ) AS DECIMAL(18,3)
+            ->leftJoin(
+                DB::raw("
+        (
+            SELECT
+                p.guia_no,
+                SUM(
+                    CAST(
+                        JSON_UNQUOTE(
+                            COALESCE(
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
                             )
-                        ) AS kilos_centro
-                    FROM pdf_imports p
-                    WHERE
-                        COALESCE(
-                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
-                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
-                            JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
-                        ) IS NOT NULL
-                    GROUP BY p.guia_no
-                ) centros
-            "), DB::raw('CAST(centros.guia_no AS CHAR)'), '=', DB::raw('CAST(t.guia_entrega AS CHAR)'))
+                        ) AS DECIMAL(18,3)
+                    )
+                ) AS kilos_centro
+            FROM pdf_imports p
+            GROUP BY p.guia_no
+        ) centros
+    "),
+                DB::raw('CAST(centros.guia_no AS CHAR)'),
+                '=',
+                DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
+            )
+
+
 
             // ===============================
             // FILTROS REALES (IGUAL QUE LARAVEL)
@@ -125,6 +129,7 @@ class DashboardController extends Controller
             ->orderBy('fecha')
             ->get();
 
+
         // ======================
         // 📤 VISTA
         // ======================
@@ -138,5 +143,6 @@ class DashboardController extends Controller
             'kpi5Dias' => (float) $rows->sum('kilos_odoo'),
             'kpiCentros' => (float) $rows->sum('kilos_centros'),
         ]);
+
     }
 }

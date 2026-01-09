@@ -62,6 +62,7 @@ class PdfImportController extends Controller
             } elseif ($template === 'SANCO') {
                 $data = $this->parseGuiaRecepcion($lines);
 
+
                 // ✅ Normaliza para que el resto del flujo funcione igual
                 $data['guia_no'] = $data['numero_guia'] ?? null;
                 $data['doc_fecha'] = $data['fecha'] ?? null;
@@ -70,7 +71,101 @@ class PdfImportController extends Controller
                 // en GRANEL viene productor, especie, variedad separados
                 // acá guardamos productor en el campo productor
                 $data['productor'] = $data['productor'] ?? null;
+            } elseif ($template === 'LIQ_COMPUAGRO') {
+
+                $parsed = $this->parseLiquidacionCompuagro($lines);
+                $documento = $parsed['documento'];
+                $recepciones = $parsed['recepciones'];
+
+                // ✅ guardar PDF una sola vez
+                $path = $file->store('imports/pdfs', $disk);
+
+                foreach ($recepciones as $r) {
+
+                    $guia = $r['guia_no'] ?? null;
+                    if (!$guia) {
+                        $skippedNoGuia++;
+                        continue;
+                    }
+
+                    if (
+                        PdfImport::where('template', 'LIQ_COMPUAGRO')
+                            ->where('guia_no', $guia)
+                            ->exists()
+                    ) {
+                        $duplicates++;
+                        $report[] = [
+                            'file' => $originalName,
+                            'status' => 'duplicate',
+                            'template' => 'LIQ_COMPUAGRO',
+                            'guia' => $guia,
+                        ];
+                        continue;
+                    }
+
+                    DB::transaction(function () use ($file, $lines, $path, $documento, $r, &$created) {
+
+                        $import = PdfImport::create([
+                            'original_name' => $file->getClientOriginalName(),
+                            'stored_path' => $path,
+                            'template' => 'LIQ_COMPUAGRO',
+                            'guia_no' => $r['guia_no'],
+                            'doc_fecha' => $r['doc_fecha'],
+                            'productor' => $documento['productor'],
+                            'meta' => json_encode([
+                                'documento' => $documento,
+                                'recepcion' => $r,
+                            ], JSON_UNESCAPED_UNICODE),
+                        ]);
+
+                        $rows = [];
+                        foreach ($lines as $i => $line) {
+                            $rows[] = [
+                                'pdf_import_id' => $import->id,
+                                'line_no' => $i + 1,
+                                'content' => $line,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
+
+                        foreach (array_chunk($rows, 1000) as $chunk) {
+                            PdfLine::insert($chunk);
+                        }
+
+                        $created++;
+                    });
+
+                    $report[] = [
+                        'file' => $file->getClientOriginalName(),
+                        'status' => 'imported',
+                        'template' => 'LIQ_COMPUAGRO',
+                        'guia' => $guia,
+                    ];
+                }
+
+                continue;
+            } elseif ($template === 'GUIA_RECEPCION_PINOCHET') {
+
+                $parsed = $this->parseGuiaRecepcionPinochet($lines);
+
+                // normalización mínima para el store
+                $data = [
+                    'guia_no' => $parsed['guia_no'] ?? null,
+                    'doc_fecha' => $parsed['doc_fecha'] ?? null,
+                    'productor' => $parsed['productor'] ?? null,
+
+                    'source' => 'pdf',
+                    'tipo_documento' => 'guia_recepcion',
+                    'emisor' => 'Agroindustria Pinochet Fuenzalida Ltda.',
+                    'guia_productor' => $parsed['guia_productor'] ?? null,
+                    'total_cajas' => $parsed['total_cajas'] ?? null,
+                    'recepcion' => [
+                        'total_kgs' => $parsed['total_kgs'] ?? null,
+                    ],
+                ];
             }
+
 
             $guia = $data['guia_no'] ?? $data['numero_guia'] ?? null;
 
@@ -562,8 +657,8 @@ class PdfImportController extends Controller
 
     private function extractText(string $pdfPath): string
     {
-        //$pdftotext = '/opt/homebrew/bin/pdftotext';
-        $pdftotext = '/usr/bin/pdftotext';
+        $pdftotext = '/opt/homebrew/bin/pdftotext';
+        //$pdftotext = '/usr/bin/pdftotext';
 
         $process = new Process([$pdftotext, '-layout', $pdfPath, '-']);
         $process->setTimeout(120);
@@ -635,6 +730,18 @@ class PdfImportController extends Controller
             return 'SANCO';
         }
 
+        if (
+            str_contains($head, 'liquidación de productores') &&
+            str_contains($head, 'compuagro')
+        ) {
+            return 'LIQ_COMPUAGRO';
+        }
+        if (
+            str_contains($head, 'Agroindustria Pinochet') &&
+            str_contains($head, 'Guía de Recepción')
+        ) {
+            return 'GUIA_RECEPCION_PINOCHET';
+        }
         return null;
     }
 
@@ -1968,6 +2075,311 @@ class PdfImportController extends Controller
             ]
         );
     }
+
+    /**
+     * Parse Recepciones desde Liquidación de Productores COMPUAGRO
+     * Devuelve datos completos POR GUIA
+     */
+    private function parseLiquidacionCompuagro(array $lines): array
+    {
+        $toFloat = function (?string $raw): ?float {
+            if ($raw === null) {
+                return null;
+            }
+            $raw = trim($raw);
+            $raw = str_replace([' ', "\u{00A0}"], '', $raw);
+            $raw = str_replace('.', '', $raw);
+            $raw = str_replace(',', '.', $raw);
+            return is_numeric($raw) ? (float) $raw : null;
+        };
+
+        $doc = [
+            'liquidacion_no' => null,
+            'productor' => null,
+            'producto' => null,
+            'variedad' => null,
+            'periodo_liquidacion' => null,
+            'periodo_contrato' => null,
+        ];
+
+        $recepciones = [];
+        $current = null;
+        $skipCurrent = false;
+
+        for ($i = 0; $i < count($lines); $i++) {
+
+            // Limpieza dura PDF
+            $raw = $lines[$i];
+            $l = preg_replace('/[\x00-\x1F\x7F\xA0]/u', '', $raw);
+            $l = trim($l);
+
+            // =======================
+            // ENCABEZADO
+            // =======================
+
+            if (stripos($l, 'Liquidación de Productores') !== false) {
+                for ($j = $i; $j < $i + 5; $j++) {
+                    if (preg_match('/N[°º]\s*(\d+)/u', $lines[$j], $m)) {
+                        $doc['liquidacion_no'] = (int) $m[1];
+                        break;
+                    }
+                }
+            }
+
+            // =======================
+// PRODUCTOR
+// =======================
+            if (
+                stripos($l, 'Productor') !== false &&
+                preg_match('/Productor\s*:\s*(.+?)\s{2,}/iu', $l, $m)
+            ) {
+                $doc['productor'] = trim($m[1]);
+            }
+
+            // =======================
+// PRODUCTO
+// =======================
+            if (
+                stripos($l, 'Producto') !== false &&
+                preg_match('/Producto\s*:\s*(.+?)\s{2,}/iu', $l, $m)
+            ) {
+                $doc['producto'] = trim($m[1]);
+            }
+
+            // =======================
+// VARIEDAD (línea siguiente)
+// =======================
+            if (
+                $doc['producto'] &&
+                !$doc['variedad'] &&
+                preg_match('/^[A-Za-zÁÉÍÓÚÑñ]+$/u', trim($l))
+            ) {
+                $doc['variedad'] = trim($l);
+            }
+
+            // =======================
+// PERIODO CONTRATO
+// =======================
+            if (
+                stripos($l, 'Periodo Contrato') !== false &&
+                preg_match('/Periodo\s+Contrato\s*:\s*(\d{2}-\d{2}-\d{4}\s+al\s+\d{2}-\d{2}-\d{4})/iu', $l, $m)
+            ) {
+                $doc['periodo_contrato'] = $m[1];
+            }
+
+            // =======================
+// PERIODO LIQUIDACIÓN
+// =======================
+            if (
+                stripos($l, 'Periodo Liquidación') !== false &&
+                preg_match('/Periodo\s+Liquidaci[oó]n\s*:\s*(\d{2}-\d{2}-\d{4}\s+al\s+\d{2}-\d{2}-\d{4})/iu', $l, $m)
+            ) {
+                $doc['periodo_liquidacion'] = $m[1];
+            }
+
+
+
+            // =======================
+            // NUEVA RECEPCIÓN
+            // =======================
+
+            if (preg_match('/^\d{2,3}$/', $l)) {
+                $current = [
+                    'recepcion_no' => (int) $l,
+                    'guia_no' => null,
+                    'doc_fecha' => null,
+                    'tipo_guia' => null,
+
+                    'exportacion_kgs' => null,
+                    'exportacion_pct' => null,
+                    'valor_kg_exportacion' => null,
+                    'valor_total_exportacion' => null,
+
+                    'mercado_interno_kgs' => null,
+                    'mercado_interno_pct' => null,
+                    'valor_kg_mercado' => null,
+                    'valor_total_mercado' => null,
+
+                    'desecho_kgs' => null,
+                    'desecho_pct' => null,
+                    'valor_kg_desecho' => null,
+                    'valor_total_desecho' => null,
+
+                    'total_kgs' => null,
+                    'total_neto' => null,
+                ];
+                $skipCurrent = false;
+                continue;
+            }
+
+            // =======================
+            // GUIA / FECHA / TIPO
+            // =======================
+
+            if ($current) {
+
+                if (
+                    $current['guia_no'] === null &&
+                    preg_match('/N[°º]\s*Guia\s*:\s*(\d+)/iu', $l, $m)
+                ) {
+                    $current['guia_no'] = $m[1];
+
+                    // 🔥 VALIDACIÓN BD (solo una vez)
+                    if (PdfImport::where('guia_no', $current['guia_no'])->exists()) {
+                        $skipCurrent = true;
+                    }
+                }
+
+                if (
+                    $current['doc_fecha'] === null &&
+                    preg_match('/Fecha\s*:\s*(\d{2}-\d{2}-\d{4})/iu', $l, $m)
+                ) {
+                    $current['doc_fecha'] = $m[1];
+                }
+
+                if (
+                    $current['tipo_guia'] === null &&
+                    preg_match('/Tipo\s*Guia\s*:\s*([A-Za-z]+)/iu', $l, $m)
+                ) {
+                    $current['tipo_guia'] = $m[1];
+                }
+            }
+
+            // =======================
+            // EXPORTACIÓN
+            // =======================
+
+            if (
+                $current &&
+                preg_match(
+                    '/Exportaci[oó]n\s*:\s*([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)/iu',
+                    $l,
+                    $m
+                )
+            ) {
+                $current['exportacion_kgs'] = $toFloat($m[1]);
+                $current['exportacion_pct'] = $toFloat($m[2]);
+                $current['valor_kg_exportacion'] = $toFloat($m[3]);
+                $current['valor_total_exportacion'] = $toFloat($m[4]);
+            }
+
+            // =======================
+            // MERCADO INTERNO
+            // =======================
+
+            if (
+                $current &&
+                preg_match(
+                    '/Mercado\s+Interno\s*:\s*([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)/iu',
+                    $l,
+                    $m
+                )
+            ) {
+                $current['mercado_interno_kgs'] = $toFloat($m[1]);
+                $current['mercado_interno_pct'] = $toFloat($m[2]);
+                $current['valor_kg_mercado'] = $toFloat($m[3]);
+                $current['valor_total_mercado'] = $toFloat($m[4]);
+            }
+
+            // =======================
+            // DESECHO
+            // =======================
+
+            if (
+                $current &&
+                preg_match(
+                    '/Desecho\s*:\s*([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)\s+([0-9\.,]+)/iu',
+                    $l,
+                    $m
+                )
+            ) {
+                $current['desecho_kgs'] = $toFloat($m[1]);
+                $current['desecho_pct'] = $toFloat($m[2]);
+                $current['valor_kg_desecho'] = $toFloat($m[3]);
+                $current['valor_total_desecho'] = $toFloat($m[4]);
+            }
+
+            // =======================
+            // CIERRE RECEPCIÓN
+            // =======================
+
+            if (
+                $current &&
+                preg_match(
+                    '/Sub\s+Total\s+Recepci[oó]n\s+\d+\s+([0-9\.,]+)\s+([0-9\.,]+)/iu',
+                    $l,
+                    $m
+                )
+            ) {
+                if (!$skipCurrent) {
+                    $current['total_kgs'] = $toFloat($m[1]);
+                    $current['total_neto'] = $toFloat($m[2]);
+                    $recepciones[] = $current;
+                }
+
+                $current = null;
+                $skipCurrent = false;
+            }
+        }
+
+        return [
+            'documento' => $doc,
+            'recepciones' => $recepciones,
+        ];
+    }
+
+
+
+    private function parseGuiaRecepcionPinochet(array $lines): array
+    {
+        $toFloat = function (?string $v): ?float {
+            if (!$v)
+                return null;
+            $v = str_replace(['.', ','], ['', '.'], trim($v));
+            return is_numeric($v) ? (float) $v : null;
+        };
+
+        $data = [
+            'guia_no' => null,
+            'doc_fecha' => null,
+            'productor' => null,
+            'guia_productor' => null,
+            'total_cajas' => null,
+            'total_kgs' => null,
+        ];
+
+        foreach ($lines as $l) {
+            $l = trim(preg_replace('/\s+/', ' ', $l));
+
+            if (preg_match('/Gu[ií]a\s*N[°º]?\s*:? (\d+)/i', $l, $m)) {
+                $data['guia_no'] = $m[1];
+            }
+
+            if (preg_match('/Fecha\s*:? (\d{2}-\d{2}-\d{4})/i', $l, $m)) {
+                $data['doc_fecha'] = $m[1];
+            }
+
+            if (preg_match('/Productor\s*:? (.+)$/i', $l, $m)) {
+                $data['productor'] = trim($m[1]);
+            }
+
+            if (preg_match('/Gu[ií]a\s*Productor\s*:? (\d+)/i', $l, $m)) {
+                $data['guia_productor'] = $m[1];
+            }
+
+            if (preg_match('/Total\s+Cajas\s*:? (\d+)/i', $l, $m)) {
+                $data['total_cajas'] = (int) $m[1];
+            }
+
+            if (preg_match('/Total\s+Kilos\s*:? ([0-9\.,]+)/i', $l, $m)) {
+                $data['total_kgs'] = $toFloat($m[1]);
+            }
+        }
+
+        return $data;
+    }
+
+
 
 
 }

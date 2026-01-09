@@ -25,11 +25,7 @@
             </div>
         </div>
     </x-slot>
-<a href="{{ route('pdf.ver', $import->id) }}"
-   target="_blank"
-   class="px-3 py-1 bg-blue-600 text-white rounded">
-    Ver PDF original
-</a>
+
 
    @php
     $tpl = trim((string) $import->template);
