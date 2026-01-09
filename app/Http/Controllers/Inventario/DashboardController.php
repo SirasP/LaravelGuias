@@ -81,7 +81,7 @@ class DashboardController extends Controller
         (
             SELECT
                 p.guia_no,
-                SUM(
+                MAX(
                     CAST(
                         JSON_UNQUOTE(
                             COALESCE(

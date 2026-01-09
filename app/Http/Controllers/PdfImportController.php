@@ -145,23 +145,22 @@ class PdfImportController extends Controller
                 }
 
                 continue;
-            } elseif ($template === 'GUIA_RECEPCION_PINOCHET') {
+            } elseif ($template === 'GUIA_RECEPCION_RESUMEN') {
 
-                $parsed = $this->parseGuiaRecepcionPinochet($lines);
-
-                // normalización mínima para el store
+                $parsed = $this->parseGuiaRecepcionResumen($lines);
+              
                 $data = [
-                    'guia_no' => $parsed['guia_no'] ?? null,
-                    'doc_fecha' => $parsed['doc_fecha'] ?? null,
-                    'productor' => $parsed['productor'] ?? null,
+                    'guia_no' => $parsed['guia_no'],
+                    'doc_fecha' => $parsed['doc_fecha'],
+                    'productor' => $parsed['productor'],
 
                     'source' => 'pdf',
-                    'tipo_documento' => 'guia_recepcion',
-                    'emisor' => 'Agroindustria Pinochet Fuenzalida Ltda.',
-                    'guia_productor' => $parsed['guia_productor'] ?? null,
-                    'total_cajas' => $parsed['total_cajas'] ?? null,
+                    'tipo_documento' => 'guia_recepcion_resumen',
+                    'emisor' => 'Generado desde Excel',
+                    'guia_productor' => $parsed['guia_productor'],
+                    'total_cajas' => $parsed['total_cajas'],
                     'recepcion' => [
-                        'total_kgs' => $parsed['total_kgs'] ?? null,
+                        'total_kgs' => $parsed['total_kgs'],
                     ],
                 ];
             }
@@ -737,12 +736,16 @@ class PdfImportController extends Controller
             return 'LIQ_COMPUAGRO';
         }
         if (
-            str_contains($head, 'Agroindustria Pinochet') &&
-            str_contains($head, 'Guía de Recepción')
+
+            str_contains($head, 'guía recepción') &&
+            str_contains($head, 'guía productor') &&
+            str_contains($head, 'total cajas') &&
+            str_contains($head, 'total kilos')
+
         ) {
-            return 'GUIA_RECEPCION_PINOCHET';
+
+            return 'GUIA_RECEPCION_RESUMEN';
         }
-        return null;
     }
 
     public function exportXlsx(Request $request)
@@ -2330,15 +2333,8 @@ class PdfImportController extends Controller
 
 
 
-    private function parseGuiaRecepcionPinochet(array $lines): array
+    private function parseGuiaRecepcionResumen(array $lines): array
     {
-        $toFloat = function (?string $v): ?float {
-            if (!$v)
-                return null;
-            $v = str_replace(['.', ','], ['', '.'], trim($v));
-            return is_numeric($v) ? (float) $v : null;
-        };
-
         $data = [
             'guia_no' => null,
             'doc_fecha' => null,
@@ -2348,38 +2344,41 @@ class PdfImportController extends Controller
             'total_kgs' => null,
         ];
 
-        foreach ($lines as $l) {
-            $l = trim(preg_replace('/\s+/', ' ', $l));
+        foreach ($lines as $line) {
 
-            if (preg_match('/Gu[ií]a\s*N[°º]?\s*:? (\d+)/i', $l, $m)) {
+            // Normaliza espacios
+            $line = preg_replace('/\s+/u', ' ', trim($line));
+
+            /**
+             * MATCH PRINCIPAL (toda la fila)
+             *
+             * 00097682 05-01-2026 AGRÍCOLA EPPLE... 00000636 7200 9625
+             */
+            if (
+                preg_match(
+                    '/^
+                (\d{5,10})\s+                    # guía recepción
+                (\d{2}-\d{2}-\d{4})\s+           # fecha
+                (.+?)\s+                         # productor
+                (\d{5,10})\s+                    # guía productor
+                (\d+)\s+                         # total cajas
+                ([0-9\.,]+)                      # total kilos
+                $/xu',
+                    $line,
+                    $m
+                )
+            ) {
                 $data['guia_no'] = $m[1];
-            }
-
-            if (preg_match('/Fecha\s*:? (\d{2}-\d{2}-\d{4})/i', $l, $m)) {
-                $data['doc_fecha'] = $m[1];
-            }
-
-            if (preg_match('/Productor\s*:? (.+)$/i', $l, $m)) {
-                $data['productor'] = trim($m[1]);
-            }
-
-            if (preg_match('/Gu[ií]a\s*Productor\s*:? (\d+)/i', $l, $m)) {
-                $data['guia_productor'] = $m[1];
-            }
-
-            if (preg_match('/Total\s+Cajas\s*:? (\d+)/i', $l, $m)) {
-                $data['total_cajas'] = (int) $m[1];
-            }
-
-            if (preg_match('/Total\s+Kilos\s*:? ([0-9\.,]+)/i', $l, $m)) {
-                $data['total_kgs'] = $toFloat($m[1]);
+                $data['doc_fecha'] = $m[2];
+                $data['productor'] = trim($m[3]);
+                $data['guia_productor'] = $m[4];
+                $data['total_cajas'] = (int) $m[5];
+                $data['total_kgs'] = (float) str_replace(',', '.', str_replace('.', '', $m[6]));
+                break;
             }
         }
 
         return $data;
     }
-
-
-
 
 }
