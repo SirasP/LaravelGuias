@@ -85,6 +85,7 @@ class DashboardController extends Controller
                     CAST(
                         JSON_UNQUOTE(
                             COALESCE(
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'),
                                 JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
                                 JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
                                 JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
@@ -101,6 +102,7 @@ class DashboardController extends Controller
                 '=',
                 DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
             )
+
 
 
 

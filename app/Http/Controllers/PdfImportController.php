@@ -148,7 +148,7 @@ class PdfImportController extends Controller
             } elseif ($template === 'GUIA_RECEPCION_RESUMEN') {
 
                 $parsed = $this->parseGuiaRecepcionResumen($lines);
-              
+
                 $data = [
                     'guia_no' => $parsed['guia_no'],
                     'doc_fecha' => $parsed['doc_fecha'],
@@ -656,8 +656,8 @@ class PdfImportController extends Controller
 
     private function extractText(string $pdfPath): string
     {
-        //$pdftotext = '/opt/homebrew/bin/pdftotext';
-        $pdftotext = '/usr/bin/pdftotext';
+        $pdftotext = '/opt/homebrew/bin/pdftotext';
+        //$pdftotext = '/usr/bin/pdftotext';
 
         $process = new Process([$pdftotext, '-layout', $pdfPath, '-']);
         $process->setTimeout(120);
@@ -746,6 +746,8 @@ class PdfImportController extends Controller
 
             return 'GUIA_RECEPCION_RESUMEN';
         }
+        // 🔥🔥🔥 ESTE RETURN FALTABA 🔥🔥🔥
+        return null;
     }
 
     public function exportXlsx(Request $request)
@@ -2368,10 +2370,14 @@ class PdfImportController extends Controller
                     $m
                 )
             ) {
-                $data['guia_no'] = $m[1];
-                $data['doc_fecha'] = $m[2];
+                $pdfGuiaRecepcion = $m[1];
+                $pdfGuiaProductor = $m[4];
+
+                $data['guia_productor'] = $pdfGuiaProductor;
+                $data['guia_no'] = $pdfGuiaRecepcion;
+
                 $data['productor'] = trim($m[3]);
-                $data['guia_productor'] = $m[4];
+                $data['doc_fecha'] = $m[2];
                 $data['total_cajas'] = (int) $m[5];
                 $data['total_kgs'] = (float) str_replace(',', '.', str_replace('.', '', $m[6]));
                 break;
