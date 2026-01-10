@@ -144,6 +144,7 @@ class ExcelOutTransferController extends Controller
 
     public function importExcelOutTransfers(Request $request)
     {
+
         $request->validate([
             'excel' => ['required', 'file', 'mimes:xlsx,xls', 'max:20480'],
         ]);
@@ -412,7 +413,6 @@ class ExcelOutTransferController extends Controller
     }
     public function export(Request $request)
     {
-
 
         $q = trim((string) $request->get('q', ''));
         $exists = $request->get('exists');
@@ -781,7 +781,30 @@ THEN CAST(
 
                 DB::raw("
     COALESCE(
+        -- 1️⃣ QtyRef desde líneas PDF
         kq.kgs_qtyref,
+
+        -- 2️⃣ Liquidaciones nuevas (meta.recepcion.total_kgs)
+        CAST(
+            JSON_UNQUOTE(
+                JSON_EXTRACT(
+                    $metaClean,
+                    '$.recepcion.total_kgs'
+                )
+            ) AS DECIMAL(18,3)
+        ),
+
+        -- 3️⃣ JSON plano (total_kgs en raíz)
+        CAST(
+            JSON_UNQUOTE(
+                JSON_EXTRACT(
+                    $metaClean,
+                    '$.total_kgs'
+                )
+            ) AS DECIMAL(18,3)
+        ),
+
+        -- 4️⃣ Legado (NO tocar)
         CAST(
             JSON_UNQUOTE(
                 JSON_EXTRACT(
@@ -790,10 +813,15 @@ THEN CAST(
                 )
             ) AS DECIMAL(18,3)
         ),
+
+        -- 5️⃣ Fallback desde parsing PDF
         pk.kgs_total,
+
+        -- 6️⃣ Último recurso
         0
     ) AS pdf_kgs_recibido
 "),
+
 
                 DB::raw("
     COALESCE(
