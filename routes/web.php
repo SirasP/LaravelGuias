@@ -29,7 +29,7 @@ Route::get('/', [DashboardController::class, 'index'])
 | INVENTARIO (todos los usuarios autenticados)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:admin,operator'])
+Route::middleware(['auth', 'role:operador'])
     ->prefix('inventario')
     ->name('inventario.')
     ->group(function () {

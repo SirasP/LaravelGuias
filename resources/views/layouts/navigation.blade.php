@@ -18,7 +18,7 @@
                 <!-- Desktop Menu -->
                 <div class="hidden sm:flex items-center space-x-6 sm:ms-10">
 
-                    <!-- INVENTARIO -->
+                    <!-- INVENTARIO COMENTADO POR MIENTRAS 
                     <div x-data="{ openInv: false }" class="relative">
                         <button @click="openInv = !openInv" @click.away="openInv = false" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition
                             {{ request()->routeIs('inventario.*')
@@ -57,12 +57,12 @@
                         </div>
                     </div>
 
-                    <!-- USUARIOS -->
+                   USUARIOS 
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         Usuarios
                     </x-nav-link>
 
-                    <!-- DTE -->
+                 DTE 
                     <div x-data="{ openDte: false }" class="relative">
                         <button @click="openDte = !openDte" @click.away="openDte = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium
                                    text-gray-600 dark:text-gray-300
@@ -98,7 +98,7 @@
                             </a>
                         </div>
                     </div>
-
+-->
                     <!-- DOCUMENTOS (PDF) -->
                     <div x-data="{ openDocs: false }" class="relative">
                         <button @click="openDocs = !openDocs" @click.away="openDocs = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
