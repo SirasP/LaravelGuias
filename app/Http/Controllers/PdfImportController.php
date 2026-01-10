@@ -76,10 +76,9 @@ class PdfImportController extends Controller
                 $parsed = $this->parseLiquidacionCompuagro($lines);
                 $documento = $parsed['documento'];
                 $recepciones = $parsed['recepciones'];
-
-                // ✅ guardar PDF una sola vez
                 $path = $file->store('imports/pdfs', $disk);
 
+                // 5) Recién aquí guardas el archivo
                 foreach ($recepciones as $r) {
 
                     $guia = $r['guia_no'] ?? null;
@@ -87,12 +86,7 @@ class PdfImportController extends Controller
                         $skippedNoGuia++;
                         continue;
                     }
-
-                    if (
-                        PdfImport::where('template', 'LIQ_COMPUAGRO')
-                            ->where('guia_no', $guia)
-                            ->exists()
-                    ) {
+                    if (PdfImport::where('guia_no', $guia)->exists()) {
                         $duplicates++;
                         $report[] = [
                             'file' => $originalName,
@@ -168,6 +162,7 @@ class PdfImportController extends Controller
 
             $guia = $data['guia_no'] ?? $data['numero_guia'] ?? null;
 
+
             // si no detecta template o data
             if (!$template || !$data) {
                 $report[] = [
@@ -193,24 +188,19 @@ class PdfImportController extends Controller
                 ];
                 continue;
             }
-
-            // 4) DEDUPE por (template + guia_no)
-            $existing = PdfImport::where('template', $template)
-                ->where('guia_no', $guia)
-                ->first();
-
-            if ($existing) {
+            // 4) DEDUPE GLOBAL por guia_no (🔥 CLAVE)
+            if (PdfImport::where('guia_no', $guia)->exists()) {
                 $duplicates++;
                 $report[] = [
                     'file' => $originalName,
                     'status' => 'duplicate',
-                    'reason' => "Duplicado (ya existe template={$template} guía={$guia} en ID={$existing->id}).",
+                    'reason' => "La guía {$guia} ya existe en el sistema.",
                     'template' => $template,
                     'guia' => $guia,
-                    'existing_id' => $existing->id,
                 ];
                 continue;
             }
+
 
             // 5) Recién aquí guardas el archivo
             $path = $file->store('imports/pdfs', $disk);
@@ -650,14 +640,10 @@ class PdfImportController extends Controller
         ];
     }
 
-
-
-
-
     private function extractText(string $pdfPath): string
     {
-        //$pdftotext = '/opt/homebrew/bin/pdftotext';
-        $pdftotext = '/usr/bin/pdftotext';
+        $pdftotext = '/opt/homebrew/bin/pdftotext';
+        //$pdftotext = '/usr/bin/pdftotext';
 
         $process = new Process([$pdftotext, '-layout', $pdfPath, '-']);
         $process->setTimeout(120);
@@ -996,9 +982,8 @@ class PdfImportController extends Controller
             $kgs = $parseNumber($get($r, 'Cantidad Recepcionada'));
             $unidad = trim((string) $get($r, 'Kilos')); // "KG"
 
-            $exists = PdfImport::where('template', $template)
-                ->where('guia_no', $guia)
-                ->exists();
+            $exists = PdfImport::where('guia_no', $guia)->exists();
+
 
             if ($exists) {
                 $duplicates++;
@@ -1669,14 +1654,30 @@ class PdfImportController extends Controller
         // Helpers
         // =========================
         $parseNumber = function ($v): ?float {
-            if ($v === null)
+            if ($v === null || $v === '') {
                 return null;
-            if (is_int($v) || is_float($v))
-                return (float) $v;
+            }
 
-            $s = str_replace(['.', ','], ['', '.'], trim((string) $v));
+            // Si Excel ya lo entrega como número
+            if (is_int($v) || is_float($v)) {
+                return (float) $v;
+            }
+
+            $s = trim((string) $v);
+
+            // Caso chileno / europeo: 1.234,56
+            if (preg_match('/^\d{1,3}(\.\d{3})*,\d+$/', $s)) {
+                $s = str_replace('.', '', $s);   // quitar miles
+                $s = str_replace(',', '.', $s);  // decimal
+            }
+            // Caso simple: 2851,50
+            elseif (str_contains($s, ',')) {
+                $s = str_replace(',', '.', $s);
+            }
+
             return is_numeric($s) ? (float) $s : null;
         };
+
 
         $parseDate = function ($v): ?string {
             if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})/', (string) $v, $m)) {
@@ -1711,9 +1712,7 @@ class PdfImportController extends Controller
             }
 
             if (
-                PdfImport::where('template', $template)
-                    ->where('guia_no', $guia)
-                    ->exists()
+                PdfImport::where('guia_no', $guia)->exists()
             ) {
                 $duplicates++;
                 $report[] = [
@@ -1839,11 +1838,7 @@ class PdfImportController extends Controller
             }
 
             // ===== 4️⃣ Dedupe por guía real =====
-            if (
-                PdfImport::where('template', $template)
-                    ->where('guia_no', $guia)
-                    ->exists()
-            ) {
+            if (PdfImport::where('guia_no', $guia)->exists()) {
                 $duplicates++;
                 continue;
             }

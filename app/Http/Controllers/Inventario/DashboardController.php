@@ -32,17 +32,26 @@ class DashboardController extends Controller
         // ======================
         // 📋 TABLA POR PRODUCTO (ODOO)
         // ======================
-        $productos = DB::table('excel_out_transfer_lines as l')
-            ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
-            ->where('t.estado', '<>', 'NULA')
-            ->where('l.producto', 'Frambuesa Orgánica WakeField')
-            ->whereNotNull(DB::raw("JSON_EXTRACT(l.raw, '$.L')"))
-            ->whereDate('t.fecha_prevista', '>=', $from)
-            ->select(
-                'l.producto',
-                DB::raw("SUM($kgFromRaw) as total_kilos")
+        $productos = DB::query()
+            ->fromSub(
+                DB::table('excel_out_transfers as t')
+                    ->join('excel_out_transfer_lines as l', 'l.excel_out_transfer_id', '=', 't.id')
+                    ->where('t.estado', '<>', 'NULA')
+                    ->where('l.producto', 'Frambuesa Orgánica WakeField')
+                    ->whereDate('t.fecha_prevista', '>=', $from)
+                    ->whereNotNull(DB::raw("JSON_EXTRACT(l.raw, '$.L')"))
+                    ->groupBy('t.id', 'l.producto')
+                    ->select(
+                        'l.producto',
+                        DB::raw("MAX($kgFromRaw) as kilos_por_guia")
+                    ),
+                'x'
             )
-            ->groupBy('l.producto')
+            ->select(
+                'producto',
+                DB::raw('SUM(kilos_por_guia) as total_kilos')
+            )
+            ->groupBy('producto')
             ->get();
 
 
@@ -58,7 +67,7 @@ class DashboardController extends Controller
                 (
                     SELECT
                         l.excel_out_transfer_id,
-                        SUM(
+                        MAX(
                             CAST(
                                 REPLACE(
                                     JSON_UNQUOTE(JSON_EXTRACT(l.raw, '$.L')),
@@ -131,7 +140,7 @@ class DashboardController extends Controller
             ->orderBy('fecha')
             ->get();
 
-
+      
         // ======================
         // 📤 VISTA
         // ======================
