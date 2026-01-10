@@ -82,6 +82,13 @@ class DashboardController extends Controller
                 ) odoo
             "), 'odoo.excel_out_transfer_id', '=', 't.id')
 
+
+
+
+
+
+
+
             // ===============================
             // CENTROS → PDF / XML / EXCEL
             // ===============================
@@ -115,6 +122,11 @@ class DashboardController extends Controller
 
 
 
+
+
+
+
+
             // ===============================
             // FILTROS REALES (IGUAL QUE LARAVEL)
             // ===============================
@@ -140,7 +152,71 @@ class DashboardController extends Controller
             ->orderBy('fecha')
             ->get();
 
-      
+        // ======================
+        // 📊 KILOS POR CONTACTO (CENTROS)
+        // ======================
+        $kilosPorContacto = DB::table('excel_out_transfers as t')
+            ->join(
+                DB::raw("
+        (
+            SELECT
+                p.guia_no,
+                MAX(
+                    CAST(
+                        JSON_UNQUOTE(
+                            COALESCE(
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
+                            )
+                        ) AS DECIMAL(18,3)
+                    )
+                ) AS kilos_centro
+            FROM pdf_imports p
+            GROUP BY p.guia_no
+        ) centros
+    "),
+                DB::raw('CAST(centros.guia_no AS CHAR)'),
+                '=',
+                DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
+            )
+
+            // 🔥 FILTROS DE NEGOCIO (IGUALES AL DASHBOARD)
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereDate('t.fecha_prevista', '>=', $from)
+
+            // ❌ excluir empresa que no cuenta
+            ->where('t.contacto', '<>', 'Agrícola Epple, Heinrich y Enfield Spa')
+
+            ->groupBy('t.contacto')
+            ->orderByDesc(DB::raw('SUM(centros.kilos_centro)'))
+            ->select(
+                't.contacto',
+                DB::raw('SUM(centros.kilos_centro) AS total_kilos')
+            )
+            ->get();
+
+        $aliasContactos = [
+            'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
+            'Agroindustria Pinochet Fuenzalida Limitada' => 'Agroindustria Pinochet',
+            'COMFRUT CHILE SPA' => 'COMFRUT',
+            'Rio Futuro Procesos SpA' => 'Rio Futuro',
+            'Valle Frio SPA' => 'Valle Frío',
+            'Vitafoods Spa' => 'Vitafoods',
+        ];
+
+        $kpiCentrosPorContacto = (float) $kilosPorContacto->sum('total_kilos');
+        $topEmpresa = $kilosPorContacto->sortByDesc('total_kilos')->first();
+
+
         // ======================
         // 📤 VISTA
         // ======================
@@ -153,6 +229,14 @@ class DashboardController extends Controller
 
             'kpi5Dias' => (float) $rows->sum('kilos_odoo'),
             'kpiCentros' => (float) $rows->sum('kilos_centros'),
+            'contactosLabels' => $kilosPorContacto->map(function ($row) use ($aliasContactos) {
+                return $aliasContactos[$row->contacto] ?? $row->contacto;
+            }),
+            'contactosKilos' => $kilosPorContacto->pluck('total_kilos')->map(fn($v) => (float) $v),
+            'kpiCentrosPorContacto' => $kpiCentrosPorContacto,
+            'topEmpresa' => $topEmpresa,
+            'kilosPorContacto' => $kilosPorContacto,
+
         ]);
 
     }

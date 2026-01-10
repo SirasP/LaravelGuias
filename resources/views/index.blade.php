@@ -17,31 +17,58 @@
             <p class="text-sm text-gray-500">Total enviado últimos 40 días</p>
             <p class="text-2xl font-bold text-green-600">
                 @php
-    $kpi = (float) $kpi5Dias;
+                    $kpi = (float) $kpi5Dias;
 
-    $kpiFormatted = $kpi == floor($kpi)
-        ? number_format($kpi, 1, ',', '.')   // entero → 1 decimal
-        : number_format($kpi, 2, ',', '.');  // decimal → 2 decimales
-@endphp
+                    $kpiFormatted = $kpi == floor($kpi)
+                        ? number_format($kpi, 1, ',', '.')   // entero → 1 decimal
+                        : number_format($kpi, 2, ',', '.');  // decimal → 2 decimales
+                @endphp
 
-{{ $kpiFormatted }} kg
+                {{ $kpiFormatted }} kg
             </p>
         </div>
-{{-- KPI CENTROS --}}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-    <p class="text-sm text-gray-500">Total informado por centros (últimos 40 días)</p>
-    <p class="text-2xl font-bold text-indigo-600">
-        @php
-            $kpiC = (float) $kpiCentros;
+        {{-- KPI CENTROS --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <p class="text-sm text-gray-500">Total informado por centros (últimos 40 días)</p>
+            <p class="text-2xl font-bold text-indigo-600">
+                @php
+                    $kpiC = (float) $kpiCentros;
 
-            $kpiCFormatted = $kpiC == floor($kpiC)
-                ? number_format($kpiC, 1, ',', '.')
-                : number_format($kpiC, 2, ',', '.');
-        @endphp
+                    $kpiCFormatted = $kpiC == floor($kpiC)
+                        ? number_format($kpiC, 1, ',', '.')
+                        : number_format($kpiC, 2, ',', '.');
+                @endphp
 
-        {{ $kpiCFormatted }} kg
-    </p>
+                {{ $kpiCFormatted }} kg
+            </p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-x-auto">
+    <h3 class="font-semibold mb-3">
+        Empresas — kilos informados por centros
+    </h3>
+
+    <table class="min-w-full text-sm">
+        <thead>
+            <tr class="text-left text-gray-500 border-b">
+                <th class="py-2">Empresa</th>
+                <th class="py-2 text-right">Kilos</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($kilosPorContacto as $row)
+                <tr class="border-b last:border-0">
+                    <td class="py-2">
+                        {{ $row->contacto }}
+                    </td>
+                    <td class="py-2 text-right font-medium">
+                        {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 </div>
+
 
         {{-- GRÁFICO --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
@@ -59,24 +86,33 @@
                 </p>
             @endif
         </div>
-{{-- GRÁFICO CENTROS --}}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-    <h3 class="font-semibold mb-3">
-        Kilos informados por centros — últimos 40 días
-    </h3>
+        {{-- GRÁFICO CENTROS --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">
+                Kilos informados por centros — últimos 40 días
+            </h3>
 
-    <div class="relative h-48">
-        <canvas id="centrosChart"></canvas>
-    </div>
+            <div class="relative h-48">
+                <canvas id="centrosChart"></canvas>
+            </div>
 
-    @if (empty($centrosLabels) || count($centrosLabels) === 0)
-        <p class="text-sm text-gray-500 mt-3">
-            
-        </p>
-    @endif
-</div>
+            @if (empty($centrosLabels) || count($centrosLabels) === 0)
+                <p class="text-sm text-gray-500 mt-3">
 
-      
+                </p>
+            @endif
+        </div>
+        {{-- GRÁFICO CONTACTOS --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">
+                Kilos informados por empresa (Centros)
+            </h3>
+
+            <div class="relative h-64">
+                <canvas id="contactosChart"></canvas>
+            </div>
+        </div>
+
 
     </div>
 
@@ -84,105 +120,154 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 
     <script>
-    
-function formatCL(value) {
-    const n = Number(value);
-    if (isNaN(n)) return value;
 
-    // 1 decimal si es entero, hasta 2 si viene con decimales
-    const str = n % 1 === 0
-        ? n.toFixed(1)
-        : n.toFixed(2);
+        function formatCL(value) {
+            const n = Number(value);
+            if (isNaN(n)) return value;
 
-    // punto → coma
-    return str.replace('.', ',');
-}
+            // 1 decimal si es entero, hasta 2 si viene con decimales
+            const str = n % 1 === 0
+                ? n.toFixed(1)
+                : n.toFixed(2);
+
+            // punto → coma
+            return str.replace('.', ',');
+        }
 
 
-    document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function () {
 
-        const ctx = document.getElementById('kilosChart');
-        if (!ctx) return;
+            const ctx = document.getElementById('kilosChart');
+            if (!ctx) return;
 
-        const labels = @json($chartLabels ?? []);
-        const dataValues = @json($chartData ?? []).map(Number);
+            const labels = @json($chartLabels ?? []);
+            const dataValues = @json($chartData ?? []).map(Number);
 
-        // DEBUG (puedes borrar después)
-        console.log(dataValues);
+            // DEBUG (puedes borrar después)
+            console.log(dataValues);
 
-        if (!labels.length || !dataValues.length) return;
+            if (!labels.length || !dataValues.length) return;
 
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Kilos enviados',
-                    data: dataValues,
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function (ctx) {
-                                return formatCL(ctx.parsed.y) + ' kg';
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Kilos enviados',
+                        data: dataValues,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return formatCL(ctx.parsed.y) + ' kg';
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function (value) {
-                                return formatCL(value) + ' kg';
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return formatCL(value) + ' kg';
+                                }
                             }
                         }
                     }
                 }
-            }
+            });
         });
-    });
     </script>
-   <script>
-function formatCL(value) {
-    const n = Number(value);
-    if (isNaN(n)) return value;
+    <script>
+        function formatCL(value) {
+            const n = Number(value);
+            if (isNaN(n)) return value;
 
-    const str = n % 1 === 0
-        ? n.toFixed(1)
-        : n.toFixed(2);
+            const str = n % 1 === 0
+                ? n.toFixed(1)
+                : n.toFixed(2);
 
-    return str.replace('.', ',');
-}
+            return str.replace('.', ',');
+        }
 
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const ctx2 = document.getElementById('centrosChart');
+            if (!ctx2) return;
+
+            // 🔥 USAR LAS MISMAS FECHAS DEL DASHBOARD
+            const labels = @json($chartLabels ?? []);
+            const data = @json($centrosData ?? []).map(Number);
+
+            console.log('CENTROS:', data);
+
+            if (!labels.length || !data.length) return;
+
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Kilos informados por centros',
+                        data: data,
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return formatCL(ctx.parsed.y) + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return formatCL(value) + ' kg';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    const ctx2 = document.getElementById('centrosChart');
-    if (!ctx2) return;
+    const ctx = document.getElementById('contactosChart');
+    if (!ctx) return;
 
-    // 🔥 USAR LAS MISMAS FECHAS DEL DASHBOARD
-    const labels = @json($chartLabels ?? []);
-    const data = @json($centrosData ?? []).map(Number);
-
-    console.log('CENTROS:', data);
+    const labels = @json($contactosLabels ?? []);
+    const data = @json($contactosKilos ?? []).map(Number);
 
     if (!labels.length || !data.length) return;
 
-    new Chart(ctx2, {
+    new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Kilos informados por centros',
+                label: 'Kilos (Centros)',
                 data: data,
-                backgroundColor: '#6366f1',
+                backgroundColor: '#10b981',
                 borderRadius: 6
             }]
         },
