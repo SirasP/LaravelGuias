@@ -147,12 +147,53 @@
                 </p>
             </div>
         </div>
+
+<div class="sm:hidden space-y-3">
+    @foreach($kilosPorContacto as $row)
+        <div class="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
+            <p class="font-semibold text-sm mb-1">
+                {{ $row->contacto }}
+            </p>
+
+            <div class="grid grid-cols-2 gap-y-1 text-xs">
+                <div class="text-gray-500">Guías</div>
+                <div class="text-right font-medium">
+                    {{ $row->total_guias }}
+                </div>
+
+                <div class="text-gray-500">Sin respuesta</div>
+                <div class="text-right">
+                    @if($row->guias_sin_match > 0)
+                        <span class="text-red-600 font-medium">
+                            {{ $row->guias_sin_match }}
+                        </span>
+                    @else
+                        <span class="text-gray-400">0</span>
+                    @endif
+                </div>
+
+                <div class="text-gray-500">Bandejas ODOO</div>
+                <div class="text-right font-medium">
+                    {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
+                </div>
+
+                <div class="text-gray-500">Kilos</div>
+                <div class="text-right font-medium text-green-600">
+                    {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-x-auto">
             <h3 class="font-semibold mb-3">
                 Empresas — Kilos informados por centros
             </h3>
 
-            <table class="min-w-full text-sm">
+            <div class="hidden sm:block overflow-x-auto">
+    <table class="min-w-full text-sm">
                 <thead>
                     <tr class="text-left text-gray-500 border-b">
                         <th class="py-2">Empresa</th>
