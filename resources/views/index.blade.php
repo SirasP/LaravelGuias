@@ -11,27 +11,40 @@
     </x-slot>
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
+@php
+    $kpi = (float) $kpi5Dias;
+    $kpiFormatted = $kpi == floor($kpi)
+        ? number_format($kpi, 1, ',', '.')
+        : number_format($kpi, 2, ',', '.');
+@endphp
+     {{-- KPI DOBLE --}}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <p class="text-sm text-gray-500 mb-3">
+        Totales últimos 40 días
+    </p>
 
-        {{-- KPI --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <p class="text-sm text-gray-500">Total enviado últimos 40 días</p>
+    <div class="flex justify-between gap-8">
+        {{-- KILOS --}}
+        <div>
+            <p class="text-xs text-gray-400">Kilos Odoo</p>
             <p class="text-2xl font-bold text-green-600">
-                @php
-                    $kpi = (float) $kpi5Dias;
-
-                    $kpiFormatted = $kpi == floor($kpi)
-                        ? number_format($kpi, 1, ',', '.')   // entero → 1 decimal
-                        : number_format($kpi, 2, ',', '.');  // decimal → 2 decimales
-                @endphp
-
                 {{ $kpiFormatted }} kg
             </p>
         </div>
-        {{-- KPI CENTROS --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <p class="text-sm text-gray-500">Total informado por centros (últimos 40 días)</p>
-            <p class="text-2xl font-bold text-indigo-600">
-                @php
+
+        {{-- BANDEJAS --}}
+        <div class="text-right">
+            <p class="text-xs text-gray-400">Bandejas</p>
+            <p class="text-2xl font-bold text-green-600">
+                {{ number_format($kpiBandejas ?? 0, 0, ',', '.') }}
+            </p>
+        </div>
+    </div>
+
+
+</div>
+
+           @php
                     $kpiC = (float) $kpiCentros;
 
                     $kpiCFormatted = $kpiC == floor($kpiC)
@@ -39,8 +52,16 @@
                         : number_format($kpiC, 2, ',', '.');
                 @endphp
 
+        {{-- KPI CENTROS --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <p class="text-sm text-gray-500 mb-3">Total informado por centros (últimos 40 días)</p>
+            
+           <div>
+                  <p class="text-xs text-gray-400">Kilos Recepcionados</p>
+                  <p class="text-2xl font-bold text-green-600">
                 {{ $kpiCFormatted }} kg
             </p>
+            </div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-x-auto">
     <h3 class="font-semibold mb-3">
@@ -53,6 +74,8 @@
             <th class="py-2">Empresa</th>
             <th class="py-2 text-right">Guías totales</th>
             <th class="py-2 text-right">Guías sin respuesta</th>
+            <th class="py-2 text-right">Total bandejas</th>
+
             <th class="py-2 text-right">Total kilos</th>
         </tr>
     </thead>
@@ -80,7 +103,10 @@
                         <span class="text-gray-400">0</span>
                     @endif
                 </td>
-
+{{-- Total bandejas --}}
+<td class="py-2 text-right font-medium">
+    {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
+</td>
                 {{-- Total kilos --}}
                 <td class="py-2 text-right font-medium">
                     {{ number_format($row->total_kilos, 1, ',', '.') }} kg

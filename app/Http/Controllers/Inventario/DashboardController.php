@@ -28,6 +28,29 @@ class DashboardController extends Controller
             )
         ";
 
+        $qtyNorm = "
+(
+  CASE
+    WHEN l.cantidad IS NULL OR l.cantidad = '' THEN 0
+
+    WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0]{3}$'
+      THEN CAST(SUBSTRING_INDEX(CAST(l.cantidad AS CHAR), '.', 1) AS UNSIGNED)
+
+    WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+,[0]{3}$'
+      THEN CAST(SUBSTRING_INDEX(CAST(l.cantidad AS CHAR), ',', 1) AS UNSIGNED)
+
+    WHEN UPPER(l.producto) LIKE '%BANDE%'
+         AND CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0-9]{3}$'
+      THEN CAST(REPLACE(CAST(l.cantidad AS CHAR), '.', '') AS UNSIGNED)
+
+    WHEN UPPER(l.producto) LIKE '%BANDE%'
+         AND CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+,[0-9]{3}$'
+      THEN CAST(REPLACE(CAST(l.cantidad AS CHAR), ',', '') AS UNSIGNED)
+
+    ELSE CAST(l.cantidad AS UNSIGNED)
+  END
+)
+";
 
         // ======================
         // 📋 TABLA POR PRODUCTO (ODOO)
@@ -183,6 +206,9 @@ class DashboardController extends Controller
                 DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
             )
 
+
+
+
             // filtros reales
             ->where('t.estado', 'Realizado')
             ->whereNotNull('t.guia_entrega')
@@ -212,7 +238,49 @@ class DashboardController extends Controller
             ->orderByDesc(DB::raw('SUM(centros.kilos_centro)'))
             ->get();
 
+        $bandejasPorContacto = DB::table('excel_out_transfers as t')
+            ->join('excel_out_transfer_lines as l', 'l.excel_out_transfer_id', '=', 't.id')
 
+            // filtros reales (idénticos a kilos)
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereDate('t.fecha_prevista', '>=', $from)
+
+            // SOLO BANDEJAS
+            ->whereRaw("UPPER(l.producto) LIKE '%BANDE%'")
+
+            ->groupBy('t.contacto')
+
+            ->select(
+                't.contacto',
+                DB::raw("SUM($qtyNorm) AS total_bandejas")
+            )
+            ->get()
+            ->keyBy('contacto');
+
+        $kpiBandejas = DB::table('excel_out_transfers as t')
+            ->join('excel_out_transfer_lines as l', 'l.excel_out_transfer_id', '=', 't.id')
+
+            // mismos filtros “reales”
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereDate('t.fecha_prevista', '>=', $from)
+
+            // solo bandejas
+            ->whereRaw("UPPER(l.producto) LIKE '%BANDE%'")
+
+            ->selectRaw("SUM($qtyNorm) as total_bandejas")
+            ->value('total_bandejas');
 
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
@@ -246,6 +314,8 @@ class DashboardController extends Controller
             'kpiCentrosPorContacto' => $kpiCentrosPorContacto,
             'topEmpresa' => $topEmpresa,
             'kilosPorContacto' => $kilosPorContacto,
+            'bandejasPorContacto' => $bandejasPorContacto,
+            'kpiBandejas' => (int) $kpiBandejas,
 
         ]);
 
