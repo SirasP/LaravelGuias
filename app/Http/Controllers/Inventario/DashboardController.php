@@ -286,16 +286,16 @@ class DashboardController extends Controller
 
 
         // ======================
-// 📦 KPI BANDEJAS AGRAK (últimos 40 días)
-// ======================
+        // 📦 KPI BANDEJAS AGRAK (últimos 40 días)
+        // ======================
         $kpiBandejasAgrak = DB::table('agrak_registros')
             ->whereDate('fecha_registro', '>=', $from)
             ->whereNotNull('numero_bandejas_palet')
             ->selectRaw('SUM(numero_bandejas_palet) as total_bandejas')
             ->value('total_bandejas');
         // ======================
-// 🟫 KPI BINS AGRAK (últimos 40 días)
-// ======================
+        // 🟫 KPI BINS AGRAK (últimos 40 días)
+        // ======================
         $kpiBinsAgrak = DB::table('agrak_registros')
             ->whereDate('fecha_registro', '>=', $from)
             ->whereNotNull('codigo_bin')
@@ -305,6 +305,43 @@ class DashboardController extends Controller
         $kgPromedioAgrak = DB::table('agrak_bandeja_promedios')
             ->orderByDesc('id')
             ->value('kg_promedio') ?? 0;
+        //CHART BANDEJAS AGRAK POR DÍA
+        $bandejasAgrakPorDia = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
+            ->whereNotNull('numero_bandejas_palet')
+            ->selectRaw('
+        DATE(fecha_registro) as fecha,
+        SUM(numero_bandejas_palet) as total_bandejas
+    ')
+            ->groupBy(DB::raw('DATE(fecha_registro)'))
+            ->orderBy('fecha')
+            ->get();
+
+        $bandejasAgrakLabels = $bandejasAgrakPorDia
+            ->map(fn($r) => Carbon::parse($r->fecha)->format('d-m'));
+
+        $bandejasAgrakData = $bandejasAgrakPorDia
+            ->pluck('total_bandejas')
+            ->map(fn($v) => (int) $v);
+
+        //CHART BINS AGRAK POR DÍA
+        $binsAgrakPorDia = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
+            ->whereNotNull('codigo_bin')
+            ->selectRaw('
+        DATE(fecha_registro) as fecha,
+        COUNT(DISTINCT codigo_bin) as total_bins
+    ')
+            ->groupBy(DB::raw('DATE(fecha_registro)'))
+            ->orderBy('fecha')
+            ->get();
+
+        $binsAgrakLabels = $binsAgrakPorDia
+            ->map(fn($r) => Carbon::parse($r->fecha)->format('d-m'));
+
+        $binsAgrakData = $binsAgrakPorDia
+            ->pluck('total_bins')
+            ->map(fn($v) => (int) $v);
 
 
         $aliasContactos = [
@@ -346,6 +383,12 @@ class DashboardController extends Controller
             //'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
             'kpiBinsAgrak' => (int) $kpiBinsAgrak,
             'kgPromedioAgrak' => (float) $kgPromedioAgrak,
+            //chart bandejas agrak
+            'bandejasAgrakLabels' => $bandejasAgrakLabels,
+            'bandejasAgrakData' => $bandejasAgrakData,
+            //chart bins agrak
+            'binsAgrakLabels' => $binsAgrakLabels,
+            'binsAgrakData' => $binsAgrakData,
 
         ]);
 

@@ -270,7 +270,26 @@ const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
             </div>
         </div>
 
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <h3 class="font-semibold mb-3">
+        Bandejas AGRAK — últimos 40 días
+    </h3>
 
+    <div class="relative h-48">
+        <canvas id="bandejasAgrakChart"></canvas>
+    </div>
+</div>
+
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <h3 class="font-semibold mb-3">
+        Bins AGRAK — últimos 40 días
+    </h3>
+
+    <div class="relative h-48">
+        <canvas id="binsAgrakChart"></canvas>
+    </div>
+</div>
     </div>
 
     {{-- Chart.js --}}
@@ -561,6 +580,95 @@ document.addEventListener('click', function (e) {
 document.addEventListener('DOMContentLoaded', function () {
     actualizarLabelKg();
     recalcularKgAgrak();
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const ctx = document.getElementById('bandejasAgrakChart');
+    if (!ctx) return;
+
+    const labels = @json($bandejasAgrakLabels ?? []);
+    const data   = @json($bandejasAgrakData ?? []);
+
+    if (!labels.length || !data.length) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Bandejas AGRAK',
+                data: data,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.parsed.y.toLocaleString('es-CL') + ' bandejas'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => v.toLocaleString('es-CL')
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const ctx = document.getElementById('binsAgrakChart');
+    if (!ctx) return;
+
+    const labels = @json($binsAgrakLabels ?? []);
+    const data   = @json($binsAgrakData ?? []);
+
+    if (!labels.length || !data.length) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Bins AGRAK',
+                data: data,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx =>
+                            ctx.parsed.y.toLocaleString('es-CL') + ' bins'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => v.toLocaleString('es-CL')
+                    }
+                }
+            }
+        }
+    });
 });
 </script>
 
