@@ -1,5 +1,5 @@
 <x-app-layout>
-    
+
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -43,7 +43,7 @@
             @endif
 
             {{-- ✅ Stats PRO arriba de la tabla --}}
-            <div class="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="hidden lg:block mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="mt-2 flex flex-wrap gap-2 text-xs">
                     <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
                         Total: <span class="font-semibold">{{ $total }}</span>
@@ -59,8 +59,8 @@
 
             {{-- tabla (la tuya) --}}
             <div
-                class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 overflow-hidden">
-                <div class="overflow-x-auto">
+                class="hidden lg:block rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 overflow-hidden">
+                <div class="hidden lg:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-900/60">
                             <tr class="[&>th]:px-4 [&>th]:py-3 [&>th]:text-left text-gray-700 dark:text-gray-200">
@@ -115,7 +115,7 @@
                                     <td class="px-4 py-3">
                                         <a href="{{ route('excel_out_transfers.show', $r) }}"
                                             class="inline-flex items-center px-3 py-1.5 rounded-lg
-                                                                                                                 hover:bg-indigo-700 transition">
+                                                                                                                         hover:bg-indigo-700 transition">
                                             Ver detalle
                                         </a>
                                     </td>
@@ -155,7 +155,7 @@
 
             {{-- Pagination --}}
             {{-- Esto evita que Turbo/SPA te "recicle" el DOM y se quede pegado con los mismos rows --}}
-            <div class="mt-4" data-turbo="false">
+            <div class="hidden lg:block mt-4" data-turbo="false">
                 {{ $rows->links() }}
             </div>
 
@@ -183,9 +183,9 @@
                                         <td class="p-2">
                                             <span
                                                 class="px-2 py-0.5 rounded text-xs
-                                                                                                                                                                                                                                                                {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                                                                                                                                                                {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                                                                                                                                                                {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
+                                                                                                                                                                                                                                                                                {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                                                                                                                                                                                {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                                                                                                                                                                                {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
@@ -200,6 +200,120 @@
             @endif
 
         </div>
+    </div>
+
+
+    <div class="sm:hidden max-w-7xl mx-auto px-4 py-4 space-y-6">
+
+        {{-- STATS --}}
+        <div class="flex flex-wrap gap-2 text-xs">
+            <span class="px-2 py-1 rounded-full bg-gray-100">
+                Total: <b>{{ $total }}</b>
+            </span>
+            <span class="px-2 py-1 rounded-full bg-green-100 text-green-800">
+                Con match: <b>{{ $matched }}</b>
+                ({{ round($matched / max($total, 1) * 100) }}%)
+            </span>
+            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700">
+                Sin match: <b>{{ $unmatched }}</b>
+            </span>
+        </div>
+
+        {{-- MOBILE --}}
+        <div class="sm:hidden space-y-3">
+            @foreach($rows as $r)
+                <div class="border rounded-lg p-3 bg-white dark:bg-gray-900">
+                    <p class="font-semibold text-sm">
+                        {{ $r->contacto ?? '—' }}
+                    </p>
+
+                    <div class="text-xs text-gray-500 space-y-1 mt-1">
+                        <div>Guía: <b>{{ $r->guia_entrega ?? '—' }}</b></div>
+                        <div>Patente: {{ $r->patente ?? '—' }}</div>
+                        <div>
+                            Estado:
+                            @if($r->exists_guia)
+                                <span class="text-green-600 font-medium">✔ Match</span>
+                            @else
+                                <span class="text-red-600 font-medium">✖ Sin guía</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <a href="{{ route('excel_out_transfers.show', $r) }}"
+                        class="inline-block mt-2 text-xs text-indigo-600 hover:underline">
+                        Ver detalle →
+                    </a>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- DESKTOP TABLE --}}
+        <div class="hidden lg:block rounded-xl border bg-white dark:bg-gray-950 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-900/60">
+                        <tr class="text-gray-600 dark:text-gray-300">
+                            <th class="px-4 py-3 text-left">Contacto</th>
+                            <th class="px-4 py-3">Fecha</th>
+                            <th class="px-4 py-3">Patente</th>
+                            <th class="px-4 py-3">Chofer</th>
+                            <th class="px-4 py-3">Guía</th>
+                            <th class="px-4 py-3">Referencia</th>
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3"></th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y dark:divide-gray-700">
+                        @foreach($rows as $r)
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                                <td class="px-4 py-3">{{ $r->contacto ?? '—' }}</td>
+
+                                <td class="px-4 py-3 text-xs text-gray-500">
+                                    {{ $r->fecha_prevista?->format('d-m-Y') }}<br>
+                                    <span class="opacity-60">{{ $r->fecha_prevista?->format('H:i') }}</span>
+                                </td>
+
+                                <td class="px-4 py-3">{{ $r->patente ?? '—' }}</td>
+                                <td class="px-4 py-3 uppercase">{{ $r->chofer ?? '—' }}</td>
+
+                                <td class="px-4 py-3 font-mono font-semibold text-indigo-600">
+                                    {{ $r->guia_entrega ?? '—' }}
+                                </td>
+
+                                <td class="px-4 py-3">{{ $r->referencia ?? '—' }}</td>
+
+                                <td class="px-4 py-3">
+                                    @if($r->exists_guia)
+                                        <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                            ✔ Match
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">
+                                            ✖ Sin guía
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3">
+                                    <a href="{{ route('excel_out_transfers.show', $r) }}"
+                                        class="text-indigo-600 text-sm hover:underline">
+                                        Ver
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- PAGINACIÓN --}}
+        <div class="sm:hidden" data-turbo="false">
+            {{ $rows->links() }}
+        </div>
+
     </div>
 
 </x-app-layout>
