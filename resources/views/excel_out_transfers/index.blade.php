@@ -6,7 +6,7 @@
                 Excel OUT Transfers
             </div>
 
-            <form method="GET" class="flex items-center gap-2">
+            <form method="GET" class="hidden lg:block  flex items-center gap-2">
                 <input name="q" value="{{ $q }}" placeholder="Buscar contacto / guía / patente..."
                     class="w-72 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 py-2 text-sm">
 
