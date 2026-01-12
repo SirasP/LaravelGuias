@@ -187,7 +187,7 @@
         Empresas — Kilos informados por centros
     </h3>
 
-    <div class="xl:hidden overflow-x-auto">
+    <div class="xl:hidden md:hidden overflow-x-auto">
     <div class="block overflow-x-auto">
         <table class="min-w-full text-sm">
             <thead>
