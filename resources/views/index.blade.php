@@ -182,59 +182,57 @@
 
 
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+<div class="md:hidden bg-white dark:bg-gray-800 rounded-xl shadow p-4">
     <h3 class="font-semibold mb-3">
         Empresas — Kilos informados por centros
     </h3>
 
     
-    <div class="hidden md:block overflow-x-auto">
+    <div class="md:hidden"> 
     <table class="min-w-full text-sm">
-            <thead>
-                <tr class="text-left text-gray-500 border-b">
-                    <th class="py-2">Empresa</th>
-                    <th class="py-2 text-right">Guías totales</th>
-                    <th class="py-2 text-right">Guías sin respuesta</th>
-                    <th class="py-2 text-right">Total bandejas ODOO</th>
-                    <th class="py-2 text-right">Total kilos</th>
+        <thead>
+            <tr class="text-left text-gray-500 border-b">
+                <th class="py-2">Empresa</th>
+                <th class="py-2 text-right">Guías totales</th>
+                <th class="py-2 text-right">Guías sin respuesta</th>
+                <th class="py-2 text-right">Total bandejas ODOO</th>
+                <th class="py-2 text-right">Total kilos</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach($kilosPorContacto as $row)
+                <tr class="border-b last:border-0">
+                    <td class="py-2">{{ $row->contacto }}</td>
+
+                    <td class="py-2 text-right font-medium">
+                        {{ $row->total_guias }}
+                    </td>
+
+                    <td class="py-2 text-right">
+                        @if($row->guias_sin_match > 0)
+                            <span class="text-red-600 font-medium">
+                                {{ $row->guias_sin_match }}
+                            </span>
+                        @else
+                            <span class="text-gray-400">0</span>
+                        @endif
+                    </td>
+
+                    <td class="py-2 text-right font-medium">
+                        {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
+                    </td>
+
+                    <td class="py-2 text-right font-medium">
+                        {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                    </td>
                 </tr>
-            </thead>
-
-            <tbody>
-                @foreach($kilosPorContacto as $row)
-                    <tr class="border-b last:border-0">
-                        <td class="py-2">
-                            {{ $row->contacto }}
-                        </td>
-
-                        <td class="py-2 text-right font-medium">
-                            {{ $row->total_guias }}
-                        </td>
-
-                        <td class="py-2 text-right">
-                            @if($row->guias_sin_match > 0)
-                                <span class="text-red-600 font-medium">
-                                    {{ $row->guias_sin_match }}
-                                </span>
-                            @else
-                                <span class="text-gray-400">0</span>
-                            @endif
-                        </td>
-
-                        <td class="py-2 text-right font-medium">
-                            {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
-                        </td>
-
-                        <td class="py-2 text-right font-medium">
-                            {{ number_format($row->total_kilos, 1, ',', '.') }} kg
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-    
+            @endforeach
+        </tbody>
+    </table>
 </div>
+</div>
+
 
 
 
