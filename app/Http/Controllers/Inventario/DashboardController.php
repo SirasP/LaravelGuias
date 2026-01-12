@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventario;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -300,6 +301,11 @@ class DashboardController extends Controller
             ->whereNotNull('codigo_bin')
             ->count('codigo_bin');
 
+        // Obtener el kg promedio de bandejas Agrak
+        $kgPromedioAgrak = DB::table('agrak_bandeja_promedios')
+            ->orderByDesc('id')
+            ->value('kg_promedio') ?? 0;
+
 
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
@@ -339,8 +345,32 @@ class DashboardController extends Controller
             'kpiBandejasAgrak' => (int) $kpiBandejasAgrak,
             //'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
             'kpiBinsAgrak' => (int) $kpiBinsAgrak,
+            'kgPromedioAgrak' => (float) $kgPromedioAgrak,
 
         ]);
 
     }
+
+    public function updateKgPromedio(Request $request)
+    {
+        $request->validate([
+            'kg_promedio' => 'required|numeric|min:0'
+        ]);
+
+        DB::table('agrak_bandeja_promedios')->updateOrInsert(
+            ['id' => 1],
+            [
+                'kg_promedio' => $request->kg_promedio,
+                'updated_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'kg_promedio' => (float) $request->kg_promedio,
+        ]);
+    }
+
+
+
 }

@@ -1,3 +1,7 @@
+<script>
+const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
+</script>
+
 <x-app-layout>
     <x-slot name="header">
         <div>
@@ -5,7 +9,7 @@
                 Dashboard Inventario
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Resumen últimos 40 días
+                Resumen últimos 40 días 
             </p>
         </div>
     </x-slot>
@@ -20,7 +24,7 @@
      {{-- KPI DOBLE --}}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
     <p class="text-sm text-gray-500 mb-3">
-        Totales últimos 40 días
+        Totales últimos 40 días ODOO
     </p>
 
     <div class="flex justify-between gap-8">
@@ -45,14 +49,14 @@
 </div>
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
     <p class="text-sm text-gray-500 mb-3">
-        Totales últimos 40 días
+        Totales últimos 40 días (AGRAK)
     </p>
 
-    <div class="flex justify-between gap-8">
-        {{-- KILOS (pendiente) --}}
+    <div class="flex justify-between gap-10 items-end">
+        {{-- KILOS --}}
         <div>
-            <p class="text-xs text-gray-400">Kilos AGRAK</p>
-            <p class="text-2xl font-bold text-gray-400">
+            <p class="text-xs text-gray-400">Kilos AGRAK (estimado)</p>
+            <p id="kilosAgrak" class="text-2xl font-bold text-green-600">
                 —
             </p>
         </div>
@@ -60,7 +64,7 @@
         {{-- BANDEJAS --}}
         <div class="text-right">
             <p class="text-xs text-gray-400">Bandejas</p>
-            <p class="text-2xl font-bold text-green-600">
+            <p id="bandejasAgrak" class="text-2xl font-bold text-green-600">
                 {{ number_format($kpiBandejasAgrak ?? 0, 0, ',', '.') }}
             </p>
         </div>
@@ -74,8 +78,78 @@
         </div>
     </div>
 
+   {{-- AJUSTE PROMEDIO --}}
+<div class="mt-5 border-t pt-4 flex items-center justify-between relative">
+    {{-- VALOR ACTIVO --}}
+    <div class="text-xs text-gray-500">
+        Peso promedio activo:
+        <span
+            id="kgPromedioLabel"
+            class="font-semibold text-gray-700 dark:text-gray-200"
+        >
+            2,5 kg / bandeja
+        </span>
+    </div>
+
+    {{-- BOTÓN --}}
+    <button
+        id="kgToggle"
+        onclick="toggleKgPopover(event)"
+        class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+    >
+        ⚙️ Ajustar
+    </button>
+
+    {{-- POPOVER --}}
+    <div
+        id="kgPopover"
+        class="absolute right-0 top-10 bg-white dark:bg-gray-800
+               border dark:border-gray-700 rounded-lg shadow-lg
+               w-64 p-4 hidden z-40"
+    >
+        <h4 class="text-xs font-semibold mb-2">
+            Peso promedio
+        </h4>
+
+        <p class="text-[11px] text-gray-500 mb-3">
+            Usado para estimar Kilos AGRAK
+        </p>
+
+        <div class="flex items-center gap-2 mb-3">
+            <input
+    id="kgPromedio"
+    type="number"
+    step="0.1"
+    min="0"
+    value="{{ $kgPromedioAgrak }}"
+    class="w-20 text-right px-2 py-1 border rounded-md text-sm
+           dark:bg-gray-700 dark:border-gray-600"
+>
+
+
+           <span
+   
+    class="font-semibold text-gray-700 dark:text-gray-200"
+>
+    kg / bandeja
+</span>
+        </div>
+
+        <div class="flex justify-end">
+            <button
+                onclick="applyKgPromedio()"
+                class="px-3 py-1 text-xs rounded bg-green-600 text-white
+                       hover:bg-green-700"
+            >
+                Aplicar
+            </button>
+        </div>
+    </div>
+</div>
+
 
 </div>
+
            @php
                     $kpiC = (float) $kpiCentros;
 
@@ -381,6 +455,113 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script>
+/**
+ * Formato chileno: 1 o 2 decimales
+ */
+function formatCL(value) {
+    const n = Number(value);
+    if (isNaN(n)) return '0';
 
+    return n.toLocaleString('es-CL', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 2
+    });
+}
+
+/**
+ * Recalcula kilos AGRAK desde bandejas * kg promedio
+ */
+function recalcularKgAgrak() {
+    const bandejas = {{ (int) ($kpiBandejasAgrak ?? 0) }};
+    const input = document.getElementById('kgPromedio');
+
+    if (!input) return;
+
+    const kgProm = parseFloat(input.value) || 0;
+    const totalKg = bandejas * kgProm;
+
+    const target = document.getElementById('kilosAgrak');
+    if (target) {
+        target.textContent = formatCL(totalKg) + ' kg';
+    }
+}
+
+/**
+ * Muestra / oculta el popover
+ */
+function toggleKgPopover(event) {
+    event.stopPropagation();
+    document.getElementById('kgPopover')?.classList.toggle('hidden');
+}
+
+/**
+ * Aplica el valor ingresado
+ */
+function applyKgPromedio() {
+    const input = document.getElementById('kgPromedio');
+    const kg = parseFloat(input.value) || 0;
+
+    fetch(KG_PROMEDIO_URL, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ kg_promedio: kg })
+})
+    .then(res => {
+        if (!res.ok) throw new Error('Error al guardar');
+        return res.json();
+    })
+    .then(data => {
+        console.log('Guardado:', data);
+
+        recalcularKgAgrak();
+        actualizarLabelKg();
+        document.getElementById('kgPopover').classList.add('hidden');
+    })
+    .catch(err => {
+        alert('No se pudo guardar el promedio');
+        console.error(err);
+    });
+}
+
+
+/**
+ * Actualiza el label visible del promedio
+ */
+function actualizarLabelKg() {
+    const input = document.getElementById('kgPromedio');
+    const label = document.getElementById('kgPromedioLabel');
+
+    if (!input || !label) return;
+
+    const kg = parseFloat(input.value) || 0;
+    label.textContent = kg.toString().replace('.', ',') + ' kg / bandeja';
+}
+
+/**
+ * Cerrar popover al hacer click fuera
+ */
+document.addEventListener('click', function (e) {
+    const popover = document.getElementById('kgPopover');
+    const toggle = document.getElementById('kgToggle');
+
+    if (!popover || !toggle) return;
+
+    if (!popover.contains(e.target) && !toggle.contains(e.target)) {
+        popover.classList.add('hidden');
+    }
+});
+
+/**
+ * Cálculo inicial al cargar la página
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    actualizarLabelKg();
+    recalcularKgAgrak();
+});
+</script>
 
 </x-app-layout>

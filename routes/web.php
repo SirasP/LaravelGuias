@@ -287,6 +287,9 @@ Route::middleware(['auth', 'role:admin,operator'])
         Route::get('/import', fn() => view('agrak.import'))
             ->name('import.form');
 
+
+
+
         Route::post('/import', [PdfImportController::class, 'importExcelAgrak'])
             ->name('import');
     });
@@ -327,3 +330,11 @@ Route::post('/agrak', [CamionController::class, 'store'])
 
 Route::get('/agrak/export', [AgrakExportController::class, 'exportAll'])
     ->name('agrak.export');
+
+
+Route::middleware('auth')->group(function () {
+
+    Route::post('/agrak/kg-promedio', [DashboardController::class, 'updateKgPromedio'])
+        ->name('agrak.kg-promedio');
+
+});
