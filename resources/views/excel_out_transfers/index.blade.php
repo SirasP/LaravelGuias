@@ -3,7 +3,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <div class="text-sm text-gray-600 dark:text-gray-400">
-                Excel OUT Transfers
+                Match ODOO
             </div>
 
             <form method="GET" class="hidden lg:block  flex items-center gap-2">
@@ -46,26 +46,19 @@
                     </svg>
 
                     
-                </a>
-            <form method="GET" class="sm:hidden relative">
-    <input
-        name="q"
-        value="{{ $q }}"
-        placeholder="Buscar contacto / guía / patente…"
-        inputmode="search"
-        enterkeyhint="search"
-        class="w-full rounded-xl border px-3 py-2 pr-8 text-sm"
-    >
-
-    @if($q)
-        <a href="{{ route('excel_out_transfers.index') }}"
-           class="absolute right-2 top-1/2 -translate-y-1/2
-                  text-gray-400 hover:text-gray-600">
-            ✕
-        </a>
-    @endif
-</form>
-
+            </a>
+            <form method="GET" class="sm:hidden">
+                <input
+                    name="q"
+                    value="{{ $q }}"
+                    placeholder="Buscar contacto / guía / patente…"
+                    inputmode="search"
+                    enterkeyhint="search"
+                    class="w-full rounded-xl border border-gray-300
+                        dark:border-gray-700 bg-white dark:bg-gray-950
+                        px-3 py-2 text-sm"
+                >
+            </form>
         </div>
     </x-slot>
 
