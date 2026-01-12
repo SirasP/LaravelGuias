@@ -158,7 +158,7 @@
                         <th class="py-2">Empresa</th>
                         <th class="py-2 text-right">Guías totales</th>
                         <th class="py-2 text-right">Guías sin respuesta</th>
-                        <th class="py-2 text-right">Total bandejas</th>
+                        <th class="py-2 text-right">Total bandejas ODOO</th>
 
                         <th class="py-2 text-right">Total kilos</th>
                     </tr>
@@ -279,9 +279,6 @@
                 <canvas id="maquinasAgrakChart"></canvas>
             </div>
         </div>
-
-
-
 
     </div>
 
