@@ -282,6 +282,18 @@ class DashboardController extends Controller
             ->selectRaw("SUM($qtyNorm) as total_bandejas")
             ->value('total_bandejas');
 
+
+
+        // ======================
+// 📦 KPI BANDEJAS AGRAK (últimos 40 días)
+// ======================
+        $kpiBandejasAgrak = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
+            ->whereNotNull('numero_bandejas_palet')
+            ->selectRaw('SUM(numero_bandejas_palet) as total_bandejas')
+            ->value('total_bandejas');
+
+
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
             'Agroindustria Pinochet Fuenzalida Limitada' => 'Agroindustria Pinochet',
@@ -316,6 +328,10 @@ class DashboardController extends Controller
             'kilosPorContacto' => $kilosPorContacto,
             'bandejasPorContacto' => $bandejasPorContacto,
             'kpiBandejas' => (int) $kpiBandejas,
+            // 🔥 NUEVO KPI BANDEJAS AGRAK
+            'kpiBandejasAgrak' => (int) $kpiBandejasAgrak,
+            //'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
+
 
         ]);
 

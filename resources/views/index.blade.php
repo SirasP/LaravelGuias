@@ -43,7 +43,32 @@
 
 
 </div>
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <p class="text-sm text-gray-500 mb-3">
+        Totales últimos 40 días
+    </p>
 
+    <div class="flex justify-between gap-8">
+        {{-- KILOS --}}
+        <div>
+            <p class="text-xs text-gray-400">Kilos AGRAK</p>
+            <p class="text-2xl font-bold text-green-600">
+                kg
+            </p>
+        </div>
+
+        {{-- BANDEJAS --}}
+        <div class="text-right">
+            <p class="text-xs text-gray-400">Bandejas</p>
+            <p class="text-2xl font-bold text-green-600">
+                {{ number_format($kpiBandejasAgrak ?? 0, 0, ',', '.') }}
+
+            </p>
+        </div>
+    </div>
+
+
+</div>
            @php
                     $kpiC = (float) $kpiCentros;
 
