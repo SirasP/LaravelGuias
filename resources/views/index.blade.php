@@ -187,9 +187,9 @@
         Empresas — Kilos informados por centros
     </h3>
 
-    <div class="sm:block overflow-x-auto">
-    <div class="block overflow-x-auto">
-        <table class="min-w-full text-sm">
+    
+    <div class="hidden md:block overflow-x-auto">
+    <table class="min-w-full text-sm">
             <thead>
                 <tr class="text-left text-gray-500 border-b">
                     <th class="py-2">Empresa</th>
@@ -233,7 +233,7 @@
             </tbody>
         </table>
     </div>
-    </div>
+    
 </div>
 
 
