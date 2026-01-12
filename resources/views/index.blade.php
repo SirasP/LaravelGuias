@@ -48,25 +48,30 @@
     </h3>
 
     <table class="min-w-full text-sm">
-        <thead>
-            <tr class="text-left text-gray-500 border-b">
-                <th class="py-2">Empresa</th>
-                <th class="py-2 text-right">Kilos</th>
+    <thead>
+        <tr class="text-left text-gray-500 border-b">
+            <th class="py-2">Empresa</th>
+            <th class="py-2 text-right">Guías</th>
+            <th class="py-2 text-right">Kilos</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($kilosPorContacto as $row)
+            <tr class="border-b last:border-0">
+                <td class="py-2">
+                    {{ $row->contacto }}
+                </td>
+                <td class="py-2 text-right">
+                    {{ $row->total_registros }}
+                </td>
+                <td class="py-2 text-right font-medium">
+                    {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            @foreach($kilosPorContacto as $row)
-                <tr class="border-b last:border-0">
-                    <td class="py-2">
-                        {{ $row->contacto }}
-                    </td>
-                    <td class="py-2 text-right font-medium">
-                        {{ number_format($row->total_kilos, 1, ',', '.') }} kg
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+        @endforeach
+    </tbody>
+</table>
+
 </div>
 
 

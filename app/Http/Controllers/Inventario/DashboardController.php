@@ -158,32 +158,32 @@ class DashboardController extends Controller
         $kilosPorContacto = DB::table('excel_out_transfers as t')
             ->join(
                 DB::raw("
-        (
-            SELECT
-                p.guia_no,
-                MAX(
-                    CAST(
-                        JSON_UNQUOTE(
-                            COALESCE(
-                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'),
-                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
-                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
-                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
-                                JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
-                            )
-                        ) AS DECIMAL(18,3)
-                    )
-                ) AS kilos_centro
-            FROM pdf_imports p
-            GROUP BY p.guia_no
-        ) centros
-    "),
+            (
+                SELECT
+                    p.guia_no,
+                    MAX(
+                        CAST(
+                            JSON_UNQUOTE(
+                                COALESCE(
+                                    JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'),
+                                    JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
+                                    JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                                    JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                                    JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
+                                )
+                            ) AS DECIMAL(18,3)
+                        )
+                    ) AS kilos_centro
+                FROM pdf_imports p
+                GROUP BY p.guia_no
+            ) centros
+        "),
                 DB::raw('CAST(centros.guia_no AS CHAR)'),
                 '=',
                 DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
             )
 
-            // 🔥 FILTROS DE NEGOCIO (IGUALES AL DASHBOARD)
+            // filtros reales
             ->where('t.estado', 'Realizado')
             ->whereNotNull('t.guia_entrega')
             ->whereRaw("TRIM(t.guia_entrega) <> ''")
@@ -192,17 +192,19 @@ class DashboardController extends Controller
             ->whereNotNull('t.chofer')
             ->whereRaw("TRIM(t.chofer) <> ''")
             ->whereDate('t.fecha_prevista', '>=', $from)
-
-            // ❌ excluir empresa que no cuenta
             ->where('t.contacto', '<>', 'Agrícola Epple, Heinrich y Enfield Spa')
 
             ->groupBy('t.contacto')
             ->orderByDesc(DB::raw('SUM(centros.kilos_centro)'))
+
+            // 🔥 AQUÍ ESTÁ LA CLAVE
             ->select(
                 't.contacto',
-                DB::raw('SUM(centros.kilos_centro) AS total_kilos')
+                DB::raw('SUM(centros.kilos_centro) AS total_kilos'),
+                DB::raw('COUNT(DISTINCT centros.guia_no) AS total_registros')
             )
             ->get();
+
 
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
