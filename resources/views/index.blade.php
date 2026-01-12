@@ -149,6 +149,7 @@
         </div>
 
 <div class="sm:hidden space-y-3">
+
     @foreach($kilosPorContacto as $row)
         <div class="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
             <p class="font-semibold text-sm mb-1">
