@@ -163,13 +163,7 @@
 
                 <div class="text-gray-500">Sin respuesta</div>
                 <div class="text-right">
-                    @if($row->guias_sin_match > 0)
-                        <span class="text-red-600 font-medium">
-                            {{ $row->guias_sin_match }}
-                        </span>
-                    @else
-                        <span class="text-gray-400">0</span>
-                    @endif
+                    {{ $row->guias_sin_match }}
                 </div>
 
                 <div class="text-gray-500">Bandejas ODOO</div>
@@ -185,6 +179,7 @@
         </div>
     @endforeach
 </div>
+
 
 
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-x-auto">
