@@ -292,6 +292,13 @@ class DashboardController extends Controller
             ->whereNotNull('numero_bandejas_palet')
             ->selectRaw('SUM(numero_bandejas_palet) as total_bandejas')
             ->value('total_bandejas');
+        // ======================
+// 🟫 KPI BINS AGRAK (últimos 40 días)
+// ======================
+        $kpiBinsAgrak = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
+            ->whereNotNull('codigo_bin')
+            ->count('codigo_bin');
 
 
         $aliasContactos = [
@@ -331,7 +338,7 @@ class DashboardController extends Controller
             // 🔥 NUEVO KPI BANDEJAS AGRAK
             'kpiBandejasAgrak' => (int) $kpiBandejasAgrak,
             //'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
-
+            'kpiBinsAgrak' => (int) $kpiBinsAgrak,
 
         ]);
 

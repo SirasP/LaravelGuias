@@ -49,11 +49,11 @@
     </p>
 
     <div class="flex justify-between gap-8">
-        {{-- KILOS --}}
+        {{-- KILOS (pendiente) --}}
         <div>
             <p class="text-xs text-gray-400">Kilos AGRAK</p>
-            <p class="text-2xl font-bold text-green-600">
-                kg
+            <p class="text-2xl font-bold text-gray-400">
+                —
             </p>
         </div>
 
@@ -62,7 +62,14 @@
             <p class="text-xs text-gray-400">Bandejas</p>
             <p class="text-2xl font-bold text-green-600">
                 {{ number_format($kpiBandejasAgrak ?? 0, 0, ',', '.') }}
+            </p>
+        </div>
 
+        {{-- BINS --}}
+        <div class="text-right">
+            <p class="text-xs text-gray-400">Bins</p>
+            <p class="text-2xl font-bold text-green-600">
+                {{ number_format($kpiBinsAgrak ?? 0, 0, ',', '.') }}
             </p>
         </div>
     </div>
