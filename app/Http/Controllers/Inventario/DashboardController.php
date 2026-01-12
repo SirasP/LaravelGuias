@@ -343,6 +343,23 @@ class DashboardController extends Controller
             ->pluck('total_bins')
             ->map(fn($v) => (int) $v);
 
+        $maquinasAgrak = DB::table('agrak_registros')
+            ->whereNotNull('maquina')
+            ->whereNotNull('codigo_bin')
+            ->whereRaw("TRIM(codigo_bin) <> ''")
+            ->selectRaw("
+        REGEXP_REPLACE(
+            UPPER(TRIM(maquina)),
+            '[^A-Z0-9 ]',
+            ''
+        ) AS maquina_norm,
+        COUNT(DISTINCT codigo_bin) AS total_bins
+    ")
+            ->groupBy('maquina_norm')
+            ->havingRaw('COUNT(DISTINCT codigo_bin) > 0')
+            ->orderByDesc('total_bins')
+            ->get();
+
 
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
@@ -356,7 +373,8 @@ class DashboardController extends Controller
         $kpiCentrosPorContacto = (float) $kilosPorContacto->sum('total_kilos');
         $topEmpresa = $kilosPorContacto->sortByDesc('total_kilos')->first();
 
-
+        $maquinasLabels = $maquinasAgrak->pluck('maquina_norm');
+        $maquinasTotales = $maquinasAgrak->pluck('total_bins');
         // ======================
         // 📤 VISTA
         // ======================
@@ -389,6 +407,9 @@ class DashboardController extends Controller
             //chart bins agrak
             'binsAgrakLabels' => $binsAgrakLabels,
             'binsAgrakData' => $binsAgrakData,
+            //chart maquinas agrak
+            'maquinasLabels' => $maquinasLabels,
+            'maquinasTotales' => $maquinasTotales,
 
         ]);
 
