@@ -6,7 +6,7 @@
                     <ol class="flex items-center gap-1">
                         <li>
                             <a href="{{ route('excel_out_transfers.index') }}" class="hover:text-gray-900 transition">
-                                Excel OUT Transfers
+                                Importar Odoo
                             </a>
                         </li>
                         <li>/</li>
@@ -16,7 +16,7 @@
                     </ol>
                 </nav>
 
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="hidden lg:block mt-1 text-sm text-gray-500">
                     Sube el archivo Excel exportado desde Odoo. Normalizamos la guía (sin ceros) y evitamos duplicados.
                 </p>
             </div>

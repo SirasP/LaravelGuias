@@ -5,9 +5,7 @@
                 <div class="text-sm text-gray-600 dark:text-gray-400">
                     DTE / Facturas
                 </div>
-                <p class="text-sm text-gray-500">
-                    Gestiona tus PDFs importados, filtra por modelo y revisa el contenido.
-                </p>
+                 
             </div>
 
             <a href="{{ route('pdf.import.form') }}"

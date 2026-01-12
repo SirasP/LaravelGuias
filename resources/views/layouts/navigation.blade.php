@@ -131,13 +131,13 @@
 
                         </div>
                     </div>
-                    <div x-data="{ openDocs: false }" class="relative">
-                        <button @click="openDocs = !openDocs" @click.away="openDocs = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
+                    <div x-data="{ openOdoo: false }" class="relative">
+                        <button @click="openOdoo = !openOdoo" @click.away="openOdoo = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
                             {{ request()->routeIs('pdf.*')
     ? 'text-blue-600 dark:text-blue-400'
     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100' }}">
                             Guias ODOO
-                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openDocs }"
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openOdoo }"
                                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -145,7 +145,7 @@
                             </svg>
                         </button>
 
-                        <div x-show="openDocs" x-transition class="absolute z-50 mt-2 w-56 rounded-xl shadow-lg
+                        <div x-show="openOdoo" x-transition class="absolute z-50 mt-2 w-56 rounded-xl shadow-lg
                                    bg-white dark:bg-gray-900
                                    border border-gray-200 dark:border-gray-700">
 
@@ -288,36 +288,223 @@
     </div>
 
     <!-- Mobile Menu -->
-    <div x-show="open" x-transition class="sm:hidden border-t dark:border-gray-700">
+    <div
+    x-show="open"
+    x-transition
+    class="sm:hidden border-t dark:border-gray-700 bg-white dark:bg-gray-900"
+>
 
-        <x-responsive-nav-link :href="route('inventario.index')">
-            Inventario
-        </x-responsive-nav-link>
 
-        <x-responsive-nav-link :href="route('dashboard')">
-            Usuarios
-        </x-responsive-nav-link>
+    <!-- ODOO (accordion mobile) -->
+    <div x-data="{ openOdoo: false }" class="border-t dark:border-gray-700">
 
-        <x-responsive-nav-link :href="route('pdf.index')">
-            PDFs importados
-        </x-responsive-nav-link>
+        <button
+            @click="openOdoo = !openOdoo"
+            class="w-full flex items-center justify-between px-4 py-3 text-sm
+                   text-gray-700 dark:text-gray-200"
+        >
+            <span>Guías ODOO</span>
 
-        <x-responsive-nav-link :href="route('pdf.import.form')">
-            Importar PDF
-        </x-responsive-nav-link>
+            <svg
+                class="w-4 h-4 transition-transform"
+                :class="{ 'rotate-180': openOdoo }"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
 
-        <div class="border-t mt-2 dark:border-gray-700"></div>
+        <div x-show="openOdoo" x-collapse class="bg-gray-50 dark:bg-gray-800">
+            <a
+                href="{{ route('excel_out_transfers.index') }}"
+                class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300"
+            >
+                Vista
+            </a>
 
-        <x-responsive-nav-link :href="route('profile.edit')">
-            Perfil
-        </x-responsive-nav-link>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <x-responsive-nav-link :href="route('logout')"
-                onclick="event.preventDefault(); this.closest('form').submit();">
-                Cerrar sesión
-            </x-responsive-nav-link>
-        </form>
+            <a
+                href="{{ route('excel_out_transfers.import') }}"
+                class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300"
+            >
+                Importar
+            </a>
+        </div>
     </div>
+   <!-- DOCUMENTOS (PDF) — accordion mobile -->
+<div x-data="{ openPdf: false }" class="border-t dark:border-gray-700">
+
+    <!-- BOTÓN -->
+    <button
+        @click="openPdf = !openPdf"
+        class="w-full flex items-center justify-between px-4 py-3 text-sm
+               text-gray-700 dark:text-gray-200"
+    >
+        <span>Guías Recepcionadas</span>
+
+        <svg
+            class="w-4 h-4 transition-transform"
+            :class="{ 'rotate-180': openPdf }"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+        >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 9l-7 7-7-7" />
+        </svg>
+    </button>
+
+    <!-- CONTENIDO -->
+    <div x-show="openPdf" x-collapse class="bg-gray-50 dark:bg-gray-800">
+
+        <a
+            href="{{ route('pdf.index') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            PDFs importados
+        </a>
+
+        <a
+            href="{{ route('pdf.import.form') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            Importar PDF
+        </a>
+
+    </div>
+</div>
+
+
+<!-- AGRAK — accordion mobile -->
+<div x-data="{ openAgrak: false }" class="border-t dark:border-gray-700">
+
+    <!-- BOTÓN -->
+    <button
+        @click="openAgrak = !openAgrak"
+        class="w-full flex items-center justify-between px-4 py-3 text-sm
+               text-gray-700 dark:text-gray-200"
+    >
+        <span>Agrak</span>
+
+        <svg
+            class="w-4 h-4 transition-transform"
+            :class="{ 'rotate-180': openAgrak }"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+        >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 9l-7 7-7-7" />
+        </svg>
+    </button>
+
+    <!-- CONTENIDO -->
+    <div x-show="openAgrak" x-collapse class="bg-gray-50 dark:bg-gray-800">
+
+        <a
+            href="{{ route('agrak.index') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            Vista
+        </a>
+
+        <a
+            href="{{ route('agrak.import.form') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            Importar
+        </a>
+
+    </div>
+</div>
+
+
+<!-- GUÍAS RECEPCIÓN BANDEJAS — accordion mobile -->
+<div x-data="{ openGuias: false }" class="border-t dark:border-gray-700">
+
+    <!-- BOTÓN -->
+    <button
+        @click="openGuias = !openGuias"
+        class="w-full flex items-center justify-between px-4 py-3 text-sm
+               text-gray-700 dark:text-gray-200"
+    >
+        <span>Guías Recepción Bandejas</span>
+
+        <svg
+            class="w-4 h-4 transition-transform"
+            :class="{ 'rotate-180': openGuias }"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+        >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 9l-7 7-7-7" />
+        </svg>
+    </button>
+
+    <!-- CONTENIDO -->
+    <div x-show="openGuias" x-collapse class="bg-gray-50 dark:bg-gray-800">
+
+        <a
+            href="{{ route('guias.comfrut.index') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            Vista
+        </a>
+
+        <a
+            href="{{ route('guias.comfrut.import.form') }}"
+            class="block px-6 py-2 text-sm
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            Importar XML
+        </a>
+
+    </div>
+</div>
+
+
+
+
+
+
+
+
+    <!-- Divider -->
+    <div class="border-t mt-2 dark:border-gray-700"></div>
+
+    <!-- Perfil -->
+    <x-responsive-nav-link :href="route('profile.edit')">
+        Perfil
+    </x-responsive-nav-link>
+
+    <!-- Logout -->
+    <form method="POST" action="{{ route('logout') }}">
+        @csrf
+        <x-responsive-nav-link
+            :href="route('logout')"
+            onclick="event.preventDefault(); this.closest('form').submit();"
+        >
+            Cerrar sesión
+        </x-responsive-nav-link>
+    </form>
+</div>
+
 </nav>

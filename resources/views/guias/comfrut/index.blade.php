@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-lg font-semibold text-gray-800">
-                Guías COMFRUT
+                DTE Mail
             </h2>
 
             <div class="flex items-center gap-2">
