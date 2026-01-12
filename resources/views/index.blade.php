@@ -44,7 +44,7 @@
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-x-auto">
     <h3 class="font-semibold mb-3">
-        Empresas — kilos informados por centros
+        Empresas — Kilos informados por centros
     </h3>
 
     <table class="min-w-full text-sm">
@@ -52,7 +52,7 @@
         <tr class="text-left text-gray-500 border-b">
             <th class="py-2">Empresa</th>
             <th class="py-2 text-right">Guías totales</th>
-            <th class="py-2 text-right">Guías sin match</th>
+            <th class="py-2 text-right">Guías sin respuesta</th>
             <th class="py-2 text-right">Total kilos</th>
         </tr>
     </thead>
