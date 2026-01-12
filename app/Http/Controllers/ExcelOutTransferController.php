@@ -462,14 +462,19 @@ class ExcelOutTransferController extends Controller
     WHEN CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+,[0]{3}$' THEN
       CAST(SUBSTRING_INDEX(CAST(l.cantidad AS CHAR), ',', 1) AS UNSIGNED)
 
-    -- 6.240 => 6240 (punto como miles cuando NO termina en .000)
-    WHEN INSTR(CAST(l.cantidad AS CHAR), '.') > 0 AND CAST(l.cantidad AS CHAR) NOT LIKE '%.000' THEN
+    -- SOLO BANDEJAS: 3.510 => 3510
+    WHEN UPPER(COALESCE(l.producto,'')) LIKE '%BANDE%'
+         AND CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+\\.[0-9]{3}$'
+    THEN
       CAST(REPLACE(CAST(l.cantidad AS CHAR), '.', '') AS UNSIGNED)
 
-    -- por si viene con coma decimal (raro en bandejas)
-    WHEN INSTR(CAST(l.cantidad AS CHAR), ',') > 0 THEN
+    -- SOLO BANDEJAS con coma miles: 3,510 => 3510
+    WHEN UPPER(COALESCE(l.producto,'')) LIKE '%BANDE%'
+         AND CAST(l.cantidad AS CHAR) REGEXP '^[0-9]+,[0-9]{3}$'
+    THEN
       CAST(REPLACE(CAST(l.cantidad AS CHAR), ',', '') AS UNSIGNED)
 
+    -- default seguro (829, 75, 110, etc)
     ELSE
       CAST(CAST(l.cantidad AS CHAR) AS UNSIGNED)
   END
@@ -588,14 +593,14 @@ class ExcelOutTransferController extends Controller
             $linesAgg->selectRaw("
         SUM(
             CASE
-               WHEN TRIM(UPPER(COALESCE(l.producto,''))) LIKE CONCAT(?, '%')
-
-                THEN {$qtyNorm}
-                ELSE 0
+               WHEN TRIM(UPPER(COALESCE(l.producto,''))) = ?
+               THEN {$qtyNorm}
+               ELSE 0
             END
         ) as {$alias}
     ", [$t]);
         }
+
 
         // 2b) Columnas por producto (KG decimales)
         foreach ($productTypes as $t) {
