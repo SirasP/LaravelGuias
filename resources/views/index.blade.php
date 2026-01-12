@@ -51,19 +51,37 @@
     <thead>
         <tr class="text-left text-gray-500 border-b">
             <th class="py-2">Empresa</th>
-            <th class="py-2 text-right">Guías</th>
-            <th class="py-2 text-right">Kilos</th>
+            <th class="py-2 text-right">Guías totales</th>
+            <th class="py-2 text-right">Guías sin match</th>
+            <th class="py-2 text-right">Total kilos</th>
         </tr>
     </thead>
+
     <tbody>
         @foreach($kilosPorContacto as $row)
             <tr class="border-b last:border-0">
+                {{-- Empresa --}}
                 <td class="py-2">
                     {{ $row->contacto }}
                 </td>
-                <td class="py-2 text-right">
-                    {{ $row->total_registros }}
+
+                {{-- Guías totales --}}
+                <td class="py-2 text-right font-medium">
+                    {{ $row->total_guias }}
                 </td>
+
+                {{-- Guías sin match --}}
+                <td class="py-2 text-right">
+                    @if($row->guias_sin_match > 0)
+                        <span class="text-red-600 font-medium">
+                            {{ $row->guias_sin_match }}
+                        </span>
+                    @else
+                        <span class="text-gray-400">0</span>
+                    @endif
+                </td>
+
+                {{-- Total kilos --}}
                 <td class="py-2 text-right font-medium">
                     {{ number_format($row->total_kilos, 1, ',', '.') }} kg
                 </td>
@@ -71,6 +89,8 @@
         @endforeach
     </tbody>
 </table>
+
+
 
 </div>
 

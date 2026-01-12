@@ -156,7 +156,7 @@ class DashboardController extends Controller
         // 📊 KILOS POR CONTACTO (CENTROS)
         // ======================
         $kilosPorContacto = DB::table('excel_out_transfers as t')
-            ->join(
+            ->leftJoin(
                 DB::raw("
             (
                 SELECT
@@ -195,15 +195,23 @@ class DashboardController extends Controller
             ->where('t.contacto', '<>', 'Agrícola Epple, Heinrich y Enfield Spa')
 
             ->groupBy('t.contacto')
-            ->orderByDesc(DB::raw('SUM(centros.kilos_centro)'))
 
-            // 🔥 AQUÍ ESTÁ LA CLAVE
             ->select(
                 't.contacto',
-                DB::raw('SUM(centros.kilos_centro) AS total_kilos'),
-                DB::raw('COUNT(DISTINCT centros.guia_no) AS total_registros')
+                DB::raw("COUNT(DISTINCT REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')) AS total_guias"),
+                DB::raw("COUNT(DISTINCT centros.guia_no) AS guias_con_match"),
+                DB::raw("
+            COUNT(DISTINCT REGEXP_SUBSTR(t.guia_entrega, '[0-9]+'))
+            -
+            COUNT(DISTINCT centros.guia_no)
+            AS guias_sin_match
+        "),
+                DB::raw('SUM(centros.kilos_centro) AS total_kilos')
             )
+
+            ->orderByDesc(DB::raw('SUM(centros.kilos_centro)'))
             ->get();
+
 
 
         $aliasContactos = [
