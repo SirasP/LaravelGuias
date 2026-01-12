@@ -182,13 +182,12 @@
 
 
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+<div class="hidden lg:block bg-white dark:bg-gray-800 rounded-xl shadow p-4">
     <h3 class="font-semibold mb-3">
         Empresas — Kilos informados por centros
     </h3>
 
-    <div class="xl:hidden md:hidden overflow-x-auto">
-    <div class="block overflow-x-auto">
+    <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
             <thead>
                 <tr class="text-left text-gray-500 border-b">
@@ -203,28 +202,18 @@
             <tbody>
                 @foreach($kilosPorContacto as $row)
                     <tr class="border-b last:border-0">
-                        <td class="py-2">
-                            {{ $row->contacto }}
-                        </td>
-
-                        <td class="py-2 text-right font-medium">
-                            {{ $row->total_guias }}
-                        </td>
-
+                        <td class="py-2">{{ $row->contacto }}</td>
+                        <td class="py-2 text-right font-medium">{{ $row->total_guias }}</td>
                         <td class="py-2 text-right">
                             @if($row->guias_sin_match > 0)
-                                <span class="text-red-600 font-medium">
-                                    {{ $row->guias_sin_match }}
-                                </span>
+                                <span class="text-red-600 font-medium">{{ $row->guias_sin_match }}</span>
                             @else
                                 <span class="text-gray-400">0</span>
                             @endif
                         </td>
-
                         <td class="py-2 text-right font-medium">
                             {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
                         </td>
-
                         <td class="py-2 text-right font-medium">
                             {{ number_format($row->total_kilos, 1, ',', '.') }} kg
                         </td>
@@ -233,8 +222,8 @@
             </tbody>
         </table>
     </div>
-    </div>
 </div>
+
 
 
 
