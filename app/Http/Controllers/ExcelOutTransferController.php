@@ -313,8 +313,7 @@ class ExcelOutTransferController extends Controller
                 if ($v = $normalizeRef($get($r, 'Referencia')))
                     $headerData['referencia'] = $v;
 
-                if ($v = $val($get($r, 'Estado')))
-                    $headerData['estado'] = $v;
+                
                 if ($v = $val($get($r, 'Documento origen')))
                     $headerData['documento_origen'] = $v;
                 if ($v = $val($get($r, 'Prioridad')))
@@ -331,52 +330,54 @@ class ExcelOutTransferController extends Controller
                 if ($fechaTras = $parseDateTime($get($r, 'Fecha de traslado')))
                     $headerData['fecha_traslado'] = $fechaTras;
 
-                // 4) Upsert cabecera (NO DUPLICAR)
-                // 4) Buscar cabecera existente
+                // 4) Buscar cabecera existente (guía única)
                 if ($isNumericGuia) {
                     $transfer = ExcelOutTransfer::where('guia_entrega', $currentKey)->first();
                 } else {
                     $transfer = ExcelOutTransfer::where('import_key', $importKey)->first();
                 }
 
-                // 5) Crear o actualizar
-                if (!$transfer) {
-
-                    // 👉 SOLO al crear permites estado
-                    if ($v = $val($get($r, 'Estado'))) {
-                        $headerData['estado'] = $v;
-                    }
-
-                    $transfer = ExcelOutTransfer::create($headerData);
-                    $currentHeaderId = $transfer->id;
-                    $createdHeaders++;
+                // ❌ Si ya existe, NO HACER NADA MÁS
+                if ($transfer) {
+                    $skipped++;
 
                     $importReport[] = [
                         'file' => $fileName,
-                        'status' => 'imported',
+                        'status' => 'duplicate',
                         'template' => 'EXCEL',
                         'guia' => $isNumericGuia
                             ? $currentKey
                             : str_replace('REF:', '', (string) $importKey),
-                        'reason' => "Fila {$i}: cabecera creada",
+                        'reason' => "Fila {$i}: guía ya existe, se omite",
                     ];
 
-                } else {
-
-                    // 🚫 JAMÁS tocar estado en update
-                    unset($headerData['estado']);
-
-                    $transfer->update($headerData);
-                    $currentHeaderId = $transfer->id;
-                    $updatedHeaders++;
+                    continue; // 🔥 corta cabecera + líneas
                 }
 
+                // ===============================
+// 👇 DESDE AQUÍ SOLO GUÍAS NUEVAS
+// ===============================
 
+                // 👉 SOLO al crear permites estado
+                if ($v = $val($get($r, 'Estado'))) {
+                    $headerData['estado'] = $v;
+                }
+
+                $transfer = ExcelOutTransfer::create($headerData);
                 $currentHeaderId = $transfer->id;
+                $createdHeaders++;
 
+                $importReport[] = [
+                    'file' => $fileName,
+                    'status' => 'imported',
+                    'template' => 'EXCEL',
+                    'guia' => $isNumericGuia
+                        ? $currentKey
+                        : str_replace('REF:', '', (string) $importKey),
+                    'reason' => "Fila {$i}: cabecera creada",
+                ];
 
-
-                // 5) Upsert línea por (transfer_id + excel_row) => NO DUPLICA
+                // 5) Crear líneas SOLO para cabecera nueva
                 if ($producto !== '' || $cantidad !== null) {
                     $line = ExcelOutTransferLine::updateOrCreate(
                         [
