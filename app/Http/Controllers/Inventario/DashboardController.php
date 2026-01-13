@@ -360,6 +360,20 @@ class DashboardController extends Controller
             ->orderByDesc('total_bins')
             ->get();
 
+        // CHART BINS POR CUARTEL AGRAK
+        $binsPorCuartel = DB::table('agrak_registros')
+            ->select(
+                'etiquetas_cuartel',
+                DB::raw('COUNT(DISTINCT codigo_bin) as total_bins')
+            )
+            ->whereNotNull('etiquetas_cuartel')
+            ->whereNotNull('codigo_bin')
+            ->groupBy('etiquetas_cuartel')
+            ->orderByDesc('total_bins')
+            ->get();
+
+
+
 
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
@@ -410,6 +424,9 @@ class DashboardController extends Controller
             //chart maquinas agrak
             'maquinasLabels' => $maquinasLabels,
             'maquinasTotales' => $maquinasTotales,
+            //chart bins por cuartel agrak
+            'binsPorCuartelLabels' => $binsPorCuartel->pluck('etiquetas_cuartel')->values(),
+            'binsPorCuartelData' => $binsPorCuartel->pluck('total_bins')->values(),
 
         ]);
 
