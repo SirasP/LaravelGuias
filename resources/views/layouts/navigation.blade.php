@@ -318,7 +318,7 @@
             </svg>
         </button>
 
-        <div x-show="openOdoo" x-collapse class="bg-gray-50 dark:bg-gray-800">
+        <div x-show="openOdoo" x-x-transition class="bg-gray-50 dark:bg-gray-800">
             <a
                 href="{{ route('excel_out_transfers.index') }}"
                 class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300"
@@ -359,7 +359,7 @@
     </button>
 
     <!-- CONTENIDO -->
-    <div x-show="openPdf" x-collapse class="bg-gray-50 dark:bg-gray-800">
+    <div x-show="openPdf" x-transition class="bg-gray-50 dark:bg-gray-800">
 
         <a
             href="{{ route('pdf.index') }}"
@@ -408,7 +408,7 @@
     </button>
 
     <!-- CONTENIDO -->
-    <div x-show="openAgrak" x-collapse class="bg-gray-50 dark:bg-gray-800">
+    <div x-show="openAgrak" x-transition class="bg-gray-50 dark:bg-gray-800">
 
         <a
             href="{{ route('agrak.index') }}"
@@ -457,7 +457,7 @@
     </button>
 
     <!-- CONTENIDO -->
-    <div x-show="openGuias" x-collapse class="bg-gray-50 dark:bg-gray-800">
+    <div x-show="openGuias" x-transition class="bg-gray-50 dark:bg-gray-800">
 
         <a
             href="{{ route('guias.comfrut.index') }}"

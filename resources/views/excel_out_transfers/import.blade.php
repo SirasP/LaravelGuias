@@ -3,14 +3,9 @@
         <div class="flex items-start justify-between w-full gap-6">
             <div class="max-w-2xl">
                 <nav class="text-sm text-gray-500 whitespace-nowrap">
-                    <ol class="flex items-center gap-1">
-                        <li>
-                            <a href="{{ route('excel_out_transfers.index') }}" class="hover:text-gray-900 transition">
-                                Importar Odoo
-                            </a>
-                        </li>
-                        <li>/</li>
-                        <li class="text-gray-900 font-medium">
+                    <ol class="flex items-center gap-2">
+
+                        <li class="text-gray-900 font-sm">
                             Importar Excel
                         </li>
                     </ol>
@@ -20,7 +15,7 @@
                     Sube el archivo Excel exportado desde Odoo. Normalizamos la guía (sin ceros) y evitamos duplicados.
                 </p>
             </div>
-            <div class="max-w-2xl">
+            <div class="hidden lg:block max-w-2xl">
                 <ol class="flex items-center gap-1">
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-700">
@@ -39,12 +34,33 @@
                 </ol>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="hidden lg:block flex items-center gap-2">
                 <a href="{{ route('excel_out_transfers.index') }}"
-                    class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Volver a vista
+                    class="inline-flex items-center px-4 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Volver a vista </a>
+            </div>
+            <div class="flex items-center">
+                <a href="{{ route('excel_out_transfers.index') }}" class="
+        w-full sm:w-auto
+        inline-flex items-center justify-center gap-2
+        px-4 py-3
+        rounded-xl
+        border border-gray-300 dark:border-gray-700
+        bg-white dark:bg-gray-900
+        text-sm sm:text-base font-medium
+        text-gray-700 dark:text-gray-200
+        hover:bg-gray-50 dark:hover:bg-gray-800
+        transition
+       ">
+                    <!-- icono -->
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+
+                    <span>Atras</span>
                 </a>
             </div>
+
         </div>
     </x-slot>
 
@@ -190,10 +206,10 @@
                                             <td class="p-2">{{ $r['file'] ?? '—' }}</td>
                                             <td class="p-2">
                                                 <span class="px-2 py-0.5 rounded text-xs
-                                                                                                            {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                            {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                            {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}
-                                                                                                        ">
+                                                                                                                    {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                    {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                    {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}
+                                                                                                                ">
                                                     {{ $st }}
                                                 </span>
                                             </td>
