@@ -148,82 +148,82 @@
             </div>
         </div>
 
-<div class="sm:hidden space-y-3">
+        <div class="sm:hidden space-y-3">
 
-    @foreach($kilosPorContacto as $row)
-        <div class="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
-            <p class="font-semibold text-sm mb-1">
-                {{ $row->contacto }}
-            </p>
+            @foreach($kilosPorContacto as $row)
+                <div class="border rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
+                    <p class="font-semibold text-sm mb-1">
+                        {{ $row->contacto }}
+                    </p>
 
-            <div class="grid grid-cols-2 gap-y-1 text-xs">
-                <div class="text-gray-500">Guías</div>
-                <div class="text-right font-medium">
-                    {{ $row->total_guias }}
+                    <div class="grid grid-cols-2 gap-y-1 text-xs">
+                        <div class="text-gray-500">Guías</div>
+                        <div class="text-right font-medium">
+                            {{ $row->total_guias }}
+                        </div>
+
+                        <div class="text-gray-500">Sin respuesta</div>
+                        <div class="text-right">
+                            {{ $row->guias_sin_match }}
+                        </div>
+
+                        <div class="text-gray-500">Bandejas ODOO</div>
+                        <div class="text-right font-medium">
+                            {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
+                        </div>
+
+                        <div class="text-gray-500">Kilos</div>
+                        <div class="text-right font-medium text-green-600">
+                            {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                        </div>
+                    </div>
                 </div>
+            @endforeach
+        </div>
 
-                <div class="text-gray-500">Sin respuesta</div>
-                <div class="text-right">
-                    {{ $row->guias_sin_match }}
-                </div>
 
-                <div class="text-gray-500">Bandejas ODOO</div>
-                <div class="text-right font-medium">
-                    {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
-                </div>
 
-                <div class="text-gray-500">Kilos</div>
-                <div class="text-right font-medium text-green-600">
-                    {{ number_format($row->total_kilos, 1, ',', '.') }} kg
-                </div>
+        <div class="hidden lg:block bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">
+                Empresas — Kilos informados por centros
+            </h3>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 border-b">
+                            <th class="py-2">Empresa</th>
+                            <th class="py-2 text-right">Guías totales</th>
+                            <th class="py-2 text-right">Guías sin respuesta</th>
+                            <th class="py-2 text-right">Total bandejas ODOO</th>
+                            <th class="py-2 text-right">Total kilos</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach($kilosPorContacto as $row)
+                            <tr class="border-b last:border-0">
+                                <td class="py-2">{{ $row->contacto }}</td>
+                                <td class="py-2 text-right font-medium">{{ $row->total_guias }}</td>
+                                <td class="py-2 text-right">
+                                    @if($row->guias_sin_match > 0)
+                                        <span class="text-red-600 font-medium">{{ $row->guias_sin_match }}</span>
+                                    @else
+                                        <span class="text-gray-400">0</span>
+                                    @endif
+                                </td>
+                                <td class="py-2 text-right font-medium">
+                                    {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
+                                </td>
+                                <td class="py-2 text-right font-medium">
+                                    {{ number_format($row->total_kilos, 1, ',', '.') }} kg
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
-    @endforeach
-</div>
-
-
-
-<div class="hidden lg:block bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-    <h3 class="font-semibold mb-3">
-        Empresas — Kilos informados por centros
-    </h3>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-            <thead>
-                <tr class="text-left text-gray-500 border-b">
-                    <th class="py-2">Empresa</th>
-                    <th class="py-2 text-right">Guías totales</th>
-                    <th class="py-2 text-right">Guías sin respuesta</th>
-                    <th class="py-2 text-right">Total bandejas ODOO</th>
-                    <th class="py-2 text-right">Total kilos</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                @foreach($kilosPorContacto as $row)
-                    <tr class="border-b last:border-0">
-                        <td class="py-2">{{ $row->contacto }}</td>
-                        <td class="py-2 text-right font-medium">{{ $row->total_guias }}</td>
-                        <td class="py-2 text-right">
-                            @if($row->guias_sin_match > 0)
-                                <span class="text-red-600 font-medium">{{ $row->guias_sin_match }}</span>
-                            @else
-                                <span class="text-gray-400">0</span>
-                            @endif
-                        </td>
-                        <td class="py-2 text-right font-medium">
-                            {{ number_format($bandejasPorContacto[$row->contacto]->total_bandejas ?? 0, 0, ',', '.') }}
-                        </td>
-                        <td class="py-2 text-right font-medium">
-                            {{ number_format($row->total_kilos, 1, ',', '.') }} kg
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
 
 
 
@@ -302,7 +302,15 @@
                 <canvas id="maquinasAgrakChart"></canvas>
             </div>
         </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">
+                Bins por Cuartel — AGRAK
+            </h3>
 
+            <div class="relative h-96">
+                <canvas id="binsPorCuartelChart"></canvas>
+            </div>
+        </div>
     </div>
 
     {{-- Chart.js --}}
@@ -689,48 +697,96 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
-    const ctx = document.getElementById('maquinasAgrakChart');
-    if (!ctx) return;
+            const ctx = document.getElementById('maquinasAgrakChart');
+            if (!ctx) return;
 
-    const labels = @json($maquinasLabels ?? []);
-    const data = @json($maquinasTotales ?? []);
+            const labels = @json($maquinasLabels ?? []);
+            const data = @json($maquinasTotales ?? []);
 
-    if (!labels.length || !data.length) return;
+            if (!labels.length || !data.length) return;
 
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Registros por máquina',
-                backgroundColor: '#0ea5e9', // distinto color
-                data: data,
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx =>
-                            ctx.parsed.y.toLocaleString('es-CL') + ' Bins'
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Registros por máquina',
+                        backgroundColor: '#0ea5e9', // distinto color
+                        data: data,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx =>
+                                    ctx.parsed.y.toLocaleString('es-CL') + ' Bins'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: v => v.toLocaleString('es-CL')
+                            }
+                        }
                     }
                 }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => v.toLocaleString('es-CL')
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const ctx = document.getElementById('binsPorCuartelChart');
+            if (!ctx) return;
+
+            const labels = @json($binsPorCuartelLabels ?? []);
+            const data = @json($binsPorCuartelData ?? []);
+
+            console.log('BINS POR CUARTEL:', labels, data);
+
+            if (!labels.length || !data.length) return;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Bins por cuartel',
+                        data: data,
+                        backgroundColor: '#f97316',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx =>
+                                    ctx.parsed.y.toLocaleString('es-CL') + ' bins'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: v => v.toLocaleString('es-CL')
+                            }
+                        }
                     }
                 }
-            }
-        }
-    });
-});
-</script>
+            });
+        });
+    </script>
 
 </x-app-layout>
