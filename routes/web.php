@@ -14,6 +14,8 @@ use App\Http\Controllers\ExcelOutTransferController;
 use App\Http\Controllers\CamionController;
 use App\Http\Controllers\AgrakExportController;
 use App\Http\Controllers\Inventario\DashboardController;
+use App\Http\Controllers\CentroController;
+
 /*
 |--------------------------------------------------------------------------
 | HOME
@@ -29,7 +31,7 @@ Route::get('/', [DashboardController::class, 'index'])
 | INVENTARIO (todos los usuarios autenticados)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:operador'])
+Route::middleware(['auth', 'role:admin'])
     ->prefix('inventario')
     ->name('inventario.')
     ->group(function () {
@@ -338,3 +340,6 @@ Route::middleware('auth')->group(function () {
         ->name('agrak.kg-promedio');
 
 });
+
+Route::get('/centros/detalle', [CentroController::class, 'show'])
+    ->name('centros.detalle');

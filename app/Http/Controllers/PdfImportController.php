@@ -642,19 +642,25 @@ class PdfImportController extends Controller
 
     private function extractText(string $pdfPath): string
     {
-        //$pdftotext = '/opt/homebrew/bin/pdftotext';
-        $pdftotext = '/usr/bin/pdftotext';
+        $process = new Process([
+            'pdftotext',
+            '-layout',
+            $pdfPath,
+            '-'
+        ]);
 
-        $process = new Process([$pdftotext, '-layout', $pdfPath, '-']);
         $process->setTimeout(120);
         $process->run();
 
         if (!$process->isSuccessful()) {
-            throw new \RuntimeException('Error ejecutando pdftotext: ' . $process->getErrorOutput());
+            throw new \RuntimeException(
+                'Error ejecutando pdftotext: ' . $process->getErrorOutput()
+            );
         }
 
         return $process->getOutput();
     }
+
 
     private function toLines(string $text): array
     {

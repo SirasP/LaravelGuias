@@ -203,7 +203,15 @@
                     <tbody>
                         @foreach($kilosPorContacto as $row)
                             <tr class="border-b last:border-0">
-                                <td class="py-2">{{ $row->contacto }}</td>
+                                <td class="py-2">
+                                    <a
+                                        href="{{ route('centros.detalle', ['contacto' => $row->contacto]) }}"
+                                        class="text-blue-600 hover:underline"
+                                    >
+                                        {{ $row->contacto }}
+                                    </a>
+                                </td>
+
                                 <td class="py-2 text-right font-medium">{{ $row->total_guias }}</td>
                                 <td class="py-2 text-right">
                                     @if($row->guias_sin_match > 0)
