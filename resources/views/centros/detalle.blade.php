@@ -11,6 +11,72 @@
     </x-slot>
 
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        
+{{-- KPI DIFERENCIA BANDEJAS --}}
+{{-- 📊 DIFERENCIA POR TIPO DE BANDEJA --}}
+<div class="flex flex-wrap gap-4">
+
+@foreach($diferenciaPorTipo as $row)
+
+    @php
+        $diff = $row['diff'];
+
+        if ($diff === 0) {
+            $bg = 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800';
+            $text = 'text-green-700';
+            $icon = '✔';
+            $label = 'Sin diferencias';
+        } elseif ($diff > 0) {
+            $bg = 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800';
+            $text = 'text-yellow-700';
+            $icon = '⚠️';
+            $label = 'Guías declaran más';
+        } else {
+            $bg = 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800';
+            $text = 'text-red-700';
+            $icon = '🚨';
+            $label = 'Salieron más bandejas';
+        }
+    @endphp
+
+    <div class="flex-1 min-w-[260px] rounded-xl border shadow-sm p-6 {{ $bg }}">
+
+        {{-- Header --}}
+        <div class="mb-3">
+            <p class="text-xs uppercase tracking-wide font-semibold {{ $text }}">
+                {{ $row['tipo'] }}
+            </p>
+            <p class="text-[11px] text-gray-600 dark:text-gray-400">
+                Guías − Odoo
+            </p>
+        </div>
+
+        {{-- Valor --}}
+        <div class="flex items-center gap-3">
+            <span class="text-3xl">{{ $icon }}</span>
+            <p class="text-4xl font-bold {{ $text }}">
+                {{ number_format($diff, 0, ',', '.') }}
+            </p>
+        </div>
+
+        {{-- Contexto --}}
+        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
+            Guías: {{ number_format($row['guia'], 0, ',', '.') }}
+            · Odoo: {{ number_format($row['odoo'], 0, ',', '.') }}
+        </p>
+
+        {{-- Estado --}}
+        <p class="mt-2 text-sm font-medium {{ $text }}">
+            {{ $label }}
+        </p>
+
+    </div>
+
+@endforeach
+
+</div>
+
+
 
        {{-- 📄 GUÍAS POR CENTRO --}}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 space-y-4">

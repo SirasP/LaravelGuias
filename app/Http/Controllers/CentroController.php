@@ -123,7 +123,7 @@ class CentroController extends Controller
          * 👉 USANDO RAW->L (NO cantidad)
          * ============================================================
          */
-        $contactoNormalizado = trim(mb_strtoupper($contacto));
+
 
         $bandejasPorTipo = DB::table('excel_out_transfer_lines as l')
             ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
@@ -144,11 +144,18 @@ class CentroController extends Controller
             // 🔒 SOLO ENVASES
             ->whereRaw("UPPER(l.producto) LIKE '%BANDE%'")
 
-            ->select(
-                'l.producto as tipo_bandeja',
-                DB::raw("SUM($qtyNorm) as total_bandejas")
-            )
-            ->groupBy('l.producto')
+            ->selectRaw("
+        CASE
+            WHEN UPPER(l.producto) LIKE '%AMARIL%' THEN 'BANDEJON AMARILLO'
+            WHEN UPPER(l.producto) LIKE '%AZUL%'   THEN 'BANDEJAS AZUL'
+            WHEN UPPER(l.producto) LIKE '%PLOM%'   THEN 'BANDEJA PLOMA'
+            WHEN UPPER(l.producto) LIKE '%BANDEJON%' THEN 'BANDEJON'
+            ELSE NULL
+        END AS tipo_bandeja,
+        SUM($qtyNorm) AS total_bandejas
+    ")
+            ->groupBy('tipo_bandeja')
+            ->havingRaw('tipo_bandeja IS NOT NULL')
             ->orderByDesc('total_bandejas')
             ->get();
 
@@ -181,7 +188,43 @@ class CentroController extends Controller
             ->selectRaw("SUM($qtyNorm) as total")
             ->value('total');
 
+        $guiasPorTipo = DB::table('comfrut_guias as g')
+            ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
+            ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+            ->selectRaw("
+        CASE
+            WHEN UPPER(d.nombre_item) LIKE '%IQF%' THEN 'BANDEJON AMARILLO'
+            WHEN UPPER(d.nombre_item) LIKE '%AZUL%' THEN 'BANDEJAS AZUL'
+            WHEN UPPER(d.nombre_item) LIKE '%FRUTILLERA%' THEN 'BANDEJON'
+            WHEN UPPER(d.nombre_item) LIKE '%FRAMBUESA%' THEN 'BANDEJA PLOMA'
+            ELSE NULL
+        END AS tipo_bandeja,
+        SUM(d.cantidad) AS total_guia
+    ")
+            ->whereRaw("UPPER(d.nombre_item) LIKE '%BANDE%'")
+            ->groupBy('tipo_bandeja')
+            ->havingRaw('tipo_bandeja IS NOT NULL')
+            ->get();
 
+        $diferenciaPorTipo = [];
+
+        foreach ($guiasPorTipo as $g) {
+            $tipo = trim(mb_strtoupper($g->tipo_bandeja));
+
+            $odoo = $bandejasPorTipo
+                ->first(fn($o) => trim(mb_strtoupper($o->tipo_bandeja)) === $tipo)
+                ->total_bandejas ?? 0;
+
+            $diferenciaPorTipo[] = [
+                'tipo' => $tipo,
+                'guia' => (int) $g->total_guia,
+                'odoo' => (int) $odoo,
+                'diff' => (int) $g->total_guia - (int) $odoo,
+            ];
+        }
+
+        $totalBandejasGuia = (int) ($totales->total_bandejas ?? 0);
+        $diferenciaBandejas = ($totalBandejasGuia ?? 0) - ($totalBandejasOut ?? 0);
 
         /**
          * ============================================================
@@ -198,6 +241,9 @@ class CentroController extends Controller
             // 🔥 SALIDAS REALES
             'bandejasPorTipo' => $bandejasPorTipo,
             'totalBandejasOut' => $totalBandejasOut,
+            'diferenciaBandejas' => $diferenciaBandejas,
+            'diferenciaPorTipo' => $diferenciaPorTipo,
+
         ]);
     }
 }
