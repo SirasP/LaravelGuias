@@ -139,7 +139,7 @@
             <tbody>
                 @foreach($productos as $p)
                     <tr class="border-b last:border-0">
-                        <td class="py-2">{{ $p->nombre_item }}</td>
+                        <td class="py-2">{{ $p->nombre_original }} - {{ $p->tipo_bandeja }}</td>
                         <td class="py-2 text-right font-medium">
                             {{ number_format($p->total_unidades, 0, ',', '.') }}
                         </td>

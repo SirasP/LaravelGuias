@@ -338,8 +338,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/agrak/kg-promedio', [DashboardController::class, 'updateKgPromedio'])
         ->name('agrak.kg-promedio');
+        
+    Route::get('/centros/detalle', [CentroController::class, 'show'])
+        ->name('centros.detalle');
 
 });
 
-Route::get('/centros/detalle', [CentroController::class, 'show'])
-    ->name('centros.detalle');

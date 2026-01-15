@@ -83,13 +83,35 @@ class CentroController extends Controller
         $productos = DB::table('comfrut_guias as g')
             ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
             ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
-            ->select(
-                'd.nombre_item',
-                DB::raw('SUM(d.cantidad) as total_unidades')
-            )
-            ->groupBy('d.nombre_item')
+            ->selectRaw("
+        d.nombre_item AS nombre_original,
+
+        CASE
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%IQF%'
+                THEN 'BANDEJON AMARILLO'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%AZUL%'
+                THEN 'BANDEJAS AZUL'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE '%VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
+                THEN 'BANDEJON'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE '%VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%FRAMBUESA%'
+                THEN 'BANDEJA PLOMA'
+
+            ELSE NULL
+        END AS tipo_bandeja,
+
+        SUM(d.cantidad) AS total_unidades
+    ")
+            ->groupBy('nombre_original', 'tipo_bandeja')
             ->orderByDesc('total_unidades')
             ->get();
+
 
         /**
          * ============================================================
@@ -191,20 +213,35 @@ class CentroController extends Controller
         $guiasPorTipo = DB::table('comfrut_guias as g')
             ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
             ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+            ->whereRaw("UPPER(d.nombre_item) LIKE '%BANDE%'")
             ->selectRaw("
+        d.nombre_item AS nombre_original,
         CASE
-            WHEN UPPER(d.nombre_item) LIKE '%IQF%' THEN 'BANDEJON AMARILLO'
-            WHEN UPPER(d.nombre_item) LIKE '%AZUL%' THEN 'BANDEJAS AZUL'
-            WHEN UPPER(d.nombre_item) LIKE '%FRUTILLERA%' THEN 'BANDEJON'
-            WHEN UPPER(d.nombre_item) LIKE '%FRAMBUESA%' THEN 'BANDEJA PLOMA'
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%IQF%'
+                THEN 'BANDEJON AMARILLO'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%AZUL%'
+                THEN 'BANDEJAS AZUL'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
+                THEN 'BANDEJON'
+
+            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                 AND UPPER(d.nombre_item) LIKE '%FRAMBUESA%'
+                THEN 'BANDEJA PLOMA'
+
             ELSE NULL
         END AS tipo_bandeja,
         SUM(d.cantidad) AS total_guia
     ")
-            ->whereRaw("UPPER(d.nombre_item) LIKE '%BANDE%'")
-            ->groupBy('tipo_bandeja')
+            ->groupBy('nombre_original', 'tipo_bandeja')
             ->havingRaw('tipo_bandeja IS NOT NULL')
             ->get();
+
+
 
         $diferenciaPorTipo = [];
 
@@ -243,6 +280,7 @@ class CentroController extends Controller
             'totalBandejasOut' => $totalBandejasOut,
             'diferenciaBandejas' => $diferenciaBandejas,
             'diferenciaPorTipo' => $diferenciaPorTipo,
+            'guiasPorTipo' => $guiasPorTipo,
 
         ]);
     }
