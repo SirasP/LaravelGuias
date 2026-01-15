@@ -313,7 +313,7 @@ class ExcelOutTransferController extends Controller
                 if ($v = $normalizeRef($get($r, 'Referencia')))
                     $headerData['referencia'] = $v;
 
-                
+
                 if ($v = $val($get($r, 'Documento origen')))
                     $headerData['documento_origen'] = $v;
                 if ($v = $val($get($r, 'Prioridad')))
@@ -330,72 +330,62 @@ class ExcelOutTransferController extends Controller
                 if ($fechaTras = $parseDateTime($get($r, 'Fecha de traslado')))
                     $headerData['fecha_traslado'] = $fechaTras;
 
-                // 4) Buscar cabecera existente (guía única)
+                // 4) Buscar cabecera existente
                 if ($isNumericGuia) {
                     $transfer = ExcelOutTransfer::where('guia_entrega', $currentKey)->first();
                 } else {
                     $transfer = ExcelOutTransfer::where('import_key', $importKey)->first();
                 }
 
-                // ❌ Si ya existe, NO HACER NADA MÁS
-                if ($transfer) {
-                    $skipped++;
+                if (!$transfer) {
+                    // 👉 SOLO aquí se crea
+                    if ($v = $val($get($r, 'Estado'))) {
+                        $headerData['estado'] = $v;
+                    }
+
+                    $transfer = ExcelOutTransfer::create($headerData);
+                    $currentHeaderId = $transfer->id;
+                    $createdHeaders++;
 
                     $importReport[] = [
                         'file' => $fileName,
-                        'status' => 'duplicate',
+                        'status' => 'imported',
                         'template' => 'EXCEL',
                         'guia' => $isNumericGuia
                             ? $currentKey
                             : str_replace('REF:', '', (string) $importKey),
-                        'reason' => "Fila {$i}: guía ya existe, se omite",
+                        'reason' => "Fila {$i}: cabecera creada",
                     ];
-
-                    continue; // 🔥 corta cabecera + líneas
+                } else {
+                    // 👉 reutilizar cabecera existente
+                    $currentHeaderId = $transfer->id;
                 }
 
+                static $linesCleared = [];
+
+                if (!isset($linesCleared[$currentHeaderId])) {
+                    ExcelOutTransferLine::where('excel_out_transfer_id', $currentHeaderId)->delete();
+                    $linesCleared[$currentHeaderId] = true;
+                }
                 // ===============================
-// 👇 DESDE AQUÍ SOLO GUÍAS NUEVAS
-// ===============================
+                // 👇 DESDE AQUÍ SOLO GUÍAS NUEVAS
+                // ===============================
 
-                // 👉 SOLO al crear permites estado
-                if ($v = $val($get($r, 'Estado'))) {
-                    $headerData['estado'] = $v;
-                }
+                // 5) Crear / actualizar líneas (SIEMPRE)
+                if ($producto !== '' && $cantidad !== null) {
 
-                $transfer = ExcelOutTransfer::create($headerData);
-                $currentHeaderId = $transfer->id;
-                $createdHeaders++;
+                    ExcelOutTransferLine::create([
+                        'excel_out_transfer_id' => $currentHeaderId,
+                        'producto' => $producto !== '' ? $producto : null,
+                        'cantidad' => $cantidad,
+                        'source_file' => $fileName,
+                        'excel_row' => $i, // solo auditoría
+                        'raw' => $r,
+                    ]);
 
-                $importReport[] = [
-                    'file' => $fileName,
-                    'status' => 'imported',
-                    'template' => 'EXCEL',
-                    'guia' => $isNumericGuia
-                        ? $currentKey
-                        : str_replace('REF:', '', (string) $importKey),
-                    'reason' => "Fila {$i}: cabecera creada",
-                ];
+                    $createdLines++;
 
-                // 5) Crear líneas SOLO para cabecera nueva
-                if ($producto !== '' || $cantidad !== null) {
-                    $line = ExcelOutTransferLine::updateOrCreate(
-                        [
-                            'excel_out_transfer_id' => $currentHeaderId,
-                            'excel_row' => $i,
-                        ],
-                        [
-                            'producto' => $producto !== '' ? $producto : null,
-                            'cantidad' => $cantidad,
-                            'source_file' => $fileName,
-                            'raw' => $r,
-                        ]
-                    );
 
-                    if ($line->wasRecentlyCreated)
-                        $createdLines++;
-                    else
-                        $updatedLines++;
                 }
             }
         });
