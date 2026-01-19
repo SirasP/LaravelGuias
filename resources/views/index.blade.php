@@ -9,7 +9,7 @@
                 Dashboard Inventario
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Resumen últimos 40 días
+                Resumen últimos 120 días
             </p>
         </div>
     </x-slot>
@@ -24,7 +24,7 @@
         {{-- KPI DOBLE --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <p class="text-sm text-gray-500 mb-3">
-                Totales últimos 40 días ODOO
+                Totales últimos 120 días ODOO
             </p>
 
             <div class="flex justify-between gap-8">
@@ -49,7 +49,7 @@
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <p class="text-sm text-gray-500 mb-3">
-                Totales últimos 40 días (AGRAK)
+                Totales últimos 120 días (AGRAK)
             </p>
 
             <div class="flex justify-between gap-10 items-end">
@@ -138,7 +138,7 @@
 
         {{-- KPI CENTROS --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-            <p class="text-sm text-gray-500 mb-3">Total informado por centros (últimos 40 días)</p>
+            <p class="text-sm text-gray-500 mb-3">Total informado por centros (últimos 120 días)</p>
 
             <div>
                 <p class="text-xs text-gray-400">Kilos Recepcionados</p>
@@ -239,7 +239,7 @@
         {{-- GRÁFICO --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Kilos enviados — últimos 40 días
+                Kilos enviados — últimos 120 días
             </h3>
 
             <div class="relative h-48">
@@ -248,14 +248,14 @@
 
             @if (empty($chartLabels) || count($chartLabels) === 0)
                 <p class="text-sm text-gray-500 mt-3">
-                    No hay datos para los últimos 40 días.
+                    No hay datos para los últimos 120 días.
                 </p>
             @endif
         </div>
         {{-- GRÁFICO CENTROS --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Kilos informados por centros — últimos 40 días
+                Kilos informados por centros — últimos 120 días
             </h3>
 
             <div class="relative h-48">
@@ -281,7 +281,7 @@
 
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Bandejas AGRAK — últimos 40 días
+                Bandejas AGRAK — últimos 120 días
             </h3>
 
             <div class="relative h-48">
@@ -292,7 +292,7 @@
 
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
             <h3 class="font-semibold mb-3">
-                Bins AGRAK — últimos 40 días
+                Bins AGRAK — últimos 120 días
             </h3>
 
             <div class="relative h-48">
