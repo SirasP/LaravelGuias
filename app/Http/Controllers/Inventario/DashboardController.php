@@ -11,7 +11,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $from = Carbon::now()->subDays(40)->startOfDay();
+        $from = Carbon::now()->subDays(120)->startOfDay();
 
         /**
          * 🔥 KILOS REALES DESDE RAW (columna L del Excel)
