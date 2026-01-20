@@ -87,6 +87,63 @@ class CentroController extends Controller
         d.nombre_item AS nombre_original,
 
         CASE
+-- ✅ SANTIAGO COMERCIO EXTERIOR
+WHEN UPPER(TRIM(g.productor)) LIKE 'SANTIAGO COMERCIO EXTERIOR%'
+     AND UPPER(d.nombre_item) LIKE '%BERRIES%'
+     AND UPPER(d.nombre_item) LIKE '%AZUL%'
+THEN 'BANDEJAS AZUL'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'SANTIAGO COMERCIO EXTERIOR%'
+     AND UPPER(d.nombre_item) LIKE '%IQF%'
+     AND UPPER(d.nombre_item) LIKE '%BLANC%'
+THEN 'BANDEJA BLANCA'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'SANTIAGO COMERCIO EXTERIOR%'
+     AND UPPER(d.nombre_item) LIKE '%IQF%'
+     AND UPPER(d.nombre_item) LIKE '%AMARIL%'
+THEN 'BANDEJON AMARILLO'
+
+-- ✅ RIO FUTURO
+WHEN UPPER(TRIM(g.productor)) LIKE 'RIO FUTURO%'
+     AND UPPER(d.nombre_item) LIKE '%IQF%'
+THEN 'BANDEJON'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'RIO FUTURO%'
+     AND UPPER(d.nombre_item) LIKE '%COSECHA MECANICA%'
+THEN 'AMARILLA'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'RIO FUTURO%'
+     AND (
+        UPPER(d.nombre_item) LIKE '%ARANDANERA%'
+        OR UPPER(d.nombre_item) LIKE '%BLANCA 1/8%'
+     )
+THEN 'ARANDANERA'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'RIO FUTURO%'
+     AND (
+        UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
+        OR UPPER(d.nombre_item) LIKE '%ESPARRAGUERA%'
+     )
+THEN 'FRUTILLERA'
+
+
+-- ✅ COMFRUT
+WHEN UPPER(TRIM(g.productor)) LIKE 'COMFRUT%'
+     AND UPPER(d.nombre_item) LIKE '%BDJA%'
+     AND UPPER(d.nombre_item) LIKE '%COSECHA%'
+THEN 'BANDEJAS AZUL'
+
+WHEN UPPER(TRIM(g.productor)) LIKE 'COMFRUT%'
+     AND (
+        UPPER(d.nombre_item) LIKE '%BAJO PESO%'
+        OR UPPER(d.nombre_item) LIKE '%595X40X10%'
+        OR UPPER(d.nombre_item) LIKE '%BLANCA%'
+     )
+THEN 'BANDEJON'
+
+
+
+        -- Vitafoods 
             WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
                  AND UPPER(d.nombre_item) LIKE '%IQF%'
                 THEN 'BANDEJON AMARILLO'
@@ -167,15 +224,18 @@ class CentroController extends Controller
             ->whereRaw("UPPER(l.producto) LIKE '%BANDE%'")
 
             ->selectRaw("
-        CASE
-            WHEN UPPER(l.producto) LIKE '%AMARIL%' THEN 'BANDEJON AMARILLO'
-            WHEN UPPER(l.producto) LIKE '%AZUL%'   THEN 'BANDEJAS AZUL'
-            WHEN UPPER(l.producto) LIKE '%PLOM%'   THEN 'BANDEJA PLOMA'
-            WHEN UPPER(l.producto) LIKE '%BANDEJON%' THEN 'BANDEJON'
-            ELSE NULL
-        END AS tipo_bandeja,
-        SUM($qtyNorm) AS total_bandejas
-    ")
+    CASE
+        WHEN UPPER(l.producto) LIKE '%FRUTILL%' THEN 'FRUTILLERA'
+        WHEN UPPER(l.producto) LIKE '%ARANDAN%' THEN 'ARANDANERA'
+        WHEN UPPER(l.producto) LIKE '%BLANC%'   THEN 'BANDEJA BLANCA'
+        WHEN UPPER(l.producto) LIKE '%PLOM%'    THEN 'BANDEJA PLOMA'
+        WHEN UPPER(l.producto) LIKE '%AMARIL%'  THEN 'BANDEJON AMARILLO'
+        WHEN UPPER(l.producto) LIKE '%AZUL%'    THEN 'BANDEJAS AZUL'
+        WHEN UPPER(l.producto) LIKE '%BANDEJ%'  THEN 'BANDEJON'
+        ELSE NULL
+    END AS tipo_bandeja,
+    SUM($qtyNorm) AS total_bandejas
+")
             ->groupBy('tipo_bandeja')
             ->havingRaw('tipo_bandeja IS NOT NULL')
             ->orderByDesc('total_bandejas')
@@ -210,36 +270,134 @@ class CentroController extends Controller
             ->selectRaw("SUM($qtyNorm) as total")
             ->value('total');
 
-        $guiasPorTipo = DB::table('comfrut_guias as g')
-            ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
-            ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
-            ->whereRaw("UPPER(d.nombre_item) LIKE '%BANDE%'")
-            ->selectRaw("
-        d.nombre_item AS nombre_original,
-        CASE
-            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
-                 AND UPPER(d.nombre_item) LIKE '%IQF%'
+        $guiasPorTipo = collect();
+
+        if (str_contains($contactoNormalizado, 'VITAFOODS')) {
+
+            $guiasPorTipo = DB::table('comfrut_guias as g')
+                ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
+                ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+                ->whereRaw("UPPER(d.nombre_item) LIKE '%BANDE%'")
+                ->selectRaw("
+            d.nombre_item AS nombre_original,
+            CASE
+                WHEN UPPER(d.nombre_item) LIKE '%IQF%' THEN 'BANDEJON AMARILLO'
+                WHEN UPPER(d.nombre_item) LIKE '%AZUL%' THEN 'BANDEJAS AZUL'
+                WHEN UPPER(d.nombre_item) LIKE '%FRUTILLERA%' THEN 'BANDEJON'
+                WHEN UPPER(d.nombre_item) LIKE '%FRAMBUESA%' THEN 'BANDEJA PLOMA'
+                ELSE NULL
+            END AS tipo_bandeja,
+            SUM(d.cantidad) AS total_guia
+        ")
+                ->groupBy('nombre_original', 'tipo_bandeja')
+                ->havingRaw('tipo_bandeja IS NOT NULL')
+                ->get();
+
+        } elseif (str_contains($contactoNormalizado, 'COMFRUT')) {
+
+            $guiasPorTipo = DB::table('comfrut_guias as g')
+                ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
+                ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+                ->whereRaw("
+            UPPER(d.nombre_item) LIKE '%BANDE%'
+            OR UPPER(d.nombre_item) LIKE '%BDJA%'
+        ")
+                ->selectRaw("
+            d.nombre_item AS nombre_original,
+            CASE
+                WHEN UPPER(d.nombre_item) LIKE '%BDJA%' AND UPPER(d.nombre_item) LIKE '%COSECHA%'
+                    THEN 'BANDEJAS AZUL'
+
+                WHEN UPPER(d.nombre_item) LIKE '%BAJO PESO%'
+                     OR UPPER(d.nombre_item) LIKE '%595X40X10%'
+                     OR UPPER(d.nombre_item) LIKE '%BLANCA%'
+                    THEN 'BANDEJON'
+
+                ELSE NULL
+            END AS tipo_bandeja,
+            SUM(d.cantidad) AS total_guia
+        ")
+                ->groupBy('nombre_original', 'tipo_bandeja')
+                ->havingRaw('tipo_bandeja IS NOT NULL')
+                ->get();
+
+        } elseif (str_contains($contactoNormalizado, 'RIO FUTURO')) {
+
+            $guiasPorTipo = DB::table('comfrut_guias as g')
+                ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
+                ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+                ->whereRaw("
+            UPPER(d.nombre_item) LIKE '%IQF%'
+            OR (UPPER(d.nombre_item) LIKE '%COSECHA%' AND UPPER(d.nombre_item) LIKE '%MECANICA%')
+            OR UPPER(d.nombre_item) LIKE '%ARANDANERA%'
+            OR UPPER(d.nombre_item) LIKE '%BLANCA 1/8%'
+            OR UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
+            OR UPPER(d.nombre_item) LIKE '%ESPARRAGUERA%'
+        ")
+                ->selectRaw("
+            d.nombre_item AS nombre_original,
+            CASE
+                WHEN UPPER(d.nombre_item) LIKE '%IQF%' THEN 'BANDEJON'
+
+                WHEN UPPER(d.nombre_item) LIKE '%COSECHA%'
+                 AND UPPER(d.nombre_item) LIKE '%MECANICA%'
                 THEN 'BANDEJON AMARILLO'
 
-            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
+                WHEN UPPER(d.nombre_item) LIKE '%ARANDANERA%'
+                  OR UPPER(d.nombre_item) LIKE '%BLANCA 1/8%'
+                THEN 'ARANDANERA'
+
+                WHEN UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
+                  OR UPPER(d.nombre_item) LIKE '%ESPARRAGUERA%'
+                THEN 'FRUTILLERA'
+
+                ELSE NULL
+            END AS tipo_bandeja,
+            SUM(d.cantidad) AS total_guia
+        ")
+                ->groupBy('nombre_original', 'tipo_bandeja')
+                ->havingRaw('tipo_bandeja IS NOT NULL')
+                ->get();
+        } elseif (str_contains($contactoNormalizado, 'SANTIAGO COMERCIO EXTERIOR')) {
+
+            $guiasPorTipo = DB::table('comfrut_guias as g')
+                ->join('comfrut_guia_detalles as d', 'd.comfrut_guia_id', '=', 'g.id')
+                ->whereRaw('UPPER(TRIM(g.productor)) = ?', [$contactoNormalizado])
+
+                // ✅ FILTRO QUIRÚRGICO SOLO A ESOS 3 ITEMS
+                ->whereRaw("
+            UPPER(d.nombre_item) LIKE '%BERRIES%'
+            OR (UPPER(d.nombre_item) LIKE '%IQF%' AND UPPER(d.nombre_item) LIKE '%BLANC%')
+            OR (UPPER(d.nombre_item) LIKE '%IQF%' AND UPPER(d.nombre_item) LIKE '%AMARIL%')
+        ")
+
+                ->selectRaw("
+            d.nombre_item AS nombre_original,
+            CASE
+                WHEN UPPER(d.nombre_item) LIKE '%BERRIES%'
                  AND UPPER(d.nombre_item) LIKE '%AZUL%'
-                THEN 'BANDEJAS AZUL'
+                    THEN 'BANDEJAS AZUL'
 
-            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
-                 AND UPPER(d.nombre_item) LIKE '%FRUTILLERA%'
-                THEN 'BANDEJON'
+                WHEN UPPER(d.nombre_item) LIKE '%IQF%'
+                 AND UPPER(d.nombre_item) LIKE '%BLANC%'
+                    THEN 'BANDEJON'
 
-            WHEN UPPER(TRIM(g.productor)) LIKE 'VITAFOODS%'
-                 AND UPPER(d.nombre_item) LIKE '%FRAMBUESA%'
-                THEN 'BANDEJA PLOMA'
+                WHEN UPPER(d.nombre_item) LIKE '%IQF%'
+                 AND UPPER(d.nombre_item) LIKE '%AMARIL%'
+                    THEN 'BANDEJON AMARILLO'
 
-            ELSE NULL
-        END AS tipo_bandeja,
-        SUM(d.cantidad) AS total_guia
-    ")
-            ->groupBy('nombre_original', 'tipo_bandeja')
-            ->havingRaw('tipo_bandeja IS NOT NULL')
-            ->get();
+                ELSE NULL
+            END AS tipo_bandeja,
+            SUM(d.cantidad) AS total_guia
+        ")
+                ->groupBy('nombre_original', 'tipo_bandeja')
+                ->havingRaw('tipo_bandeja IS NOT NULL')
+                ->get();
+        }
+
+
+
+
 
 
 
@@ -248,9 +406,9 @@ class CentroController extends Controller
         foreach ($guiasPorTipo as $g) {
             $tipo = trim(mb_strtoupper($g->tipo_bandeja));
 
-            $odoo = $bandejasPorTipo
-                ->first(fn($o) => trim(mb_strtoupper($o->tipo_bandeja)) === $tipo)
-                ->total_bandejas ?? 0;
+            $odoo = (int) $bandejasPorTipo
+                ->filter(fn($o) => trim(mb_strtoupper($o->tipo_bandeja)) === $tipo)
+                ->sum('total_bandejas');
 
             $diferenciaPorTipo[] = [
                 'tipo' => $tipo,
@@ -259,6 +417,31 @@ class CentroController extends Controller
                 'diff' => (int) $g->total_guia - (int) $odoo,
             ];
         }
+
+        // ✅ AGREGAR TIPOS QUE EXISTEN EN ODOO PERO NO EN GUÍAS (para que no "desaparezcan")
+        $tiposEnGuias = collect($guiasPorTipo)
+            ->pluck('tipo_bandeja')
+            ->map(fn($t) => trim(mb_strtoupper($t)))
+            ->unique()
+            ->values();
+
+        foreach ($bandejasPorTipo as $o) {
+
+            $tipoOdoo = trim(mb_strtoupper($o->tipo_bandeja));
+
+            // si ya estaba en guías, no lo duplicamos
+            if ($tiposEnGuias->contains($tipoOdoo)) {
+                continue;
+            }
+
+            $diferenciaPorTipo[] = [
+                'tipo' => $tipoOdoo,
+                'guia' => 0,
+                'odoo' => (int) $o->total_bandejas,
+                'diff' => 0 - (int) $o->total_bandejas,
+            ];
+        }
+
 
         $totalBandejasGuia = (int) ($totales->total_bandejas ?? 0);
         $diferenciaBandejas = ($totalBandejasGuia ?? 0) - ($totalBandejasOut ?? 0);
