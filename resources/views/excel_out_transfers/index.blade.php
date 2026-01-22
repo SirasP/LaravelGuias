@@ -134,8 +134,8 @@
 
                                                         <td class="px-4 py-3">
                                                             <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-                                   bg-indigo-900 text-white text-xs font-medium
-                                   hover:bg-indigo-900 transition">
+                                   bg-indigo-700 text-white text-xs font-medium
+                                   hover:bg-indigo-800 transition">
                                                                 Ver detalle
                                                             </a>
                                                         </td>
