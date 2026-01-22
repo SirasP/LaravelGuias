@@ -151,36 +151,53 @@
 
 
                     <div x-data="{ openOdoo: false }" class="relative">
-                        <button @click="openOdoo = !openOdoo" @click.away="openOdoo = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
-                            {{ request()->routeIs('pdf.*')
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100' }}">
-                            Guias ODOO
-                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openOdoo }"
-                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
 
-                        <div x-show="openOdoo" x-transition class="absolute z-50 mt-2 w-56 rounded-xl shadow-lg
-                                   bg-white dark:bg-gray-900
-                                   border border-gray-200 dark:border-gray-700">
+    <button
+        @click="openOdoo = !openOdoo"
+        @click.away="openOdoo = false"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full
+               text-sm font-medium transition-all
+               bg-gray-100 dark:bg-gray-800
+               hover:bg-indigo-100 dark:hover:bg-indigo-900/40
+               {{ request()->routeIs('excel_out_transfers.*')
+                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                    : 'text-gray-700 dark:text-gray-200' }}"
+    >
+        Guías ODOO
 
-                            <a href="{{ route('excel_out_transfers.index') }}"
-                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
-                                Vista
-                            </a>
+        <svg class="w-4 h-4 transition-transform"
+            :class="{ 'rotate-180': openOdoo }"
+            xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+    </button>
 
-                            <a href="{{ route('excel_out_transfers.import') }}"
-                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
-                                Importar
-                            </a>
+    <div
+        x-show="openOdoo"
+        x-transition
+        class="absolute left-0 mt-4 w-64 z-50
+               rounded-2xl bg-white dark:bg-gray-900
+               shadow-2xl border border-gray-100 dark:border-gray-700"
+    >
+        <a href="{{ route('excel_out_transfers.index') }}"
+           class="flex items-center gap-1 px-5 py-2 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+            Vista
+        </a>
 
+        <a href="{{ route('excel_out_transfers.import') }}"
+           class="flex items-center gap-1 px-5 py-2 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+            Importar
+        </a>
+    </div>
 
-                        </div>
-                    </div>
+</div>
+
                     <div x-data="{ openAgrak: false }" class="relative">
                         <button @click="openAgrak = !openAgrak" @click.away="openAgrak = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
             {{ request()->routeIs('agrak.*')
