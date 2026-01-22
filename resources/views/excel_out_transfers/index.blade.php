@@ -30,34 +30,23 @@
             </a>
 
             {{-- Mobile download button --}}
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
-                class="sm:hidden inline-flex items-center gap-2 px-4 py-2 rounded-xl
+            <a href="{{ route('excel_out_transfers.export', request()->query()) }}" class="sm:hidden inline-flex items-center gap-2 px-4 py-2 rounded-xl
                         bg-emerald-600 text-white text-sm hover:bg-emerald-700">
 
-                    {{-- icono descarga --}}
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        class="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="1">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
-                    </svg>
+                {{-- icono descarga --}}
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="1">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                </svg>
 
-                    
+
             </a>
             <form method="GET" class="sm:hidden">
-                <input
-                    name="q"
-                    value="{{ $q }}"
-                    placeholder="Buscar contacto / guía / patente…"
-                    inputmode="search"
-                    enterkeyhint="search"
-                    class="w-full rounded-xl border border-gray-300
+                <input name="q" value="{{ $q }}" placeholder="Buscar contacto / guía / patente…" inputmode="search"
+                    enterkeyhint="search" class="w-full rounded-xl border border-gray-300
                         dark:border-gray-700 bg-white dark:bg-gray-950
-                        px-3 py-2 text-sm"
-                >
+                        px-3 py-2 text-sm">
             </form>
         </div>
     </x-slot>
@@ -145,8 +134,7 @@
 
                                     <td class="px-4 py-3">
                                         <a href="{{ route('excel_out_transfers.show', $r) }}"
-                                            class="inline-flex items-center px-3 py-1.5 rounded-lg
-                                                                                                                         hover:bg-indigo-700 transition">
+                                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-white hover:bg-indigo-700 transition">
                                             Ver detalle
                                         </a>
                                     </td>
@@ -161,7 +149,7 @@
                                                     href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}">
                                                     Ver detalle
                                                 </a>
-                                               
+
 
                                             </div>
                                         @else
@@ -216,9 +204,9 @@
                                         <td class="p-2">
                                             <span
                                                 class="px-2 py-0.5 rounded text-xs
-                                                                                                                                                                                                                                                                                {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                                                                                                                                                                                {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                                                                                                                                                                                {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
+                                                                                                                                                                                                                                                                                                {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                                                                                                                                                                                                {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                                                                                                                                                                                                {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
