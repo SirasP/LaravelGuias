@@ -133,9 +133,9 @@
 
 
                                                         <td class="px-4 py-3">
-                                                            <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-                                   bg-indigo-600 text-white text-xs font-medium
-                                   hover:bg-indigo-700 transition">
+                                                            <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md
+                                   bg-gray-100 text-gray-700 text-xs font-medium
+                                   hover:bg-gray-200 transition">
                                                                 Ver detalle
                                                             </a>
                                                         </td>
@@ -205,9 +205,9 @@
                                         <td class="p-2">
                                             <span
                                                 class="px-2 py-0.5 rounded text-xs
-                                                                                                                                                                                                                                                                                                        {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                                                                                                                                                                                                        {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                                                                                                                                                                                                        {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
+                                                                                                                                                                                                                                                                                                                {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                                                                                                                                                                                                                {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                                                                                                                                                                                                                {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
