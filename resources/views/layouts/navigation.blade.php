@@ -109,9 +109,9 @@
         class="inline-flex items-center gap-2 px-4 py-2 rounded-full
                text-sm font-medium transition-all
                bg-gray-100 dark:bg-gray-800
-               hover:bg-emerald-100 dark:hover:bg-emerald-900/40
+               hover:bg-indigo-100 dark:hover:bg-indigo-900/40
                {{ request()->routeIs('pdf.*')
-                    ? 'bg-emerald-600 text-white dark:bg-emerald-500'
+                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
                     : 'text-gray-700 dark:text-gray-200' }}"
     >
         Guías Recepcionadas
@@ -132,22 +132,21 @@
                shadow-2xl border border-gray-100 dark:border-gray-700"
     >
         <a href="{{ route('pdf.index') }}"
-           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
-                  hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
-            <span class="h-3.5 w-3.5 rounded-full bg-emerald-500"></span>
+           class="flex  gap-1 px-6 py-3 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
             PDFs importados
         </a>
 
         <a href="{{ route('pdf.import.form') }}"
-           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
-                  hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
-            <span class="h-3.5 w-3.5 rounded-full bg-emerald-500"></span>
+           class="flex  gap-1 px-6 py-3 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
             Importar PDF
         </a>
     </div>
 
 </div>
-
 
 
 
