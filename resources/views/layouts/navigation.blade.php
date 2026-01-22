@@ -106,7 +106,7 @@
     <button
         @click="openDocs = !openDocs"
         @click.away="openDocs = false"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-full
+        class="inline-flex items-start gap-2 px-4 py-2 rounded-full
                text-sm font-medium transition-all
                bg-gray-100 dark:bg-gray-800
                hover:bg-indigo-100 dark:hover:bg-indigo-900/40
