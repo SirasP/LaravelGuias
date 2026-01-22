@@ -103,18 +103,21 @@
 <!-- DOCUMENTOS (PDF) -->
 <div x-data="{ openDocs: false }" class="relative">
 
+    <div x-data="{ openDocs: false }" class="relative">
+
     <button
         @click="openDocs = !openDocs"
         @click.away="openDocs = false"
         class="inline-flex items-center gap-2 px-4 py-2 rounded-full
-               text-sm font-medium transition-all
-               bg-gray-100 dark:bg-gray-800
-               hover:bg-indigo-100 dark:hover:bg-indigo-900/40
+               text-sm font-medium transition
                {{ request()->routeIs('pdf.*')
-                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                    : 'text-gray-700 dark:text-gray-200' }}"
+                    ? 'bg-sky-100 text-sky-700 hover:bg-sky-200
+                       dark:bg-sky-900/30 dark:text-sky-300'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200
+                       dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700' }}"
     >
         Guías Recepcionadas
+
         <svg class="w-4 h-4 transition-transform"
             :class="{ 'rotate-180': openDocs }"
             xmlns="http://www.w3.org/2000/svg" fill="none"
@@ -123,6 +126,31 @@
                   stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
     </button>
+
+    <div
+        x-show="openDocs"
+        x-transition
+        class="absolute left-0 mt-4 w-64 z-50
+               rounded-2xl bg-white dark:bg-gray-900
+               shadow-xl border border-gray-100 dark:border-gray-700"
+    >
+        <a href="{{ route('pdf.index') }}"
+           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
+                  hover:bg-sky-50 dark:hover:bg-sky-900/20">
+            <span class="h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+            PDFs importados
+        </a>
+
+        <a href="{{ route('pdf.import.form') }}"
+           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
+                  hover:bg-sky-50 dark:hover:bg-sky-900/20">
+            <span class="h-2.5 w-2.5 rounded-full bg-sky-400"></span>
+            Importar PDF
+        </a>
+    </div>
+
+</div>
+
 
     <div
         x-show="openDocs"
@@ -140,7 +168,7 @@
 
         <a href="{{ route('pdf.import.form') }}"
            class="flex  gap-1 px-6 py-3 text-sm font-medium
-                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+                  hover:bg-indigo-50 dark:hover:bg-emerald-900/30">
             <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
             Importar PDF
         </a>
