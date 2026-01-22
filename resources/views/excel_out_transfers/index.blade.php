@@ -120,46 +120,47 @@
 
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($rows as $r)
-                                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                                                        <td class="px-4 py-3">{{ $r->contacto ?? '—' }}</td>
-                                                        <td class="px-4 py-3">{{ $r->fecha_prevista?->format('Y-m-d H:i:s') ?? '—' }}</td>
-                                                        <td class="px-4 py-3">{{ $r->patente ?? '—' }}</td>
-                                                        <td class="px-4 py-3 uppercase">{{ $r->chofer ?? '—' }}</td>
-                                                        <td class="px-4 py-3 font-mono font-semibold">
-                                                            {{ $r->guia_entrega ?? '—' }}
-                                                        </td>
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                                    <td class="px-4 py-3">{{ $r->contacto ?? '—' }}</td>
+                                    <td class="px-4 py-3">{{ $r->fecha_prevista?->format('Y-m-d H:i:s') ?? '—' }}</td>
+                                    <td class="px-4 py-3">{{ $r->patente ?? '—' }}</td>
+                                    <td class="px-4 py-3 uppercase">{{ $r->chofer ?? '—' }}</td>
+                                    <td class="px-4 py-3 font-mono font-semibold">
+                                        {{ $r->guia_entrega ?? '—' }}
+                                    </td>
 
-                                                        <td class="px-4 py-3">{{ $r->referencia ?? '—' }}</td>
-
-
-                                                        <td class="px-4 py-3">
-                                                            <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-1 text-sm font-medium
-                                   text-indigo-600 hover:text-indigo-800 underline-offset-4 hover:underline transition">
-                                                                Ver detalle →
-                                                            </a>
-                                                        </td>
-                                                        <td class="px-4 py-3">
-                                                            @if((int) ($r->exists_guia ?? 0) === 1)
-                                                                <div class="flex items-center gap-2">
-                                                                    <span
-                                                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                                                        ✔ Match
-                                                                    </span>
-                                                                    <a class="text-xs text-green-700 hover:underline"
-                                                                        href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}">
-                                                                        Ver detalle
-                                                                    </a>
+                                    <td class="px-4 py-3">{{ $r->referencia ?? '—' }}</td>
 
 
-                                                                </div>
-                                                            @else
-                                                                <span
-                                                                    class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                                                                    —
-                                                                </span>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
+                                    <td class="px-4 py-3">
+                                        <a href="{{ route('excel_out_transfers.show', $r) }}"
+                                            class="inline-flex items-center gap-1 text-sm font-medium
+                                                   text-indigo-600 hover:text-indigo-800 underline-offset-4 hover:underline transition">
+                                            Ver detalle →
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @if((int) ($r->exists_guia ?? 0) === 1)
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                                    ✔ Match
+                                                </span>
+                                                <a class="text-xs text-green-700 hover:underline"
+                                                    href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}">
+                                                    Ver detalle
+                                                </a>
+
+
+                                            </div>
+                                        @else
+                                            <span
+                                                class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                                                —
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
                             @empty
                                 <tr>
                                     <td colspan="8" class="px-4 py-10 text-center text-gray-500">
@@ -204,9 +205,9 @@
                                         <td class="p-2">
                                             <span
                                                 class="px-2 py-0.5 rounded text-xs
-                                                                                                                                                                                                                                                                                                                        {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                                                                                                                                                                                                                        {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                                                                                                                                                                                                                        {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
+                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
