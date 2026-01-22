@@ -35,56 +35,84 @@
 ])->values()->toJson(JSON_UNESCAPED_UNICODE) }})">
 
                 {{-- Toolbar --}}
-                <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+    <form
+        id="filtersForm"
+        method="GET"
+        action="{{ route('pdf.index') }}"
+        class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+    >
+        {{-- Filtros --}}
+        <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            {{-- Buscar --}}
+            <div class="w-full sm:w-80">
+                <label for="qInput" class="block text-xs font-medium text-gray-500 mb-1">
+                    Buscar
+                </label>
+                <input
+                    id="qInput"
+                    name="q"
+                    type="text"
+                    value="{{ request('q') }}"
+                    placeholder="Archivo / Guía / ID / fecha…"
+                    class="w-full rounded-md border-gray-300 shadow-sm
+                           focus:border-indigo-500 focus:ring-indigo-500"
+                >
+            </div>
 
+            {{-- Modelo --}}
+            <div class="w-full sm:w-44">
+                <label for="modelSelect" class="block text-xs font-medium text-gray-500 mb-1">
+                    Modelo
+                </label>
+                <select
+                    id="modelSelect"
+                    name="model"
+                    class="w-full rounded-md border-gray-300 shadow-sm
+                           focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                    <option value="">Todos</option>
+                    @foreach (['QC','MP','VT','B','C','—'] as $m)
+                        <option value="{{ $m }}" {{ request('model') === $m ? 'selected' : '' }}>
+                            {{ $m === '—' ? 'Sin modelo' : $m }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
-                        <form id="filtersForm" method="GET" action="{{ route('pdf.index') }}"
-                            class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            {{-- Estado de orden --}}
+            <input type="hidden" name="order_by" value="{{ request('order_by', 'doc_fecha') }}">
+            <input type="hidden" name="dir" value="{{ request('dir', 'desc') }}">
 
-                            <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                                <div class="w-full sm:w-80">
-                                    <label class="block text-xs text-gray-500 mb-1">Buscar</label>
-                                    <input id="qInput" name="q" value="{{ request('q') }}" type="text"
-                                        placeholder="Archivo / Guía / ID / fecha..."
-                                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                </div>
+            {{-- Acciones --}}
+            <div class="flex items-end gap-2">
+                <button
+                    type="submit"
+                    class="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm
+                           hover:bg-indigo-700 transition"
+                >
+                    Filtrar
+                </button>
 
-                                <div class="w-full sm:w-44">
-                                    <label class="block text-xs text-gray-500 mb-1">Modelo</label>
-                                    <select id="modelSelect" name="model"
-                                        class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                                        <option value="">Todos</option>
-                                        <option value="QC" {{ request('model') === 'QC' ? 'selected' : '' }}>QC</option>
-                                        <option value="MP" {{ request('model') === 'MP' ? 'selected' : '' }}>MP</option>
-                                        <option value="VT" {{ request('model') === 'VT' ? 'selected' : '' }}>VT</option>
-                                        <option value="B" {{ request('model') === 'B' ? 'selected' : '' }}>B</option>
-                                        <option value="C" {{ request('model') === 'C' ? 'selected' : '' }}>C</option>
-                                        <option value="—" {{ request('model') === '—' ? 'selected' : '' }}>Sin modelo
-                                        </option>
-                                    </select>
-                                </div>
+                <a
+                    href="{{ route('pdf.index') }}"
+                    class="px-3 py-2 rounded-md bg-gray-100 text-sm
+                           hover:bg-gray-200 transition"
+                >
+                    Limpiar
+                </a>
+            </div>
+        </div>
 
-                                {{-- Mantener orden actual --}}
-                                <input type="hidden" name="order_by" value="{{ request('order_by', 'doc_fecha') }}">
-                                <input type="hidden" name="dir" value="{{ request('dir', 'desc') }}">
-
-                                <div class="flex items-end gap-2">
-                                    <a href="{{ route('pdf.index') }}"
-                                        class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm">
-                                        Limpiar
-                                    </a>
-                                </div>
-                            </div>
-
-                            <div class="text-sm text-gray-600">
-                                Mostrando {{ $imports->count() }} de {{ $imports->total() }}
-                            </div>
-                        </form>
-
-                    </div>
-
-                </div>
+        {{-- Contador --}}
+        <div class="text-sm text-gray-600 text-right">
+            Mostrando
+            <span class="font-medium text-gray-900">{{ $imports->count() }}</span>
+            de
+            <span class="font-medium text-gray-900">{{ $imports->total() }}</span>
+        </div>
+    </form>
+</div>
 
                 {{-- Table --}}
                 <div class="mt-4 overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
