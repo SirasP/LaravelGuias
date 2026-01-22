@@ -718,6 +718,7 @@ class PdfImportController extends Controller
             str_contains($head, 'guia recepcion de fruta granel') ||
             str_contains($head, 'guía recepcion de fruta granel') ||
             str_contains($head, 'recepcion de fruta') ||
+            str_contains($head, 'guia de recepción sanco') ||
             str_contains($head, 'recepción de fruta')
         ) {
             return 'SANCO';
