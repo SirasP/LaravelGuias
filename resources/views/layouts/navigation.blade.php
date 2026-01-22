@@ -103,30 +103,19 @@
 <!-- DOCUMENTOS (PDF) -->
 <div x-data="{ openDocs: false }" class="relative">
 
-    <!-- BOTÓN -->
     <button
         @click="openDocs = !openDocs"
         @click.away="openDocs = false"
-        class="group relative inline-flex items-center gap-2 px-4 py-2
-               text-sm font-medium rounded-full transition-all duration-200
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full
+               text-sm font-medium transition-all
+               bg-gray-100 dark:bg-gray-800
+               hover:bg-indigo-100 dark:hover:bg-indigo-900/40
                {{ request()->routeIs('pdf.*')
-                    ? 'text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100' }}"
+                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                    : 'text-gray-700 dark:text-gray-200' }}"
     >
-        <!-- Indicador activo -->
-        @if(request()->routeIs('pdf.*'))
-            <span
-                class="absolute -bottom-1 left-1/2 -translate-x-1/2
-                       w-1 h-1 rounded-full bg-indigo-500">
-            </span>
-        @endif
-
         Guías Recepcionadas
-
-        <svg
-            class="w-4 h-4 transition-transform duration-200
-                   text-gray-400 group-hover:text-gray-600
-                   dark:group-hover:text-gray-300"
+        <svg class="w-4 h-4 transition-transform"
             :class="{ 'rotate-180': openDocs }"
             xmlns="http://www.w3.org/2000/svg" fill="none"
             viewBox="0 0 24 24" stroke="currentColor">
@@ -135,46 +124,30 @@
         </svg>
     </button>
 
-    <!-- DROPDOWN -->
     <div
         x-show="openDocs"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 translate-y-1 scale-95"
-        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-        x-transition:leave-end="opacity-0 translate-y-1 scale-95"
-        class="absolute left-0 z-50 mt-4 w-64
+        x-transition
+        class="absolute left-0 mt-4 w-64 z-50
                rounded-2xl bg-white dark:bg-gray-900
-               shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+               shadow-2xl border border-gray-100 dark:border-gray-700"
     >
+        <a href="{{ route('pdf.index') }}"
+           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+            PDFs importados
+        </a>
 
-        <div class="py-2">
-
-            <a
-                href="{{ route('pdf.index') }}"
-                class="group flex items-center gap-3 px-4 py-3 text-sm
-                       text-gray-700 dark:text-gray-200
-                       hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-            >
-                <span class="h-2 w-2 rounded-full bg-indigo-400 opacity-0 group-hover:opacity-100"></span>
-                PDFs importados
-            </a>
-
-            <a
-                href="{{ route('pdf.import.form') }}"
-                class="group flex items-center gap-3 px-4 py-3 text-sm
-                       text-gray-700 dark:text-gray-200
-                       hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-            >
-                <span class="h-2 w-2 rounded-full bg-indigo-400 opacity-0 group-hover:opacity-100"></span>
-                Importar PDF
-            </a>
-
-        </div>
+        <a href="{{ route('pdf.import.form') }}"
+           class="flex items-center gap-4 px-6 py-3 text-sm font-medium
+                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+            Importar PDF
+        </a>
     </div>
 
 </div>
+
 
 
                     <div x-data="{ openOdoo: false }" class="relative">
