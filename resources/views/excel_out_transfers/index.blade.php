@@ -159,8 +159,10 @@
                                                 </span>
                                                 <a class="text-xs text-green-700 hover:underline"
                                                     href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}">
-                                                    Ver PDF
+                                                    Ver detalle
                                                 </a>
+                                               
+
                                             </div>
                                         @else
                                             <span

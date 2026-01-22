@@ -14,6 +14,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use App\Models\AgrakRegistro;
 use App\Http\Controllers\ExcelDate;
 use Illuminate\Support\Facades\Storage;
+
+
 use SimpleXMLElement;
 class PdfImportController extends Controller
 {
@@ -2064,23 +2066,32 @@ class PdfImportController extends Controller
         return $lines;
     }
 
-
     public function ver(int $id)
     {
         $import = PdfImport::findOrFail($id);
 
-        if (!Storage::disk(config('filesystems.default'))->exists($import->stored_path)) {
-            abort(404, 'Archivo no encontrado');
-        }
+        $absolutePath = storage_path('app/private/' . $import->stored_path);
 
-        return response()->file(
-            Storage::disk(config('filesystems.default'))->path($import->stored_path),
-            [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $import->original_name . '"'
-            ]
-        );
+        return response()->file($absolutePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $import->original_name . '"'
+        ]);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Parse Recepciones desde Liquidación de Productores COMPUAGRO

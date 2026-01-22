@@ -90,83 +90,100 @@
                 </div>
 
                 {{-- Table --}}
-                <div class="mt-4 overflow-auto border rounded-lg">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-700">
-                            <tr class="text-left">
-                                <th class="p-3 w-20">ID</th>
-                                <th class="p-3 w-28">Guía</th>
-                                <th class="p-3">Archivo</th>
-                                <th class="p-3 w-28">Modelo</th>
-                                @php
-                                    $isPdfDate = ($orderBy ?? 'doc_fecha') === 'doc_fecha';
-                                    $nextDir = ($dir ?? 'desc') === 'desc' ? 'asc' : 'desc';
-                                @endphp
+                <div class="mt-4 overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
+    <table class="min-w-full text-sm">
+        <thead class="bg-gray-50 sticky top-0 z-10">
+            <tr class="text-left text-gray-600">
+                <th class="px-4 py-3 w-20">ID</th>
+                <th class="px-4 py-3 w-28">Guía</th>
+                <th class="px-4 py-3">Archivo</th>
 
-                                <th class="p-3 w-40 cursor-pointer select-none">
-                                    <a href="{{ request()->fullUrlWithQuery([
-    'order_by' => 'doc_fecha',
-    'dir' => $isPdfDate ? $nextDir : 'desc'
-]) }}" class="inline-flex items-center gap-1 hover:underline">
-                                        Fecha PDF
+                @php
+                    $isPdfDate = ($orderBy ?? 'doc_fecha') === 'doc_fecha';
+                    $nextDir = ($dir ?? 'desc') === 'desc' ? 'asc' : 'desc';
+                @endphp
 
-                                        @if($isPdfDate)
-                                            <span class="text-xs">
-                                                {{ $dir === 'asc' ? '↑' : '↓' }}
-                                            </span>
-                                        @endif
-                                    </a>
-                                </th>
-                                <th class="p-3 w-44">Importado</th>
-                                <th class="p-3 w-40 text-right">Acciones</th>
-                            </tr>
-                        </thead>
+                <th class="px-4 py-3 w-40 select-none">
+                    <a
+                        href="{{ request()->fullUrlWithQuery([
+                            'order_by' => 'doc_fecha',
+                            'dir' => $isPdfDate ? $nextDir : 'desc'
+                        ]) }}"
+                        class="inline-flex items-center gap-1 hover:text-gray-900"
+                    >
+                        Fecha PDF
+                        @if($isPdfDate)
+                            <span class="text-xs text-gray-400">
+                                {{ $dir === 'asc' ? '▲' : '▼' }}
+                            </span>
+                        @endif
+                    </a>
+                </th>
 
-                        <tbody class="divide-y">
-                            <template x-for="r in filtered" :key="r.id">
-                                <tr class="hover:bg-gray-50">
-                                    <td class="p-3 text-gray-600" x-text="r.id"></td>
+                <th class="px-4 py-3 w-44">Importado</th>
+                <th class="px-4 py-3 w-40 text-right">Acciones</th>
+            </tr>
+        </thead>
 
-                                    <td class="p-3 text-gray-700 font-semibold" x-text="r.guia ?? '—'"></td>
+        <tbody class="divide-y divide-gray-100 bg-white">
+            <template x-for="r in filtered" :key="r.id">
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 text-gray-500" x-text="r.id"></td>
 
-                                    <td class="p-3">
-                                        <div class="font-medium text-gray-900 truncate max-w-[520px]" :title="r.name"
-                                            x-text="r.name"></div>
-                                    </td>
+                    <td class="px-4 py-3 font-medium text-gray-800"
+                        x-text="r.guia ?? '—'"></td>
 
-                                    <td class="p-3">
-                                        <span
-                                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                                            :class="badgeClass(r.template)" x-text="r.template">
-                                        </span>
-                                    </td>
+                    <td class="px-4 py-3">
+                        <div
+                            class="max-w-[520px] truncate font-medium text-gray-900"
+                            :title="r.name"
+                            x-text="r.name"
+                        ></div>
+                    </td>
 
-                                    <td class="p-3 text-gray-600" x-text="r.doc_fecha ?? '—'"></td>
+                    <td class="px-4 py-3 text-gray-600"
+                        x-text="r.doc_fecha ?? '—'"></td>
 
-                                    <td class="p-3 text-gray-600" x-text="r.created_at"></td>
+                    <td class="px-4 py-3 text-gray-600"
+                        x-text="r.created_at"></td>
 
-                                    <td class="p-3 text-right space-x-2 whitespace-nowrap">
-                                        <a class="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200"
-                                            :href="`{{ url('/pdf/imports') }}/${r.id}/ver`">
-                                            Ver
-                                        </a>
+                    <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+                        <a
+                            class="inline-flex items-center px-3 py-1.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100 transition"
+                            :href="`{{ url('/pdf/imports') }}/${r.id}/ver`"
+                            target="_blank"
+                        >
+                            Ver
+                        </a>
 
-                                        <a class="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200"
-                                            :href="`{{ url('/pdf/imports') }}/${r.id}`">
-                                            JSON
-                                        </a>
-                                    </td>
-                                </tr>
-                            </template>
+                        <a
+                            class="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition"
+                            :href="`{{ url('/pdf/imports') }}/${r.id}/archivo`"
+                            target="_blank"
+                        >
+                            Archivo
+                        </a>
 
-                            <tr x-show="filtered.length === 0">
-                                <td colspan="7" class="p-10 text-center text-gray-500">
-                                    No hay resultados con ese filtro/búsqueda.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                        <a
+                            class="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 transition"
+                            :href="`{{ url('/pdf/imports') }}/${r.id}`"
+                            target="_blank"
+                        >
+                            JSON
+                        </a>
+                    </td>
+                </tr>
+            </template>
+
+            <tr x-show="filtered.length === 0">
+                <td colspan="7" class="px-6 py-16 text-center text-gray-500">
+                    No hay resultados con ese filtro o búsqueda.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
 
                 {{-- Pagination --}}
                 {{-- Esto evita que Turbo/SPA te "recicle" el DOM y se quede pegado con los mismos rows --}}

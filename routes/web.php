@@ -232,6 +232,9 @@ Route::middleware(['auth', 'role:admin,operator'])->group(function () {
         ->whereNumber('id')
         ->name('pdf.import.show');
 
+    Route::get('/pdf/imports/{id}/archivo', [PdfImportController::class, 'ver'])
+        ->whereNumber('id')
+        ->name('pdf.show');
 
     Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'show'])
         ->whereNumber('id')
@@ -338,7 +341,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/agrak/kg-promedio', [DashboardController::class, 'updateKgPromedio'])
         ->name('agrak.kg-promedio');
-        
+
     Route::get('/centros/detalle', [CentroController::class, 'show'])
         ->name('centros.detalle');
 
