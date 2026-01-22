@@ -8,10 +8,7 @@
                  
             </div>
 
-            <a href="{{ route('pdf.import.form') }}"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium hover:bg-indigo-700">
-                + Importar nuevo
-            </a>
+          
             <a href="{{ route('pdf.export.xlsx') }}"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50">
                 Exportar Excel
