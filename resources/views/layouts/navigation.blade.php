@@ -132,16 +132,16 @@
                shadow-2xl border border-gray-100 dark:border-gray-700"
     >
         <a href="{{ route('pdf.index') }}"
-           class="flex  gap-1 px-5 py-2 text-sm font-medium
-                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
-            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+           class="flex gap-1 px-5 py-2 text-sm font-medium
+                  hover:bg-sky-50 dark:hover:bg-sky-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-sky-500"></span>
             PDFs importados
         </a>
 
         <a href="{{ route('pdf.import.form') }}"
-           class="flex  gap-1 px-5 py-2 text-sm font-medium
-                  hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
-            <span class="h-3.5 w-3.5 rounded-full bg-indigo-500"></span>
+           class="flex gap-1 px-5 py-2 text-sm font-medium
+                  hover:bg-sky-50 dark:hover:bg-sky-900/30">
+            <span class="h-3.5 w-3.5 rounded-full bg-sky-500"></span>
             Importar PDF
         </a>
     </div>
