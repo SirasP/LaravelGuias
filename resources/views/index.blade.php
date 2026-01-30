@@ -38,8 +38,10 @@
                 icon: 'info',
                 title: `${data.name} se conectó`,
                 showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true
+                showCloseButton: true,   // ❌ X para cerrar
+                timer: null,             // ⏸️ no se cierra solo
+                allowOutsideClick: false,
+                allowEscapeKey: true
             });
         }
     };
