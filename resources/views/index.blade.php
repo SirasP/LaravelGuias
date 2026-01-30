@@ -1,9 +1,6 @@
 <script>
     const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
 </script>
-<script>
-    const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
-</script>
 
 <script>
     window.AUTH_USER = {
