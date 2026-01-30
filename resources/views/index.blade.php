@@ -2,11 +2,16 @@
     const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
 </script>
 <script>
+    const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
+</script>
+
+<script>
     window.AUTH_USER = {
         id: {{ auth()->id() }},
         name: "{{ auth()->user()->name }}",
         role: "{{ auth()->user()->role }}"
     };
+
     const ws = new WebSocket("ws://109.72.119.62/ws");
 
     ws.onopen = () => {
@@ -18,16 +23,31 @@
     };
 
     ws.onmessage = e => {
-        const data = JSON.parse(e.data);
+        let data;
+        try {
+            data = JSON.parse(e.data);
+        } catch {
+            return;
+        }
 
+        // 🔔 SOLO Sebastián (id = 1) ve el aviso
         if (
             window.AUTH_USER.id === 1 &&
             data.type === 'user_connected'
         ) {
-            console.log(`🔔 ${data.name} se conectó`);
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: `${data.name} se conectó`,
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
         }
     };
 </script>
+
 <x-app-layout>
     <x-slot name="header">
         <div>
@@ -347,6 +367,7 @@
 
     {{-- Chart.js --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
 
