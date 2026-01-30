@@ -1,7 +1,33 @@
 <script>
     const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
 </script>
+<script>
+    window.AUTH_USER = {
+        id: {{ auth()->id() }},
+        name: "{{ auth()->user()->name }}",
+        role: "{{ auth()->user()->role }}"
+    };
+    const ws = new WebSocket("ws://109.72.119.62/ws");
 
+    ws.onopen = () => {
+        ws.send(JSON.stringify({
+            type: "register",
+            userId: window.AUTH_USER.id,
+            name: window.AUTH_USER.name
+        }));
+    };
+
+    ws.onmessage = e => {
+        const data = JSON.parse(e.data);
+
+        if (
+            window.AUTH_USER.id === 1 &&
+            data.type === 'user_connected'
+        ) {
+            console.log(`🔔 ${data.name} se conectó`);
+        }
+    };
+</script>
 <x-app-layout>
     <x-slot name="header">
         <div>
@@ -204,10 +230,8 @@
                         @foreach($kilosPorContacto as $row)
                             <tr class="border-b last:border-0">
                                 <td class="py-2">
-                                    <a
-                                        href="{{ route('centros.detalle', ['contacto' => $row->contacto]) }}"
-                                        class="text-blue-600 hover:underline"
-                                    >
+                                    <a href="{{ route('centros.detalle', ['contacto' => $row->contacto]) }}"
+                                        class="text-blue-600 hover:underline">
                                         {{ $row->contacto }}
                                     </a>
                                 </td>

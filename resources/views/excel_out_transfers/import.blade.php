@@ -206,10 +206,10 @@
                                             <td class="p-2">{{ $r['file'] ?? '—' }}</td>
                                             <td class="p-2">
                                                 <span class="px-2 py-0.5 rounded text-xs
-                                                                                                                    {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                    {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                    {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}
-                                                                                                                ">
+                                                                                                                            {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
+                                                                                                                            {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
+                                                                                                                            {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}
+                                                                                                                        ">
                                                     {{ $st }}
                                                 </span>
                                             </td>
