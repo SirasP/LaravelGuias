@@ -306,69 +306,66 @@
                 @endforelse
             </div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5 mb-4">
-            <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-4">
-                ⛽ Consumo de combustible — últimos 30 días
-            </h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <div class="relative h-56 ">
-                <canvas id="fuelChart"></canvas>
+            <!-- GASOLINA -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                <h3 class="font-semibold mb-3">⛽ Gasolina — últimos 30 días</h3>
+                <div class="relative h-48">
+                    <canvas id="gasolinaChart"></canvas>
+                </div>
             </div>
 
-            @if (empty($chartLabels) || count($chartLabels) === 0)
-                <p class="text-sm text-gray-500 mt-3">
-                    No hay datos de consumo en este período.
-                </p>
-            @endif
-        </div>
+            <!-- DIESEL -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                <h3 class="font-semibold mb-3">🛢️ Diésel — últimos 30 días</h3>
+                <div class="relative h-48">
+                    <canvas id="dieselChart"></canvas>
+                </div>
+            </div>
 
+        </div>
     </div>
 
 </x-app-layout>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
 
-@if (!empty($chartLabels) && count($chartLabels))
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const ctx = document.getElementById('fuelChart');
-            if (!ctx) return;
+        const gasCtx = document.getElementById('gasolinaChart');
+        const dieCtx = document.getElementById('dieselChart');
 
-            const labels = @json($chartLabels);
-            const dataValues = @json($chartData).map(Number);
-
-            new Chart(ctx, {
+        if (gasCtx) {
+            new Chart(gasCtx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: @json($labelsGasolina),
                     datasets: [{
-                        label: 'Litros consumidos',
-                        data: dataValues,
-                        backgroundColor: '#f97316', // naranja fuel
-                        borderRadius: 6,
-                        maxBarThickness: 40
+                        label: 'Gasolina (L)',
+                        data: @json($dataGasolina),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => `${ctx.parsed.y.toFixed(2)} L`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: value => value + ' L'
-                            }
-                        }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
-        });
-    </script>
-@endif
+        }
+
+        if (dieCtx) {
+            new Chart(dieCtx, {
+                type: 'bar',
+                data: {
+                    labels: @json($labelsDiesel),
+                    datasets: [{
+                        label: 'Diésel (L)',
+                        data: @json($dataDiesel),
+                        backgroundColor: '#16a34a',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+    });
+</script>

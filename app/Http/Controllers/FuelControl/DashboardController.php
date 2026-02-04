@@ -46,24 +46,57 @@ class DashboardController extends Controller
             ];
 
             /* =========================
-             * GRÁFICO: CONSUMO ÚLTIMOS 30 DÍAS
+             * GRÁFICOS: CONSUMO ÚLTIMOS 30 DÍAS
              * ========================= */
             $desde = now()->subDays(30)->startOfDay();
 
             $consumo = DB::connection('fuelcontrol')
                 ->table('movimientos')
-                ->selectRaw('DATE(fecha_movimiento) as fecha, SUM(ABS(cantidad)) as total')
+                ->join('productos', 'productos.id', '=', 'movimientos.producto_id')
+                ->selectRaw('
+        DATE(fecha_movimiento) as fecha,
+        LOWER(productos.nombre) as producto,
+        SUM(ABS(movimientos.cantidad)) as total
+    ')
                 ->where('tipo', 'salida')
                 ->where('fecha_movimiento', '>=', $desde)
-                ->groupByRaw('DATE(fecha_movimiento)')
+                ->groupBy('fecha', 'producto')
                 ->orderBy('fecha')
                 ->get();
 
-            $chartLabels = $consumo->pluck('fecha')->map(
-                fn($f) => Carbon::parse($f)->format('d-m')
-            );
+            /* =========================
+             * GASOLINA
+             * ========================= */
 
-            $chartData = $consumo->pluck('total');
+            $gasolina = $consumo->filter(fn($r) => str_contains($r->producto, 'gas'));
+
+            $labelsGasolina = $gasolina
+                ->pluck('fecha')
+                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                ->values();
+
+            $dataGasolina = $gasolina
+                ->pluck('total')
+                ->values();
+
+            /* =========================
+             * DIESEL
+             * ========================= */
+
+            $diesel = $consumo->filter(fn($r) => str_contains($r->producto, 'die'));
+
+            $labelsDiesel = $diesel
+                ->pluck('fecha')
+                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                ->values();
+
+            $dataDiesel = $diesel
+                ->pluck('total')
+                ->values();
+
+            /* =========================
+             * COMBINAR DATOS PARA GRÁFICO
+             * ========================= */
 
         } catch (\Throwable $e) {
             dd([
@@ -77,8 +110,10 @@ class DashboardController extends Controller
             'productos',
             'movimientos',
             'resumen',
-            'chartLabels',
-            'chartData'
+            'labelsGasolina',
+            'dataGasolina',
+            'labelsDiesel',
+            'dataDiesel'
         ));
     }
 }
