@@ -1,7 +1,7 @@
 <x-app-layout>
     <div x-data="{ open: false, deleteId: null, createOpen: false, loading: false, nombre: '', cantidad: '' }">
 
-
+        
 
         <x-slot name="header">
             <div class="flex items-center justify-between ">
