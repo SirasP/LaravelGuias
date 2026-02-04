@@ -38,23 +38,44 @@
         <!-- ESTADÍSTICAS RÁPIDAS -->
         @if($productos->isNotEmpty())
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div
-                    class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 bg-blue-600 rounded-lg">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                    @foreach ($productos as $p)
+                        @php
+                            // Colores según producto (opcional)
+                            $isDiesel = str_contains(strtolower($p->nombre), 'diesel');
+                            $bg = $isDiesel
+                                ? 'from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-yellow-200 dark:border-yellow-800'
+                                : 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800';
+
+                            $iconBg = $isDiesel ? 'bg-yellow-600' : 'bg-blue-600';
+                            $text = $isDiesel ? 'text-yellow-900 dark:text-yellow-100' : 'text-blue-900 dark:text-blue-100';
+                            $sub = $isDiesel ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400';
+                        @endphp
+
+                        <div class="bg-gradient-to-br {{ $bg }} rounded-lg p-4 border">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 {{ $iconBg }} rounded-lg">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                                    </svg>
+                                </div>
+
+                                <div>
+                                    <p class="text-xs font-medium {{ $sub }}">
+                                        Stock {{ $p->nombre }}
+                                    </p>
+                                    <p class="text-lg font-bold {{ $text }}">
+                                        {{ number_format($p->cantidad, 2) }} L
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-xs text-blue-600 dark:text-blue-400 font-medium">Stock Total</p>
-                            <p class="text-lg font-bold text-blue-900 dark:text-blue-100">
-                                {{ number_format($productos->sum('cantidad'), 2) }} L
-                            </p>
-                        </div>
-                    </div>
+                    @endforeach
+
                 </div>
+
 
                 <div
                     class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
