@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="{ open: false, deleteId: null }">
+    <div x-data="{ open: false, deleteId: null, createOpen: false }">
         <x-slot name="header">
             <div class="flex items-center justify-between ">
                 <div>
@@ -26,13 +26,14 @@
 
 
                 <div class="flex gap-6 w-full sm:w-auto ">
-                    <a href="{{ route('fuelcontrol.productos.create') }}"
+                    <button @click="createOpen = true"
                         class="flex items-center justify-center gap-2 px-4 py-3.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto">
+
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
                         Nuevo Producto
-                    </a>
+                    </button>
                 </div>
             </div>
 
@@ -311,15 +312,58 @@
             </div>
 
 
+            <div x-show="createOpen" x-cloak
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+
+                <div x-transition @click.outside="createOpen = false"
+                    class="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                        Nuevo Producto
+                    </h2>
+
+                    <form method="POST" action="{{ route('fuelcontrol.productos.store') }}" class="space-y-4">
+                        @csrf
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Nombre
+                            </label>
+                            <input type="text" name="nombre" required
+                                class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Cantidad (L)
+                            </label>
+                            <input type="number" step="0.01" name="cantidad" required
+                                class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-4">
+                            <button type="button" @click="createOpen = false"
+                                class="px-4 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                Cancelar
+                            </button>
+
+                            <button type="submit"
+                                class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+                                Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
 
 
 
             <!-- PAGINACIÓN (si la usas) -->
             @if($productos instanceof \Illuminate\Pagination\LengthAwarePaginator && $productos->hasPages())
-            <div class="flex justify-center">
-                {{ $productos->links() }}
-            </div>
+                <div class="flex justify-center">
+                    {{ $productos->links() }}
+                </div>
             @endif
 
         </div>
