@@ -42,6 +42,7 @@ return [
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
         ],
+        
         'fuelcontrol' => [
             'driver' => 'mysql',
             'host' => env('FUEL_DB_HOST', '127.0.0.1'),
@@ -55,6 +56,9 @@ return [
             'strict' => false,
             'engine' => null,
         ],
+
+
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
