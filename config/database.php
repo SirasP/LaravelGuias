@@ -42,7 +42,19 @@ return [
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
         ],
-
+        'fuelcontrol' => [
+            'driver' => 'mysql',
+            'host' => env('FUEL_DB_HOST', '127.0.0.1'),
+            'port' => env('FUEL_DB_PORT', '3306'),
+            'database' => env('FUEL_DB_DATABASE', 'inventariocombustible'),
+            'username' => env('FUEL_DB_USERNAME', 'usuario_fuel'),
+            'password' => env('FUEL_DB_PASSWORD', 'password_fuel'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => false,
+            'engine' => null,
+        ],
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
@@ -148,7 +160,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

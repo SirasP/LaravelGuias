@@ -13,19 +13,23 @@ use App\Http\Controllers\Guias\ComfrutGuiaController;
 use App\Http\Controllers\ExcelOutTransferController;
 use App\Http\Controllers\CamionController;
 use App\Http\Controllers\AgrakExportController;
-use App\Http\Controllers\Inventario\DashboardController;
 use App\Http\Controllers\CentroController;
+use App\Http\Controllers\Inventario\DashboardController as InventarioDashboard;
+use App\Http\Controllers\FuelControl\DashboardController as FuelDashboard;
+use App\Http\Controllers\FuelControl\ProductoController;
+use App\Http\Controllers\FuelControl\VehiculoController;
+use App\Http\Controllers\FuelControl\MovimientoController;
+
 
 /*
 |--------------------------------------------------------------------------
 | HOME
 |--------------------------------------------------------------------------
 */
-Route::get('/', [DashboardController::class, 'index'])
+Route::get('/', [InventarioDashboard::class, 'index'])
     ->middleware('auth')
     ->name('index');
 
-/*
 /*
 |--------------------------------------------------------------------------
 | INVENTARIO (todos los usuarios autenticados)
@@ -347,3 +351,25 @@ Route::middleware('auth')->group(function () {
 
 });
 
+/*|--------------------------------------------------------------------------
+| FUEL CONTROL
+|--------------------------------------------------------------------------*/
+
+
+Route::middleware(['auth'])
+    ->prefix('fuelcontrol')
+    ->name('fuelcontrol.')
+    ->group(function () {
+
+        Route::get('/', [FuelDashboard::class, 'index'])
+            ->name('index');
+
+        Route::get('/productos', [ProductoController::class, 'index'])
+            ->name('productos');
+
+        Route::get('/vehiculos', [VehiculoController::class, 'index'])
+            ->name('vehiculos');
+
+        Route::get('/movimientos', [MovimientoController::class, 'index'])
+            ->name('movimientos');
+    });

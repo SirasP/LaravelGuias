@@ -242,7 +242,43 @@
 
                         </div>
                     </div>
+                    <div x-data="{ openFuel: false }" class="relative">
+                        <button @click="openFuel = !openFuel" @click.away="openFuel = false" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition
+        {{ request()->routeIs('fuelcontrol.*')
+    ? 'text-orange-600 dark:text-orange-400'
+    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100' }}">
 
+                            FuelControl
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openFuel }"
+                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <div x-show="openFuel" x-transition class="absolute z-50 mt-2 w-56 rounded-xl shadow-lg
+               bg-white dark:bg-gray-900
+               border border-gray-200 dark:border-gray-700">
+
+                            <a href="{{ route('fuelcontrol.index') }}"
+                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                                Dashboard
+                            </a>
+                            <a href="{{ route('fuelcontrol.productos') }}"
+                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                                Productos
+                            </a>
+                            <a href="{{ route('fuelcontrol.vehiculos') }}"
+                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                                Vehículos
+                            </a>
+                            <a href="{{ route('fuelcontrol.movimientos') }}"
+                                class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                                Movimientos
+                            </a>
+                        </div>
+                    </div>
 
 
                 </div>
@@ -296,134 +332,180 @@
             </div>
 
         </div>
-    </div>
-
-    <!-- Mobile Menu -->
-    <div x-show="open" x-transition class="sm:hidden border-t dark:border-gray-700 bg-white dark:bg-gray-900">
 
 
-        <!-- ODOO (accordion mobile) -->
-        <div x-data="{ openOdoo: false }" class="border-t dark:border-gray-700">
+        <!-- Mobile Menu -->
+        <div x-show="open" x-transition class="sm:hidden border-t dark:border-gray-700 bg-white dark:bg-gray-900">
 
-            <button @click="openOdoo = !openOdoo" class="w-full flex items-center justify-between px-4 py-3 text-sm
+
+            <!-- ODOO (accordion mobile) -->
+            <div x-data="{ openOdoo: false }" class="border-t dark:border-gray-700">
+
+                <button @click="openOdoo = !openOdoo" class="w-full flex items-center justify-between px-4 py-3 text-sm
                    text-gray-700 dark:text-gray-200">
-                <span>Guías ODOO</span>
+                    <span>Guías ODOO</span>
 
-                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openOdoo }"
-                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openOdoo }"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
 
-            <div x-show="openOdoo" x-x-transition class="bg-gray-50 dark:bg-gray-800">
-                <a href="{{ route('excel_out_transfers.index') }}"
-                    class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300">
-                    Vista
-                </a>
+                <div x-show="openOdoo" x-x-transition class="bg-gray-50 dark:bg-gray-800">
+                    <a href="{{ route('excel_out_transfers.index') }}"
+                        class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300">
+                        Vista
+                    </a>
 
-                <a href="{{ route('excel_out_transfers.import') }}"
-                    class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300">
-                    Importar
-                </a>
+                    <a href="{{ route('excel_out_transfers.import') }}"
+                        class="block px-6 py-2 text-sm text-gray-600 dark:text-gray-300">
+                        Importar
+                    </a>
+                </div>
             </div>
-        </div>
-        <!-- DOCUMENTOS (PDF) — accordion mobile -->
-        <div x-data="{ openPdf: false }" class="border-t dark:border-gray-700">
+            <!-- DOCUMENTOS (PDF) — accordion mobile -->
+            <div x-data="{ openPdf: false }" class="border-t dark:border-gray-700">
 
-            <!-- BOTÓN -->
-            <button @click="openPdf = !openPdf" class="w-full flex items-center justify-between px-4 py-3 text-sm
+                <!-- BOTÓN -->
+                <button @click="openPdf = !openPdf" class="w-full flex items-center justify-between px-4 py-3 text-sm
                text-gray-700 dark:text-gray-200">
-                <span>Guías Recepcionadas</span>
+                    <span>Guías Recepcionadas</span>
 
-                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openPdf }"
-                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openPdf }"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
 
-            <!-- CONTENIDO -->
-            <div x-show="openPdf" x-transition class="bg-gray-50 dark:bg-gray-800">
+                <!-- CONTENIDO -->
+                <div x-show="openPdf" x-transition class="bg-gray-50 dark:bg-gray-800">
 
-                <a href="{{ route('pdf.index') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('pdf.index') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    PDFs importados
-                </a>
+                        PDFs importados
+                    </a>
 
-                <a href="{{ route('pdf.import.form') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('pdf.import.form') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Importar PDF
-                </a>
+                        Importar PDF
+                    </a>
 
+                </div>
             </div>
-        </div>
 
 
-        <!-- AGRAK — accordion mobile -->
-        <div x-data="{ openAgrak: false }" class="border-t dark:border-gray-700">
+            <!-- AGRAK — accordion mobile -->
+            <div x-data="{ openAgrak: false }" class="border-t dark:border-gray-700">
 
-            <!-- BOTÓN -->
-            <button @click="openAgrak = !openAgrak" class="w-full flex items-center justify-between px-4 py-3 text-sm
+                <!-- BOTÓN -->
+                <button @click="openAgrak = !openAgrak" class="w-full flex items-center justify-between px-4 py-3 text-sm
                text-gray-700 dark:text-gray-200">
-                <span>Agrak</span>
+                    <span>Agrak</span>
 
-                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openAgrak }"
-                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openAgrak }"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
 
-            <!-- CONTENIDO -->
-            <div x-show="openAgrak" x-transition class="bg-gray-50 dark:bg-gray-800">
+                <!-- CONTENIDO -->
+                <div x-show="openAgrak" x-transition class="bg-gray-50 dark:bg-gray-800">
 
-                <a href="{{ route('agrak.index') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('agrak.index') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Vista
-                </a>
+                        Vista
+                    </a>
 
-                <a href="{{ route('agrak.import.form') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('agrak.import.form') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Importar
-                </a>
+                        Importar
+                    </a>
 
+                </div>
             </div>
-        </div>
 
 
-        <!-- GUÍAS RECEPCIÓN BANDEJAS — accordion mobile -->
-        <div x-data="{ openGuias: false }" class="border-t dark:border-gray-700">
+            <!-- GUÍAS RECEPCIÓN BANDEJAS — accordion mobile -->
+            <div x-data="{ openGuias: false }" class="border-t dark:border-gray-700">
 
-            <!-- BOTÓN -->
-            <button @click="openGuias = !openGuias" class="w-full flex items-center justify-between px-4 py-3 text-sm
+                <!-- BOTÓN -->
+                <button @click="openGuias = !openGuias" class="w-full flex items-center justify-between px-4 py-3 text-sm
                text-gray-700 dark:text-gray-200">
-                <span>Guías Recepción Bandejas</span>
+                    <span>Guías Recepción Bandejas</span>
 
-                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openGuias }"
-                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openGuias }"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
 
-            <!-- CONTENIDO -->
-            <div x-show="openGuias" x-transition class="bg-gray-50 dark:bg-gray-800">
+                <!-- CONTENIDO -->
+                <div x-show="openGuias" x-transition class="bg-gray-50 dark:bg-gray-800">
 
-                <a href="{{ route('guias.comfrut.index') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('guias.comfrut.index') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Vista
-                </a>
+                        Vista
+                    </a>
 
-                <a href="{{ route('guias.comfrut.import.form') }}" class="block px-6 py-2 text-sm
+                    <a href="{{ route('guias.comfrut.import.form') }}" class="block px-6 py-2 text-sm
                    text-gray-600 dark:text-gray-300
                    hover:bg-gray-100 dark:hover:bg-gray-700">
-                    Importar XML
-                </a>
+                        Importar XML
+                    </a>
 
+                </div>
             </div>
-        </div>
+
+            <!-- FUEL CONTROL — accordion mobile -->
+            <div x-data="{ openFuel: false }" class="border-t dark:border-gray-700">
+
+                <!-- BOTÓN -->
+                <button @click="openFuel = !openFuel" class="w-full flex items-center justify-between px-4 py-3 text-sm
+               text-gray-700 dark:text-gray-200
+               {{ request()->routeIs('fuelcontrol.*') ? 'font-semibold text-orange-600 dark:text-orange-400' : '' }}">
+                    <span class="flex items-center gap-2">
+                        FuelControl
+                    </span>
+
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': openFuel }"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <!-- CONTENIDO -->
+                <div x-show="openFuel" x-transition class="bg-gray-50 dark:bg-gray-800">
+
+                    <a href="{{ route('fuelcontrol.index') }}" class="block px-6 py-2 text-sm
+                  text-gray-600 dark:text-gray-300
+                  hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Dashboard
+                    </a>
+
+                    <a href="{{ route('fuelcontrol.productos') }}" class="block px-6 py-2 text-sm
+                  text-gray-600 dark:text-gray-300
+                  hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Productos
+                    </a>
+
+                    <a href="{{ route('fuelcontrol.vehiculos') }}" class="block px-6 py-2 text-sm
+                  text-gray-600 dark:text-gray-300
+                  hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Vehículos
+                    </a>
+
+                    <a href="{{ route('fuelcontrol.movimientos') }}" class="block px-6 py-2 text-sm
+                  text-gray-600 dark:text-gray-300
+                  hover:bg-gray-100 dark:hover:bg-gray-700">
+                        Movimientos
+                    </a>
+                </div>
+            </div>
 
 
 
@@ -431,23 +513,22 @@
 
 
 
+            <!-- Divider -->
+            <div class="border-t mt-2 dark:border-gray-700"></div>
 
-        <!-- Divider -->
-        <div class="border-t mt-2 dark:border-gray-700"></div>
-
-        <!-- Perfil -->
-        <x-responsive-nav-link :href="route('profile.edit')">
-            Perfil
-        </x-responsive-nav-link>
-
-        <!-- Logout -->
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <x-responsive-nav-link :href="route('logout')"
-                onclick="event.preventDefault(); this.closest('form').submit();">
-                Cerrar sesión
+            <!-- Perfil -->
+            <x-responsive-nav-link :href="route('profile.edit')">
+                Perfil
             </x-responsive-nav-link>
-        </form>
-    </div>
+
+            <!-- Logout -->
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <x-responsive-nav-link :href="route('logout')"
+                    onclick="event.preventDefault(); this.closest('form').submit();">
+                    Cerrar sesión
+                </x-responsive-nav-link>
+            </form>
+        </div>
 
 </nav>
