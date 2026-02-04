@@ -23,7 +23,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
             <!-- Productos -->
             <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden mb-4">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
