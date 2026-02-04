@@ -1,5 +1,8 @@
 <x-app-layout>
     <div x-data="{ open: false, deleteId: null, createOpen: false }">
+        <x-toast />
+
+
         <x-slot name="header">
             <div class="flex items-center justify-between ">
                 <div>
@@ -329,14 +332,19 @@
                         <!-- Nombre -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Nombre
+                                Producto
                             </label>
-                            <input type="text" name="nombre" x-model="nombre" required
-                                class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                                :class="nombre === '' ? 'border-red-500' : ''">
+
+                            <select name="nombre" x-model="nombre" required
+                                class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+
+                                <option value="">Selecciona un producto</option>
+                                <option value="diesel">Diésel</option>
+                                <option value="gasolina">Gasolina</option>
+                            </select>
 
                             <p x-show="nombre === ''" class="text-xs text-red-500 mt-1">
-                                El nombre es obligatorio
+                                Debes seleccionar un producto
                             </p>
                         </div>
 

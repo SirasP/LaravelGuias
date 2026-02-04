@@ -25,15 +25,22 @@ class ProductoController extends Controller
 
     public function store(Request $request)
     {
+        // 1️⃣ Normalizar nombre (evita Diesel / diesel / DIESEL)
+        $nombre = trim(mb_strtolower($request->nombre));
+
+        // 2️⃣ Validación (unique real en fuelcontrol.productos)
+        $request->merge(['nombre' => $nombre]);
+
         $request->validate([
-            'nombre' => 'required|string|max:100',
+            'nombre' => 'required|string|max:100|unique:fuelcontrol.productos,nombre',
             'cantidad' => 'required|numeric|min:0',
         ]);
 
+        // 3️⃣ Insert seguro
         DB::connection('fuelcontrol')
             ->table('productos')
             ->insert([
-                'nombre' => $request->nombre,
+                'nombre' => $nombre,
                 'cantidad' => $request->cantidad,
                 'usuario' => auth()->user()->name ?? 'sistema',
                 'fecha_registro' => now(),
@@ -43,6 +50,7 @@ class ProductoController extends Controller
             ->route('fuelcontrol.productos')
             ->with('success', 'Producto creado correctamente');
     }
+
 
     public function edit($id)
     {
