@@ -2,13 +2,22 @@
 
     {{-- HEADER SUPERIOR --}}
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                Dashboard
-            </h2>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                    ⛽ FuelControl
+                </h1>
+                <p class="text-sm text-gray-500">
+                    Control de combustible en tiempo real
+                </p>
+            </div>
 
-
+            <span class="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full
+        bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                ● Sistema activo
+            </span>
         </div>
+
     </x-slot>
 
     {{-- CONTENIDO PRINCIPAL --}}
@@ -110,7 +119,7 @@
                             </p>
                         </div>
                         <div class="font-mono font-semibold
-                                        {{ $m->cantidad < 0 ? 'text-red-600' : 'text-green-600' }}">
+                                            {{ $m->cantidad < 0 ? 'text-red-600' : 'text-green-600' }}">
                             {{ number_format($m->cantidad, 2) }} L
                         </div>
                     </div>
