@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="{ open: false, deleteId: null, createOpen: false }">
+    <div x-data="{ open: false, deleteId: null, createOpen: false, loading: false, nombre: '', cantidad: '' }">
         <x-toast />
 
 
