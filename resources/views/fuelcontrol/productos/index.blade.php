@@ -38,7 +38,7 @@
         <!-- ESTADÍSTICAS RÁPIDAS -->
         @if($productos->isNotEmpty())
             <div class="grid grid-cols-4 sm:grid-cols-3 gap-4">
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-6 sm:grid-cols-4 lg:grid-cols-5 gap-4">
 
                     @foreach ($productos as $p)
                         @php
