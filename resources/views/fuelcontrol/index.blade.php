@@ -227,7 +227,7 @@
         </div>
 
         <!-- ÚLTIMOS MOVIMIENTOS -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-4">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -311,7 +311,7 @@
                 ⛽ Consumo de combustible — últimos 30 días
             </h3>
 
-            <div class="relative h-56">
+            <div class="relative h-56 ">
                 <canvas id="fuelChart"></canvas>
             </div>
 
