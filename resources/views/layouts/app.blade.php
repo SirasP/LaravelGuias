@@ -43,9 +43,15 @@
         {{-- CONTENIDO --}}
         <main class="pb-6">
             {{ $slot }}
+            
+            <x-toast />
+
         </main>
 
     </div>
+
+    <x-toast />
+
 </body>
 
 </html>
