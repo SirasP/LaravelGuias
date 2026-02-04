@@ -4,29 +4,37 @@ namespace App\Http\Controllers\FuelControl;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
         try {
-            // 🔌 TEST CONEXIÓN: productos
+            /* =========================
+             * PRODUCTOS
+             * ========================= */
             $productos = DB::connection('fuelcontrol')
                 ->table('productos')
                 ->select('id', 'nombre', 'cantidad')
                 ->orderBy('nombre', 'asc')
                 ->get();
 
-            // 🔌 TEST CONEXIÓN: últimos movimientos
+            /* =========================
+             * ÚLTIMOS MOVIMIENTOS
+             * ========================= */
             $movimientos = DB::connection('fuelcontrol')
                 ->table('movimientos')
                 ->orderByDesc('fecha_movimiento')
                 ->limit(10)
                 ->get();
 
-            // 🔌 TEST CONEXIÓN: resumen
+            /* =========================
+             * RESUMEN
+             * ========================= */
             $resumen = [
                 'total_productos' => $productos->count(),
+
                 'total_vehiculos' => DB::connection('fuelcontrol')
                     ->table('vehiculos')
                     ->count(),
@@ -37,8 +45,27 @@ class DashboardController extends Controller
                     ->count(),
             ];
 
+            /* =========================
+             * GRÁFICO: CONSUMO ÚLTIMOS 30 DÍAS
+             * ========================= */
+            $desde = now()->subDays(30)->startOfDay();
+
+            $consumo = DB::connection('fuelcontrol')
+                ->table('movimientos')
+                ->selectRaw('DATE(fecha_movimiento) as fecha, SUM(ABS(cantidad)) as total')
+                ->where('tipo', 'salida')
+                ->where('fecha_movimiento', '>=', $desde)
+                ->groupByRaw('DATE(fecha_movimiento)')
+                ->orderBy('fecha')
+                ->get();
+
+            $chartLabels = $consumo->pluck('fecha')->map(
+                fn($f) => Carbon::parse($f)->format('d-m')
+            );
+
+            $chartData = $consumo->pluck('total');
+
         } catch (\Throwable $e) {
-            // 🔥 Si algo falla, lo mostramos CLARO
             dd([
                 'error' => true,
                 'mensaje' => $e->getMessage(),
@@ -49,7 +76,9 @@ class DashboardController extends Controller
         return view('fuelcontrol.index', compact(
             'productos',
             'movimientos',
-            'resumen'
+            'resumen',
+            'chartLabels',
+            'chartData'
         ));
     }
 }
