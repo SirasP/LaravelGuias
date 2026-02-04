@@ -364,12 +364,30 @@ Route::middleware(['auth'])
         Route::get('/', [FuelDashboard::class, 'index'])
             ->name('index');
 
+        /* PRODUCTOS */
         Route::get('/productos', [ProductoController::class, 'index'])
             ->name('productos');
 
+        Route::get('/productos/crear', [ProductoController::class, 'create'])
+            ->name('productos.create');
+
+        Route::post('/productos', [ProductoController::class, 'store'])
+            ->name('productos.store');
+
+        Route::get('/productos/{id}/editar', [ProductoController::class, 'edit'])
+            ->name('productos.edit');
+
+        Route::put('/productos/{id}', [ProductoController::class, 'update'])
+            ->name('productos.update');
+
+
+
+
+        /* VEHÍCULOS */
         Route::get('/vehiculos', [VehiculoController::class, 'index'])
             ->name('vehiculos');
 
+        /* MOVIMIENTOS */
         Route::get('/movimientos', [MovimientoController::class, 'index'])
             ->name('movimientos');
     });
