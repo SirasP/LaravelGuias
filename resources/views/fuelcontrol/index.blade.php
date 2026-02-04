@@ -101,34 +101,15 @@
             </div>
         </div>
 
-        <!-- MOVIMIENTOS -->
-        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow">
-            <div class="px-6 py-4 border-b dark:border-gray-700 font-semibold">
-                🔄 Últimos movimientos
+        <!-- Movimientos -->
+        <div class="rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg p-6">
+            <div class="flex items-center justify-between">
+                <span class="text-sm opacity-90">Movimientos hoy</span>
+                <span class="text-3xl">🔄</span>
             </div>
-
-            <div class="divide-y dark:divide-gray-700">
-                @forelse ($movimientos as $m)
-                    <div class="px-6 py-4 flex justify-between items-center text-sm">
-                        <div>
-                            <p class="font-semibold">
-                                Producto #{{ $m->producto_id }}
-                            </p>
-                            <p class="text-xs text-gray-500">
-                                {{ ucfirst($m->tipo) }} · {{ $m->usuario }}
-                            </p>
-                        </div>
-                        <div class="font-mono font-semibold
-                                            {{ $m->cantidad < 0 ? 'text-red-600' : 'text-green-600' }}">
-                            {{ number_format($m->cantidad, 2) }} L
-                        </div>
-                    </div>
-                @empty
-                    <p class="px-6 py-6 text-gray-500 text-center">
-                        No hay movimientos registrados.
-                    </p>
-                @endforelse
-            </div>
+            <p class="mt-4 text-4xl font-extrabold">
+                {{ $resumen['movimientos_hoy'] }}
+            </p>
         </div>
 
     </div>
