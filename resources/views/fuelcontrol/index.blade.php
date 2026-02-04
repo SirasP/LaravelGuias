@@ -373,9 +373,7 @@
                                             <span class="text-xs text-gray-500 dark:text-gray-400">
                                                 • {{ $m->usuario }}
                                             </span>
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">
-                                                • {{ $m->created_at->diffForHumans() }}
-                                            </span>
+                                            
                                         </div>
                                     </div>
                                 </div>
