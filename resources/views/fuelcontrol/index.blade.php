@@ -154,21 +154,24 @@
 
                                 $porcentaje = ($p->cantidad / $capacidad) * 100;
                                 $porcentaje = min(100, max(0, round($porcentaje)));
-                                
+
                                 if ($porcentaje < 20) {
                                     $color = 'bg-red-500';
                                     $textColor = 'text-red-600 dark:text-red-400';
                                     $bgColor = 'bg-red-100 dark:bg-red-900/30';
+                                    $borderColor = 'border-red-200 dark:border-red-800';
                                     $estado = 'Crítico';
                                 } elseif ($porcentaje < 50) {
                                     $color = 'bg-yellow-500';
                                     $textColor = 'text-yellow-600 dark:text-yellow-400';
                                     $bgColor = 'bg-yellow-100 dark:bg-yellow-900/30';
+                                    $borderColor = 'border-yellow-200 dark:border-yellow-800';
                                     $estado = 'Bajo';
                                 } else {
                                     $color = 'bg-green-500';
                                     $textColor = 'text-green-600 dark:text-green-400';
                                     $bgColor = 'bg-green-100 dark:bg-green-900/30';
+                                    $borderColor = 'border-green-200 dark:border-green-800';
                                     $estado = 'Normal';
                                 }
                             @endphp
