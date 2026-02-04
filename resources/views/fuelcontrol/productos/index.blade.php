@@ -339,8 +339,8 @@
                                 class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500">
 
                                 <option value="">Selecciona un producto</option>
-                                <option value="diesel">Diésel</option>
-                                <option value="gasolina">Gasolina</option>
+                                <option value="Diésel">Diésel</option>
+                                <option value="Gasolina">Gasolina</option>
                             </select>
 
                             <p x-show="nombre === ''" class="text-xs text-red-500 mt-1">
