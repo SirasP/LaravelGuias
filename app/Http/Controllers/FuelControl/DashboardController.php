@@ -9,26 +9,42 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // Stock actual por producto
-        $productos = DB::table('productos')
-            ->select('id', 'nombre', 'cantidad')
-            ->orderBy('nombre')
-            ->get();
+        try {
+            // 🔌 TEST CONEXIÓN: productos
+            $productos = DB::connection('fuelcontrol')
+                ->table('productos')
+                ->select('id', 'nombre', 'cantidad')
+                ->orderBy('nombre', 'asc')
+                ->get();
 
-        // Últimos movimientos
-        $movimientos = DB::table('movimientos')
-            ->orderByDesc('fecha_movimiento')
-            ->limit(10)
-            ->get();
+            // 🔌 TEST CONEXIÓN: últimos movimientos
+            $movimientos = DB::connection('fuelcontrol')
+                ->table('movimientos')
+                ->orderByDesc('fecha_movimiento')
+                ->limit(10)
+                ->get();
 
-        // Resumen rápido
-        $resumen = [
-            'total_productos' => $productos->count(),
-            'total_vehiculos' => DB::table('vehiculos')->count(),
-            'movimientos_hoy' => DB::table('movimientos')
-                ->whereDate('fecha_movimiento', now()->toDateString())
-                ->count(),
-        ];
+            // 🔌 TEST CONEXIÓN: resumen
+            $resumen = [
+                'total_productos' => $productos->count(),
+                'total_vehiculos' => DB::connection('fuelcontrol')
+                    ->table('vehiculos')
+                    ->count(),
+
+                'movimientos_hoy' => DB::connection('fuelcontrol')
+                    ->table('movimientos')
+                    ->whereDate('fecha_movimiento', now()->toDateString())
+                    ->count(),
+            ];
+
+        } catch (\Throwable $e) {
+            // 🔥 Si algo falla, lo mostramos CLARO
+            dd([
+                'error' => true,
+                'mensaje' => $e->getMessage(),
+                'conexion' => 'fuelcontrol',
+            ]);
+        }
 
         return view('fuelcontrol.index', compact(
             'productos',
