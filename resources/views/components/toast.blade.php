@@ -1,28 +1,18 @@
 @if (session('success') || session('error'))
-    <div class="fixed top-5 right-5 z-[9999]">
+    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed top-6 right-6 z-[99999]"
+        style="position: fixed;">
+        <div class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-white"
+            style="{{ session('success') ? 'background:#16a34a' : 'background:#dc2626' }}">
+            <span class="text-sm font-medium">
+                {{ session('success') ?? session('error') }}
+            </span>
 
-        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-6"
-            x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-6"
-            class="pointer-events-auto">
-            <div class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-white" :class="{
-                            'bg-green-600': '{{ session('success') }}',
-                            'bg-red-600': '{{ session('error') }}'
-                        }">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4" />
-                </svg>
-
-                <span class="text-sm font-medium">
-                    {{ session('success') ?? session('error') }}
-                </span>
-
-                <button @click="show = false" class="ml-2 text-white/80 hover:text-white">
-                    ✕
-                </button>
-            </div>
+            <button @click="show = false" class="ml-2 text-white/80 hover:text-white">
+                ✕
+            </button>
         </div>
-
     </div>
 @endif

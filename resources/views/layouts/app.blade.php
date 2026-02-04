@@ -44,11 +44,13 @@
         <main class="pb-6">
             {{ $slot }}
 
-            <x-toast />
 
+            {{-- 👇 EL TOAST VA AQUÍ, FUERA DE TODO --}}
+            @include('components.toast')
         </main>
 
     </div>
+
 
 </body>
 
