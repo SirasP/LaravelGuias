@@ -16,7 +16,7 @@
     </x-slot>
 
     {{-- CONTENIDO PRINCIPAL --}}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3 mb-4">
 
         
         <!-- TARJETAS DE RESUMEN -->
@@ -48,7 +48,7 @@
 
             <!-- Vehículos -->
             <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden mb-4">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
