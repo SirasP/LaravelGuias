@@ -32,40 +32,44 @@ class ProductoController extends Controller
             'cantidad' => 'required|numeric|min:0',
         ]);
 
-        $producto = DB::connection('fuelcontrol')
-            ->table('productos')
-            ->where('nombre', $nombre)
-            ->first();
+        DB::connection('fuelcontrol')->transaction(function () use ($nombre, $request) {
 
-        if ($producto) {
-            // 🔁 ACTUALIZA (ej: suma stock)
+            $producto = DB::connection('fuelcontrol')
+                ->table('productos')
+                ->where('nombre', $nombre)
+                ->first();
+
+            if ($producto) {
+                // 🔁 Sumar stock existente
+                DB::connection('fuelcontrol')
+                    ->table('productos')
+                    ->where('id', $producto->id)
+                    ->update([
+                        'cantidad' => $producto->cantidad + $request->cantidad,
+                        'usuario' => auth()->user()->name ?? 'sistema',
+                        'fecha_registro' => now(),
+                    ]);
+
+                session()->flash('success', 'Stock actualizado correctamente');
+                return;
+            }
+
+            // 🆕 Crear producto
             DB::connection('fuelcontrol')
                 ->table('productos')
-                ->where('id', $producto->id)
-                ->update([
-                    'cantidad' => $producto->cantidad + $request->cantidad,
+                ->insert([
+                    'nombre' => $nombre,
+                    'cantidad' => $request->cantidad,
                     'usuario' => auth()->user()->name ?? 'sistema',
+                    'fecha_registro' => now(),
                 ]);
 
-            return redirect()
-                ->route('fuelcontrol.productos')
-                ->with('success', 'Stock actualizado correctamente');
-        }
+            session()->flash('success', 'Producto creado correctamente');
+        });
 
-        // 🆕 CREA SI NO EXISTE
-        DB::connection('fuelcontrol')
-            ->table('productos')
-            ->insert([
-                'nombre' => $nombre,
-                'cantidad' => $request->cantidad,
-                'usuario' => auth()->user()->name ?? 'sistema',
-                'fecha_registro' => now(),
-            ]);
-
-        return redirect()
-            ->route('fuelcontrol.productos')
-            ->with('success', 'Producto creado correctamente');
+        return redirect()->route('fuelcontrol.productos');
     }
+
 
 
 

@@ -152,7 +152,17 @@
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse ($productos as $p)
                                 @php
-                                    $porcentaje = min(100, max(0, $p->cantidad));
+                                    $capacidades = [
+                                        'diesel' => 10000,
+                                        'gasolina' => 100,
+                                    ];
+
+                                    $nombre = strtolower($p->nombre);
+                                    $capacidad = $capacidades[$nombre] ?? 100; // fallback seguro
+
+                                    $porcentaje = ($p->cantidad / $capacidad) * 100;
+                                    $porcentaje = min(100, max(0, round($porcentaje)));
+
                                     if ($porcentaje < 20) {
                                         $color = 'bg-red-500';
                                         $textColor = 'text-red-600 dark:text-red-400';
