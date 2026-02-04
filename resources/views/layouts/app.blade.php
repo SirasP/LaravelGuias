@@ -45,12 +45,12 @@
             {{ $slot }}
 
 
-            {{-- 👇 EL TOAST VA AQUÍ, FUERA DE TODO --}}
-            @include('components.toast')
         </main>
 
     </div>
 
+    {{-- 👇 EL TOAST VA AQUÍ, FUERA DE TODO --}}
+    @include('components.toast')
 
 </body>
 
