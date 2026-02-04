@@ -37,82 +37,82 @@
 
         <!-- ESTADÍSTICAS RÁPIDAS -->
         @if($productos->isNotEmpty())
+            <div class="grid grid-cols-4 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach ($productos as $p)
+                        @php
+                            // Colores según producto (opcional)
+                            $isDiesel = str_contains(strtolower($p->nombre), 'diesel');
+                            $bg = $isDiesel
+                                ? 'from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-yellow-200 dark:border-yellow-800'
+                                : 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800';
 
-                @foreach ($productos as $p)
-                    @php
-                        // Colores según producto (opcional)
-                        $isDiesel = str_contains(strtolower($p->nombre), 'diesel');
-                        $bg = $isDiesel
-                            ? 'from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-yellow-200 dark:border-yellow-800'
-                            : 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800';
+                            $iconBg = $isDiesel ? 'bg-yellow-600' : 'bg-blue-600';
+                            $text = $isDiesel ? 'text-yellow-900 dark:text-yellow-100' : 'text-blue-900 dark:text-blue-100';
+                            $sub = $isDiesel ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400';
+                        @endphp
 
-                        $iconBg = $isDiesel ? 'bg-yellow-600' : 'bg-blue-600';
-                        $text = $isDiesel ? 'text-yellow-900 dark:text-yellow-100' : 'text-blue-900 dark:text-blue-100';
-                        $sub = $isDiesel ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400';
-                    @endphp
+                        <div class="bg-gradient-to-br {{ $bg }} rounded-lg p-4 border">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 {{ $iconBg }} rounded-lg">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                                    </svg>
+                                </div>
 
-                    <div class="bg-gradient-to-br {{ $bg }} rounded-lg p-4 border">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 {{ $iconBg }} rounded-lg">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
-                                </svg>
-                            </div>
-
-                            <div>
-                                <p class="text-xs font-medium {{ $sub }}">
-                                    Stock {{ $p->nombre }}
-                                </p>
-                                <p class="text-lg font-bold {{ $text }}">
-                                    {{ number_format($p->cantidad, 2) }} L
-                                </p>
+                                <div>
+                                    <p class="text-xs font-medium {{ $sub }}">
+                                        Stock {{ $p->nombre }}
+                                    </p>
+                                    <p class="text-lg font-bold {{ $text }}">
+                                        {{ number_format($p->cantidad, 2) }} L
+                                    </p>
+                                </div>
                             </div>
                         </div>
+                    @endforeach
+
+                </div>
+
+
+                <div
+                    class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-green-600 rounded-lg">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-green-600 dark:text-green-400 font-medium">Stock Normal</p>
+                            <p class="text-lg font-bold text-green-900 dark:text-green-100">
+                                {{ $productos->filter(fn($p) => $p->cantidad >= 50)->count() }}
+                            </p>
+                        </div>
                     </div>
-                @endforeach
+                </div>
 
-            </div>
-
-
-            <div
-                class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-green-600 rounded-lg">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-xs text-green-600 dark:text-green-400 font-medium">Stock Normal</p>
-                        <p class="text-lg font-bold text-green-900 dark:text-green-100">
-                            {{ $productos->filter(fn($p) => $p->cantidad >= 50)->count() }}
-                        </p>
+                <div
+                    class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-red-600 rounded-lg">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-red-600 dark:text-red-400 font-medium">Stock Bajo</p>
+                            <p class="text-lg font-bold text-red-900 dark:text-red-100">
+                                {{ $productos->filter(fn($p) => $p->cantidad < 20)->count() }}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div
-                class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-red-600 rounded-lg">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-xs text-red-600 dark:text-red-400 font-medium">Stock Bajo</p>
-                        <p class="text-lg font-bold text-red-900 dark:text-red-100">
-                            {{ $productos->filter(fn($p) => $p->cantidad < 20)->count() }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
         @endif
 
         <!-- TABLA DE PRODUCTOS -->
