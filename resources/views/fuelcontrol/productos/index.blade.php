@@ -149,7 +149,7 @@
                             @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
+                                    <div class="flex items-center gap-4">
                                         <div
                                             class="h-10 w-10 flex-shrink-0 {{ $bgColor }} rounded-lg flex items-center justify-center border {{ $borderColor }}">
                                             <svg class="w-5 h-5 {{ $textColor }}" fill="none" stroke="currentColor"
