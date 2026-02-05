@@ -184,7 +184,7 @@
 
 
                             <input type="text" name="search" value="{{ request('search') }}"
-                                placeholder="Buscar por patente o descripción…" class="block w-full pl-10 pr-3 py-2.5
+                                placeholder="Buscar por patente o descripción…" class="block w-full pl-10 pr-3 py-3
            border border-gray-300 dark:border-gray-600
            rounded-lg text-sm
            bg-white dark:bg-gray-700
