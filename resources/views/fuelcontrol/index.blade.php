@@ -1,19 +1,27 @@
 <x-app-layout>
 
-    {{-- HEADER SUPERIOR --}}
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <!-- ICONO DASHBOARD -->
+                    <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3v18m4-10v10m4-6v6M7 13v8M3 9v12" />
+                    </svg>
+
                     Dashboard
                 </h2>
+
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Resumen general del sistema de control de combustible
                 </p>
             </div>
-
         </div>
     </x-slot>
+
+
 
     {{-- CONTENIDO PRINCIPAL --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3 ">
