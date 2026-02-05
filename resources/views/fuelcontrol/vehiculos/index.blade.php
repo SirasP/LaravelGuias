@@ -36,7 +36,8 @@
                         <div>
                             <p class="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Flota</p>
                             <p class="text-lg font-bold text-blue-900 dark:text-blue-100">
-                                {{ $vehiculos->total() }}
+                                {{ $stats->total }}
+
                             </p>
                         </div>
                     </div>

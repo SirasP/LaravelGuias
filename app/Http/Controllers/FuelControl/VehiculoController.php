@@ -10,21 +10,38 @@ class VehiculoController extends Controller
 {
     public function index(Request $request)
     {
-        $vehiculos = Vehiculo::on('fuelcontrol')
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $q->where(function ($sub) use ($request) {
-                    $sub->where('patente', 'like', '%' . $request->search . '%')
-                        ->orWhere('descripcion', 'like', '%' . $request->search . '%');
-                });
-            })
-            ->when($request->filled('tipo'), function ($q) use ($request) {
-                $q->where('tipo', $request->tipo);
-            })
+        // 🔹 Query base (para reutilizar)
+        $query = Vehiculo::on('fuelcontrol');
+
+        // 🔹 Filtros
+        $query->when($request->filled('search'), function ($q) use ($request) {
+            $q->where(function ($sub) use ($request) {
+                $sub->where('patente', 'like', '%' . $request->search . '%')
+                    ->orWhere('descripcion', 'like', '%' . $request->search . '%');
+            });
+        });
+
+        $query->when($request->filled('tipo'), function ($q) use ($request) {
+            $q->where('tipo', $request->tipo);
+        });
+
+        // 🔹 Listado (paginado)
+        $vehiculos = $query
             ->orderBy('patente')
             ->paginate(10)
-            ->withQueryString(); // 👈 clave para que no se pierdan filtros
+            ->withQueryString();
 
-        return view('fuelcontrol.vehiculos.index', compact('vehiculos'));
+        // 🔹 Estadísticas (SIN paginar)
+        $stats = Vehiculo::on('fuelcontrol')
+            ->selectRaw('
+            COUNT(*) as total,
+            SUM(tipo = "camion") as camiones,
+            SUM(tipo = "camioneta") as camionetas,
+            SUM(tipo = "auto") as autos
+        ')
+            ->first();
+
+        return view('fuelcontrol.vehiculos.index', compact('vehiculos', 'stats'));
     }
 
 
