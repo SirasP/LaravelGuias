@@ -269,7 +269,7 @@
                                 class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
                                 Productos
                             </a>
-                            <a href="{{ route('fuelcontrol.vehiculos') }}"
+                            <a href="{{ route('fuelcontrol.vehiculos.index') }}"
                                 class="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
                                 Vehículos
                             </a>
@@ -493,9 +493,9 @@
                         Productos
                     </a>
 
-                    <a href="{{ route('fuelcontrol.vehiculos') }}" class="block px-6 py-2 text-sm
-                  text-gray-600 dark:text-gray-300
-                  hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="block px-6 py-2 text-sm
+          text-gray-600 dark:text-gray-300
+          hover:bg-gray-100 dark:hover:bg-gray-700">
                         Vehículos
                     </a>
 
