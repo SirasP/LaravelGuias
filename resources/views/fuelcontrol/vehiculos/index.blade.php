@@ -105,10 +105,6 @@
 
                     {{-- SEARCH --}}
                     <div class="relative flex-1 max-w-md">
-                        <label for="search" class="sr-only">
-                            Buscar vehículos
-                        </label>
-
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -116,43 +112,32 @@
                             </svg>
                         </div>
 
-                        <input id="search" type="text" name="search" value="{{ request('search') }}"
-                            placeholder="Buscar por patente o descripción…" aria-label="Buscar vehículos" class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
-                          bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                          placeholder-gray-500 dark:placeholder-gray-400
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        <input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Buscar por patente o descripción…"
+                            class="block w-full pl-10 pr-3 py-2.5 border rounded-lg text-sm">
                     </div>
 
-                    {{-- FILTRO TIPO --}}
-                    <select name="tipo" onchange="this.form.submit()" aria-label="Filtrar por tipo de vehículo" class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg
-                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm
-                       focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    {{-- FILTRO --}}
+                    <select name="tipo" class="px-4 py-2.5 border rounded-lg text-sm">
                         <option value="">Todos los tipos</option>
                         <option value="camion" @selected(request('tipo') === 'camion')>Camiones</option>
                         <option value="camioneta" @selected(request('tipo') === 'camioneta')>Camionetas</option>
                         <option value="auto" @selected(request('tipo') === 'auto')>Autos</option>
                     </select>
 
-                    {{-- BOTÓN BUSCAR --}}
-                    <button type="submit" class="flex items-center gap-1.5 px-4 py-2.5 bg-gray-600 text-white
-                       rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                    {{-- BUSCAR --}}
+                    <button type="submit" class="px-4 py-2.5 bg-gray-600 text-white rounded-lg text-sm">
                         Buscar
                     </button>
 
                     {{-- LIMPIAR --}}
                     @if(request('search') || request('tipo'))
-                        <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="px-4 py-2.5 border border-gray-300 dark:border-gray-600
-                          text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium
-                          hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                        <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="px-4 py-2.5 border rounded-lg text-sm">
                             Limpiar
                         </a>
                     @endif
-
                 </form>
+
             </div>
 
 
