@@ -502,7 +502,7 @@
                     {{-- PATENTE --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Patente
+                            Modelo Vehiculo
                         </label>
                         <input type="text" name="patente" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
                            dark:bg-gray-800 dark:text-white
@@ -512,7 +512,7 @@
                     {{-- DESCRIPCIÓN --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Descripción
+                            Tipo Vehiculo
                         </label>
                         <input type="text" name="descripcion" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
                            dark:bg-gray-800 dark:text-white">
@@ -521,7 +521,7 @@
                     {{-- TIPO --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Tipo
+                            (Propio / Arrendado / Prestado)
                         </label>
                         <select name="tipo" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
            dark:bg-gray-800 dark:text-white">
