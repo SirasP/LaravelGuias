@@ -200,13 +200,13 @@
                     </select>
 
                     {{-- BUSCAR --}}
-                    <button type="submit" class="px-4 py-2.5 border rounded-lg text-sm">
+                    <button type="submit" class="px-4 py-3 border rounded-lg text-sm">
                         Buscar
                     </button>
 
                     {{-- LIMPIAR --}}
                     @if(request('search') || request('tipo'))
-                        <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="px-4 py-2.5 border rounded-lg text-sm">
+                        <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="px-4 py-3 border rounded-lg text-sm">
                             Limpiar
                         </a>
                     @endif
