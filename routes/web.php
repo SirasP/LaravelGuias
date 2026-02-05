@@ -380,6 +380,12 @@ Route::middleware(['auth'])
         Route::put('/productos/{id}', [ProductoController::class, 'update'])
             ->name('productos.update');
 
+        Route::post(
+            '/productos/{id}/importar-xml',
+            [ProductoController::class, 'importarXml']
+        )->name('productos.importarXml');
+
+
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
 

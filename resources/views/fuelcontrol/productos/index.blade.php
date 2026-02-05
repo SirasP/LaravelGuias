@@ -151,115 +151,128 @@
 
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse ($productos as $p)
-                                @php
-                                    $capacidades = [
-                                        'diesel' => 10000,
-                                        'gasolina' => 100,
-                                    ];
+                                                @php
+                                                    $capacidades = [
+                                                        'diesel' => 10000,
+                                                        'gasolina' => 100,
+                                                    ];
 
-                                    $nombre = strtolower($p->nombre);
-                                    $capacidad = $capacidades[$nombre] ?? 100; // fallback seguro
+                                                    $nombre = strtolower($p->nombre);
+                                                    $capacidad = $capacidades[$nombre] ?? 100; // fallback seguro
 
-                                    $porcentaje = ($p->cantidad / $capacidad) * 100;
-                                    $porcentaje = min(100, max(0, round($porcentaje)));
+                                                    $porcentaje = ($p->cantidad / $capacidad) * 100;
+                                                    $porcentaje = min(100, max(0, round($porcentaje)));
 
-                                    if ($porcentaje < 20) {
-                                        $color = 'bg-red-500';
-                                        $textColor = 'text-red-600 dark:text-red-400';
-                                        $bgColor = 'bg-red-100 dark:bg-red-900/30';
-                                        $borderColor = 'border-red-200 dark:border-red-800';
-                                        $estado = 'Crítico';
-                                    } elseif ($porcentaje < 50) {
-                                        $color = 'bg-yellow-500';
-                                        $textColor = 'text-yellow-600 dark:text-yellow-400';
-                                        $bgColor = 'bg-yellow-100 dark:bg-yellow-900/30';
-                                        $borderColor = 'border-yellow-200 dark:border-yellow-800';
-                                        $estado = 'Bajo';
-                                    } else {
-                                        $color = 'bg-green-500';
-                                        $textColor = 'text-green-600 dark:text-green-400';
-                                        $bgColor = 'bg-green-100 dark:bg-green-900/30';
-                                        $borderColor = 'border-green-200 dark:border-green-800';
-                                        $estado = 'Normal';
-                                    }
-                                @endphp
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center gap-4">
-                                            <div
-                                                class="h-10 w-10 flex-shrink-0 {{ $bgColor }} rounded-lg flex items-center justify-center border {{ $borderColor }}">
-                                                <svg class="w-5 h-5 {{ $textColor }}" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                                </svg>
-                                            </div>
-                                            <div class="ml-4">
-                                                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                    {{ ucfirst($p->nombre) }}
-                                                </div>
-                                                <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                    ID: #{{ $p->id }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
+                                                    if ($porcentaje < 20) {
+                                                        $color = 'bg-red-500';
+                                                        $textColor = 'text-red-600 dark:text-red-400';
+                                                        $bgColor = 'bg-red-100 dark:bg-red-900/30';
+                                                        $borderColor = 'border-red-200 dark:border-red-800';
+                                                        $estado = 'Crítico';
+                                                    } elseif ($porcentaje < 50) {
+                                                        $color = 'bg-yellow-500';
+                                                        $textColor = 'text-yellow-600 dark:text-yellow-400';
+                                                        $bgColor = 'bg-yellow-100 dark:bg-yellow-900/30';
+                                                        $borderColor = 'border-yellow-200 dark:border-yellow-800';
+                                                        $estado = 'Bajo';
+                                                    } else {
+                                                        $color = 'bg-green-500';
+                                                        $textColor = 'text-green-600 dark:text-green-400';
+                                                        $bgColor = 'bg-green-100 dark:bg-green-900/30';
+                                                        $borderColor = 'border-green-200 dark:border-green-800';
+                                                        $estado = 'Normal';
+                                                    }
+                                                @endphp
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="flex items-center gap-4">
+                                                            <div
+                                                                class="h-10 w-10 flex-shrink-0 {{ $bgColor }} rounded-lg flex items-center justify-center border {{ $borderColor }}">
+                                                                <svg class="w-5 h-5 {{ $textColor }}" fill="none" stroke="currentColor"
+                                                                    viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                                                </svg>
+                                                            </div>
+                                                            <div class="ml-4">
+                                                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                                                    {{ ucfirst($p->nombre) }}
+                                                                </div>
+                                                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                                    ID: #{{ $p->id }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <div class="text-sm font-bold text-gray-900 dark:text-white font-mono">
-                                            {{ number_format($p->cantidad, 2) }} L
-                                        </div>
-                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                                                        <div class="text-sm font-bold text-gray-900 dark:text-white font-mono">
+                                                            {{ number_format($p->cantidad, 2) }} L
+                                                        </div>
+                                                    </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <div
-                                                class="w-full max-w-xs h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                <div class="{{ $color }} h-3 rounded-full transition-all duration-300"
-                                                    style="width: {{ $porcentaje }}%"></div>
-                                            </div>
-                                            <span
-                                                class="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[45px] text-right">
-                                                {{ number_format($porcentaje, 0) }}%
-                                            </span>
-                                        </div>
-                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="flex items-center justify-center gap-2">
+                                                            <div
+                                                                class="w-full max-w-xs h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                                <div class="{{ $color }} h-3 rounded-full transition-all duration-300"
+                                                                    style="width: {{ $porcentaje }}%"></div>
+                                                            </div>
+                                                            <span
+                                                                class="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[45px] text-right">
+                                                                {{ number_format($porcentaje, 0) }}%
+                                                            </span>
+                                                        </div>
+                                                    </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <span
-                                            class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $bgColor }} {{ $textColor }} border {{ $borderColor }}">
-                                            {{ $estado }}
-                                        </span>
-                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                        <span
+                                                            class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $bgColor }} {{ $textColor }} border {{ $borderColor }}">
+                                                            {{ $estado }}
+                                                        </span>
+                                                    </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <a href="{{ route('fuelcontrol.productos.edit', $p->id) }}"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                                Editar
-                                            </a>
-                                            <button @click="open = true; deleteId = {{ $p->id }}"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium">
-                                                Eliminar
-                                            </button>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                        <div class="flex items-center justify-center gap-2">
+                                                            <a href="{{ route('fuelcontrol.productos.edit', $p->id) }}"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
+                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                                                    viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                Editar
+                                                            </a>
+
+                                                            <form method="POST"
+                                                                action="{{ route('fuelcontrol.productos.importarXml', $p->id) }}">
+                                                                @csrf
+                                                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 
+                                   bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                                   rounded-lg text-xs font-medium hover:bg-green-200 transition-colors">
+                                                                    Importar XML
+                                                                </button>
+                                                            </form>
 
 
 
-                                            <form id="delete-form-{{ $p->id }}"
-                                                action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST"
-                                                class="hidden">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
+                                                            <button @click="open = true; deleteId = {{ $p->id }}"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium">
+                                                                Eliminar
+                                                            </button>
 
-                                        </div>
-                                    </td>
-                                </tr>
+
+
+                                                            <form id="delete-form-{{ $p->id }}"
+                                                                action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST"
+                                                                class="hidden">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                            </form>
+
+                                                        </div>
+                                                    </td>
+                                                </tr>
                             @empty
                                 <tr>
                                     <td colspan="5" class="px-6 py-12 text-center">
