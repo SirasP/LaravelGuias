@@ -230,14 +230,14 @@
                                                         'color' => 'text-purple-600 dark:text-purple-400',
                                                         'bg' => 'bg-purple-100 dark:bg-purple-900/30',
                                                         'border' => 'border-purple-200 dark:border-purple-800',
-                                                        'icon' => 'M5 16a3 3 0 106 0m8 0a3 3 0 11-6 0'
+                                                        'icon' => '🏍️'
 
                                                     ],
                                                     'otro' => [
                                                         'color' => 'text-gray-600 dark:text-gray-400',
                                                         'bg' => 'bg-gray-100 dark:bg-gray-700',
                                                         'border' => 'border-gray-200 dark:border-gray-600',
-                                                        'icon' => 'M12 8v4l3 3'
+                                                        'icon' => '⚙️'
                                                     ]
                                                 ];
 
