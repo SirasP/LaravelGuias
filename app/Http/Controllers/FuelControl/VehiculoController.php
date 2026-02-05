@@ -99,7 +99,7 @@ class VehiculoController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'patente' => 'required|string|max:10',
+            'patente' => 'required|string|max:100',
             'descripcion' => 'nullable|string|max:255',
             'tipo' => 'required|string|max:50',
         ]);
