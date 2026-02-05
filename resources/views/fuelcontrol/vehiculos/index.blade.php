@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="{ openCreate: false }">
+    <div x-data="{ openCreate: false, openDelete: false, deleteId: null  }">
         <x-slot name="header">
             <div class="flex items-center justify-between">
                 <div>
@@ -193,7 +193,7 @@
            focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
 
-                        
+
 
                         {{-- BUSCAR --}}
                         <button type="submit" class="inline-flex items-center gap-2 px-4 py-3
@@ -212,12 +212,12 @@
                         {{-- LIMPIAR --}}
                         @if(request('search') || request('tipo'))
                             <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="inline-flex items-center gap-2 px-4 py-3
-                                                       bg-gray-100 text-gray-700
-                                                       border border-gray-300
-                                                       rounded-lg text-sm font-medium
-                                                       hover:bg-gray-200
-                                                       focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
-                                                       transition-colors">
+                                                                   bg-gray-100 text-gray-700
+                                                                   border border-gray-300
+                                                                   rounded-lg text-sm font-medium
+                                                                   hover:bg-gray-200
+                                                                   focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
+                                                                   transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M6 18L18 6M6 6l12 12" />
@@ -324,7 +324,7 @@
                                         <div class="flex items-center gap-4">
                                             <div
                                                 class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
-                                                                                                       rounded-lg flex items-center justify-center text-xl">
+                                                                                                                                       rounded-lg flex items-center justify-center text-xl">
                                                 <span class="{{ $config['color'] }}">
                                                     {{ $config['icon'] }}
                                                 </span>
@@ -402,10 +402,13 @@
                                                 Editar
                                             </a>
 
-                                            <button
-                                                onclick="if(confirm('¿Estás seguro de eliminar el vehículo {{ $v->patente }}?')) document.getElementById('delete-form-{{ $v->id }}').submit()"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-                                                title="Eliminar vehículo">
+
+                                            <button @click="openDelete = true; deleteId = {{ $v->id }}" class="inline-flex items-center gap-1.5 px-3 py-1.5
+                                           bg-red-100 text-red-700
+                                           dark:bg-red-900/30 dark:text-red-400
+                                           rounded-lg text-xs font-medium
+                                           hover:bg-red-200 dark:hover:bg-red-900/50
+                                           transition-colors" title="Eliminar vehículo">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -413,13 +416,6 @@
                                                 </svg>
                                                 Eliminar
                                             </button>
-
-                                            <form id="delete-form-{{ $v->id }}"
-                                                action="{{ route('fuelcontrol.vehiculos.destroy', $v->id) }}" method="POST"
-                                                class="hidden">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -543,6 +539,42 @@
             </div>
         </div>
 
+        <div x-show="openDelete" x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div @click.outside="openDelete = false" x-transition
+                class="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Confirmar eliminación
+                </h2>
+
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    ¿Estás seguro de que deseas eliminar este vehículo?
+                    <br>
+                    <span class="font-medium text-red-600">Esta acción no se puede deshacer.</span>
+                </p>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" @click="openDelete = false" class="px-4 py-2 rounded-lg text-sm
+                       bg-gray-100 text-gray-700
+                       dark:bg-gray-700 dark:text-gray-300
+                       hover:bg-gray-200 dark:hover:bg-gray-600">
+                        Cancelar
+                    </button>
+
+                    <form :action="`{{ route('fuelcontrol.vehiculos.destroy', '__id__') }}`.replace('__id__', deleteId)"
+                        method="POST">
+                        @csrf
+                        @method('DELETE')
+
+                        <button type="submit" class="px-4 py-2 rounded-lg text-sm
+                           bg-red-600 text-white
+                           hover:bg-red-700">
+                            Sí, eliminar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
     </div>
 
