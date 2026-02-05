@@ -216,7 +216,7 @@
 
 
             <a href="{{ route('fuelcontrol.vehiculos.create') }}" class="flex items-center justify-center gap-2
-          px-4 py-3.0
+          px-4 py-3
           bg-green-600 text-white rounded-lg text-sm font-medium
           hover:bg-green-700 transition-colors shadow-sm
           w-auto">
