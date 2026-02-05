@@ -8,14 +8,25 @@ use App\Models\Vehiculo;
 
 class VehiculoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $vehiculos = Vehiculo::on('fuelcontrol')
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->where(function ($sub) use ($request) {
+                    $sub->where('patente', 'like', '%' . $request->search . '%')
+                        ->orWhere('descripcion', 'like', '%' . $request->search . '%');
+                });
+            })
+            ->when($request->filled('tipo'), function ($q) use ($request) {
+                $q->where('tipo', $request->tipo);
+            })
             ->orderBy('patente')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString(); // 👈 clave para que no se pierdan filtros
 
         return view('fuelcontrol.vehiculos.index', compact('vehiculos'));
     }
+
 
     public function create()
     {
