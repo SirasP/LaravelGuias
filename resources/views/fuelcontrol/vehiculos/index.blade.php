@@ -54,7 +54,24 @@
                         <div>
                             <p class="text-xs text-green-600 dark:text-green-400 font-medium">Camiones</p>
                             <p class="text-lg font-bold text-green-900 dark:text-green-100">
-                                {{ $vehiculos->where('tipo', 'camion')->count() }}
+                                {{ $stats->camiones }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-green-600 rounded-lg">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-green-600 dark:text-green-400 font-medium">Motos y MotoBomba</p>
+                            <p class="text-lg font-bold text-green-900 dark:text-green-100">
+                                {{ $stats->motos }}
                             </p>
                         </div>
                     </div>
@@ -72,7 +89,7 @@
                         <div>
                             <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">Camionetas</p>
                             <p class="text-lg font-bold text-purple-900 dark:text-purple-100">
-                                {{ $vehiculos->where('tipo', 'camioneta')->count() }}
+                                {{ $stats->camionetas }}
                             </p>
                         </div>
                     </div>
@@ -88,9 +105,9 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="text-xs text-orange-600 dark:text-orange-400 font-medium">Autos</p>
+                            <p class="text-xs text-orange-600 dark:text-orange-400 font-medium">Maquinaria</p>
                             <p class="text-lg font-bold text-orange-900 dark:text-orange-100">
-                                {{ $vehiculos->where('tipo', 'auto')->count() }}
+                                {{ $stats->maquinaria }}
                             </p>
                         </div>
                     </div>
@@ -126,9 +143,9 @@
                     {{-- FILTRO --}}
                     <select name="tipo" class="px-4 py-2.5 border rounded-lg text-sm">
                         <option value="">Todos los tipos</option>
-                        <option value="camion" @selected(request('tipo') === 'camion')>Camiones</option>
-                        <option value="camioneta" @selected(request('tipo') === 'camioneta')>Camionetas</option>
-                        <option value="auto" @selected(request('tipo') === 'auto')>Autos</option>
+                        <option value="camion" @selected(request('descripcion') === 'camion')>Camiones</option>
+                        <option value="camioneta" @selected(request('descripcion') === 'camioneta')>Camionetas</option>
+                        <option value="auto" @selected(request('descripcion') === 'auto')>Autos</option>
                     </select>
 
                     {{-- BUSCAR --}}
@@ -195,27 +212,46 @@
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse ($vehiculos as $v)
                             @php
+
                                 $tipoConfig = [
-                                    'camion' => [
+                                    'maquinaria' => [
                                         'color' => 'text-green-600 dark:text-green-400',
                                         'bg' => 'bg-green-100 dark:bg-green-900/30',
                                         'border' => 'border-green-200 dark:border-green-800',
-                                        'icon' => 'M8 17a5 5 0 01-.916-9.916 5.002 5.002 0 019.832 0A5.002 5.002 0 0116 17m-7 0a1 1 0 100-2 1 1 0 000 2zm0 0v-1m7 1a1 1 0 100-2 1 1 0 000 2zm0 0v-1m-7-4h7m-7 0v4m7-4v4'
+                                        'icon' => 'M8 17a5 5 0 01-.916-9.916 5.002 5.002 0 019.832 0'
                                     ],
-                                    'camioneta' => [
+                                    'vehiculo' => [
+                                        'color' => 'text-blue-600 dark:text-blue-400',
+                                        'bg' => 'bg-blue-100 dark:bg-blue-900/30',
+                                        'border' => 'border-blue-200 dark:border-blue-800',
+                                        'icon' => 'M3 13l2-5h14l2 5v6H3z'
+                                    ],
+                                    'moto' => [
                                         'color' => 'text-purple-600 dark:text-purple-400',
                                         'bg' => 'bg-purple-100 dark:bg-purple-900/30',
                                         'border' => 'border-purple-200 dark:border-purple-800',
-                                        'icon' => 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
+                                        'icon' => 'M5 16a3 3 0 106 0'
                                     ],
-                                    'auto' => [
-                                        'color' => 'text-orange-600 dark:text-orange-400',
-                                        'bg' => 'bg-orange-100 dark:bg-orange-900/30',
-                                        'border' => 'border-orange-200 dark:border-orange-800',
-                                        'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                                    'otro' => [
+                                        'color' => 'text-gray-600 dark:text-gray-400',
+                                        'bg' => 'bg-gray-100 dark:bg-gray-700',
+                                        'border' => 'border-gray-200 dark:border-gray-600',
+                                        'icon' => 'M12 8v4l3 3'
                                     ]
                                 ];
-                                $config = $tipoConfig[$v->tipo] ?? $tipoConfig['auto'];
+
+                                $desc = strtolower($v->descripcion);
+
+                                if (str_contains($desc, 'tractor') || str_contains($desc, 'excavadora') || str_contains($desc, 'pala') || str_contains($desc, 'fumigador')) {
+                                    $config = $tipoConfig['maquinaria'];
+                                } elseif (str_contains($desc, 'camion') || str_contains($desc, 'camioneta') || str_contains($desc, 'minibus')) {
+                                    $config = $tipoConfig['vehiculo'];
+                                } elseif (str_contains($desc, 'moto')) {
+                                    $config = $tipoConfig['moto'];
+                                } else {
+                                    $config = $tipoConfig['otro'];
+                                }
+
                             @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">

@@ -10,36 +10,43 @@ class VehiculoController extends Controller
 {
     public function index(Request $request)
     {
-        // 🔹 Query base (para reutilizar)
-        $query = Vehiculo::on('fuelcontrol');
+        // 🔹 Query base
+        $baseQuery = Vehiculo::on('fuelcontrol');
 
-        // 🔹 Filtros
-        $query->when($request->filled('search'), function ($q) use ($request) {
+        // 🔹 Filtros compartidos
+        $baseQuery->when($request->filled('search'), function ($q) use ($request) {
             $q->where(function ($sub) use ($request) {
                 $sub->where('patente', 'like', '%' . $request->search . '%')
                     ->orWhere('descripcion', 'like', '%' . $request->search . '%');
             });
         });
 
-        $query->when($request->filled('tipo'), function ($q) use ($request) {
+        $baseQuery->when($request->filled('tipo'), function ($q) use ($request) {
             $q->where('tipo', $request->tipo);
         });
 
-        // 🔹 Listado (paginado)
-        $vehiculos = $query
+        // 🔹 Listado (clonar para no romper la query)
+        $vehiculos = (clone $baseQuery)
             ->orderBy('patente')
             ->paginate(10)
             ->withQueryString();
 
-        // 🔹 Estadísticas (SIN paginar)
-        $stats = Vehiculo::on('fuelcontrol')
+        $stats = (clone $baseQuery)
             ->selectRaw('
-            COUNT(*) as total,
-            SUM(tipo = "camion") as camiones,
-            SUM(tipo = "camioneta") as camionetas,
-            SUM(tipo = "auto") as autos
-        ')
+        COUNT(*) as total,
+
+        SUM(LOWER(descripcion) REGEXP "tractor|excavadora|telescopico|pala|fumigador") as maquinaria,
+
+        SUM(LOWER(descripcion) REGEXP "camioneta|camion|minibus") as vehiculos,
+
+        SUM(LOWER(descripcion) REGEXP "moto") as motos,
+
+        SUM(
+            LOWER(descripcion) NOT REGEXP "tractor|excavadora|telescopico|pala|fumigador|camioneta|camion|minibus|moto"
+        ) as otros
+    ')
             ->first();
+
 
         return view('fuelcontrol.vehiculos.index', compact('vehiculos', 'stats'));
     }
