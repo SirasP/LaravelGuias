@@ -193,14 +193,7 @@
            focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
 
-                        {{-- FILTRO --}}
-                        <select name="tipo" class="px-4 py-2.5 border rounded-lg text-sm">
-                            <option value="">Todos los tipos</option>
-                            <option value="camion" @selected(request('descripcion') === 'camion')>Camiones</option>
-                            <option value="camioneta" @selected(request('descripcion') === 'camioneta')>Camionetas
-                            </option>
-                            <option value="auto" @selected(request('descripcion') === 'auto')>Autos</option>
-                        </select>
+                        
 
                         {{-- BUSCAR --}}
                         <button type="submit" class="inline-flex items-center gap-2 px-4 py-3
