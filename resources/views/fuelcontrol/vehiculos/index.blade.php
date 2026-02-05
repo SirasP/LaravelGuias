@@ -228,8 +228,7 @@
                                             </svg>
                                         </div>
                                         <div class="ml-4">
-                                            <div
-                                                class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">
                                                 {{ $v->patente }}
                                             </div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">
