@@ -471,7 +471,7 @@
 
             <!-- PAGINACIÓN -->
             @if($vehiculos->hasPages())
-                <div class="flex justify-center">
+                <div class="flex justify-end">
                     {{ $vehiculos->links() }}
                 </div>
             @endif
