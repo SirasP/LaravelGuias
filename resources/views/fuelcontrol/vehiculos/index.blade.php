@@ -219,12 +219,12 @@
                         {{-- LIMPIAR --}}
                         @if(request('search') || request('tipo'))
                             <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="inline-flex items-center gap-2 px-4 py-3
-                                               bg-gray-100 text-gray-700
-                                               border border-gray-300
-                                               rounded-lg text-sm font-medium
-                                               hover:bg-gray-200
-                                               focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
-                                               transition-colors">
+                                                       bg-gray-100 text-gray-700
+                                                       border border-gray-300
+                                                       rounded-lg text-sm font-medium
+                                                       hover:bg-gray-200
+                                                       focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
+                                                       transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M6 18L18 6M6 6l12 12" />
@@ -331,7 +331,7 @@
                                         <div class="flex items-center gap-4">
                                             <div
                                                 class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
-                                                                                               rounded-lg flex items-center justify-center text-xl">
+                                                                                                       rounded-lg flex items-center justify-center text-xl">
                                                 <span class="{{ $config['color'] }}">
                                                     {{ $config['icon'] }}
                                                 </span>
@@ -484,68 +484,74 @@
             @endif
 
         </div>
-    </div>
 
-    <div x-show="openCreate" x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
 
-        <div @click.outside="openCreate = false" x-transition
-            class="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+        <div x-show="openCreate" x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
 
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Nuevo Vehículo
-            </h2>
+            <div @click.outside="openCreate = false" x-transition
+                class="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-2xl">
 
-            <form method="POST" action="{{ route('fuelcontrol.vehiculos.store') }}" class="space-y-4">
-                @csrf
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Nuevo Vehículo
+                </h2>
 
-                {{-- PATENTE --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Patente
-                    </label>
-                    <input type="text" name="patente" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+                <form method="POST" action="{{ route('fuelcontrol.vehiculos.store') }}" class="space-y-4">
+                    @csrf
+
+                    {{-- PATENTE --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Patente
+                        </label>
+                        <input type="text" name="patente" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
                            dark:bg-gray-800 dark:text-white
                            focus:ring-green-500 focus:border-green-500">
-                </div>
+                    </div>
 
-                {{-- DESCRIPCIÓN --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Descripción
-                    </label>
-                    <input type="text" name="descripcion" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+                    {{-- DESCRIPCIÓN --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Descripción
+                        </label>
+                        <input type="text" name="descripcion" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
                            dark:bg-gray-800 dark:text-white">
-                </div>
+                    </div>
 
-                {{-- TIPO --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Tipo
-                    </label>
-                    <select name="tipo" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
-                           dark:bg-gray-800 dark:text-white">
-                        <option value="">Seleccionar</option>
-                        <option value="camion">Camión</option>
-                        <option value="camioneta">Camioneta</option>
-                        <option value="auto">Auto</option>
-                        <option value="moto">Moto</option>
-                    </select>
-                </div>
+                    {{-- TIPO --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Tipo
+                        </label>
+                        <select name="tipo" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+           dark:bg-gray-800 dark:text-white">
 
-                {{-- BOTONES --}}
-                <div class="flex justify-end gap-2 pt-4">
-                    <button type="button" @click="openCreate = false" class="px-4 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700
+                            <option value="">Seleccionar</option>
+                            <option value="Propio">Propio</option>
+                            <option value="Arrendado">Arrendado</option>
+                            <option value="Prestado">Prestado</option>
+
+                        </select>
+                    </div>
+
+                    {{-- BOTONES --}}
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="openCreate = false" class="px-4 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700
                            text-gray-700 dark:text-gray-300">
-                        Cancelar
-                    </button>
+                            Cancelar
+                        </button>
 
-                    <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-green-600 text-white
+                        <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-green-600 text-white
                            hover:bg-green-700">
-                        Guardar
-                    </button>
-                </div>
-            </form>
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
+
+
     </div>
+
+
 </x-app-layout>
