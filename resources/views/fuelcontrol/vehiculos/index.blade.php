@@ -13,9 +13,7 @@
                     Administra la flota de vehículos del sistema
                 </p>
             </div>
-            <span class="px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">
-                {{ $vehiculos->total() }} {{ $vehiculos->total() === 1 ? 'vehículo' : 'vehículos' }}
-            </span>
+          
         </div>
     </x-slot>
 
