@@ -200,16 +200,36 @@
                     </select>
 
                     {{-- BUSCAR --}}
-                    <button type="submit" class="px-4 py-3 border rounded-lg text-sm">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-3
+           bg-blue-600 text-white
+           rounded-lg text-sm font-medium
+           hover:bg-blue-700
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+           transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                         Buscar
                     </button>
 
                     {{-- LIMPIAR --}}
                     @if(request('search') || request('tipo'))
-                        <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="px-4 py-3 border rounded-lg text-sm">
-                            Limpiar
-                        </a>
+                                <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="inline-flex items-center gap-2 px-4 py-3
+                           bg-gray-100 text-gray-700
+                           border border-gray-300
+                           rounded-lg text-sm font-medium
+                           hover:bg-gray-200
+                           focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
+                           transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Limpiar
+                                </a>
                     @endif
+
                 </form>
 
             </div>
@@ -308,8 +328,9 @@
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
-                                                                   rounded-lg flex items-center justify-center text-xl">
+                                        <div
+                                            class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
+                                                                           rounded-lg flex items-center justify-center text-xl">
                                             <span class="{{ $config['color'] }}">
                                                 {{ $config['icon'] }}
                                             </span>
