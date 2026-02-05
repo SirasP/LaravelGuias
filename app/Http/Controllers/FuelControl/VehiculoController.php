@@ -104,19 +104,28 @@ class VehiculoController extends Controller
             'tipo' => 'required|string|max:50',
         ]);
 
-        $vehiculo = Vehiculo::on('fuelcontrol')->findOrFail($id);
+        try {
+            $vehiculo = Vehiculo::on('fuelcontrol')->findOrFail($id);
 
-        $vehiculo->update([
-            'patente' => strtoupper($request->patente),
-            'descripcion' => $request->descripcion,
-            'tipo' => $request->tipo,
-            'usuario' => auth()->user()->name ?? 'sistema',
-        ]);
+            $vehiculo->update([
+                'patente' => strtoupper($request->patente),
+                'descripcion' => $request->descripcion,
+                'tipo' => $request->tipo,
+                'usuario' => auth()->user()->name ?? 'sistema',
+            ]);
 
-        return redirect()
-            ->route('fuelcontrol.vehiculos.index')
-            ->with('success', 'Vehículo actualizado correctamente');
+            return redirect()
+                ->route('fuelcontrol.vehiculos.index')
+                ->with('success', 'Vehículo actualizado correctamente');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'No se pudo actualizar el vehículo');
+        }
     }
+
 
     public function destroy($id)
     {
