@@ -1,5 +1,9 @@
 <x-app-layout>
-    <div x-data="{ openCreate: false, openDelete: false, deleteId: null  }">
+    <div x-data="{ openCreate: false, openDelete: false, deleteId: null,     openCreate: false,
+    openDelete: false,
+    openEdit: false,
+    editVehiculo: {}
+  }">
         <x-slot name="header">
             <div class="flex items-center justify-between">
                 <div>
@@ -212,12 +216,12 @@
                         {{-- LIMPIAR --}}
                         @if(request('search') || request('tipo'))
                             <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="inline-flex items-center gap-2 px-4 py-3
-                                                                   bg-gray-100 text-gray-700
-                                                                   border border-gray-300
-                                                                   rounded-lg text-sm font-medium
-                                                                   hover:bg-gray-200
-                                                                   focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
-                                                                   transition-colors">
+                                                                                   bg-gray-100 text-gray-700
+                                                                                   border border-gray-300
+                                                                                   rounded-lg text-sm font-medium
+                                                                                   hover:bg-gray-200
+                                                                                   focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1
+                                                                                   transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M6 18L18 6M6 6l12 12" />
@@ -324,7 +328,7 @@
                                         <div class="flex items-center gap-4">
                                             <div
                                                 class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
-                                                                                                                                       rounded-lg flex items-center justify-center text-xl">
+                                                                                                                                                                               rounded-lg flex items-center justify-center text-xl">
                                                 <span class="{{ $config['color'] }}">
                                                     {{ $config['icon'] }}
                                                 </span>
@@ -391,24 +395,37 @@
                                                 Ver
                                             </a>
 
-                                            <a href="{{ route('fuelcontrol.vehiculos.edit', $v) }}"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                                                title="Editar vehículo">
+                                            <button @click="
+                                        openEdit = true;
+                                        editVehiculo = {
+                                            id: {{ $v->id }},
+                                            patente: '{{ $v->patente }}',
+                                            descripcion: '{{ $v->descripcion }}',
+                                            tipo: '{{ $v->tipo }}'
+                                        };
+                                    " class="inline-flex items-center gap-1.5 px-3 py-1.5
+                                           bg-blue-100 text-blue-700
+                                           dark:bg-blue-900/30 dark:text-blue-400
+                                           rounded-lg text-xs font-medium
+                                           hover:bg-blue-200 dark:hover:bg-blue-900/50
+                                           transition-colors" title="Editar vehículo">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
                                                 Editar
-                                            </a>
+                                            </button>
+
 
 
                                             <button @click="openDelete = true; deleteId = {{ $v->id }}" class="inline-flex items-center gap-1.5 px-3 py-1.5
-                                           bg-red-100 text-red-700
-                                           dark:bg-red-900/30 dark:text-red-400
-                                           rounded-lg text-xs font-medium
-                                           hover:bg-red-200 dark:hover:bg-red-900/50
-                                           transition-colors" title="Eliminar vehículo">
+                                                                                   bg-red-100 text-red-700
+                                                                                   dark:bg-red-900/30 dark:text-red-400
+                                                                                   rounded-lg text-xs font-medium
+                                                                                   hover:bg-red-200 dark:hover:bg-red-900/50
+                                                                                   transition-colors"
+                                                title="Eliminar vehículo">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -573,6 +590,69 @@
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+        <div x-show="openEdit" x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div @click.outside="openEdit = false" x-transition
+                class="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Editar Vehículo
+                </h2>
+
+                <form method="POST"
+                    :action="`{{ route('fuelcontrol.vehiculos.update', '__id__') }}`.replace('__id__', editVehiculo.id)"
+                    class="space-y-4">
+                    @csrf
+                    @method('PUT')
+
+                    {{-- PATENTE --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Patente
+                        </label>
+                        <input type="text" name="patente" x-model="editVehiculo.patente" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+                           dark:bg-gray-800 dark:text-white
+                           focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    {{-- DESCRIPCIÓN --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Descripción
+                        </label>
+                        <input type="text" name="descripcion" x-model="editVehiculo.descripcion" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+                           dark:bg-gray-800 dark:text-white">
+                    </div>
+
+                    {{-- TIPO (estado: propio / arrendado / prestado) --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Tipo
+                        </label>
+                        <select name="tipo" x-model="editVehiculo.tipo" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-700
+                           dark:bg-gray-800 dark:text-white">
+                            <option value="propio">Propio</option>
+                            <option value="arrendado">Arrendado</option>
+                            <option value="prestado">Prestado</option>
+                        </select>
+                    </div>
+
+                    {{-- BOTONES --}}
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="openEdit = false" class="px-4 py-2 text-sm rounded-lg
+                           bg-gray-100 dark:bg-gray-700
+                           text-gray-700 dark:text-gray-300">
+                            Cancelar
+                        </button>
+
+                        <button type="submit" class="px-4 py-2 text-sm rounded-lg
+                           bg-blue-600 text-white
+                           hover:bg-blue-700">
+                            Guardar cambios
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
