@@ -1,9 +1,11 @@
-<x-layout>
+<x-app-layout>
 
-    <x-slot name="title">
-        Vehículos
+    <x-slot name="header">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            🚗 Vehículos
+        </h2>
     </x-slot>
-
+    
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         <!-- HEADER -->
@@ -97,4 +99,4 @@
 
     </div>
 
-</x-layout>
+</x-app-layout>

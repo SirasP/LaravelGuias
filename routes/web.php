@@ -379,15 +379,21 @@ Route::middleware(['auth'])
 
         Route::put('/productos/{id}', [ProductoController::class, 'update'])
             ->name('productos.update');
-      
+
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
 
 
 
         /* VEHÍCULOS */
-        Route::get('/vehiculos', [VehiculoController::class, 'index'])
-            ->name('vehiculos');
+        Route::get('/vehiculos', [VehiculoController::class, 'index'])->name('vehiculos.index');
+        Route::get('/vehiculos/create', [VehiculoController::class, 'create'])->name('vehiculos.create');
+        Route::post('/vehiculos', [VehiculoController::class, 'store'])->name('vehiculos.store');
+        Route::get('/vehiculos/{id}', [VehiculoController::class, 'show'])->name('vehiculos.show');
+        Route::get('/vehiculos/{id}/edit', [VehiculoController::class, 'edit'])->name('vehiculos.edit');
+        Route::put('/vehiculos/{id}', [VehiculoController::class, 'update'])->name('vehiculos.update');
+        Route::delete('/vehiculos/{id}', [VehiculoController::class, 'destroy'])->name('vehiculos.destroy');
+
 
         /* MOVIMIENTOS */
         Route::get('/movimientos', [MovimientoController::class, 'index'])

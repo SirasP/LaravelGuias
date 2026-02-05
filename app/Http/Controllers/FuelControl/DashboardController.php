@@ -12,7 +12,7 @@ class DashboardController extends Controller
     {
         try {
             /* =========================
-             * PRODUCTOS
+             * PRODUCTOS 
              * ========================= */
             $productos = DB::connection('fuelcontrol')
                 ->table('productos')
