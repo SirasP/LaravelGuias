@@ -35,17 +35,21 @@ class VehiculoController extends Controller
             ->selectRaw('
         COUNT(*) as total,
 
+        -- Clasificación por descripción
         SUM(LOWER(descripcion) REGEXP "tractor|excavadora|telescopico|pala|fumigador") as maquinaria,
-
         SUM(LOWER(descripcion) REGEXP "camioneta|camion|minibus") as vehiculos,
-
         SUM(LOWER(descripcion) REGEXP "moto") as motos,
-
         SUM(
             LOWER(descripcion) NOT REGEXP "tractor|excavadora|telescopico|pala|fumigador|camioneta|camion|minibus|moto"
-        ) as otros
+        ) as otros,
+
+        -- 🔹 PROPIEDAD (ESTO TE FALTABA)
+        SUM(LOWER(tipo) = "propio") as propios,
+        SUM(LOWER(tipo) = "arrendado") as arrendados,
+        SUM(LOWER(tipo) = "prestado") as prestados
     ')
             ->first();
+
 
 
         return view('fuelcontrol.vehiculos.index', compact('vehiculos', 'stats'));
