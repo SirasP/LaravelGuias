@@ -386,23 +386,12 @@ Route::middleware(['auth'])
 
 
         /* VEHÍCULOS */
-  
+
         Route::get('/vehiculos', [VehiculoController::class, 'index'])
             ->name('vehiculos.index');
 
-        Route::get('/vehiculos/create', [VehiculoController::class, 'create'])
-            ->name('vehiculos.create');
-
         Route::post('/vehiculos', [VehiculoController::class, 'store'])
             ->name('vehiculos.store');
-
-        Route::get('/vehiculos/{id}', [VehiculoController::class, 'show'])
-            ->whereNumber('id')
-            ->name('vehiculos.show');
-
-        Route::get('/vehiculos/{id}/edit', [VehiculoController::class, 'edit'])
-            ->whereNumber('id')
-            ->name('vehiculos.edit');
 
         Route::put('/vehiculos/{id}', [VehiculoController::class, 'update'])
             ->whereNumber('id')
