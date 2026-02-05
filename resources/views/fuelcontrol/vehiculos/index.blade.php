@@ -205,7 +205,7 @@
                     </select>
 
                     {{-- BUSCAR --}}
-                    <button type="submit" class="px-4 py-2.5 bg-gray-600 text-white rounded-lg text-sm">
+                    <button type="submit" class="px-4 py-2.5 border rounded-lg text-sm">
                         Buscar
                     </button>
 
@@ -314,7 +314,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center gap-4">
                                         <div class="h-10 w-10 flex-shrink-0 {{ $config['bg'] }} {{ $config['border'] }}
-                                                           rounded-lg flex items-center justify-center text-xl">
+                                                               rounded-lg flex items-center justify-center text-xl">
                                             <span class="{{ $config['color'] }}">
                                                 {{ $config['icon'] }}
                                             </span>
