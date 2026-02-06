@@ -22,16 +22,20 @@
     </x-slot>
 
     @if($notificaciones->count())
+
+        @php
+            $notificacionesJson = $notificaciones->map(fn($n) => [
+                'id' => $n->id,
+                'titulo' => $n->titulo,
+                'mensaje' => $n->mensaje,
+                'url' => route('fuelcontrol.notificaciones.leer', $n->id),
+            ]);
+        @endphp
+
         <script>
             document.addEventListener('DOMContentLoaded', () => {
-                $notificacionesJson = $notificaciones -> map(fn($n) => [
-                    'id' => $n -> id,
-                    'titulo' => $n -> titulo,
-                    'mensaje' => $n -> mensaje,
-                    'url' => route('fuelcontrol.notificaciones.leer', $n -> id),
-                ]);
-                const notificaciones = @json($notificacionesJson);
 
+                const notificaciones = @json($notificacionesJson);
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
                 const mostrarNotificaciones = async () => {
@@ -60,7 +64,6 @@
                                     method: 'POST',
                                     headers: {
                                         'X-CSRF-TOKEN': csrfToken,
-                                        'Content-Type': 'application/json',
                                         'Accept': 'application/json'
                                     }
                                 });
@@ -74,7 +77,9 @@
                 mostrarNotificaciones();
             });
         </script>
+
     @endif
+
 
 
 
