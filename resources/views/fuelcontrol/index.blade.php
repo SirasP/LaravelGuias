@@ -22,36 +22,36 @@
     </x-slot>
 
     @if($notificaciones->count())
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    @foreach($notificaciones as $n)
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: @json($n->titulo),
-                            text: @json($n->mensaje),
-                            showConfirmButton: true,
-                            confirmButtonText: '✔',
-                            confirmButtonColor: '#16a34a',
-                            showCloseButton: true,
-                            timer: null
-                        }).then(result => {
-                            if (result.isConfirmed) {
-                                fetch(`/fuelcontrol/notificaciones/{{ $n->id }}/leer`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': document
-                                            .querySelector('meta[name="csrf-token"]')
-                                            .content
-                                    }
-                                });
-                            }
-                        });
-                    @endforeach
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                @foreach($notificaciones as $n)
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: @json($n->titulo),
+                        text: @json($n->mensaje),
+                        showConfirmButton: true,
+                        confirmButtonText: '✔',
+                        confirmButtonColor: '#16a34a',
+                        showCloseButton: true,
+                        timer: null
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            fetch(@json(route('fuelcontrol.notificaciones.leer', $n->id)), {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document
+                                        .querySelector('meta[name="csrf-token"]').content
+                                }
+                            });
+                        }
+                    });
+                @endforeach
         });
-            </script>
+        </script>
     @endif
+
 
 
     {{-- CONTENIDO PRINCIPAL --}}

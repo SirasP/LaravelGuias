@@ -391,7 +391,9 @@ Route::middleware(['auth'])
                 ]);
 
             return response()->json(['ok' => true]);
-        })->middleware('auth');
+        })
+            ->middleware('auth')
+            ->name('fuelcontrol.notificaciones.leer');
 
 
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
