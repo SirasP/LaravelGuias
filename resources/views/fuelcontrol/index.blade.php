@@ -22,16 +22,6 @@
     </x-slot>
 
     @if($notificaciones->count())
-
-        @php
-            $notificacionesJson = $notificaciones->map(fn($n) => [
-                'id' => $n->id,
-                'titulo' => $n->titulo,
-                'mensaje' => $n->mensaje,
-                'url' => route('fuelcontrol.notificaciones.leer', $n->id),
-            ]);
-        @endphp
-
         <script>
             document.addEventListener('DOMContentLoaded', () => {
 
@@ -50,26 +40,17 @@
                             confirmButtonText: '✔ Marcar como leída',
                             confirmButtonColor: '#16a34a',
                             showCloseButton: true,
-                            timer: null,
-                            timerProgressBar: false,
-                            didOpen: (toast) => {
-                                toast.addEventListener('mouseenter', Swal.stopTimer);
-                                toast.addEventListener('mouseleave', Swal.resumeTimer);
-                            }
+                            timer: null
                         });
 
                         if (result.isConfirmed) {
-                            try {
-                                await fetch(notif.url, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken,
-                                        'Accept': 'application/json'
-                                    }
-                                });
-                            } catch (error) {
-                                console.error('Error al marcar notificación como leída:', error);
-                            }
+                            await fetch(notif.url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json'
+                                }
+                            });
                         }
                     }
                 };
@@ -77,8 +58,8 @@
                 mostrarNotificaciones();
             });
         </script>
-
     @endif
+
 
 
 
