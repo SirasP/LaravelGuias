@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\StockBajoMail;
 
-class CheckStockJob  
+class CheckStockJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -35,7 +35,8 @@ class CheckStockJob
                 continue;
             }
 
-            $yaEnviado = DB::table('stock_alerts')
+            $yaEnviado = DB::connection('fuelcontrol')
+                ->table('stock_alerts')
                 ->where('producto', $producto)
                 ->where('fecha', now()->toDateString())
                 ->exists();
@@ -47,12 +48,14 @@ class CheckStockJob
             Mail::to('s.lopez.epple@gmail.com')
                 ->send(new StockBajoMail($producto, $stockActual));
 
-            DB::table('stock_alerts')->insert([
-                'producto' => $producto,
-                'fecha' => now()->toDateString(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::connection('fuelcontrol')
+                ->table('stock_alerts')
+                ->insert([
+                    'producto' => $producto,
+                    'fecha' => now()->toDateString(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
         }
     }
 }
