@@ -184,6 +184,7 @@ class GmailLeerXml extends Command
                         'tipo' => 'xml_entrada',
                         'titulo' => "Ingreso de {$productoNombre}",
                         'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
+                        'destinatario_id' => 1, // 👈 SOLO Sebastián
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];

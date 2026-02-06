@@ -36,6 +36,21 @@ class DashboardController extends Controller
                 ->get();
 
             /* =========================
+             * NOTIFICACIONES (SOLO ADMIN)
+             * ========================= */
+            $notificaciones = collect();
+
+            if (auth()->id() === 1) {
+                $notificaciones = DB::connection('fuelcontrol')
+                    ->table('notificaciones')
+                    ->where('destinatario_id', 1)
+                    ->where('leido', 0)
+                    ->orderByDesc('created_at')
+                    ->limit(5)
+                    ->get();
+            }
+
+            /* =========================
              * RESUMEN
              * ========================= */
             $resumen = [
@@ -119,7 +134,8 @@ class DashboardController extends Controller
             'labelsGasolina',
             'dataGasolina',
             'labelsDiesel',
-            'dataDiesel'
+            'dataDiesel',
+            'notificaciones'
         ));
     }
 }
