@@ -212,7 +212,6 @@ class GmailLeerXml extends Command
                         'mensaje' => "+{$cantidad} L desde XML",
                     ]);
 
-
                 }
             }
 
