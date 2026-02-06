@@ -38,7 +38,7 @@
                             timer: null
                         }).then(result => {
                             if (result.isConfirmed) {
-                                fetch(`/notificaciones/{{ $n->id }}/leer`, {
+                                fetch(`/fuelcontrol/notificaciones/{{ $n->id }}/leer`, {
                                     method: 'POST',
                                     headers: {
                                         'X-CSRF-TOKEN': document
