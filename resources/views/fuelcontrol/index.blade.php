@@ -24,8 +24,15 @@
     @if($notificaciones->count())
         <script>
             document.addEventListener('DOMContentLoaded', () => {
+                const notificaciones = @json($notificaciones->map(function ($n) {
+                    return [
+                        'id' => $n->id,
+                        'titulo' => $n->titulo,
+                        'mensaje' => $n->mensaje,
+                        'url' => route('fuelcontrol.notificaciones.leer', $n->id)
+                    ];
+                }));
 
-                const notificaciones = @json($notificacionesJson);
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
                 const mostrarNotificaciones = async () => {
@@ -40,17 +47,27 @@
                             confirmButtonText: '✔ Marcar como leída',
                             confirmButtonColor: '#16a34a',
                             showCloseButton: true,
-                            timer: null
+                            timer: null,
+                            timerProgressBar: false,
+                            didOpen: (toast) => {
+                                toast.addEventListener('mouseenter', Swal.stopTimer);
+                                toast.addEventListener('mouseleave', Swal.resumeTimer);
+                            }
                         });
 
                         if (result.isConfirmed) {
-                            await fetch(notif.url, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json'
-                                }
-                            });
+                            try {
+                                await fetch(notif.url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': csrfToken,
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('Error al marcar notificación como leída:', error);
+                            }
                         }
                     }
                 };
@@ -59,8 +76,6 @@
             });
         </script>
     @endif
-
-
 
 
 
