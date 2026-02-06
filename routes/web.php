@@ -380,6 +380,19 @@ Route::middleware(['auth'])
         Route::put('/productos/{id}', [ProductoController::class, 'update'])
             ->name('productos.update');
 
+        Route::post('/notificaciones/{id}/leer', function ($id) {
+            DB::connection('fuelcontrol')
+                ->table('notificacion_usuarios')
+                ->where('notificacion_id', $id)
+                ->where('user_id', auth()->id())
+                ->update([
+                    'leido' => 1,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json(['ok' => true]);
+        })->middleware('auth');
+
 
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
