@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        if (!Schema::hasTable('gmail_imports')) {
+        if (!Schema::hasTable('notificaciones')) {
             Schema::connection('fuelcontrol')->create('notificaciones', function (Blueprint $table) {
                 $table->id();
                 $table->string('tipo'); // xml_entrada
