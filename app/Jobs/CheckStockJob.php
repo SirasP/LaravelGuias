@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\StockBajoMail;
 
-class CheckStockJob implements ShouldQueue
+class CheckStockJob  
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
