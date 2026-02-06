@@ -31,6 +31,8 @@ class DashboardController extends Controller
                     'p.nombre as producto_nombre'
                 )
                 ->orderByDesc('m.fecha_movimiento')
+                ->limit(5)
+
                 ->get();
 
             /* =========================
