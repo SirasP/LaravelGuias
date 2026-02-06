@@ -29,7 +29,7 @@
                         'id' => $n->id,
                         'titulo' => $n->titulo,
                         'mensaje' => $n->mensaje,
-                        'url' => route('fuelcontrol.notificaciones.leer', $n->id)
+                        'url' => route('fuelcontrol.notificaciones.leer', $n->id),
                     ];
                 }));
 
