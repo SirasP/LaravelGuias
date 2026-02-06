@@ -21,7 +21,19 @@
         </div>
     </x-slot>
 
-
+    @if(auth()->id() === 1 && $notificaciones->count())
+        <div class="space-y-2">
+            @foreach($notificaciones as $n)
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                    <strong>{{ $n->titulo }}</strong><br>
+                    {{ $n->mensaje }}
+                    <div class="text-xs text-gray-500 mt-1">
+                        {{ \Carbon\Carbon::parse($n->created_at)->diffForHumans() }}
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
 
     {{-- CONTENIDO PRINCIPAL --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3 ">
