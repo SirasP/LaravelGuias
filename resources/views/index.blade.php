@@ -74,20 +74,61 @@
         </div>
     </x-slot>
     @if(auth()->id() === 1 && $notificaciones->count())
+        @php
+            $notificacionesData = $notificaciones->map(function ($n) {
+                return [
+                    'id' => $n->id,
+                    'titulo' => $n->titulo,
+                    'mensaje' => $n->mensaje,
+                    'url' => route('fuelcontrol.notificaciones.leer', $n->id)
+                ];
+            })->values();
+        @endphp
+
         <script>
             document.addEventListener('DOMContentLoaded', () => {
-                @foreach($notificaciones as $n)
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: @json($n->titulo),
-                        text: @json($n->mensaje),
-                        showConfirmButton: false,
-                        timer: 8000
-                    });
-                @endforeach
-        });
+                const notificaciones = @json($notificacionesData);
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+                const mostrarNotificaciones = async () => {
+                    for (const notif of notificaciones) {
+                        const result = await Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: notif.titulo,
+                            text: notif.mensaje,
+                            showConfirmButton: true,
+                            confirmButtonText: '✔ Marcar como leída',
+                            confirmButtonColor: '#16a34a',
+                            showCloseButton: true,
+                            timer: null,
+                            timerProgressBar: false,
+                            didOpen: (toast) => {
+                                toast.addEventListener('mouseenter', Swal.stopTimer);
+                                toast.addEventListener('mouseleave', Swal.resumeTimer);
+                            }
+                        });
+
+                        if (result.isConfirmed) {
+                            try {
+                                await fetch(notif.url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': csrfToken,
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('Error al marcar notificación como leída:', error);
+                            }
+                        }
+                    }
+                };
+
+                mostrarNotificaciones();
+            });
         </script>
     @endif
 
