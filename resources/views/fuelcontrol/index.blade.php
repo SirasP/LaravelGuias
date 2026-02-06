@@ -24,14 +24,13 @@
     @if($notificaciones->count())
         <script>
             document.addEventListener('DOMContentLoaded', () => {
-                const notificaciones = @json($notificaciones->map(function ($n) {
-                    return [
-                        'id' => $n->id,
-                        'titulo' => $n->titulo,
-                        'mensaje' => $n->mensaje,
-                        'url' => route('fuelcontrol.notificaciones.leer', $n->id)
-                    ];
-                }));
+                $notificacionesJson = $notificaciones -> map(fn($n) => [
+                    'id' => $n -> id,
+                    'titulo' => $n -> titulo,
+                    'mensaje' => $n -> mensaje,
+                    'url' => route('fuelcontrol.notificaciones.leer', $n -> id),
+                ]);
+                const notificaciones = @json($notificacionesJson);
 
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
