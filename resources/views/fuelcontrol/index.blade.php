@@ -25,13 +25,13 @@
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 const notificaciones = @json($notificaciones->map(function ($n) {
-                    return [
+                    return collect([
                         'id' => $n->id,
                         'titulo' => $n->titulo,
                         'mensaje' => $n->mensaje,
-                        'url' => route('fuelcontrol.notificaciones.leer', $n->id),
-                    ];
-                }));
+                        'url' => route('fuelcontrol.notificaciones.leer', $n->id)
+                    ]);
+                })->values());
 
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
