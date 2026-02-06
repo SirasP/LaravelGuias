@@ -389,6 +389,20 @@ class DashboardController extends Controller
 
         $maquinasLabels = $maquinasAgrak->pluck('maquina_norm');
         $maquinasTotales = $maquinasAgrak->pluck('total_bins');
+
+
+
+        $notificaciones = collect();
+
+        if (auth()->check() && auth()->id() === 1) {
+            $notificaciones = DB::connection('fuelcontrol')
+                ->table('notificaciones')
+                ->where('leido', 0)
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get();
+        }
+
         // ======================
         // 📤 VISTA
         // ======================
@@ -427,6 +441,7 @@ class DashboardController extends Controller
             //chart bins por cuartel agrak
             'binsPorCuartelLabels' => $binsPorCuartel->pluck('etiquetas_cuartel')->values(),
             'binsPorCuartelData' => $binsPorCuartel->pluck('total_bins')->values(),
+            'notificaciones' => $notificaciones,
 
         ]);
 
