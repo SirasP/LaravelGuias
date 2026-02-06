@@ -9,7 +9,7 @@
         role: "{{ auth()->user()->role }}"
     };
 
-    const ws = new WebSocket("ws://109.72.119.62/ws");
+    const ws = new WebSocket("ws://109.72.119.62:3000");
 
     ws.onopen = () => {
         ws.send(JSON.stringify({
