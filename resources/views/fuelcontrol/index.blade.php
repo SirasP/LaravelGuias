@@ -35,7 +35,7 @@
                         timer: 8000
                     });
                 @endforeach
-                });
+        });
         </script>
     @endif
 
