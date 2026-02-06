@@ -21,7 +21,7 @@
         </div>
     </x-slot>
 
-    @if(auth()->id() === 1 && $notificaciones->count())
+    @if($notificaciones->count())
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 @foreach($notificaciones as $n)
@@ -35,7 +35,7 @@
                         timer: 8000
                     });
                 @endforeach
-            });
+                });
         </script>
     @endif
 
