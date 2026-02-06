@@ -244,17 +244,7 @@
                                                                 Editar
                                                             </a>
 
-                                                            <form method="POST"
-                                                                action="{{ route('fuelcontrol.productos.importarXml', $p->id) }}">
-                                                                @csrf
-                                                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 
-                                   bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
-                                   rounded-lg text-xs font-medium hover:bg-green-200 transition-colors">
-                                                                    Importar XML
-                                                                </button>
-                                                            </form>
-
-
+                                                            
 
                                                             <button @click="open = true; deleteId = {{ $p->id }}"
                                                                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium">
