@@ -74,17 +74,21 @@
         </div>
     </x-slot>
     @if(auth()->id() === 1 && $notificaciones->count())
-        <div class="space-y-2">
-            @foreach($notificaciones as $n)
-                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <strong>{{ $n->titulo }}</strong><br>
-                    {{ $n->mensaje }}
-                    <div class="text-xs text-gray-500 mt-1">
-                        {{ \Carbon\Carbon::parse($n->created_at)->diffForHumans() }}
-                    </div>
-                </div>
-            @endforeach
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                @foreach($notificaciones as $n)
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: @json($n->titulo),
+                        text: @json($n->mensaje),
+                        showConfirmButton: false,
+                        timer: 8000
+                    });
+                @endforeach
+        });
+        </script>
     @endif
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
