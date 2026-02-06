@@ -31,49 +31,49 @@
                         'mensaje' => $n->mensaje,
                         'url' => route('fuelcontrol.notificaciones.leer', $n->id)
                     ];
-                }));
+                }))};
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
-                const mostrarNotificaciones = async () => {
-                    for (const notif of notificaciones) {
-                        const result = await Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: notif.titulo,
-                            text: notif.mensaje,
-                            showConfirmButton: true,
-                            confirmButtonText: '✔ Marcar como leída',
-                            confirmButtonColor: '#16a34a',
-                            showCloseButton: true,
-                            timer: null,
-                            timerProgressBar: false,
-                            didOpen: (toast) => {
-                                toast.addEventListener('mouseenter', Swal.stopTimer);
-                                toast.addEventListener('mouseleave', Swal.resumeTimer);
-                            }
-                        });
+            const mostrarNotificaciones = async () => {
+                for (const notif of notificaciones) {
+                    const result = await Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: notif.titulo,
+                        text: notif.mensaje,
+                        showConfirmButton: true,
+                        confirmButtonText: '✔ Marcar como leída',
+                        confirmButtonColor: '#16a34a',
+                        showCloseButton: true,
+                        timer: null,
+                        timerProgressBar: false,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer);
+                            toast.addEventListener('mouseleave', Swal.resumeTimer);
+                        }
+                    });
 
-                        if (result.isConfirmed) {
-                            try {
-                                await fetch(notif.url, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken,
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json'
-                                    }
-                                });
-                            } catch (error) {
-                                console.error('Error al marcar notificación como leída:', error);
-                            }
+                    if (result.isConfirmed) {
+                        try {
+                            await fetch(notif.url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Error al marcar notificación como leída:', error);
                         }
                     }
-                };
+                }
+            };
 
-                mostrarNotificaciones();
-            });
+            mostrarNotificaciones();
+                });
         </script>
     @endif
 
