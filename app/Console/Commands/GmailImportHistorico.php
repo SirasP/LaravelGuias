@@ -43,11 +43,18 @@ class GmailImportHistorico extends Command
         $service = new Gmail($client);
 
         /* ===============================
-         | 3️⃣ LISTAR TODOS LOS CORREOS
+         | 3️⃣ LISTAR CORREOS (PAGINADO)
          =============================== */
         $pageToken = null;
+
         $procesados = 0;
         $omitidos = 0;
+        $xmlValidos = 0;
+        $xmlInvalidos = 0;
+        $movimientos = 0;
+
+        $this->info('🚀 Iniciando importación HISTÓRICA...');
+        $this->line('----------------------------------------');
 
         do {
             $params = [
@@ -70,22 +77,20 @@ class GmailImportHistorico extends Command
                 /* ===============================
                  | 4️⃣ CONTROL gmail_imports
                  =============================== */
-                if (
-                    $db->table('gmail_imports')
-                        ->where('gmail_message_id', $msg->getId())
-                        ->exists()
-                ) {
+                if ($db->table('gmail_imports')->where('gmail_message_id', $msg->getId())->exists()) {
                     $omitidos++;
                     continue;
                 }
 
-                // Registrar import
+                // Registrar mensaje procesado
                 $db->table('gmail_imports')->insert([
                     'gmail_message_id' => $msg->getId(),
                     'processed_at' => now(),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+                $procesados++;
 
                 $message = $service->users_messages->get('me', $msg->getId());
                 $parts = $message->getPayload()->getParts() ?? [];
@@ -99,7 +104,7 @@ class GmailImportHistorico extends Command
                         continue;
                     }
 
-                    $this->info("📎 Histórico XML: {$part->getFilename()}");
+                    $this->line("📎 Histórico XML: {$part->getFilename()}");
 
                     $attachment = $service->users_messages_attachments->get(
                         'me',
@@ -107,17 +112,28 @@ class GmailImportHistorico extends Command
                         $part->getBody()->getAttachmentId()
                     );
 
-                    $xmlContent = base64_decode(
-                        strtr($attachment->getData(), '-_', '+/')
+                    $xmlContent = trim(
+                        base64_decode(strtr($attachment->getData(), '-_', '+/'))
                     );
 
-                    $xml = simplexml_load_string($xmlContent);
-
-                    if (!$xml) {
-                        $this->error("❌ XML inválido");
+                    // Protección básica
+                    if (!str_starts_with($xmlContent, '<')) {
+                        $this->warn("⚠️ No es XML válido, se omite");
+                        $xmlInvalidos++;
                         continue;
                     }
 
+                    libxml_use_internal_errors(true);
+                    $xml = simplexml_load_string($xmlContent);
+
+                    if ($xml === false) {
+                        $this->warn("⚠️ XML mal formado, se omite");
+                        $xmlInvalidos++;
+                        libxml_clear_errors();
+                        continue;
+                    }
+
+                    $xmlValidos++;
                     $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
                     /* ===============================
@@ -125,6 +141,7 @@ class GmailImportHistorico extends Command
                      =============================== */
                     $fch = $xml->xpath('//sii:Encabezado/sii:IdDoc/sii:FchEmis')[0] ?? null;
                     if (!$fch) {
+                        $this->warn("⚠️ Sin FchEmis, se omite XML");
                         continue;
                     }
 
@@ -157,11 +174,7 @@ class GmailImportHistorico extends Command
                             $cantidad
                         ]));
 
-                        if (
-                            $db->table('movimientos')
-                                ->where('hash_unico', $hash)
-                                ->exists()
-                        ) {
+                        if ($db->table('movimientos')->where('hash_unico', $hash)->exists()) {
                             continue;
                         }
 
@@ -170,12 +183,11 @@ class GmailImportHistorico extends Command
                             ->first();
 
                         if (!$producto) {
+                            $this->warn("⚠️ Producto {$productoNombre} no existe");
                             continue;
                         }
 
-                        /* ===============================
-                         | 7️⃣ REGISTRAR MOVIMIENTO (SIN STOCK)
-                         =============================== */
+                        // Registrar movimiento histórico
                         $db->table('movimientos')->insert([
                             'producto_id' => $producto->id,
                             'vehiculo_id' => null,
@@ -187,19 +199,26 @@ class GmailImportHistorico extends Command
                             'fecha_movimiento' => $fechaEmision,
                             'hash_unico' => $hash,
                         ]);
+
+                        $movimientos++;
                     }
                 }
-
-                $procesados++;
             }
 
             $pageToken = $messages->getNextPageToken();
 
         } while ($pageToken);
 
-        $this->info("✔ Histórico terminado");
-        $this->info("📦 Procesados: {$procesados}");
-        $this->info("⏭️ Omitidos (ya importados): {$omitidos}");
+        /* ===============================
+         | 7️⃣ RESUMEN FINAL
+         =============================== */
+        $this->line('----------------------------------------');
+        $this->info('✔ IMPORTACIÓN HISTÓRICA FINALIZADA');
+        $this->info("📨 Correos procesados: {$procesados}");
+        $this->info("⏭️ Correos omitidos: {$omitidos}");
+        $this->info("📄 XML válidos: {$xmlValidos}");
+        $this->info("❌ XML inválidos: {$xmlInvalidos}");
+        $this->info("🧾 Movimientos creados: {$movimientos}");
 
         return Command::SUCCESS;
     }
