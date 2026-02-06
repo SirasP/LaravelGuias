@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        if (!Schema::hasTable('notificaciones')) {
+        if (!Schema::connection('fuelcontrol')->hasTable('notificaciones')) {
             Schema::connection('fuelcontrol')->create('notificaciones', function (Blueprint $table) {
                 $table->id();
                 $table->string('tipo'); // xml_entrada

@@ -108,6 +108,8 @@ class GmailLeerXml extends Command
 
                 $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
+
+
                 /* ===============================
                  | 5️⃣ FECHA DTE
                  =============================== */
@@ -163,6 +165,7 @@ class GmailLeerXml extends Command
                         $this->warn("🕒 DTE antiguo ({$fechaEmision->toDateString()}), NO afecta stock");
                     }
 
+                    // Registro del movimiento
                     $db->table('movimientos')->insert([
                         'producto_id' => $producto->id,
                         'vehiculo_id' => null,
@@ -174,8 +177,27 @@ class GmailLeerXml extends Command
                         'fecha_movimiento' => $fechaEmision,
                         'hash_unico' => $hash,
                     ]);
+
+                    // Guardar notificación en BD
+                    $notificacion = [
+                        'tipo' => 'xml_entrada',
+                        'titulo' => "Ingreso de {$productoNombre}",
+                        'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+
+                    $db->table('notificaciones')->insert($notificacion);
+
+                    // 🔥 EMITIR EVENTO WEBSOCKET
+                    event(new \App\Events\NotificacionCreada([
+                        'titulo' => $notificacion['titulo'],
+                        'mensaje' => $notificacion['mensaje'],
+                    ]));
+
                 }
             }
+
 
             /* ===============================
              | 7️⃣ MARCAR LEÍDO

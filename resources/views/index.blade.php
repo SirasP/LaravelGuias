@@ -27,7 +27,7 @@
             return;
         }
 
-        // 🔔 SOLO Sebastián (id = 1) ve el aviso
+        // 🔔 USUARIO CONECTADO
         if (
             window.AUTH_USER.id === 1 &&
             data.type === 'user_connected'
@@ -38,14 +38,29 @@
                 icon: 'info',
                 title: `${data.name} se conectó`,
                 showConfirmButton: false,
-                showCloseButton: true,   // ❌ X para cerrar
-                timer: null,             // ⏸️ no se cierra solo
-                allowOutsideClick: false,
-                allowEscapeKey: true
+                showCloseButton: true,
+                timer: null
+            });
+        }
+
+        // 🔥 XML ENTRANTE (ESTO FALTABA)
+        if (
+            window.AUTH_USER.id === 1 &&
+            data.type === 'xml_entrada'
+        ) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: data.titulo,
+                text: data.mensaje,
+                showConfirmButton: false,
+                timer: 8000
             });
         }
     };
 </script>
+
 
 <x-app-layout>
     <x-slot name="header">
