@@ -83,7 +83,7 @@
                         icon: 'success',
                         title: @json($n->titulo),
                         text: @json($n->mensaje),
-                        showConfirmButton: false,
+                        showConfirmButton: true,
                         timer: 8000
                     });
                 @endforeach
