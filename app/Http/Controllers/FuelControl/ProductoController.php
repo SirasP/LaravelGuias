@@ -11,15 +11,9 @@ class ProductoController extends Controller
     public function index()
     {
         $productos = DB::connection('fuelcontrol')
-            ->table('movimientos as m')
-            ->leftJoin('productos as p', 'p.id', '=', 'm.producto_id')
-            ->select(
-                'm.*',
-                'p.nombre as producto_nombre'
-            )
-            ->orderByDesc('m.fecha_movimiento')
+            ->table('productos')
+            ->orderBy('nombre')
             ->get();
-
 
         return view('fuelcontrol.productos.index', compact('productos'));
     }
