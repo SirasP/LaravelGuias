@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
 use Google\Service\Gmail\ModifyMessageRequest;
+use Illuminate\Support\Facades\Http;
 
 class GmailLeerXml extends Command
 {
@@ -189,11 +190,11 @@ class GmailLeerXml extends Command
 
                     $db->table('notificaciones')->insert($notificacion);
 
-                    // 🔥 EMITIR EVENTO WEBSOCKET
-                    event(new \App\Events\NotificacionCreada([
+                    Http::post('http://127.0.0.1:3001/notify', [
                         'titulo' => $notificacion['titulo'],
                         'mensaje' => $notificacion['mensaje'],
-                    ]));
+                    ]);
+
 
                 }
             }
