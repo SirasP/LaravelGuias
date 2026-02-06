@@ -55,7 +55,7 @@
                 title: data.titulo,
                 text: data.mensaje,
                 showConfirmButton: false,
-                timer: 8000
+                timer: null
             });
         }
     };
