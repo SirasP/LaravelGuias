@@ -58,19 +58,7 @@ class DashboardController extends Controller
                     'n.created_at'
                 ]);
 
-            $users = DB::table('users')->pluck('id');
-
-            foreach ($users as $userId) {
-                DB::connection('fuelcontrol')
-                    ->table('notificacion_usuarios')
-                    ->insert([
-                        'notificacion_id' => $notificacionId,
-                        'user_id' => $userId,
-                        'leido' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-            }
+            
             /* =========================
              * RESUMEN
              * ========================= */
