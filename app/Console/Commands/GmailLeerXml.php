@@ -119,7 +119,8 @@ class GmailLeerXml extends Command
                 }
 
                 $fechaEmision = Carbon::parse((string) $fch);
-                $afectaStock = $fechaEmision->isSameDay(now()) || $fechaEmision->isAfter(now());
+                $limite = now()->subDays(5);
+                $afectaStock = $fechaEmision->greaterThanOrEqualTo($limite);
 
                 /* ===============================
                  | 6️⃣ DETALLES
