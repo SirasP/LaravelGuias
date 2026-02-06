@@ -24,9 +24,13 @@ class DashboardController extends Controller
              * ÚLTIMOS MOVIMIENTOS
              * ========================= */
             $movimientos = DB::connection('fuelcontrol')
-                ->table('movimientos')
-                ->orderByDesc('fecha_movimiento')
-                ->limit(10)
+                ->table('movimientos as m')
+                ->leftJoin('productos as p', 'p.id', '=', 'm.producto_id')
+                ->select(
+                    'm.*',
+                    'p.nombre as producto_nombre'
+                )
+                ->orderByDesc('m.fecha_movimiento')
                 ->get();
 
             /* =========================

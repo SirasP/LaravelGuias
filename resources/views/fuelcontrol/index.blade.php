@@ -290,7 +290,7 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                        {{ $m->producto->nombre ?? 'Producto #' . $m->producto_id }}
+                                        {{ ucfirst($m->producto_nombre) ?? 'Producto #' . $m->producto_id }}
                                     </p>
                                     <div class="flex items-center gap-2 mt-1">
                                         <span
@@ -298,7 +298,7 @@
                                             {{ ucfirst($m->tipo) }}
                                         </span>
                                         <span class="text-xs text-gray-500 dark:text-gray-400">
-                                            • {{ $m->usuario }}
+                                            • {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y ') }}
                                         </span>
 
                                     </div>
