@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        if (!Schema::hasTable('gmail_imports')) {
+        if (!Schema::connection('fuelcontrol')->hasTable('gmail_imports')) {
             Schema::connection('fuelcontrol')->create('gmail_imports', function (Blueprint $table) {
                 $table->id();
                 $table->string('gmail_message_id')->unique();
