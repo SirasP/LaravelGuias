@@ -165,6 +165,31 @@ class GmailLeerXml extends Command
                     } else {
                         $this->warn("🕒 DTE antiguo ({$fechaEmision->toDateString()}), NO afecta stock");
                     }
+                    $notificacionId = DB::connection('fuelcontrol')
+                        ->table('notificaciones')
+                        ->insertGetId([
+                            'tipo' => 'xml_entrada',
+                            'titulo' => "Ingreso de {$productoNombre}",
+                            'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+
+                    $users = DB::table('users')->pluck('id');
+
+                    foreach ($users as $userId) {
+                        DB::connection('fuelcontrol')
+                            ->table('notificacion_usuarios')
+                            ->insert([
+                                'notificacion_id' => $notificacionId,
+                                'user_id' => $userId,
+                                'leido' => 0,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                    }
+
 
                     // Registro del movimiento
                     $db->table('movimientos')->insert([
@@ -184,7 +209,7 @@ class GmailLeerXml extends Command
                         'tipo' => 'xml_entrada',
                         'titulo' => "Ingreso de {$productoNombre}",
                         'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
-                        'destinatario_id' => 1, // 👈 SOLO Sebastián
+                        'destinatario_id' => null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];

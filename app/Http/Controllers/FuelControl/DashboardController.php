@@ -10,6 +10,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
+
         try {
             /* =========================
              * PRODUCTOS 
@@ -35,22 +36,41 @@ class DashboardController extends Controller
 
                 ->get();
 
+
+
+
             /* =========================
              * NOTIFICACIONES (SOLO ADMIN)
              * ========================= */
             $notificaciones = collect();
 
             $notificaciones = DB::connection('fuelcontrol')
-                ->table('notificaciones')
-                ->where('leido', 0)
-                ->where(function ($q) {
-                    $q->whereNull('destinatario_id') // para todos
-                        ->orWhere('destinatario_id', auth()->id());
-                })
-                ->orderByDesc('created_at')
+                ->table('notificaciones as n')
+                ->join('notificacion_usuarios as nu', 'nu.notificacion_id', '=', 'n.id')
+                ->where('nu.user_id', auth()->id())
+                ->where('nu.leido', 0)
+                ->orderByDesc('n.created_at')
                 ->limit(5)
-                ->get();
+                ->get([
+                    'n.id',
+                    'n.titulo',
+                    'n.mensaje',
+                    'n.created_at'
+                ]);
 
+            $users = DB::table('users')->pluck('id');
+
+            foreach ($users as $userId) {
+                DB::connection('fuelcontrol')
+                    ->table('notificacion_usuarios')
+                    ->insert([
+                        'notificacion_id' => $notificacionId,
+                        'user_id' => $userId,
+                        'leido' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
             /* =========================
              * RESUMEN
              * ========================= */
