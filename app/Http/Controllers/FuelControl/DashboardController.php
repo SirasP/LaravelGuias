@@ -40,15 +40,16 @@ class DashboardController extends Controller
              * ========================= */
             $notificaciones = collect();
 
-            if (auth()->id() === 1) {
-                $notificaciones = DB::connection('fuelcontrol')
-                    ->table('notificaciones')
-                    ->where('destinatario_id', 1)
-                    ->where('leido', 0)
-                    ->orderByDesc('created_at')
-                    ->limit(5)
-                    ->get();
-            }
+            $notificaciones = DB::connection('fuelcontrol')
+                ->table('notificaciones')
+                ->where('leido', 0)
+                ->where(function ($q) {
+                    $q->whereNull('destinatario_id') // para todos
+                        ->orWhere('destinatario_id', auth()->id());
+                })
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get();
 
             /* =========================
              * RESUMEN
