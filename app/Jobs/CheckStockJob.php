@@ -27,9 +27,9 @@ class CheckStockJob
 
             // 🔴 ACÁ AJUSTAS A TU QUERY REAL
             $stockActual = DB::connection('fuelcontrol')
-                ->table('stocks')
-                ->where('producto', $producto)
-                ->value('litros');
+                ->table('productos')
+                ->where('nombre', $producto)
+                ->value('cantidad');
 
             if ($stockActual >= $minimo) {
                 continue;
