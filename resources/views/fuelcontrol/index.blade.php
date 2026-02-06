@@ -22,22 +22,37 @@
     </x-slot>
 
     @if($notificaciones->count())
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                @foreach($notificaciones as $n)
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: @json($n->titulo),
-                        text: @json($n->mensaje),
-                        showConfirmButton: false,
-                        timer: 8000
-                    });
-                @endforeach
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    @foreach($notificaciones as $n)
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: @json($n->titulo),
+                            text: @json($n->mensaje),
+                            showConfirmButton: true,
+                            confirmButtonText: '✔',
+                            confirmButtonColor: '#16a34a',
+                            showCloseButton: true,
+                            timer: null
+                        }).then(result => {
+                            if (result.isConfirmed) {
+                                fetch(`/notificaciones/{{ $n->id }}/leer`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': document
+                                            .querySelector('meta[name="csrf-token"]')
+                                            .content
+                                    }
+                                });
+                            }
+                        });
+                    @endforeach
         });
-        </script>
+            </script>
     @endif
+
 
     {{-- CONTENIDO PRINCIPAL --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3 ">

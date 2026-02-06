@@ -165,6 +165,7 @@ class GmailLeerXml extends Command
                     } else {
                         $this->warn("🕒 DTE antiguo ({$fechaEmision->toDateString()}), NO afecta stock");
                     }
+
                     $notificacionId = DB::connection('fuelcontrol')
                         ->table('notificaciones')
                         ->insertGetId([
@@ -204,21 +205,11 @@ class GmailLeerXml extends Command
                         'hash_unico' => $hash,
                     ]);
 
-                    // Guardar notificación en BD
-                    $notificacion = [
-                        'tipo' => 'xml_entrada',
-                        'titulo' => "Ingreso de {$productoNombre}",
-                        'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
-                        'destinatario_id' => null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
 
-                    $db->table('notificaciones')->insert($notificacion);
 
                     Http::post('http://127.0.0.1:3001/notify', [
-                        'titulo' => $notificacion['titulo'],
-                        'mensaje' => $notificacion['mensaje'],
+                        'titulo' => "Ingreso de {$productoNombre}",
+                        'mensaje' => "+{$cantidad} L desde XML",
                     ]);
 
 
