@@ -10,16 +10,17 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::connection('fuelcontrol')->create('notificaciones', function (Blueprint $table) {
-            $table->id();
-            $table->string('tipo'); // xml_entrada
-            $table->string('titulo');
-            $table->text('mensaje');
-            $table->boolean('leido')->default(false);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('gmail_imports')) {
+            Schema::connection('fuelcontrol')->create('notificaciones', function (Blueprint $table) {
+                $table->id();
+                $table->string('tipo'); // xml_entrada
+                $table->string('titulo');
+                $table->text('mensaje');
+                $table->boolean('leido')->default(false);
+                $table->timestamps();
+            });
+        }
     }
-
     /**
      * Reverse the migrations.
      */
