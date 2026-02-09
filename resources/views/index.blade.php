@@ -74,22 +74,33 @@
         </div>
     </x-slot>
     @if(auth()->id() === 1 && $notificaciones->count())
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                @foreach($notificaciones as $n)
-                    Swal.fire({
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+
+                    const Toast = Swal.mixin({
                         toast: true,
                         position: 'top-end',
-                        icon: 'success',
-                        title: @json($n->titulo),
-                        text: @json($n->mensaje),
                         showConfirmButton: false,
-                        timer: 8000
+                        timer: 8000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
                     });
-                @endforeach
+
+                    @foreach($notificaciones as $n)
+                        Toast.fire({
+                            icon: 'success',
+                            title: @json($n->titulo),
+                            text: @json($n->mensaje),
+                        });
+                    @endforeach
+
         });
-        </script>
+            </script>
     @endif
+
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
         @php
