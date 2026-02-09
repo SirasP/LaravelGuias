@@ -26,42 +26,63 @@
             $notificacionesData = $notificaciones->map(function ($n) {
                 return [
                     'id' => $n->id,
+                    'tipo' => $n->tipo,
+                    'movimiento_id' => $n->movimiento_id,
                     'titulo' => $n->titulo,
                     'mensaje' => $n->mensaje,
-                    'url' => route('fuelcontrol.notificaciones.leer', $n->id)
+                    'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
+                    'url_xml' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
+                        ? route('fuelcontrol.xml.show', $n->movimiento_id)
+                        : null,
                 ];
             })->values();
         @endphp
 
         <script>
             document.addEventListener('DOMContentLoaded', () => {
+
                 const notificaciones = @json($notificacionesData);
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
                 const mostrarNotificaciones = async () => {
+
                     for (const notif of notificaciones) {
 
+                        // 🔔 TOAST PRINCIPAL
                         const result = await Swal.fire({
                             toast: true,
                             position: 'top-end',
-                            icon: 'info',
+                            icon: notif.url_xml ? 'info' : 'success',
                             title: notif.titulo,
                             text: notif.mensaje,
-                            showConfirmButton: true,
+
+                            // 👉 si es XML NO se marca acá
+                            showConfirmButton: !notif.url_xml,
                             confirmButtonText: '✔ Marcar como leída',
+                            confirmButtonColor: '#16a34a',
+
+                            // 👉 si es XML se abre modal
                             showDenyButton: !!notif.url_xml,
                             denyButtonText: '📄 Ver XML',
+
+                            showCloseButton: true,
                             timer: null,
                         });
 
-                        // 📄 Ver XML → abre modal
+                        /* =========================
+                         * XML → MODAL
+                         * ========================= */
                         if (result.isDenied && notif.url_xml) {
-                            await Swal.fire({
+
+                            const modalResult = await Swal.fire({
                                 title: 'Detalle del XML',
                                 width: '70%',
                                 showCloseButton: true,
-                                showConfirmButton: false,
-                                html: '<div class="text-center py-6">Cargando XML...</div>',
+                                showConfirmButton: true,
+                                confirmButtonText: '✔ Marcar como leída',
+                                confirmButtonColor: '#16a34a',
+                                html: '<div class="py-6 text-center">Cargando XML...</div>',
+
                                 didOpen: async () => {
                                     const container = Swal.getHtmlContainer();
                                     try {
@@ -72,13 +93,25 @@
                                     }
                                 }
                             });
+
+                            // ✔ marcar como leída DESPUÉS de ver XML
+                            if (modalResult.isConfirmed && notif.url_leer) {
+                                await fetch(notif.url_leer, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': csrfToken
+                                    }
+                                });
+                            }
+
                             continue;
                         }
 
-                
-                        // ✔ Marcar como leída
-                        if (result.isConfirmed && notif.url) {
-                            await fetch(notif.url, {
+                        /* =========================
+                         * NORMAL → MARCAR DIRECTO
+                         * ========================= */
+                        if (result.isConfirmed && notif.url_leer) {
+                            await fetch(notif.url_leer, {
                                 method: 'POST',
                                 headers: {
                                     'X-CSRF-TOKEN': csrfToken
@@ -91,8 +124,8 @@
                 mostrarNotificaciones();
             });
         </script>
-
     @endif
+
 
 
     {{-- CONTENIDO PRINCIPAL --}}
