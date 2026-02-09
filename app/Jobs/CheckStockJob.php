@@ -17,35 +17,35 @@ class CheckStockJob
 
     public function handle(): void
     {
-        /**
-         * ⚠️ DEFINICIÓN CORRECTA POR ID (NO POR NOMBRE)
-         * Esto evita errores por tildes, mayúsculas, collation, etc.
-         */
+        Log::info('🔥 CheckStockJob INICIADO por scheduler', [
+            'hora' => now()->toDateTimeString(),
+        ]);
+
+        // 👉 IDs reales de tus productos
         $productos = [
-            13 => ['nombre' => 'Diésel', 'minimo' => 500],
+            13 => ['nombre' => 'Diésel',   'minimo' => 500],
             14 => ['nombre' => 'Gasolina', 'minimo' => 200],
         ];
 
         foreach ($productos as $productoId => $data) {
 
-            // 🔍 Obtener stock real
             $stockActual = DB::connection('fuelcontrol')
                 ->table('productos')
                 ->where('id', $productoId)
                 ->value('cantidad');
 
-            Log::info('CheckStockJob ejecutado', [
+            Log::info('📦 Stock leído', [
                 'producto_id' => $productoId,
-                'stock' => $stockActual,
-                'minimo' => $data['minimo'],
+                'stock'       => $stockActual,
+                'minimo'      => $data['minimo'],
             ]);
 
-            // Si no existe o el stock está OK → no alertar
+            // Si no existe o stock OK → no alertar
             if ($stockActual === null || $stockActual >= $data['minimo']) {
                 continue;
             }
 
-            // 🛑 Anti-spam: solo 1 correo por producto por día
+            // Anti-spam diario
             $yaEnviado = DB::connection('fuelcontrol')
                 ->table('stock_alerts')
                 ->where('producto_id', $productoId)
@@ -53,9 +53,8 @@ class CheckStockJob
                 ->exists();
 
             if ($yaEnviado) {
-                Log::info('Alerta ya enviada hoy', [
+                Log::info('🔕 Alerta ya enviada hoy', [
                     'producto_id' => $productoId,
-                    'fecha' => now()->toDateString(),
                 ]);
                 continue;
             }
@@ -64,20 +63,22 @@ class CheckStockJob
             Mail::to('s.lopez.epple@gmail.com')
                 ->send(new StockBajoMail($data['nombre'], $stockActual));
 
-            // 📝 Registro de alerta enviada
+            Log::warning('📧 Correo de stock bajo ENVIADO', [
+                'producto_id' => $productoId,
+                'stock'       => $stockActual,
+            ]);
+
+            // Registrar alerta
             DB::connection('fuelcontrol')
                 ->table('stock_alerts')
                 ->insert([
                     'producto_id' => $productoId,
-                    'fecha' => now()->toDateString(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'fecha'       => now()->toDateString(),
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
                 ]);
-
-            Log::warning('Correo de stock bajo enviado', [
-                'producto_id' => $productoId,
-                'stock' => $stockActual,
-            ]);
         }
+
+        Log::info('✅ CheckStockJob FINALIZADO');
     }
 }
