@@ -97,9 +97,11 @@
                                             <div
                                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                                 <span style="color: #6b7280; font-size: 13px; font-weight: 500;">Nivel
-                                                    de stock</span>
+                                                    de stock
+                                                </span>
                                                 <span
-                                                    style="color: {{ $nivelCritico ? '#dc2626' : '#f59e0b' }}; font-size: 16px; font-weight: 700;">{{ $porcentajeStock }}%</span>
+                                                    style="color: {{ $nivelCritico ? '#dc2626' : '#f59e0b' }}; font-size: 16px; font-weight: 700;">{{ $porcentajeStock }}%
+                                                </span>
                                             </div>
                                             <div
                                                 style="width: 100%; height: 12px; background-color: #e5e7eb; border-radius: 6px; overflow: hidden;">

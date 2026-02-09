@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<EnvioDTE xmlns="http://www.sii.cl/SiiDte">
+    <SetDTE>
+        <DTE>
+            <Documento>
+                <Encabezado>
+                    <IdDoc>
+                        <FchEmis>2026-02-09</FchEmis>
+                    </IdDoc>
+                </Encabezado>
+
+                <Referencia>
+                    <RazonRef>
+                        Impuesto ley 18.502. No recuperable por petróleo diesel que se use en
+                        vehículos
+                    </RazonRef>
+                </Referencia>
+
+                <Detalle>
+                    <NmbItem>PETROLEO DIESEL</NmbItem>
+                    <QtyItem>120</QtyItem>
+                </Detalle>
+
+            </Documento>
+        </DTE>
+    </SetDTE>
+</EnvioDTE>

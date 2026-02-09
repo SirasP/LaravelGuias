@@ -124,7 +124,19 @@ class GmailLeerXml extends Command
                 $fechaEmision = Carbon::parse((string) $fch);
                 $limite = now()->subDays(5);
                 $afectaStock = $fechaEmision->greaterThanOrEqualTo($limite);
+                /* ===============================
+                 | 🔍 DETECTAR LEY 18.502
+                 =============================== */
+                $usaVehiculo = false;
 
+                foreach ($xml->xpath('//sii:Referencia') as $ref) {
+                    $razon = strtoupper((string) ($ref->RazonRef ?? ''));
+
+                    if (str_contains($razon, 'LEY 18.502') || str_contains($razon, 'VEHICUL')) {
+                        $usaVehiculo = true;
+                        break;
+                    }
+                }
                 /* ===============================
                  | 6️⃣ DETALLES
                  =============================== */
@@ -156,14 +168,15 @@ class GmailLeerXml extends Command
                     if (!$producto)
                         continue;
 
-                    if ($afectaStock) {
+                    if ($afectaStock && !$usaVehiculo) {
+
                         $db->table('productos')
                             ->where('id', $producto->id)
                             ->increment('cantidad', $cantidad);
 
                         $this->info("📦 Stock actualizado");
                     } else {
-                        $this->warn("🕒 DTE antiguo ({$fechaEmision->toDateString()}), NO afecta stock");
+                        $this->warn("🚫 DTE asociado a VEHÍCULO (Ley 18.502) → NO suma stock");
                     }
 
                     $notificacionId = DB::connection('fuelcontrol')
@@ -197,19 +210,26 @@ class GmailLeerXml extends Command
                         'producto_id' => $producto->id,
                         'vehiculo_id' => null,
                         'cantidad' => $cantidad,
-                        'tipo' => 'entrada',
-                        'origen' => 'xml',
+                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
+                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
                         'referencia' => $part->getFilename(),
                         'usuario' => 'gmail',
                         'fecha_movimiento' => $fechaEmision,
                         'hash_unico' => $hash,
                     ]);
 
+                    $titulo = $usaVehiculo
+                        ? "XML de consumo vehicular detectado"
+                        : "Ingreso de {$productoNombre}";
+
+                    $mensaje = $usaVehiculo
+                        ? "{$cantidad} L (Ley 18.502, no suma stock)"
+                        : "+{$cantidad} L desde XML ({$part->getFilename()})";
 
 
                     Http::post('http://127.0.0.1:3001/notify', [
-                        'titulo' => "Ingreso de {$productoNombre}",
-                        'mensaje' => "+{$cantidad} L desde XML",
+                        'titulo' => $titulo,
+                        'mensaje' => $mensaje,
                     ]);
 
                 }
