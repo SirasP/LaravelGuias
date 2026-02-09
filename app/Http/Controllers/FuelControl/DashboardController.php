@@ -37,8 +37,6 @@ class DashboardController extends Controller
                 ->get();
 
 
-
-
             /* =========================
              * NOTIFICACIONES (SOLO ADMIN)
              * ========================= */
@@ -58,7 +56,7 @@ class DashboardController extends Controller
                     'n.created_at'
                 ]);
 
-            
+
             /* =========================
              * RESUMEN
              * ========================= */
@@ -147,4 +145,13 @@ class DashboardController extends Controller
             'notificaciones'
         ));
     }
+    public function show($movimientoId)
+    {
+        $xml = DB::table('xml_movimientos')
+            ->where('movimiento_id', $movimientoId)
+            ->firstOrFail();
+
+        return view('fuelcontrol.xml.modal', compact('xml'));
+    }
+
 }

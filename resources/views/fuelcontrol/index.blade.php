@@ -40,37 +40,49 @@
 
                 const mostrarNotificaciones = async () => {
                     for (const notif of notificaciones) {
+
                         const result = await Swal.fire({
                             toast: true,
                             position: 'top-end',
-                            icon: 'success',
+                            icon: 'info',
                             title: notif.titulo,
                             text: notif.mensaje,
                             showConfirmButton: true,
                             confirmButtonText: '✔ Marcar como leída',
-                            confirmButtonColor: '#16a34a',
-                            showCloseButton: true,
+                            showDenyButton: !!notif.url_xml,
+                            denyButtonText: '📄 Ver XML',
                             timer: null,
-                            timerProgressBar: false,
-                            didOpen: (toast) => {
-                                toast.addEventListener('mouseenter', Swal.stopTimer);
-                                toast.addEventListener('mouseleave', Swal.resumeTimer);
-                            }
                         });
 
-                        if (result.isConfirmed) {
-                            try {
-                                await fetch(notif.url, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken,
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json'
+                        // 📄 Ver XML → abre modal
+                        if (result.isDenied && notif.url_xml) {
+                            await Swal.fire({
+                                title: 'Detalle del XML',
+                                width: '70%',
+                                showCloseButton: true,
+                                showConfirmButton: false,
+                                html: '<div class="text-center py-6">Cargando XML...</div>',
+                                didOpen: async () => {
+                                    const container = Swal.getHtmlContainer();
+                                    try {
+                                        const res = await fetch(notif.url_xml);
+                                        container.innerHTML = await res.text();
+                                    } catch {
+                                        container.innerHTML = '<p class="text-red-500">Error al cargar XML</p>';
                                     }
-                                });
-                            } catch (error) {
-                                console.error('Error al marcar notificación como leída:', error);
-                            }
+                                }
+                            });
+                            continue;
+                        }
+
+                        // ✔ Marcar como leída
+                        if (result.isConfirmed) {
+                            await fetch(notif.url_leer, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken
+                                }
+                            });
                         }
                     }
                 };
@@ -78,6 +90,7 @@
                 mostrarNotificaciones();
             });
         </script>
+
     @endif
 
 
