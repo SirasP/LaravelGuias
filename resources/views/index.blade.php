@@ -77,22 +77,15 @@
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
 
-                    let toastOffset = 0;
-
                     const Toast = Swal.mixin({
                         toast: true,
                         position: 'top-end',
                         showConfirmButton: false,
                         timer: 8000,
+                        timerProgressBar: true,
                         didOpen: (toast) => {
-                            toast.style.marginTop = toastOffset + 'px';
-                            toastOffset += 80; // espacio entre toasts
-
                             toast.addEventListener('mouseenter', Swal.stopTimer)
                             toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        },
-                        willClose: () => {
-                            toastOffset -= 80;
                         }
                     });
 
@@ -100,14 +93,13 @@
                         Toast.fire({
                             icon: 'success',
                             title: @json($n->titulo),
-                            text: @json($n->mensaje)
+                            text: @json($n->mensaje),
                         });
                     @endforeach
 
         });
             </script>
     @endif
-
 
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
