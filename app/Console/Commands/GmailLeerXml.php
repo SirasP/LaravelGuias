@@ -179,7 +179,21 @@ class GmailLeerXml extends Command
                         $this->warn("🚫 DTE asociado a VEHÍCULO (Ley 18.502) → NO suma stock");
                     }
 
+                    $movimientoId = $db->table('movimientos')->insertGetId([
+                        'producto_id' => $producto->id,
+                        'vehiculo_id' => null,
+                        'cantidad' => $cantidad,
+                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
+                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
+                        'referencia' => $part->getFilename(),
 
+                        'requiere_revision' => $usaVehiculo ? 1 : 0,
+                        'xml_path' => $part->getFilename(),
+
+                        'usuario' => 'gmail',
+                        'fecha_movimiento' => $fechaEmision,
+                        'hash_unico' => $hash,
+                    ]);
 
 
                     $notificacionId = DB::connection('fuelcontrol')
@@ -216,22 +230,8 @@ class GmailLeerXml extends Command
                             ]);
                     }
 
-                    $movimientoId = $db->table('movimientos')->insertGetId([
-                        'producto_id' => $producto->id,
-                        'vehiculo_id' => null,
-                        'cantidad' => $cantidad,
-                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
-                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
-                        'referencia' => $part->getFilename(),
 
-                        'requiere_revision' => $usaVehiculo ? 1 : 0,
-                        'xml_path' => $part->getFilename(),
 
-                        'usuario' => 'gmail',
-                        'fecha_movimiento' => $fechaEmision,
-                        'hash_unico' => $hash,
-                    ]);
-                    
                     $titulo = $usaVehiculo
                         ? "XML de consumo vehicular detectado"
                         : "Ingreso de {$productoNombre}";
