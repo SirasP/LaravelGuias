@@ -13,10 +13,11 @@ class Kernel extends ConsoleKernel
         AgrakNormalizeExisting::class,
     ];
 
-    protected function schedule(Schedule $schedule)
+    protected function schedule(Schedule $schedule): void
     {
-        // aquí puedes programar comandos si quieres
-        $schedule->job(new CheckStockJob)->everyFiveMinutes();
+        $schedule->job(new CheckStockJob)
+            ->everyMinute()
+            ->evenInMaintenanceMode();
     }
 
     protected function commands()
