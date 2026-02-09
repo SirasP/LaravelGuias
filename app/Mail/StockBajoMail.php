@@ -10,7 +10,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Queue\SerializesModels;
 
-class StockBajoMail extends Mailable 
+class StockBajoMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -31,6 +31,14 @@ class StockBajoMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $metadata = [
+            'stock_actual' => (string) $this->stock,
+        ];
+
+        if ($this->codigoProducto !== null) {
+            $metadata['producto_id'] = $this->codigoProducto;
+        }
+
         return new Envelope(
             from: new Address(
                 address: config('mail.from.address'),
@@ -38,10 +46,7 @@ class StockBajoMail extends Mailable
             ),
             subject: "⚠️ Alerta de Stock Bajo - {$this->producto}",
             tags: ['stock-alert', 'inventory'],
-            metadata: [
-                'producto_id' => $this->codigoProducto,
-                'stock_actual' => $this->stock,
-            ],
+            metadata: $metadata,
         );
     }
 
