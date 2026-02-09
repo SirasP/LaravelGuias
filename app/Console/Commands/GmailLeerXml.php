@@ -179,23 +179,22 @@ class GmailLeerXml extends Command
                         $this->warn("🚫 DTE asociado a VEHÍCULO (Ley 18.502) → NO suma stock");
                     }
 
-                    $movimientoId = $$db = DB::connection('fuelcontrol')
-                        ->table('movimientos')->insertGetId([
-                                'producto_id' => $producto->id,
-                                'vehiculo_id' => null,
-                                'cantidad' => $cantidad,
-                                'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
-                                'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
-                                'referencia' => $part->getFilename(),
+                    $movimientoId = $db->table('movimientos')->insertGetId([
+                        'producto_id' => $producto->id,
+                        'vehiculo_id' => null,
+                        'cantidad' => $cantidad,
+                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
+                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
+                        'referencia' => $part->getFilename(),
 
-                                // flags importantes
-                                'requiere_revision' => $usaVehiculo ? 1 : 0,
-                                'xml_path' => $part->getFilename(),
+                        'requiere_revision' => $usaVehiculo ? 1 : 0,
+                        'xml_path' => $part->getFilename(),
 
-                                'usuario' => 'gmail',
-                                'fecha_movimiento' => $fechaEmision,
-                                'hash_unico' => $hash,
-                            ]);
+                        'usuario' => 'gmail',
+                        'fecha_movimiento' => $fechaEmision,
+                        'hash_unico' => $hash,
+                    ]);
+
 
                     $notificacionId = DB::connection('fuelcontrol')
                         ->table('notificaciones')
