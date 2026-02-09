@@ -75,9 +75,10 @@
                             continue;
                         }
 
+                
                         // ✔ Marcar como leída
-                        if (result.isConfirmed) {
-                            await fetch(notif.url_leer, {
+                        if (result.isConfirmed && notif.url) {
+                            await fetch(notif.url, {
                                 method: 'POST',
                                 headers: {
                                     'X-CSRF-TOKEN': csrfToken
