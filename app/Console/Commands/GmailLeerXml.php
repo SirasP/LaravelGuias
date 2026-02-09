@@ -178,16 +178,41 @@ class GmailLeerXml extends Command
                     } else {
                         $this->warn("🚫 DTE asociado a VEHÍCULO (Ley 18.502) → NO suma stock");
                     }
+                    $movimientoId = $db->table('movimientos')->insertGetId([
+                        'producto_id' => $producto->id,
+                        'vehiculo_id' => null,
+                        'cantidad' => $cantidad,
+                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
+                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
+                        'referencia' => $part->getFilename(),
+
+                        // flags importantes
+                        'requiere_revision' => $usaVehiculo ? 1 : 0,
+                        'xml_path' => $part->getFilename(),
+
+                        'usuario' => 'gmail',
+                        'fecha_movimiento' => $fechaEmision,
+                        'hash_unico' => $hash,
+                    ]);
 
                     $notificacionId = DB::connection('fuelcontrol')
                         ->table('notificaciones')
                         ->insertGetId([
-                            'tipo' => 'xml_entrada',
-                            'titulo' => "Ingreso de {$productoNombre}",
-                            'mensaje' => "+{$cantidad} L desde XML ({$part->getFilename()})",
+                            'tipo' => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
+                            'titulo' => $usaVehiculo
+                                ? 'XML requiere revisión'
+                                : "Ingreso de {$productoNombre}",
+
+                            'movimiento_id' => $movimientoId, // ✅ AHORA SÍ
+
+                            'mensaje' => $usaVehiculo
+                                ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
+                                : "+{$cantidad} L desde XML ({$part->getFilename()})",
+
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
+
 
 
                     $users = DB::table('users')->pluck('id');
@@ -205,18 +230,7 @@ class GmailLeerXml extends Command
                     }
 
 
-                    // Registro del movimiento
-                    $db->table('movimientos')->insert([
-                        'producto_id' => $producto->id,
-                        'vehiculo_id' => null,
-                        'cantidad' => $cantidad,
-                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
-                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
-                        'referencia' => $part->getFilename(),
-                        'usuario' => 'gmail',
-                        'fecha_movimiento' => $fechaEmision,
-                        'hash_unico' => $hash,
-                    ]);
+                   
 
                     $titulo = $usaVehiculo
                         ? "XML de consumo vehicular detectado"
