@@ -35,7 +35,7 @@ class CheckStockJob
                 ->value('cantidad');
 
             Log::info('📦 Stock leído', [
-                'producto_id' => $productoId,
+                'id' => $productoId,
                 'stock'       => $stockActual,
                 'minimo'      => $data['minimo'],
             ]);
@@ -48,13 +48,13 @@ class CheckStockJob
             // Anti-spam diario
             $yaEnviado = DB::connection('fuelcontrol')
                 ->table('stock_alerts')
-                ->where('producto_id', $productoId)
+                ->where('id', $productoId)
                 ->where('fecha', now()->toDateString())
                 ->exists();
 
             if ($yaEnviado) {
                 Log::info('🔕 Alerta ya enviada hoy', [
-                    'producto_id' => $productoId,
+                    'id' => $productoId,
                 ]);
                 continue;
             }
@@ -64,7 +64,7 @@ class CheckStockJob
                 ->send(new StockBajoMail($data['nombre'], $stockActual));
 
             Log::warning('📧 Correo de stock bajo ENVIADO', [
-                'producto_id' => $productoId,
+                'id' => $productoId,
                 'stock'       => $stockActual,
             ]);
 
@@ -72,7 +72,7 @@ class CheckStockJob
             DB::connection('fuelcontrol')
                 ->table('stock_alerts')
                 ->insert([
-                    'producto_id' => $productoId,
+                    'id' => $productoId,
                     'fecha'       => now()->toDateString(),
                     'created_at'  => now(),
                     'updated_at'  => now(),
