@@ -55,7 +55,13 @@ class CheckStockJob
 
             // 📧 Mail
             Mail::to('s.lopez.epple@gmail.com')
-                ->send(new StockBajoMail($nombreProducto, $stockActual));
+                ->send(new StockBajoMail(
+                    producto: $nombreProducto,
+                    stock: (float) $stockActual,
+                    stockMinimo: (float) $minimo,
+                    codigoProducto: null,
+                    categoria: null
+                ));
 
             // ✅ Insert correcto (NO se inserta id)
             DB::connection('fuelcontrol')
