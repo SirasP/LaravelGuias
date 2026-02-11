@@ -57,7 +57,7 @@ class DashboardController extends Controller
                     'n.movimiento_id',
                     'n.mensaje',
                     'n.created_at',
-                    'm.estado', // 🔥 IMPORTANTE
+                    'm.estado' // 🔥 IMPORTANTE
 
                 ]);
 
