@@ -187,31 +187,25 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Movimiento no encontrado'], 404);
         }
 
-        // 🔒 Solo pendientes
+        // 🔒 Evitar doble proceso
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
                 'error' => 'Este documento ya fue procesado'
             ], 400);
         }
 
-        // 🔒 Solo vehiculares requieren aprobación
-        if ($movimiento->tipo !== 'vehiculo') {
-            return response()->json([
-                'error' => 'Este documento no requiere aprobación'
-            ], 400);
-        }
-
         $db->beginTransaction();
-
 
         try {
 
-            // 👉 Ingresar stock ahora (recién aquí)
-            $db->table('productos')
-                ->where('id', $movimiento->producto_id)
-                ->increment('cantidad', $movimiento->cantidad);
+            // 🔥 SOLO VEHICULO debe entrar acá
+            if ($movimiento->tipo === 'vehiculo') {
 
-            // 👉 Cambiar estado
+                $db->table('productos')
+                    ->where('id', $movimiento->producto_id)
+                    ->increment('cantidad', $movimiento->cantidad);
+            }
+
             $db->table('movimientos')
                 ->where('id', $movimientoId)
                 ->update([
@@ -220,7 +214,6 @@ class DashboardController extends Controller
                 ]);
 
             $db->commit();
-
 
             return response()->json(['ok' => true]);
 
@@ -233,6 +226,7 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
 
     public function rechazar($movimientoId)
     {
