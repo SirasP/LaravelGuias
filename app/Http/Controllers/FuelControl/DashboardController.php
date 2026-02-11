@@ -168,7 +168,12 @@ class DashboardController extends Controller
         }
 
         $contenidoXml = Storage::disk('local')->get($ruta);
-
+        dd([
+            'base_path' => base_path(),
+            'storage_path' => storage_path(),
+            'full_path_trying' => storage_path('app/' . $ruta),
+            'exists_file_exists' => file_exists(storage_path('app/' . $ruta)),
+        ]);
         return view('fuelcontrol.xml.modal', [
             'xml' => $contenidoXml,
             'movimiento' => $movimiento
