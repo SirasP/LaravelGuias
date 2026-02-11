@@ -143,8 +143,8 @@
                                         @endif
                                     </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
-                                        {{ number_format((float) $totales->MntNeto, 0, ',', '.') }}
                                       
+                                        {{ number_format($detalle->QtyItem ?? 0, 2, ',', '.') }}
                                     </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
                                         ${{ number_format($detalle->PrcItem ?? 0, 0, ',', '.') }}</td>
