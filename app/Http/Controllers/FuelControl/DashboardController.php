@@ -161,18 +161,16 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->firstOrFail();
 
-        $ruta = 'private/xml/' . $movimiento->xml_path;
+        $ruta = storage_path('app/private/xml/' . $movimiento->xml_path);
 
-        if (!Storage::disk('local')->exists($ruta)) {
-            abort(404, 'XML no encontrado en: ' . $ruta);
-        }
-
-        $contenidoXml = Storage::disk('local')->get($ruta);
-
-        return view('fuelcontrol.xml.modal', [
-            'xml' => $contenidoXml
+        dd([
+            'xml_path_db' => $movimiento->xml_path,
+            'ruta_completa' => $ruta,
+            'existe' => file_exists($ruta),
+            'size' => file_exists($ruta) ? filesize($ruta) : null
         ]);
     }
+
 
 
 
