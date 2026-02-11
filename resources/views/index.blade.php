@@ -76,7 +76,7 @@
     @if(auth()->id() === 1 && $notificaciones->count())
 
         @php
-        dd($notificaciones);
+       
             $notificacionesData = $notificaciones->map(function ($n) {
                 return [
                     'id' => $n->id,
