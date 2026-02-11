@@ -175,6 +175,95 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function aprobar($movimientoId)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $movimiento = $db->table('movimientos')
+            ->where('id', $movimientoId)
+            ->first();
+
+        if (!$movimiento) {
+            return response()->json(['error' => 'Movimiento no encontrado'], 404);
+        }
+
+        // 🔒 Evitar doble proceso
+        if ($movimiento->estado !== 'pendiente') {
+            return response()->json([
+                'error' => 'Este documento ya fue procesado'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            // 👉 Si es entrada real de estanque, ingresar stock
+            if ($movimiento->tipo === 'entrada') {
+
+                $db->table('productos')
+                    ->where('id', $movimiento->producto_id)
+                    ->increment('cantidad', $movimiento->cantidad);
+            }
+
+            // 👉 Cambiar estado
+            $db->table('movimientos')
+                ->where('id', $movimientoId)
+                ->update([
+                    'estado' => 'aprobado',
+                    'updated_at' => now()
+                ]);
+
+            DB::commit();
+
+            return response()->json(['ok' => true]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'error' => 'Error interno al aprobar'
+            ], 500);
+        }
+    }
+    public function rechazar($movimientoId)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $movimiento = $db->table('movimientos')
+            ->where('id', $movimientoId)
+            ->first();
+
+        if (!$movimiento) {
+            return response()->json(['error' => 'Movimiento no encontrado'], 404);
+        }
+
+        // 🔒 Evitar doble proceso
+        if ($movimiento->estado !== 'pendiente') {
+            return response()->json([
+                'error' => 'Este documento ya fue procesado'
+            ], 400);
+        }
+
+        try {
+
+            $db->table('movimientos')
+                ->where('id', $movimientoId)
+                ->update([
+                    'estado' => 'rechazado',
+                    'updated_at' => now()
+                ]);
+
+            return response()->json(['ok' => true]);
+
+        } catch (\Throwable $e) {
+
+            return response()->json([
+                'error' => 'Error interno al rechazar'
+            ], 500);
+        }
+    }
 
 
 
