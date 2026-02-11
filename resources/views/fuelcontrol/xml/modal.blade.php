@@ -34,7 +34,6 @@
         </div>
     </div>
 
-
     @php
         try {
             $xmlObj = simplexml_load_string($xml);
