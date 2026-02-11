@@ -174,6 +174,7 @@ class DashboardController extends Controller
             'full_path_trying' => storage_path('app/' . $ruta),
             'exists_file_exists' => file_exists(storage_path('app/' . $ruta)),
         ]);
+        
         return view('fuelcontrol.xml.modal', [
             'xml' => $contenidoXml,
             'movimiento' => $movimiento
