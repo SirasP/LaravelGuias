@@ -161,15 +161,7 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->firstOrFail();
 
-        $ruta = 'private/xml/' . $movimiento->xml_path;
-
-        dd([
-            'base_path' => base_path(),
-            'storage_path' => storage_path(),
-            'full_path_trying' => storage_path('app/' . $ruta),
-            'exists_file_exists' => file_exists(storage_path('app/' . $ruta)),
-            'exists_storage' => Storage::disk('local')->exists($ruta),
-        ]);
+        $ruta = 'xml/' . $movimiento->xml_path;
 
         if (!Storage::disk('local')->exists($ruta)) {
             abort(404, 'Archivo XML no encontrado');
@@ -182,6 +174,7 @@ class DashboardController extends Controller
             'movimiento' => $movimiento
         ]);
     }
+
 
 
 
