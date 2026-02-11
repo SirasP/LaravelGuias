@@ -175,16 +175,23 @@ class GmailLeerXml extends Command
                     if (!$producto)
                         continue;
 
-                    if ($afectaStock && !$usaVehiculo) {
+                    if (!$usaVehiculo && $afectaStock) {
 
                         $db->table('productos')
                             ->where('id', $producto->id)
                             ->increment('cantidad', $cantidad);
 
-                        $this->info("📦 Stock actualizado");
+                        $this->info("📦 Stock actualizado automáticamente");
+
+                        $estado = 'aprobado';
+
                     } else {
-                        $this->warn("🚫 DTE asociado a VEHÍCULO (Ley 18.502) → NO suma stock");
+
+                        $this->warn("🚫 DTE asociado a VEHÍCULO → Requiere aprobación");
+
+                        $estado = 'pendiente';
                     }
+
 
                     $movimientoId = $db->table('movimientos')->insertGetId([
                         'producto_id' => $producto->id,
@@ -195,6 +202,8 @@ class GmailLeerXml extends Command
                         'referencia' => $part->getFilename(),
 
                         'requiere_revision' => $usaVehiculo ? 1 : 0,
+                        'estado' => $estado, // 🔥 AQUÍ VA
+
                         'xml_path' => $part->getFilename(),
 
                         'usuario' => 'gmail',

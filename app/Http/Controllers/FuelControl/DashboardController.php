@@ -187,10 +187,17 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Movimiento no encontrado'], 404);
         }
 
-        // 🔒 Evitar doble proceso
+        // 🔒 Solo pendientes
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
                 'error' => 'Este documento ya fue procesado'
+            ], 400);
+        }
+
+        // 🔒 Solo vehiculares requieren aprobación
+        if ($movimiento->tipo !== 'vehiculo') {
+            return response()->json([
+                'error' => 'Este documento no requiere aprobación'
             ], 400);
         }
 
@@ -198,13 +205,10 @@ class DashboardController extends Controller
 
         try {
 
-            // 👉 Si es entrada real de estanque, ingresar stock
-            if ($movimiento->tipo === 'entrada') {
-
-                $db->table('productos')
-                    ->where('id', $movimiento->producto_id)
-                    ->increment('cantidad', $movimiento->cantidad);
-            }
+            // 👉 Ingresar stock ahora (recién aquí)
+            $db->table('productos')
+                ->where('id', $movimiento->producto_id)
+                ->increment('cantidad', $movimiento->cantidad);
 
             // 👉 Cambiar estado
             $db->table('movimientos')
@@ -227,6 +231,7 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
     public function rechazar($movimientoId)
     {
         $db = DB::connection('fuelcontrol');
