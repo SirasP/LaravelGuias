@@ -162,12 +162,12 @@
                                     <div class="flex items-center gap-3">
                                         <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                                             <span class="text-white font-bold text-lg">
-                                                {{ strtoupper(substr($m->producto->nombre ?? 'N', 0, 1)) }}
+                                                {{ strtoupper(substr($m->producto_nombre ?? 'N', 0, 1)) }}
                                             </span>
                                         </div>
                                         <div>
                                             <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                                                {{ ucfirst($m->producto->nombre ?? 'N/A') }}
+                                                {{ ucfirst($m->producto_nombre ?? 'N/A') }}
                                             </p>
                                             @if($m->producto->codigo ?? false)
                                                 <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -230,12 +230,12 @@
                                         <div class="flex items-center justify-center gap-2">
                                             <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
                                                 <span class="text-white text-xs font-bold">
-                                                    {{ strtoupper(substr($m->user->name, 0, 1)) }}
+                                                    {{ strtoupper(substr($m->usuario, 0, 1)) }}
                                                 </span>
                                             </div>
                                             <div class="text-left">
                                                 <p class="text-xs font-medium text-gray-900 dark:text-white">
-                                                    {{ $m->user->name }}
+                                                    {{ $m->usuario }}
                                                 </p>
                                             </div>
                                         </div>
@@ -299,16 +299,7 @@
             <!-- Paginación mejorada -->
             @if($movimientos->hasPages())
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-700 dark:text-gray-300">
-                            Mostrando 
-                            <span class="font-semibold">{{ $movimientos->firstItem() }}</span>
-                            a 
-                            <span class="font-semibold">{{ $movimientos->lastItem() }}</span>
-                            de 
-                            <span class="font-semibold">{{ $movimientos->total() }}</span>
-                            movimientos
-                        </div>
+                    
                         <div>
                             {{ $movimientos->links() }}
                         </div>

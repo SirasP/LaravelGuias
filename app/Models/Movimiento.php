@@ -17,6 +17,11 @@ class Movimiento extends Model
         'tipo',
         'usuario',
         'fecha_movimiento',
+        'origen',
+        'requiere_revision',
+        'estado',
+        'xml_path',
+        'referencia',
         'hash_unico',
     ];
 }

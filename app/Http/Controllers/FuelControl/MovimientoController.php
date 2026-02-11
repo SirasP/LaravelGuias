@@ -14,9 +14,16 @@ class MovimientoController extends Controller
     public function index()
     {
         $movimientos = DB::connection('fuelcontrol')
-            ->table('movimientos')
-            ->orderByDesc('id')
+            ->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->select(
+                'm.*',
+                'p.nombre as producto_nombre',
+                'p.codigo as producto_codigo'
+            )
+            ->orderByDesc('m.id')
             ->paginate(20);
+
 
         return view('fuelcontrol.movimientos.index', compact('movimientos'));
     }
