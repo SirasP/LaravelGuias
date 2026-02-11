@@ -396,12 +396,22 @@ class DashboardController extends Controller
 
         if (auth()->check() && auth()->id() === 1) {
             $notificaciones = DB::connection('fuelcontrol')
-                ->table('notificaciones')
-                ->where('leido', 0)
-                ->orderByDesc('created_at')
+                ->table('notificaciones as n')
+                ->join('notificacion_usuarios as nu', 'nu.notificacion_id', '=', 'n.id')
+                ->where('nu.user_id', auth()->id())
+                ->where('nu.leido', 0)
+                ->orderByDesc('n.created_at')
                 ->limit(5)
-                ->get();
+                ->get([
+                    'n.id',
+                    'n.titulo',
+                    'n.tipo',
+                    'n.movimiento_id',
+                    'n.mensaje',
+                    'n.created_at'
+                ]);
         }
+
 
         // ======================
         // 📤 VISTA
