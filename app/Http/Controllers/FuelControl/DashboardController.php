@@ -46,6 +46,7 @@ class DashboardController extends Controller
             $notificaciones = DB::connection('fuelcontrol')
                 ->table('notificaciones as n')
                 ->join('notificacion_usuarios as nu', 'nu.notificacion_id', '=', 'n.id')
+                ->leftJoin('movimientos as m', 'm.id', '=', 'n.movimiento_id') // 🔥 ESTA LÍNEA FALTA
                 ->where('nu.user_id', auth()->id())
                 ->where('nu.leido', 0)
                 ->orderByDesc('n.created_at')
