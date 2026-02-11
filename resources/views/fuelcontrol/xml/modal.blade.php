@@ -1,17 +1,39 @@
 <div class="text-left">
-    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-        📄 Documento Tributario Electrónico
-    </h2>
 
-    @if($movimiento->requiere_revision)
-        <div class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded text-sm flex items-start gap-2">
-            <span class="text-lg">⚠</span>
-            <div>
-                <strong>Requiere Revisión</strong>
-                <p class="text-xs mt-1">Este documento debe ser revisado según Ley 18.502</p>
-            </div>
-        </div>
+    @php
+        $estado = $movimiento->estado ?? 'pendiente';
+    @endphp
+
+    <div class="mb-4 p-3 rounded text-sm flex items-start gap-2
+    @if($estado === 'pendiente') bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700
+    @elseif($estado === 'aprobado') bg-green-50 border-l-4 border-green-600 text-green-700
+    @elseif($estado === 'rechazado') bg-red-50 border-l-4 border-red-600 text-red-700
     @endif
+">
+
+        <span class="text-lg">
+            @if($estado === 'pendiente') ⏳
+            @elseif($estado === 'aprobado') ✔
+            @elseif($estado === 'rechazado') ✖
+            @endif
+        </span>
+
+        <div>
+            @if($estado === 'pendiente')
+                <strong>Documento Pendiente de Revisión</strong>
+                <p class="text-xs mt-1">Debe aprobarse o rechazarse antes de afectar inventario</p>
+
+            @elseif($estado === 'aprobado')
+                <strong>Documento Aprobado</strong>
+                <p class="text-xs mt-1">El stock fue ingresado correctamente</p>
+
+            @elseif($estado === 'rechazado')
+                <strong>Documento Rechazado</strong>
+                <p class="text-xs mt-1">Este XML no afectó el inventario</p>
+            @endif
+        </div>
+    </div>
+
 
     @php
         try {

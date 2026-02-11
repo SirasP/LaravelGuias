@@ -102,10 +102,7 @@
 
                                 showCancelButton: true,
                                 cancelButtonText: 'Cerrar',
-
-                                icon: !esPendiente
-                                    ? (notif.estado === 'aprobado' ? 'success' : 'error')
-                                    : undefined,
+                          
 
                                 html: '<div class="py-6 text-center">Cargando XML...</div>',
 
