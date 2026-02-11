@@ -53,6 +53,7 @@ class DashboardController extends Controller
                     'n.id',
                     'n.titulo',
                     'n.tipo',
+                    'n.movimiento_id',
                     'n.mensaje',
                     'n.created_at'
                 ]);
