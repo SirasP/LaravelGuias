@@ -394,9 +394,22 @@ Route::middleware(['auth'])
         })->name('notificaciones.leer');
 
 
-        /* XML MODAL 🔥 */
+        /* =========================
+         * XML MODAL 🔥
+         * ========================= */
+
         Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
             ->name('xml.show');
+
+        Route::post('/xml/{movimiento}/aprobar', [FuelDashboard::class, 'aprobar'])
+            ->name('xml.aprobar');
+
+        Route::post('/xml/{movimiento}/rechazar', [FuelDashboard::class, 'rechazar'])
+            ->name('xml.rechazar');
+
+
+
+
 
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
