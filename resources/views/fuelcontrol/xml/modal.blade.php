@@ -143,13 +143,14 @@
                                         @endif
                                     </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
-                                      
-                                        {{ number_format($detalle->QtyItem ?? 0, 2, ',', '.') }}
+
+                                        {{ number_format((float) ($detalle->QtyItem ?? 0), 2, ',', '.') }}
+
                                     </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
-                                        ${{ number_format($detalle->PrcItem ?? 0, 0, ',', '.') }}</td>
+                                        ${{ number_format((float) ($detalle->PrcItem ?? 0), 0, ',', '.') }}</td>
                                     <td class="p-2 text-right font-semibold">
-                                        ${{ number_format($detalle->MontoItem ?? 0, 0, ',', '.') }}</td>
+                                        ${{ number_format((float) ($detalle->MontoItem ?? 0), 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
