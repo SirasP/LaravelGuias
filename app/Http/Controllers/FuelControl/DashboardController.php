@@ -201,7 +201,8 @@ class DashboardController extends Controller
             ], 400);
         }
 
-        DB::beginTransaction();
+        $db->beginTransaction();
+
 
         try {
 
@@ -218,13 +219,14 @@ class DashboardController extends Controller
                     'updated_at' => now()
                 ]);
 
-            DB::commit();
+            $db->commit();
+
 
             return response()->json(['ok' => true]);
 
         } catch (\Throwable $e) {
 
-            DB::rollBack();
+            $db->rollBack();
 
             return response()->json([
                 'error' => 'Error interno al aprobar'
