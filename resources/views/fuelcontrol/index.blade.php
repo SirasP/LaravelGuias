@@ -153,7 +153,7 @@
                                     await Swal.fire({
                                         icon: 'error',
                                         title: 'Error',
-                                        text: 'No se pudo aprobar (ya procesado o error interno)'
+                                        text: error.message 
                                     });
                                 }
 

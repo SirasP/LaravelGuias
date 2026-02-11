@@ -224,12 +224,12 @@ class DashboardController extends Controller
             return response()->json([
                 'error' => true,
                 'message' => $e->getMessage(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
             ], 500);
         }
 
     }
-
 
     public function rechazar($movimientoId)
     {
