@@ -394,6 +394,10 @@ Route::middleware(['auth'])
         })->name('notificaciones.leer');
 
 
+        /* XML MODAL 🔥 */
+        Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
+            ->name('xml.show');
+
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
 
