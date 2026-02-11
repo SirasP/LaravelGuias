@@ -76,6 +76,7 @@
     @if(auth()->id() === 1 && $notificaciones->count())
 
         @php
+        dd($notificaciones);
             $notificacionesData = $notificaciones->map(function ($n) {
                 return [
                     'id' => $n->id,
@@ -85,8 +86,8 @@
                     'mensaje' => $n->mensaje,
                     'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
                     'url_xml' => isset($n->tipo) &&
-                        in_array($n->tipo, ['xml_revision', 'xml_entrada']) &&
-                        $n->movimiento_id
+                        in_array($n->tipo, ['xml_revision', 'xml_entrada'])
+                        && $n->movimiento_id
                         ? route('fuelcontrol.xml.show', $n->movimiento_id)
                         : null,
                 ];
