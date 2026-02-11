@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\FuelControl\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -396,7 +395,7 @@ Route::middleware(['auth'])
 
 
         /* XML MODAL 🔥 */
-        Route::get('/xml/{movimiento}', [DashboardController::class, 'show'])
+        Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
             ->name('xml.show');
 
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
