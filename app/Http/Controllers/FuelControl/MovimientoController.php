@@ -18,8 +18,7 @@ class MovimientoController extends Controller
             ->join('productos as p', 'p.id', '=', 'm.producto_id')
             ->select(
                 'm.*',
-                'p.nombre as producto_nombre',
-                'p.codigo as producto_codigo'
+                'p.nombre as producto_nombre'
             )
             ->orderByDesc('m.id')
             ->paginate(20);
