@@ -30,6 +30,7 @@
                     'movimiento_id' => $n->movimiento_id,
                     'titulo' => $n->titulo,
                     'mensaje' => $n->mensaje,
+                    'estado' => $n->estado ?? null,
 
                     'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
 
@@ -58,9 +59,6 @@
 
                     for (const notif of notificaciones) {
 
-                        /* =========================
-                         * 🔔 TOAST PRINCIPAL
-                         * ========================= */
                         const result = await Swal.fire({
                             toast: true,
                             position: 'top-end',
@@ -80,25 +78,34 @@
                         });
 
                         /* =========================
-                         * 📄 VER XML → MODAL COMPLETO
+                         * 📄 VER XML
                          * ========================= */
                         if (result.isDenied && notif.url_xml) {
 
+                            const esPendiente = notif.estado === 'pendiente';
+
                             const modalResult = await Swal.fire({
-                                title: 'Detalle del XML',
+                                title: esPendiente
+                                    ? 'Detalle del XML'
+                                    : `Documento ${notif.estado}`,
+
                                 width: '75%',
                                 showCloseButton: true,
 
-                                showConfirmButton: true,
+                                showConfirmButton: esPendiente,
                                 confirmButtonText: '✔ Aprobar e Ingresar',
                                 confirmButtonColor: '#16a34a',
 
-                                showDenyButton: true,
+                                showDenyButton: esPendiente,
                                 denyButtonText: '❌ Rechazar',
                                 denyButtonColor: '#dc2626',
 
                                 showCancelButton: true,
                                 cancelButtonText: 'Cerrar',
+
+                                icon: !esPendiente
+                                    ? (notif.estado === 'aprobado' ? 'success' : 'error')
+                                    : undefined,
 
                                 html: '<div class="py-6 text-center">Cargando XML...</div>',
 
@@ -117,7 +124,7 @@
                             /* =========================
                              * ✔ APROBAR
                              * ========================= */
-                            if (modalResult.isConfirmed && notif.url_aprobar) {
+                            if (esPendiente && modalResult.isConfirmed && notif.url_aprobar) {
 
                                 try {
 
@@ -134,7 +141,6 @@
                                         throw new Error(data.message || 'Error interno');
                                     }
 
-                                    // marcar notificación leída
                                     if (notif.url_leer) {
                                         await fetch(notif.url_leer, {
                                             method: 'POST',
@@ -166,19 +172,25 @@
                                 continue;
                             }
 
-
                             /* =========================
                              * ❌ RECHAZAR
                              * ========================= */
-                            if (modalResult.isDenied && notif.url_rechazar) {
+                            if (esPendiente && modalResult.isDenied && notif.url_rechazar) {
 
                                 try {
-                                    await fetch(notif.url_rechazar, {
+
+                                    const response = await fetch(notif.url_rechazar, {
                                         method: 'POST',
                                         headers: {
                                             'X-CSRF-TOKEN': csrfToken
                                         }
                                     });
+
+                                    const data = await response.json();
+
+                                    if (!response.ok) {
+                                        throw new Error(data.message || 'Error interno');
+                                    }
 
                                     if (notif.url_leer) {
                                         await fetch(notif.url_leer, {
@@ -196,18 +208,20 @@
                                         showConfirmButton: false
                                     });
 
-                                } catch {
+                                } catch (error) {
+
                                     await Swal.fire({
                                         icon: 'error',
-                                        title: 'Error',
-                                        text: 'No se pudo rechazar el documento'
+                                        title: 'Error backend',
+                                        text: error.message
                                     });
+
+                                    console.error(error);
                                 }
 
                                 continue;
                             }
 
-                            // Cancelar → no hace nada
                             continue;
                         }
 
@@ -229,6 +243,7 @@
             });
         </script>
     @endif
+
 
 
 
