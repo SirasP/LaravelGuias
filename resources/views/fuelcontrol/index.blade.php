@@ -346,26 +346,40 @@
         <!-- STOCK ACTUAL -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-4">
 
-            <div class="px-6 py-4  border-b border-gray-200 dark:border-gray-700 ">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white ">
-                            Inventario Actual
-                        </h2>
-                    </div>
+            <!-- HEADER -->
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer flex items-center justify-between"
+                onclick="toggleInventario()">
+
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Inventario Actual
+                    </h2>
+                </div>
+
+                <div class="flex items-center gap-3">
                     <span
                         class="px-3 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
                         {{ count($productos) }} productos
                     </span>
+
+                    <!-- Flecha -->
+                    <svg id="inventario-arrow" class="w-5 h-5 text-gray-500 transition-transform duration-300"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- CONTENIDO COLAPSABLE -->
+            <div id="inventario-content" class="overflow-hidden transition-all duration-300 ease-in-out"
+                style="max-height: 2000px;">
+
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-900/50">
                         <tr>
@@ -487,23 +501,34 @@
 
         <!-- ÚLTIMOS MOVIMIENTOS -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-4">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                            Últimos Movimientos
-                        </h2>
-                    </div>
 
+            <!-- HEADER CLICKEABLE -->
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer flex items-center
+                justify-between" onclick="toggleMovimientos()">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Últimos Movimientos
+                    </h2>
                 </div>
+
+                <!-- Flecha animada -->
+                <svg id="movimientos-arrow" class="w-5 h-5 text-gray-500 transition-transform duration-300" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
             </div>
 
-            <div class="divide-y divide-gray-200 dark:divide-gray-700 mb-4">
+            <!-- CONTENIDO COLAPSABLE -->
+            <div id="movimientos-content"
+                class="divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden transition-all duration-300 ease-in-out"
+                style="max-height: 2000px;">
+
 
                 @forelse ($movimientos as $m)
                             <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {{ $m->xml_path ? 'cursor-pointer' : '' }}"
@@ -514,7 +539,7 @@
                                         <div class="flex-shrink-0">
                                             <div
                                                 class="h-10 w-10 rounded-lg flex items-center justify-center
-                                                                                                                {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }}">
+                                                                                                                                                                                                                                                                                                                                                        {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }}">
 
                                                 @if($m->cantidad < 0)
                                                     <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none"
@@ -539,7 +564,7 @@
                                             </p>
                                             <div class="flex items-center gap-2 mt-1">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                                                                                                    {{ $m->tipo === 'ingreso'
+                                                                                                                                                                                                                                                                                                                                                            {{ $m->tipo === 'ingreso'
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                     : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }}">
                                                     {{ ucfirst($m->tipo) }}
@@ -555,7 +580,7 @@
                                     <div class="ml-4">
                                         <p
                                             class="text-lg font-bold font-mono
-                                                                                                            {{ $m->cantidad < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
+                                                                                                                                                                                                                                                                                                                                                    {{ $m->cantidad < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
                                             {{ $m->cantidad > 0 ? '+' : '' }}{{ number_format($m->cantidad, 2) }} L
                                         </p>
                                     </div>
@@ -687,4 +712,33 @@
             activeTab.classList.remove('border-transparent', 'text-gray-500');
         }
     };
+</script>
+<script>
+    function toggleInventario() {
+
+        const content = document.getElementById('inventario-content');
+        const arrow = document.getElementById('inventario-arrow');
+
+        if (content.style.maxHeight && content.style.maxHeight !== "0px") {
+            content.style.maxHeight = "0px";
+            arrow.classList.remove('rotate-180');
+        } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+            arrow.classList.add('rotate-180');
+        }
+    }
+
+    function toggleMovimientos() {
+
+        const content = document.getElementById('movimientos-content');
+        const arrow = document.getElementById('movimientos-arrow');
+
+        if (content.style.maxHeight && content.style.maxHeight !== "0px") {
+            content.style.maxHeight = "0px";
+            arrow.classList.remove('rotate-180');
+        } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+            arrow.classList.add('rotate-180');
+        }
+    }
 </script>
