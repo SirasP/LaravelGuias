@@ -153,10 +153,12 @@ class DashboardController extends Controller
      * ========================= */
     public function show($movimientoId)
     {
+
         $xml = DB::connection('fuelcontrol')
             ->table('movimientos')
             ->where('id', $movimientoId)
             ->firstOrFail();
+        dd($xml);
 
         return view('fuelcontrol.xml.modal', compact('xml'));
     }
