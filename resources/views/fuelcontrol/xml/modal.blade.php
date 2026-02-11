@@ -18,14 +18,13 @@
             $xmlObj = simplexml_load_string($xml);
             $xmlObj->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
-            // Extraer datos del documento
-            $documento = $xmlObj->xpath('//Documento')[0] ?? null;
-            $encabezado = $documento->Encabezado ?? null;
-            $idDoc = $encabezado->IdDoc ?? null;
-            $emisor = $encabezado->Emisor ?? null;
-            $receptor = $encabezado->Receptor ?? null;
-            $totales = $encabezado->Totales ?? null;
-            $detalles = $documento->xpath('Detalle') ?? [];
+            $documento = $xmlObj->xpath('//sii:Documento')[0] ?? null;
+            $idDoc = $xmlObj->xpath('//sii:IdDoc')[0] ?? null;
+            $emisor = $xmlObj->xpath('//sii:Emisor')[0] ?? null;
+            $receptor = $xmlObj->xpath('//sii:Receptor')[0] ?? null;
+            $totales = $xmlObj->xpath('//sii:Totales')[0] ?? null;
+            $detalles = $xmlObj->xpath('//sii:Detalle') ?? [];
+
 
             // Tipo de documento
             $tiposDoc = [
@@ -144,7 +143,8 @@
                                         @endif
                                     </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
-                                        {{ number_format($detalle->QtyItem ?? 0, 2, ',', '.') }}</td>
+                                        {{ number_format($detalle->QtyItem ?? 0, 2, ',', '.') }}
+                                    </td>
                                     <td class="p-2 border-r border-gray-300 text-right">
                                         ${{ number_format($detalle->PrcItem ?? 0, 0, ',', '.') }}</td>
                                     <td class="p-2 text-right font-semibold">
