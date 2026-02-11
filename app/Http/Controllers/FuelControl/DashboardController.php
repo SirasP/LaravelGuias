@@ -222,9 +222,12 @@ class DashboardController extends Controller
             $db->rollBack();
 
             return response()->json([
-                'error' => 'Error interno al aprobar'
+                'error' => true,
+                'message' => $e->getMessage(),
+                'line' => $e->getLine()
             ], 500);
         }
+
     }
 
 
