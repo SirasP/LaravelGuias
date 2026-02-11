@@ -145,9 +145,14 @@ class DashboardController extends Controller
             'notificaciones'
         ));
     }
+    
+    /* =========================
+     * VER XML (MODAL)
+     * ========================= */
     public function show($movimientoId)
     {
-        $xml = DB::table('xml_movimientos')
+        $xml = DB::connection('fuelcontrol')
+            ->table('xml_movimientos')
             ->where('movimiento_id', $movimientoId)
             ->firstOrFail();
 
