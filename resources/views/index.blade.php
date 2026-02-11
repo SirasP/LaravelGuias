@@ -74,18 +74,14 @@
         </div>
     </x-slot>
     @if(auth()->id() === 1 && $notificaciones->count())
+
         @php
             $notificacionesData = $notificaciones->map(function ($n) {
                 return [
                     'id' => $n->id,
-                    'tipo' => $n->tipo,
-                    'movimiento_id' => $n->movimiento_id,
                     'titulo' => $n->titulo,
                     'mensaje' => $n->mensaje,
                     'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
-                    'url_xml' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
-                        ? route('fuelcontrol.xml.show', $n->movimiento_id)
-                        : null,
                 ];
             })->values();
         @endphp
@@ -100,68 +96,19 @@
 
                     for (const notif of notificaciones) {
 
-                        // 🔔 TOAST PRINCIPAL
                         const result = await Swal.fire({
                             toast: true,
                             position: 'top-end',
-                            icon: notif.url_xml ? 'info' : 'success',
+                            icon: 'info',
                             title: notif.titulo,
                             text: notif.mensaje,
-
-                            // 👉 si es XML NO se marca acá
-                            showConfirmButton: !notif.url_xml,
+                            showConfirmButton: true,
                             confirmButtonText: '✔ Marcar como leída',
                             confirmButtonColor: '#16a34a',
-
-                            // 👉 si es XML se abre modal
-                            showDenyButton: !!notif.url_xml,
-                            denyButtonText: '📄 Ver XML',
-
                             showCloseButton: true,
-                            timer: null,
+                            timer: null
                         });
 
-                        /* =========================
-                         * XML → MODAL
-                         * ========================= */
-                        if (result.isDenied && notif.url_xml) {
-
-                            const modalResult = await Swal.fire({
-                                title: 'Detalle del XML',
-                                width: '70%',
-                                showCloseButton: true,
-                                showConfirmButton: true,
-                                confirmButtonText: '✔ Marcar como leída',
-                                confirmButtonColor: '#16a34a',
-                                html: '<div class="py-6 text-center">Cargando XML...</div>',
-
-                                didOpen: async () => {
-                                    const container = Swal.getHtmlContainer();
-                                    try {
-                                        const res = await fetch(notif.url_xml);
-                                        container.innerHTML = await res.text();
-                                    } catch {
-                                        container.innerHTML = '<p class="text-red-500">Error al cargar XML</p>';
-                                    }
-                                }
-                            });
-
-                            // ✔ marcar como leída DESPUÉS de ver XML
-                            if (modalResult.isConfirmed && notif.url_leer) {
-                                await fetch(notif.url_leer, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken
-                                    }
-                                });
-                            }
-
-                            continue;
-                        }
-
-                        /* =========================
-                         * NORMAL → MARCAR DIRECTO
-                         * ========================= */
                         if (result.isConfirmed && notif.url_leer) {
                             await fetch(notif.url_leer, {
                                 method: 'POST',
@@ -176,7 +123,9 @@
                 mostrarNotificaciones();
             });
         </script>
+
     @endif
+
 
     <div class="max-w-7xl mx-auto px-4 py-4 space-y-6">
         @php
