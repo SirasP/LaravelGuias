@@ -221,18 +221,28 @@
         </div>
 
         <!-- Vista XML Original -->
-        <div id="content-xml" class="tab-content hidden">
-            <pre
-                class="bg-gray-900 text-green-300 text-xs p-4 rounded max-h-[70vh] overflow-auto">{{ htmlspecialchars($xml) }}</pre>
+<div id="content-xml" class="tab-content hidden">
+    <div class="bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg shadow-inner p-4 max-h-[70vh] overflow-auto">
+
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                XML Original
+            </h3>
+
+            <button 
+                onclick="navigator.clipboard.writeText(document.getElementById('xml-raw').innerText)"
+                class="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+                Copiar XML
+            </button>
         </div>
 
-    @else
-        <!-- Fallback si no se puede parsear -->
-        <div class="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700 rounded text-sm">
-            ⚠ No se pudo interpretar el XML como factura electrónica. Mostrando XML original.
-        </div>
-        <pre
-            class="bg-gray-900 text-green-300 text-xs p-4 rounded max-h-[60vh] overflow-auto">{{ htmlspecialchars($xml) }}</pre>
-    @endif
+        <pre id="xml-raw"
+            class="text-xs font-mono text-gray-800 dark:text-green-400 whitespace-pre-wrap break-all">
+{{ htmlspecialchars($xml) }}
+        </pre>
+
+    </div>
+</div>
+
 
 </div>
