@@ -9,6 +9,7 @@ use Google\Client as GoogleClient;
 use Google\Service\Gmail;
 use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class GmailLeerXml extends Command
 {
@@ -109,6 +110,12 @@ class GmailLeerXml extends Command
 
                 $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
+                $contenidoXml = base64_decode(strtr($attachment->getData(), '-_', '+/'));
+
+                $nombreArchivo = $part->getFilename();
+
+                // Guardar archivo
+                Storage::disk('local')->put('xml/' . $nombreArchivo, $contenidoXml);
 
 
                 /* ===============================

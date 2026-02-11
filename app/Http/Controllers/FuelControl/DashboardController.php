@@ -5,6 +5,7 @@ namespace App\Http\Controllers\FuelControl;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -158,13 +159,13 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->firstOrFail();
 
-        $ruta = storage_path('app/xml/' . $movimiento->xml_path);
+        $ruta = 'xml/' . $movimiento->xml_path;
 
-        if (!file_exists($ruta)) {
-            abort(404, 'Archivo XML no encontrado');
+        if (!Storage::disk('local')->exists($ruta)) {
+            abort(404);
         }
 
-        $contenidoXml = file_get_contents($ruta);
+        $contenidoXml = Storage::disk('local')->get($ruta);
 
         return view('fuelcontrol.xml.modal', [
             'xml' => $contenidoXml
