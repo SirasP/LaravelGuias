@@ -120,6 +120,7 @@
                             if (modalResult.isConfirmed && notif.url_aprobar) {
 
                                 try {
+
                                     const response = await fetch(notif.url_aprobar, {
                                         method: 'POST',
                                         headers: {
@@ -127,8 +128,10 @@
                                         }
                                     });
 
+                                    const data = await response.json();
+
                                     if (!response.ok) {
-                                        throw new Error();
+                                        throw new Error(data.message || 'Error interno');
                                     }
 
                                     // marcar notificación leída
@@ -149,16 +152,20 @@
                                         showConfirmButton: false
                                     });
 
-                                } catch {
+                                } catch (error) {
+
                                     await Swal.fire({
                                         icon: 'error',
-                                        title: 'Error',
-                                        text: error.message 
+                                        title: 'Error backend',
+                                        text: error.message
                                     });
+
+                                    console.error(error);
                                 }
 
                                 continue;
                             }
+
 
                             /* =========================
                              * ❌ RECHAZAR
