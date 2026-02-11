@@ -152,6 +152,8 @@ class DashboardController extends Controller
     /* =========================
      * VER XML (MODAL)
      * ========================= */
+    use Illuminate\Support\Facades\Storage;
+
     public function show($movimientoId)
     {
         $movimiento = DB::connection('fuelcontrol')
@@ -159,10 +161,10 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->firstOrFail();
 
-        $ruta = 'xml/' . $movimiento->xml_path;
+        $ruta = 'private/xml/' . $movimiento->xml_path;
 
         if (!Storage::disk('local')->exists($ruta)) {
-            abort(404);
+            abort(404, 'XML no encontrado en: ' . $ruta);
         }
 
         $contenidoXml = Storage::disk('local')->get($ruta);
@@ -171,6 +173,7 @@ class DashboardController extends Controller
             'xml' => $contenidoXml
         ]);
     }
+
 
 
 }
