@@ -161,7 +161,7 @@
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                            <span class="text-white font-bold text-lg">
+                                            <span class="text-red font-bold text-lg">
                                                 {{ strtoupper(substr($m->producto_nombre ?? 'N', 0, 1)) }}
                                             </span>
                                         </div>
