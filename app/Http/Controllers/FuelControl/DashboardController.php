@@ -52,6 +52,7 @@ class DashboardController extends Controller
                 ->get([
                     'n.id',
                     'n.titulo',
+                    'n.tipo',
                     'n.mensaje',
                     'n.created_at'
                 ]);
@@ -145,7 +146,7 @@ class DashboardController extends Controller
             'notificaciones'
         ));
     }
-    
+
     /* =========================
      * VER XML (MODAL)
      * ========================= */
