@@ -238,24 +238,24 @@
 </div>
 
 <script>
-    function switchTab(tab) {
-        // Ocultar todos los contenidos
+    window.switchTab = function (tab) {
+
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.add('hidden');
         });
 
-        // Remover clase active de todos los tabs
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
             btn.classList.add('border-transparent', 'text-gray-500');
         });
 
-        // Mostrar contenido seleccionado
-        document.getElementById('content-' + tab).classList.remove('hidden');
+        const content = document.getElementById('content-' + tab);
+        if (content) content.classList.remove('hidden');
 
-        // Activar tab seleccionado
         const activeTab = document.getElementById('tab-' + tab);
-        activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-        activeTab.classList.remove('border-transparent', 'text-gray-500');
-    }
+        if (activeTab) {
+            activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+        }
+    };
 </script>

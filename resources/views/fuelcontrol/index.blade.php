@@ -505,15 +505,16 @@
 
             <div class="divide-y divide-gray-200 dark:divide-gray-700 mb-4">
                 @forelse ($movimientos as $m)
-                    <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <div class="flex items-center justify-between">
+                        <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors
+                            {{ $m->xml_path ? 'cursor-pointer' : '' }}" @if($m->xml_path) onclick="alert('funciona')" " @endif>
+                                            <div class=" flex items-center justify-between">
                             <div class="flex items-center gap-4 flex-1">
                                 <div class="flex-shrink-0">
                                     <div
                                         class="h-10 w-10 rounded-lg {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }} flex items-center justify-center">
                                         @if($m->cantidad < 0)
-                                            <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                                             </svg>
@@ -551,39 +552,39 @@
                         </div>
                     </div>
                 @empty
-                    <div class="px-6 py-12 mb-4">
-                        <div class="flex flex-col items-center gap-2 ">
-                            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm ">
-                                No hay movimientos registrados
-                            </p>
-                        </div>
+                <div class="px-6 py-12 mb-4">
+                    <div class="flex flex-col items-center gap-2 ">
+                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm ">
+                            No hay movimientos registrados
+                        </p>
                     </div>
-                @endforelse
+                </div>
+            @endforelse
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- GASOLINA -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">⛽ Gasolina — últimos 30 días</h3>
+            <div class="relative h-48">
+                <canvas id="gasolinaChart"></canvas>
             </div>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <!-- GASOLINA -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                <h3 class="font-semibold mb-3">⛽ Gasolina — últimos 30 días</h3>
-                <div class="relative h-48">
-                    <canvas id="gasolinaChart"></canvas>
-                </div>
+        <!-- DIESEL -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">🛢️ Diésel — últimos 30 días</h3>
+            <div class="relative h-48">
+                <canvas id="dieselChart"></canvas>
             </div>
-
-            <!-- DIESEL -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                <h3 class="font-semibold mb-3">🛢️ Diésel — últimos 30 días</h3>
-                <div class="relative h-48">
-                    <canvas id="dieselChart"></canvas>
-                </div>
-            </div>
-
         </div>
+
+    </div>
     </div>
 
 </x-app-layout>
@@ -627,4 +628,32 @@
         }
 
     });
+</script>
+<script>
+    window.abrirMovimiento = async function (movimientoId) {
+
+        try {
+
+            const url = window.xmlShowBaseUrl.replace('__ID__', movimientoId);
+
+            const response = await fetch(url);
+            const html = await response.text();
+
+            await Swal.fire({
+                title: 'Detalle del Movimiento',
+                width: '75%',
+                showCloseButton: true,
+                showConfirmButton: false,
+                html: html
+            });
+
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo cargar el XML'
+            });
+        }
+    };
+
 </script>
