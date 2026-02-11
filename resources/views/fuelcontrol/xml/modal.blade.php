@@ -5,7 +5,7 @@
     @endphp
 
     <div class="mb-4 p-3 rounded text-sm flex items-start gap-2
-    @if($estado === 'pendiente') bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700
+    @if($estado === 'pendiente') bg-yellow-50 border-l-4 border-yellow-600 text-yellow-700
     @elseif($estado === 'aprobado') bg-green-50 border-l-4 border-green-600 text-green-700
     @elseif($estado === 'rechazado') bg-red-50 border-l-4 border-red-600 text-red-700
     @endif
