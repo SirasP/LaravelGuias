@@ -30,9 +30,19 @@
                     'movimiento_id' => $n->movimiento_id,
                     'titulo' => $n->titulo,
                     'mensaje' => $n->mensaje,
+
                     'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
+
                     'url_xml' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
                         ? route('fuelcontrol.xml.show', $n->movimiento_id)
+                        : null,
+
+                    'url_aprobar' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
+                        ? route('fuelcontrol.xml.aprobar', $n->movimiento_id)
+                        : null,
+
+                    'url_rechazar' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
+                        ? route('fuelcontrol.xml.rechazar', $n->movimiento_id)
                         : null,
                 ];
             })->values();
@@ -48,7 +58,9 @@
 
                     for (const notif of notificaciones) {
 
-                        // 🔔 TOAST PRINCIPAL
+                        /* =========================
+                         * 🔔 TOAST PRINCIPAL
+                         * ========================= */
                         const result = await Swal.fire({
                             toast: true,
                             position: 'top-end',
@@ -56,12 +68,10 @@
                             title: notif.titulo,
                             text: notif.mensaje,
 
-                            // 👉 si es XML NO se marca acá
                             showConfirmButton: !notif.url_xml,
                             confirmButtonText: '✔ Marcar como leída',
                             confirmButtonColor: '#16a34a',
 
-                            // 👉 si es XML se abre modal
                             showDenyButton: !!notif.url_xml,
                             denyButtonText: '📄 Ver XML',
 
@@ -70,17 +80,26 @@
                         });
 
                         /* =========================
-                         * XML → MODAL
+                         * 📄 VER XML → MODAL COMPLETO
                          * ========================= */
                         if (result.isDenied && notif.url_xml) {
 
                             const modalResult = await Swal.fire({
                                 title: 'Detalle del XML',
-                                width: '70%',
+                                width: '75%',
                                 showCloseButton: true,
+
                                 showConfirmButton: true,
-                                confirmButtonText: '✔ Marcar como leída',
+                                confirmButtonText: '✔ Aprobar e Ingresar',
                                 confirmButtonColor: '#16a34a',
+
+                                showDenyButton: true,
+                                denyButtonText: '❌ Rechazar',
+                                denyButtonColor: '#dc2626',
+
+                                showCancelButton: true,
+                                cancelButtonText: 'Cerrar',
+
                                 html: '<div class="py-6 text-center">Cargando XML...</div>',
 
                                 didOpen: async () => {
@@ -89,26 +108,104 @@
                                         const res = await fetch(notif.url_xml);
                                         container.innerHTML = await res.text();
                                     } catch {
-                                        container.innerHTML = '<p class="text-red-500">Error al cargar XML</p>';
+                                        container.innerHTML =
+                                            '<p class="text-red-500 text-center">Error al cargar XML</p>';
                                     }
                                 }
                             });
 
-                            // ✔ marcar como leída DESPUÉS de ver XML
-                            if (modalResult.isConfirmed && notif.url_leer) {
-                                await fetch(notif.url_leer, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken
+                            /* =========================
+                             * ✔ APROBAR
+                             * ========================= */
+                            if (modalResult.isConfirmed && notif.url_aprobar) {
+
+                                try {
+                                    const response = await fetch(notif.url_aprobar, {
+                                        method: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': csrfToken
+                                        }
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error();
                                     }
-                                });
+
+                                    // marcar notificación leída
+                                    if (notif.url_leer) {
+                                        await fetch(notif.url_leer, {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': csrfToken
+                                            }
+                                        });
+                                    }
+
+                                    await Swal.fire({
+                                        icon: 'success',
+                                        title: 'Documento aprobado',
+                                        text: 'Stock ingresado correctamente',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    });
+
+                                } catch {
+                                    await Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: 'No se pudo aprobar (ya procesado o error interno)'
+                                    });
+                                }
+
+                                continue;
                             }
 
+                            /* =========================
+                             * ❌ RECHAZAR
+                             * ========================= */
+                            if (modalResult.isDenied && notif.url_rechazar) {
+
+                                try {
+                                    await fetch(notif.url_rechazar, {
+                                        method: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': csrfToken
+                                        }
+                                    });
+
+                                    if (notif.url_leer) {
+                                        await fetch(notif.url_leer, {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': csrfToken
+                                            }
+                                        });
+                                    }
+
+                                    await Swal.fire({
+                                        icon: 'info',
+                                        title: 'Documento rechazado',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    });
+
+                                } catch {
+                                    await Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: 'No se pudo rechazar el documento'
+                                    });
+                                }
+
+                                continue;
+                            }
+
+                            // Cancelar → no hace nada
                             continue;
                         }
 
                         /* =========================
-                         * NORMAL → MARCAR DIRECTO
+                         * ✔ NOTIFICACIÓN NORMAL
                          * ========================= */
                         if (result.isConfirmed && notif.url_leer) {
                             await fetch(notif.url_leer, {
@@ -125,6 +222,7 @@
             });
         </script>
     @endif
+
 
 
 
