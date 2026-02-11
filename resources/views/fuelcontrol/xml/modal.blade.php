@@ -236,7 +236,6 @@
     @endif
 
 </div>
-
 <script>
     window.switchTab = function (tab) {
 
