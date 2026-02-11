@@ -102,7 +102,6 @@
 
                                 showCancelButton: true,
                                 cancelButtonText: 'Cerrar',
-                          
 
                                 html: '<div class="py-6 text-center">Cargando XML...</div>',
 
@@ -219,6 +218,22 @@
                                 continue;
                             }
 
+                            /* =========================
+                             * 🔒 CERRAR (solo si NO es pendiente)
+                             * ========================= */
+                            if (
+                                modalResult.dismiss === Swal.DismissReason.cancel &&
+                                notif.estado !== 'pendiente' &&
+                                notif.url_leer
+                            ) {
+                                await fetch(notif.url_leer, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': csrfToken
+                                    }
+                                });
+                            }
+
                             continue;
                         }
 
@@ -240,6 +255,7 @@
             });
         </script>
     @endif
+
 
 
 
