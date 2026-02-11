@@ -507,14 +507,14 @@
 
                 @forelse ($movimientos as $m)
                             <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {{ $m->xml_path ? 'cursor-pointer' : '' }}"
-                                @if($m->xml_path) onclick="alert('funciona')" @endif>
+                                @if(!empty($m->xml_path)) onclick="abrirMovimiento({{ $m->id }})" @endif>
                                 <div class="flex items-center justify-between">
 
                                     <div class="flex items-center gap-4 flex-1">
                                         <div class="flex-shrink-0">
                                             <div
                                                 class="h-10 w-10 rounded-lg flex items-center justify-center
-                                        {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }}">
+                                                                                                    {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }}">
 
                                                 @if($m->cantidad < 0)
                                                     <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none"
@@ -539,7 +539,7 @@
                                             </p>
                                             <div class="flex items-center gap-2 mt-1">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                            {{ $m->tipo === 'ingreso'
+                                                                                                        {{ $m->tipo === 'ingreso'
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                     : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }}">
                                                     {{ ucfirst($m->tipo) }}
@@ -555,7 +555,7 @@
                                     <div class="ml-4">
                                         <p
                                             class="text-lg font-bold font-mono
-                                    {{ $m->cantidad < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
+                                                                                                {{ $m->cantidad < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
                                             {{ $m->cantidad > 0 ? '+' : '' }}{{ number_format($m->cantidad, 2) }} L
                                         </p>
                                     </div>
@@ -644,9 +644,7 @@
 
         try {
 
-            const url = window.xmlShowBaseUrl.replace('__ID__', movimientoId);
-
-            const response = await fetch(url);
+            const response = await fetch(`/fuelcontrol/xml/${movimientoId}`);
             const html = await response.text();
 
             await Swal.fire({
@@ -658,6 +656,8 @@
             });
 
         } catch (error) {
+            console.error(error);
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -665,5 +665,4 @@
             });
         }
     };
-
 </script>
