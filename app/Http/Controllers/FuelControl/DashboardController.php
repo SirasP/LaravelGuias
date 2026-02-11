@@ -153,14 +153,23 @@ class DashboardController extends Controller
      * ========================= */
     public function show($movimientoId)
     {
-
-        $xml = DB::connection('fuelcontrol')
+        $movimiento = DB::connection('fuelcontrol')
             ->table('movimientos')
             ->where('id', $movimientoId)
             ->firstOrFail();
-        dd($xml);
 
-        return view('fuelcontrol.xml.modal', compact('xml'));
+        $ruta = storage_path('app/xml/' . $movimiento->xml_path);
+
+        if (!file_exists($ruta)) {
+            abort(404, 'Archivo XML no encontrado');
+        }
+
+        $contenidoXml = file_get_contents($ruta);
+
+        return view('fuelcontrol.xml.modal', [
+            'xml' => $contenidoXml
+        ]);
     }
+
 
 }
