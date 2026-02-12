@@ -109,8 +109,8 @@
                                    transition-all duration-200
                                    cursor-pointer">
                             <option value="">🔄 Todos los tipos</option>
-                            <option value="ingreso" {{ request('tipo') == 'ingreso' ? 'selected' : '' }}>
-                                ⬇️ Ingresos
+                            <option value="ingreso" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>
+                                ⬇️ Entrada
                             </option>
                             <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>
                                 ⬆️ Salidas
