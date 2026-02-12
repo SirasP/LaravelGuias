@@ -171,7 +171,8 @@
                                 {{ $emisor->CmnaOrigen ?? 'N/A' }}</p>
                             <div class="pt-2 border-t border-gray-200 dark:border-gray-600">
                                 <p class="text-sm font-bold text-gray-900 dark:text-white">RUT:
-                                    {{ $emisor->RUTEmisor ?? 'N/A' }}</p>
+                                    {{ $emisor->RUTEmisor ?? 'N/A' }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -181,7 +182,8 @@
                         <div
                             class="border-4 border-{{ $docInfo['color'] }}-600 p-6 text-center rounded-xl shadow-lg bg-white dark:bg-gray-800 w-full">
                             <p class="text-xs text-{{ $docInfo['color'] }}-600 font-bold mb-2">R.U.T.:
-                                {{ $emisor->RUTEmisor ?? 'N/A' }}</p>
+                                {{ $emisor->RUTEmisor ?? 'N/A' }}
+                            </p>
                             <h2 class="text-base md:text-lg font-bold text-{{ $docInfo['color'] }}-600 mb-3 leading-tight">
                                 {{ $docInfo['nombre'] }}
                             </h2>
@@ -291,13 +293,14 @@
                                         </td>
                                         <td class="px-4 py-3">
                                             <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                                                {{ $detalle->NmbItem ?? 'N/A' }}</p>
+                                                {{ $detalle->NmbItem ?? 'N/A' }}
+                                            </p>
                                             @if(isset($detalle->DscItem))
                                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $detalle->DscItem }}</p>
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 text-right font-mono text-sm text-gray-900 dark:text-white">
-                                            {{ number_format((float) ($detalle->QtyItem ?? 0), 2, ',', '.') }}
+                                            {{ number_format((float) ($detalle->QtyItem ?? 0), 3, ',', '.') }}
                                         </td>
                                         <td class="px-4 py-3 text-right font-mono text-sm text-gray-900 dark:text-white">
                                             ${{ number_format((float) ($detalle->PrcItem ?? 0), 0, ',', '.') }}
@@ -471,6 +474,21 @@
                         </svg>
                         Información General
                     </h3>
+                    @php
+                        $litrosTotal = 0;
+
+                        foreach ($detalles as $d) {
+
+                            $ns = $d->children('http://www.sii.cl/SiiDte');
+
+                            $unidad = (string) $ns->UnmdItem;
+                            $cantidad = (float) $ns->QtyItem;
+
+                            if (strtolower($unidad) === 'lt') {
+                                $litrosTotal += $cantidad;
+                            }
+                        }
+                    @endphp
                     <dl class="space-y-3">
                         <div class="flex justify-between">
                             <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Tipo:</dt>
@@ -490,6 +508,14 @@
                             <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Items:</dt>
                             <dd class="text-sm font-bold text-gray-900 dark:text-white">{{ count($detalles) }}</dd>
                         </div>
+                        @if($litrosTotal > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">Lts:</dt>
+                                <dd class="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                    {{ number_format($litrosTotal, 3, ',', '.') }}
+                                </dd>
+                            </div>
+                        @endif
                     </dl>
                 </div>
 
@@ -589,7 +615,8 @@
                         <div>
                             <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Razón Social</dt>
                             <dd class="text-sm font-bold text-gray-900 dark:text-white">
-                                {{ $receptor->RznSocRecep ?? 'N/A' }}</dd>
+                                {{ $receptor->RznSocRecep ?? 'N/A' }}
+                            </dd>
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">RUT</dt>
