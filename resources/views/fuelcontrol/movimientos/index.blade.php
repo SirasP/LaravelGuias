@@ -316,12 +316,50 @@
         </div>
 
     </div>
+<!-- MODAL XML -->
+<div id="modalXml" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-900 w-4/5 max-h-[85vh] overflow-y-auto rounded-xl p-6 relative shadow-2xl">
 
+        <button onclick="cerrarModal()" 
+            class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl">
+            ✕
+        </button>
+
+        <div id="contenidoXml">
+            <!-- Aquí se carga el XML -->
+        </div>
+
+    </div>
+</div>
 </x-app-layout>
-
 <script>
 function abrirMovimiento(id) {
-    window.location.href = `/xml/${id}`;
+
+    fetch(`/xml/${id}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Error al cargar XML");
+            }
+            return response.text();
+        })
+        .then(html => {
+
+            document.getElementById('contenidoXml').innerHTML = html;
+
+            const modal = document.getElementById('modalXml');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+        })
+        .catch(error => {
+            console.error(error);
+            alert("No se pudo cargar el XML");
+        });
+}
+
+function cerrarModal() {
+    const modal = document.getElementById('modalXml');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 </script>
-
