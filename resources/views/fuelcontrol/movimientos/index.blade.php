@@ -1,33 +1,46 @@
 <x-app-layout>
 
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                    📦 Movimientos de Inventario
-                </h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Historial completo de ingresos y salidas de productos
-                </p>
-            </div>
-            
-            <!-- Filtros rápidos (opcional) -->
-            <div class="flex gap-2">
-                <select class="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Todos los estados</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="rechazado">Rechazado</option>
-                </select>
-                
-                <select class="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Todos los tipos</option>
-                    <option value="ingreso">Ingresos</option>
-                    <option value="salida">Salidas</option>
-                </select>
-            </div>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+        <!-- Título -->
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+                📦 Movimientos de Inventario
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Historial completo de ingresos y salidas de productos
+            </p>
         </div>
-    </x-slot>
+
+        <!-- Filtros -->
+        <div class="flex flex-col sm:flex-row gap-2">
+
+            <select 
+                class="text-sm border-gray-300 dark:border-gray-600 
+                       dark:bg-gray-700 dark:text-white 
+                       rounded-lg shadow-sm
+                       focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="rechazado">Rechazado</option>
+            </select>
+
+            <select 
+                class="text-sm border-gray-300 dark:border-gray-600 
+                       dark:bg-gray-700 dark:text-white 
+                       rounded-lg shadow-sm
+                       focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Todos los tipos</option>
+                <option value="ingreso">Ingresos</option>
+                <option value="salida">Salidas</option>
+            </select>
+
+        </div>
+
+    </div>
+</x-slot>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
