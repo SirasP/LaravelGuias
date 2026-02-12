@@ -257,6 +257,7 @@
                                             <button 
                                                onclick="abrirMovimiento('{{ route('fuelcontrol.xml.show', $m->id) }}')"
 
+
                                                 class="group relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-black text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -319,56 +320,49 @@
     </div>
 
 
-
-<!-- MODAL XML -->
-<div id="modalXml" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white dark:bg-gray-900 w-4/5 max-h-[85vh] overflow-y-auto rounded-xl p-6 relative shadow-2xl">
-
-        <button onclick="cerrarModal()" 
-            class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl">
-            ✕
-        </button>
-
-        <div id="contenidoXml">
-            <!-- Aquí se carga el XML -->
-        </div>
-
-    </div>
-</div>
-
-
 </x-app-layout>
 <script>
-function abrirMovimiento(url) {
+window.abrirMovimiento = async function (url) {
+    try {
+        const response = await fetch(url);
+        const html = await response.text();
 
-    fetch(url)
-        .then(async response => {
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Status:", response.status);
-                console.error("Body:", errorText);
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            return response.text();
-        })
-        .then(html => {
-
-            document.getElementById('contenidoXml').innerHTML = html;
-
-            const modal = document.getElementById('modalXml');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-
-        })
-        .catch(error => {
-            console.error("Error completo:", error);
+        await Swal.fire({
+            width: '85%',
+            showCloseButton: true,
+            showConfirmButton: false,
+            html: html,
+            background: '#f9fafb'
         });
-}
-function cerrarModal() {
-    const modal = document.getElementById('modalXml');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
+
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo cargar el XML'
+        });
+    }
+};
+</script>
+<script>
+    window.switchTab = function (tab) {
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+            btn.classList.add('border-transparent', 'text-gray-500');
+        });
+
+        const content = document.getElementById('content-' + tab);
+        if (content) content.classList.remove('hidden');
+
+        const activeTab = document.getElementById('tab-' + tab);
+        if (activeTab) {
+            activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+        }
+    };
 </script>
