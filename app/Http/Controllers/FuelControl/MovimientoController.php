@@ -20,7 +20,7 @@ class MovimientoController extends Controller
                 'm.*',
                 'p.nombre as producto_nombre'
             )
-            ->orderByDesc('m.id')
+            ->orderByDesc('m.fecha_movimiento')
             ->paginate(20);
 
 
