@@ -68,9 +68,15 @@ class MovimientoController extends Controller
         $movimientos = $query
             ->orderByDesc('m.fecha_movimiento')
             ->paginate(20)
-            ->withQueryString(); // 🔥 IMPORTANTE para mantener filtros al paginar
+            ->withQueryString();
 
-        return view('fuelcontrol.movimientos.index', compact('movimientos'));
+        // 🔥 ESTA PARTE TE FALTABA
+        $productos = DB::connection('fuelcontrol')
+            ->table('productos')
+            ->orderBy('nombre')
+            ->get();
+
+        return view('fuelcontrol.movimientos.index', compact('movimientos', 'productos'));
     }
 
 

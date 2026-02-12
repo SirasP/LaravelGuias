@@ -109,7 +109,7 @@
                                    transition-all duration-200
                                    cursor-pointer">
                             <option value="">🔄 Todos los tipos</option>
-                            <option value="ingreso" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>
+                            <option value="Entrada" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>
                                 ⬇️ Entrada
                             </option>
                             <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>
@@ -141,7 +141,7 @@
                             <option value="">📦 Todos los productos</option>
                             @foreach($productos ?? [] as $producto)
                                 <option value="{{ $producto->id }}" {{ request('producto_id') == $producto->id ? 'selected' : '' }}>
-                                    {{ $producto->nombre }}
+                                    {{ ucfirst($producto->nombre) }}
                                 </option>
                             @endforeach
                         </select>
