@@ -336,10 +336,19 @@
 function abrirMovimiento(id) {
 
     fetch(`/xml/${id}`)
-        .then(response => {
+        .then(async response => {
+
             if (!response.ok) {
-                throw new Error("Error al cargar XML");
+
+                const errorText = await response.text();
+
+                console.error("Status:", response.status);
+                console.error("Status Text:", response.statusText);
+                console.error("Response Body:", errorText);
+
+                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
             }
+
             return response.text();
         })
         .then(html => {
@@ -352,14 +361,11 @@ function abrirMovimiento(id) {
 
         })
         .catch(error => {
-            console.error(error);
-            alert("No se pudo cargar el XML");
-        });
-}
 
-function cerrarModal() {
-    const modal = document.getElementById('modalXml');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+            console.error("Error completo:", error);
+
+            alert("Error al cargar XML. Revisa la consola (F12).");
+
+        });
 }
 </script>
