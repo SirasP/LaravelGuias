@@ -224,17 +224,24 @@
                                 </td>
 
                                 <!-- Usuario -->
+                                 @php
+    $nombreUsuario = $m->usuario;
+
+    if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) {
+        $nombreUsuario = 'Carga Automática';
+    }
+@endphp
                                 <td class="px-6 py-4 text-center">
                                     @if($m->usuario ?? false)
                                         <div class="flex items-center justify-center gap-2">
                                             <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                                                <span class="text-white text-xs font-bold">
+                                                <span class="text-black text-xs font-bold">
                                                     {{ strtoupper(substr($m->usuario, 0, 1)) }}
                                                 </span>
                                             </div>
                                             <div class="text-left">
                                                 <p class="text-xs font-medium text-gray-900 dark:text-white">
-                                                    {{ $m->usuario }}
+                                                    {{ $nombreUsuario }}
                                                 </p>
                                             </div>
                                         </div>
