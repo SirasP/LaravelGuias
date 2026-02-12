@@ -92,10 +92,33 @@
                 <!-- Header -->
                 <div class="grid grid-cols-2 gap-6 mb-6 pb-6 border-b-2 border-gray-800">
                     <!-- Emisor -->
+                    @php
+                        $rutMandante = (string) ($xmlObj->xpath('//sii:RUTMandante')[0] ?? '');
+
+                        $companias = [
+                            '99520000-7' => 'COPEC S.A',
+                            '76045459-6' => 'ARAMCO',
+                            '96505200-4' => 'SHELL',
+                        ];
+
+                        $marca = $companias[$rutMandante] ?? null;
+                    @endphp
+
                     <div>
                         <h3 class="font-bold text-base mb-3">EMISOR</h3>
                         <div class="space-y-1">
-                            <p class="font-bold">{{ $emisor->RznSoc ?? 'N/A' }}</p>
+                            {{-- 🔵 Marca Comercial --}}
+                            @if($marca)
+                                <div class="text-2xl font-extrabold tracking-wide text-blue-700">
+                                    {{ $marca }}
+                                </div>
+                            @endif
+
+                            {{-- 🏢 Razón Social Real --}}
+                            <div class="text-sm text-gray-700">
+                                <span class="font-semibold">Razón Social:</span>
+                                {{ $emisor->RznSoc ?? 'N/A' }}
+                            </div>
                             <p class="text-xs">{{ $emisor->GiroEmis ?? '' }}</p>
                             <p class="text-xs">{{ $emisor->DirOrigen ?? '' }}</p>
                             <p class="text-xs">{{ $emisor->CmnaOrigen ?? '' }}</p>
@@ -257,7 +280,7 @@
                                         </td>
                                     </tr>
                                 @endif
-                                
+
                                 {{-- IEF --}}
                                 @if($iefTotal > 0)
                                     <tr class="border-b border-gray-300">
