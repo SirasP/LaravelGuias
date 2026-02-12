@@ -13,48 +13,287 @@
 
 <!-- Card de Filtros -->
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-        <!-- Título pequeño -->
-        <div>
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                🔎 Filtros
-            </h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                Filtrar movimientos por estado o tipo
-            </p>
+    
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+        
+        <!-- Header del Card -->
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-white">
+                            Filtros de Búsqueda
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Refina los resultados según tus necesidades
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Botón limpiar filtros -->
+                <button 
+                    onclick="limpiarFiltros()"
+                    id="btnLimpiarFiltros"
+                    class="hidden items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Limpiar filtros
+                </button>
+            </div>
         </div>
 
-        <!-- Selects -->
-        <div class="flex flex-col sm:flex-row gap-3">
+        <!-- Contenido del Card -->
+        <div class="p-6">
+            <form id="formFiltros" method="GET" action="{{ route('fuelcontrol.movimientos') }}"
+>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- Filtro por Estado -->
+                    <div class="space-y-2">
+                        <label for="filtroEstado" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Estado
+                            </div>
+                        </label>
+                        <select 
+                            id="filtroEstado"
+                            name="estado"
+                            onchange="aplicarFiltros()"
+                            class="w-full text-sm border-gray-300 dark:border-gray-600 
+                                   dark:bg-gray-700 dark:text-white 
+                                   rounded-lg shadow-sm
+                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                   transition-all duration-200
+                                   cursor-pointer">
+                            <option value="">📋 Todos los estados</option>
+                            <option value="pendiente" {{ request('estado') == 'pendiente' ? 'selected' : '' }}>
+                                ⏳ Pendiente
+                            </option>
+                            <option value="aprobado" {{ request('estado') == 'aprobado' ? 'selected' : '' }}>
+                                ✅ Aprobado
+                            </option>
+                            <option value="rechazado" {{ request('estado') == 'rechazado' ? 'selected' : '' }}>
+                                ❌ Rechazado
+                            </option>
+                        </select>
+                    </div>
 
-            <select 
-                class="text-sm border-gray-300 dark:border-gray-600 
-                       dark:bg-gray-700 dark:text-white 
-                       rounded-lg shadow-sm
-                       focus:ring-blue-500 focus:border-blue-500">
-                <option value="">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="aprobado">Aprobado</option>
-                <option value="rechazado">Rechazado</option>
-            </select>
+                    <!-- Filtro por Tipo -->
+                    <div class="space-y-2">
+                        <label for="filtroTipo" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                                </svg>
+                                Tipo de Movimiento
+                            </div>
+                        </label>
+                        <select 
+                            id="filtroTipo"
+                            name="tipo"
+                            onchange="aplicarFiltros()"
+                            class="w-full text-sm border-gray-300 dark:border-gray-600 
+                                   dark:bg-gray-700 dark:text-white 
+                                   rounded-lg shadow-sm
+                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                   transition-all duration-200
+                                   cursor-pointer">
+                            <option value="">🔄 Todos los tipos</option>
+                            <option value="ingreso" {{ request('tipo') == 'ingreso' ? 'selected' : '' }}>
+                                ⬇️ Ingresos
+                            </option>
+                            <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>
+                                ⬆️ Salidas
+                            </option>
+                        </select>
+                    </div>
 
-            <select 
-                class="text-sm border-gray-300 dark:border-gray-600 
-                       dark:bg-gray-700 dark:text-white 
-                       rounded-lg shadow-sm
-                       focus:ring-blue-500 focus:border-blue-500">
-                <option value="">Todos los tipos</option>
-                <option value="ingreso">Ingresos</option>
-                <option value="salida">Salidas</option>
-            </select>
+                    <!-- Filtro por Producto -->
+                    <div class="space-y-2">
+                        <label for="filtroProducto" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                </svg>
+                                Producto
+                            </div>
+                        </label>
+                        <select 
+                            id="filtroProducto"
+                            name="producto_id"
+                            onchange="aplicarFiltros()"
+                            class="w-full text-sm border-gray-300 dark:border-gray-600 
+                                   dark:bg-gray-700 dark:text-white 
+                                   rounded-lg shadow-sm
+                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                   transition-all duration-200
+                                   cursor-pointer">
+                            <option value="">📦 Todos los productos</option>
+                            @foreach($productos ?? [] as $producto)
+                                <option value="{{ $producto->id }}" {{ request('producto_id') == $producto->id ? 'selected' : '' }}>
+                                    {{ $producto->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
+                    <!-- Filtro por Fecha -->
+                    <div class="space-y-2">
+                        <label for="filtroFecha" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Rango de Fecha
+                            </div>
+                        </label>
+                        <select 
+                            id="filtroFecha"
+                            name="fecha"
+                            onchange="aplicarFiltros()"
+                            class="w-full text-sm border-gray-300 dark:border-gray-600 
+                                   dark:bg-gray-700 dark:text-white 
+                                   rounded-lg shadow-sm
+                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                   transition-all duration-200
+                                   cursor-pointer">
+                            <option value="">📅 Todas las fechas</option>
+                            <option value="hoy" {{ request('fecha') == 'hoy' ? 'selected' : '' }}>
+                                Hoy
+                            </option>
+                            <option value="semana" {{ request('fecha') == 'semana' ? 'selected' : '' }}>
+                                Esta semana
+                            </option>
+                            <option value="mes" {{ request('fecha') == 'mes' ? 'selected' : '' }}>
+                                Este mes
+                            </option>
+                            <option value="trimestre" {{ request('fecha') == 'trimestre' ? 'selected' : '' }}>
+                                Este trimestre
+                            </option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- Indicador de filtros activos -->
+                <div id="filtrosActivos" class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="font-medium">Filtros activos:</span>
+                            <span id="contadorFiltros" class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold">
+                                0
+                            </span>
+                        </div>
+                        <div id="tagsFiltros" class="flex flex-wrap gap-2">
+                            <!-- Tags de filtros activos se generan aquí -->
+                        </div>
+                    </div>
+                </div>
+
+            </form>
         </div>
 
     </div>
 
 </div>
+
+<script>
+    function aplicarFiltros() {
+        document.getElementById('formFiltros').submit();
+    }
+
+    function limpiarFiltros() {
+        // Resetear todos los selects
+        document.getElementById('filtroEstado').value = '';
+        document.getElementById('filtroTipo').value = '';
+        document.getElementById('filtroProducto').value = '';
+        document.getElementById('filtroFecha').value = '';
+        
+        // Enviar formulario limpio
+        aplicarFiltros();
+    }
+
+    function actualizarIndicadorFiltros() {
+        const estado = document.getElementById('filtroEstado').value;
+        const tipo = document.getElementById('filtroTipo').value;
+        const producto = document.getElementById('filtroProducto').value;
+        const fecha = document.getElementById('filtroFecha').value;
+        
+        const filtrosActivos = [estado, tipo, producto, fecha].filter(f => f !== '');
+        const count = filtrosActivos.length;
+        
+        const contenedor = document.getElementById('filtrosActivos');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+        const contador = document.getElementById('contadorFiltros');
+        const tagsContainer = document.getElementById('tagsFiltros');
+        
+        if (count > 0) {
+            contenedor.classList.remove('hidden');
+            btnLimpiar.classList.remove('hidden');
+            btnLimpiar.classList.add('flex');
+            contador.textContent = count;
+            
+            // Generar tags
+            tagsContainer.innerHTML = '';
+            
+            if (estado) {
+                const estadoTexto = document.querySelector(`#filtroEstado option[value="${estado}"]`).textContent;
+                tagsContainer.innerHTML += `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg text-xs font-medium">
+                        ${estadoTexto}
+                    </span>
+                `;
+            }
+            
+            if (tipo) {
+                const tipoTexto = document.querySelector(`#filtroTipo option[value="${tipo}"]`).textContent;
+                tagsContainer.innerHTML += `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-xs font-medium">
+                        ${tipoTexto}
+                    </span>
+                `;
+            }
+            
+            if (producto) {
+                const productoTexto = document.querySelector(`#filtroProducto option[value="${producto}"]`).textContent;
+                tagsContainer.innerHTML += `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium">
+                        ${productoTexto}
+                    </span>
+                `;
+            }
+            
+            if (fecha) {
+                const fechaTexto = document.querySelector(`#filtroFecha option[value="${fecha}"]`).textContent;
+                tagsContainer.innerHTML += `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium">
+                        ${fechaTexto}
+                    </span>
+                `;
+            }
+        } else {
+            contenedor.classList.add('hidden');
+            btnLimpiar.classList.add('hidden');
+            btnLimpiar.classList.remove('flex');
+        }
+    }
+
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', actualizarIndicadorFiltros);
+</script>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
