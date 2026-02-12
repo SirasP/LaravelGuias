@@ -317,4 +317,14 @@
 
     </div>
 
-</x-app-layout>
+</x-app-layout><script>
+function abrirMovimiento(id) {
+    fetch(`/movimientos/${id}`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('contenidoModal').innerHTML = html;
+            document.getElementById('miModal').classList.remove('hidden');
+        })
+        .catch(error => console.error('Error:', error));
+}
+</script>
