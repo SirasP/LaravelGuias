@@ -220,9 +220,7 @@
                                         {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
 
                                     </div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('H:i') }}
-                                    </div>
+                                 
                                 </td>
 
                                 <!-- Usuario -->
