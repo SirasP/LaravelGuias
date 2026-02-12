@@ -11,7 +11,7 @@
     </div>
 </x-slot>
 <!-- Card de Filtros -->
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 gap-3">
 
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
