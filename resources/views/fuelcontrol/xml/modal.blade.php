@@ -528,6 +528,16 @@
                                 </dd>
                             </div>
                         @endif
+                        @if($ievFepp > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    IEV / FEPP
+                                </dt>
+                                <dd class="text-sm font-bold text-purple-600 dark:text-purple-400">
+                                    ${{ number_format($ievFepp, 0, ',', '.') }}
+                                </dd>
+                            </div>
+                        @endif
                         <div class="flex justify-between pt-3 border-t-2 border-green-300 dark:border-green-700">
                             <dt class="text-base font-black text-gray-900 dark:text-white">TOTAL:</dt>
                             <dd class="text-base font-black text-green-700 dark:text-green-400">
