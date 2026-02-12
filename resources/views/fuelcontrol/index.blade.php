@@ -674,6 +674,7 @@
 
             await Swal.fire({
                 
+                width: '75%',
                 showCloseButton: true,
                 showConfirmButton: false,
                 html: html
