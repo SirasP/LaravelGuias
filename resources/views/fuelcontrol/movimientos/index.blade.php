@@ -12,7 +12,7 @@
 </x-slot>
 
 <!-- Card de Filtros -->
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 mt-4">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
