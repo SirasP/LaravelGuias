@@ -673,8 +673,7 @@
             const html = await response.text();
 
             await Swal.fire({
-                title: 'Detalle del Movimiento',
-                width: '75%',
+                
                 showCloseButton: true,
                 showConfirmButton: false,
                 html: html
