@@ -225,12 +225,12 @@
 
                                 <!-- Usuario -->
                                  @php
-    $nombreUsuario = $m->usuario;
+                                    $nombreUsuario = $m->usuario;
 
-    if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) {
-        $nombreUsuario = 'Carga Automática';
-    }
-@endphp
+                                    if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) {
+                                        $nombreUsuario = 'Carga Automática';
+                                    }
+                                @endphp
                                 <td class="px-6 py-4 text-center">
                                     @if($m->usuario ?? false)
                                         <div class="flex items-center justify-center gap-2">
@@ -317,6 +317,9 @@
         </div>
 
     </div>
+
+
+
 <!-- MODAL XML -->
 <div id="modalXml" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white dark:bg-gray-900 w-4/5 max-h-[85vh] overflow-y-auto rounded-xl p-6 relative shadow-2xl">
@@ -332,6 +335,8 @@
 
     </div>
 </div>
+
+
 </x-app-layout>
 <script>
 function abrirMovimiento(url) {
@@ -360,5 +365,10 @@ function abrirMovimiento(url) {
         .catch(error => {
             console.error("Error completo:", error);
         });
+}
+function cerrarModal() {
+    const modal = document.getElementById('modalXml');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 </script>
