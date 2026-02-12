@@ -1,20 +1,32 @@
 <x-app-layout>
 
-    <x-slot name="header">
+   <x-slot name="header">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            📦 Movimientos de Inventario
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Historial completo de ingresos y salidas de productos
+        </p>
+    </div>
+</x-slot>
+<!-- Card de Filtros -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
-        <!-- Título -->
+        <!-- Título pequeño -->
         <div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                📦 Movimientos de Inventario
-            </h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Historial completo de ingresos y salidas de productos
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                🔎 Filtros
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Filtrar movimientos por estado o tipo
             </p>
         </div>
 
-        <!-- Filtros -->
-        <div class="flex flex-col sm:flex-row gap-2">
+        <!-- Selects -->
+        <div class="flex flex-col sm:flex-row gap-3">
 
             <select 
                 class="text-sm border-gray-300 dark:border-gray-600 
@@ -40,7 +52,8 @@
         </div>
 
     </div>
-</x-slot>
+
+</div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
