@@ -317,14 +317,11 @@
 
     </div>
 
-</x-app-layout><script>
+</x-app-layout>
+
+<script>
 function abrirMovimiento(id) {
-    fetch(`/movimientos/${id}`)
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('contenidoModal').innerHTML = html;
-            document.getElementById('miModal').classList.remove('hidden');
-        })
-        .catch(error => console.error('Error:', error));
+    window.location.href = `/xml/${id}`;
 }
 </script>
+
