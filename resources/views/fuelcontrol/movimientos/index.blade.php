@@ -2,7 +2,7 @@
 
    <x-slot name="header">
     <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white ">
             📦 Movimientos de Inventario
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -10,8 +10,9 @@
         </p>
     </div>
 </x-slot>
+
 <!-- Card de Filtros -->
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 gap-3">
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 mt-4">
 
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
