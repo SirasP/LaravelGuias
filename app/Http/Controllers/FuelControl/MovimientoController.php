@@ -11,21 +11,68 @@ class MovimientoController extends Controller
     /**
      * Listado general
      */
-    public function index()
+    public function index(Request $request)
     {
-        $movimientos = DB::connection('fuelcontrol')
+        $query = DB::connection('fuelcontrol')
             ->table('movimientos as m')
             ->join('productos as p', 'p.id', '=', 'm.producto_id')
             ->select(
                 'm.*',
                 'p.nombre as producto_nombre'
-            )
-            ->orderByDesc('m.fecha_movimiento')
-            ->paginate(20);
+            );
 
+        // 🔎 FILTRO POR ESTADO
+        if ($request->filled('estado')) {
+            $query->where('m.estado', $request->estado);
+        }
+
+        // 🔎 FILTRO POR TIPO
+        if ($request->filled('tipo')) {
+            $query->where('m.tipo', $request->tipo);
+        }
+
+        // 🔎 FILTRO POR PRODUCTO
+        if ($request->filled('producto_id')) {
+            $query->where('m.producto_id', $request->producto_id);
+        }
+
+        // 🔎 FILTRO POR FECHA
+        if ($request->filled('fecha')) {
+
+            switch ($request->fecha) {
+                case 'hoy':
+                    $query->whereDate('m.fecha_movimiento', today());
+                    break;
+
+                case 'semana':
+                    $query->whereBetween('m.fecha_movimiento', [
+                        now()->startOfWeek(),
+                        now()->endOfWeek()
+                    ]);
+                    break;
+
+                case 'mes':
+                    $query->whereMonth('m.fecha_movimiento', now()->month)
+                        ->whereYear('m.fecha_movimiento', now()->year);
+                    break;
+
+                case 'trimestre':
+                    $query->whereBetween('m.fecha_movimiento', [
+                        now()->startOfQuarter(),
+                        now()->endOfQuarter()
+                    ]);
+                    break;
+            }
+        }
+
+        $movimientos = $query
+            ->orderByDesc('m.fecha_movimiento')
+            ->paginate(20)
+            ->withQueryString(); // 🔥 IMPORTANTE para mantener filtros al paginar
 
         return view('fuelcontrol.movimientos.index', compact('movimientos'));
     }
+
 
     /**
      * Mostrar detalle XML
