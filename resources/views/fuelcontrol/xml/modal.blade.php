@@ -186,25 +186,26 @@
                                 @if(isset($totales->MntNeto))
                                     <tr class="border-b border-gray-300">
                                         <td class="py-2 font-semibold">NETO $</td>
-                                        <td class="py-2 text-right">${{ number_format($totales->MntNeto, 0, ',', '.') }}</td>
+                                        <td class="py-2 text-right">${{ number_format((float) $totales->MntNeto, 0, ',', '.') }}
+                                        </td>
                                     </tr>
                                 @endif
                                 @if(isset($totales->MntExe))
                                     <tr class="border-b border-gray-300">
                                         <td class="py-2 font-semibold">EXENTO $</td>
-                                        <td class="py-2 text-right">${{ number_format($totales->MntExe, 0, ',', '.') }}</td>
+                                        <td class="py-2 text-right">${{ number_format((float) $totales->MntExe, 0, ',', '.') }}</td>
                                     </tr>
                                 @endif
                                 @if(isset($totales->TasaIVA))
                                     <tr class="border-b border-gray-300">
                                         <td class="py-2 font-semibold">IVA ({{ $totales->TasaIVA }}%) $</td>
-                                        <td class="py-2 text-right">${{ number_format($totales->IVA ?? 0, 0, ',', '.') }}</td>
+                                        <td class="py-2 text-right">${{ number_format((float) ($totales->IVA ?? 0), 0, ',', '.') }}</td>
                                     </tr>
                                 @endif
                                 <tr class="border-t-2 border-gray-800">
                                     <td class="py-2 font-bold text-base">TOTAL $</td>
                                     <td class="py-2 text-right font-bold text-base">
-                                        ${{ number_format($totales->MntTotal ?? 0, 0, ',', '.') }}</td>
+                                        ${{ number_format((float) ($totales->MntTotal ?? 0), 0, ',', '.') }}</td>
                                 </tr>
                             </tbody>
                         </table>
