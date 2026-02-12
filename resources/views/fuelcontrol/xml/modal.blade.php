@@ -183,34 +183,116 @@
                     <div class="w-80 border-2 border-gray-800 p-4">
                         <table class="w-full text-xs">
                             <tbody>
+
                                 @if(isset($totales->MntNeto))
                                     <tr class="border-b border-gray-300">
                                         <td class="py-2 font-semibold">NETO $</td>
-                                        <td class="py-2 text-right">${{ number_format((float) $totales->MntNeto, 0, ',', '.') }}
+                                        <td class="py-2 text-right">
+                                            ${{ number_format((float) $totales->MntNeto, 0, ',', '.') }}
                                         </td>
                                     </tr>
                                 @endif
+
                                 @if(isset($totales->MntExe))
                                     <tr class="border-b border-gray-300">
                                         <td class="py-2 font-semibold">EXENTO $</td>
-                                        <td class="py-2 text-right">${{ number_format((float) $totales->MntExe, 0, ',', '.') }}</td>
+                                        <td class="py-2 text-right">
+                                            ${{ number_format((float) $totales->MntExe, 0, ',', '.') }}
+                                        </td>
                                     </tr>
                                 @endif
+
+                                {{-- 🔥 IMPUESTO ESPECÍFICO DESGLOSADO --}}
+                                @php
+                                    $iefTotal = 0;
+                                    $impuestoTotal = 0;
+
+                                    /* =========================
+                                     * 1️⃣ IEF DESDE DETALLE
+                                     * ========================= */
+                                    foreach ($detalles as $d) {
+
+                                        $nsChildren = $d->children('http://www.sii.cl/SiiDte');
+
+                                        if (isset($nsChildren->Subcantidad)) {
+
+                                            $subs = $nsChildren->Subcantidad;
+
+                                            foreach ($subs as $sub) {
+
+                                                $subNs = $sub->children('http://www.sii.cl/SiiDte');
+
+                                                if ((string) $subNs->SubCod === 'IEF') {
+
+                                                    $qtyLitros = (float) $d->children('http://www.sii.cl/SiiDte')->QtyItem;
+                                                    $valorPorLitro = (float) $subNs->SubQty;
+
+                                                    $iefTotal += ($qtyLitros * $valorPorLitro);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    /* =========================
+                                     * 2️⃣ TOTAL IMPUESTO (Tipo 35)
+                                     * ========================= */
+                                    $imptoReten = $xmlObj->xpath('//sii:ImptoReten[sii:TipoImp=35]');
+                                    if (!empty($imptoReten)) {
+                                        $impuestoTotal = (float) $imptoReten[0]->MontoImp;
+                                    }
+
+                                    /* =========================
+                                     * 3️⃣ IEV / FEPP
+                                     * ========================= */
+                                    $ievFepp = $impuestoTotal - $iefTotal;
+                                @endphp
+
                                 @if(isset($totales->TasaIVA))
                                     <tr class="border-b border-gray-300">
-                                        <td class="py-2 font-semibold">IVA ({{ $totales->TasaIVA }}%) $</td>
-                                        <td class="py-2 text-right">${{ number_format((float) ($totales->IVA ?? 0), 0, ',', '.') }}</td>
+                                        <td class="py-2 font-semibold">
+                                            IVA ({{ $totales->TasaIVA }}%) $
+                                        </td>
+                                        <td class="py-2 text-right">
+                                            ${{ number_format((float) ($totales->IVA ?? 0), 0, ',', '.') }}
+                                        </td>
                                     </tr>
                                 @endif
+                                
+                                {{-- IEF --}}
+                                @if($iefTotal > 0)
+                                    <tr class="border-b border-gray-300">
+                                        <td class="py-2 font-semibold">IEF $</td>
+                                        <td class="py-2 text-right">
+                                            ${{ number_format($iefTotal, 0, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                @endif
+
+                                {{-- IEV / FEPP --}}
+                                @if($ievFepp > 0)
+                                    <tr class="border-b border-gray-300">
+                                        <td class="py-2 font-semibold">IEV / FEPP $</td>
+                                        <td class="py-2 text-right">
+                                            ${{ number_format($ievFepp, 0, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                @endif
+
+
+
+
                                 <tr class="border-t-2 border-gray-800">
                                     <td class="py-2 font-bold text-base">TOTAL $</td>
                                     <td class="py-2 text-right font-bold text-base">
-                                        ${{ number_format((float) ($totales->MntTotal ?? 0), 0, ',', '.') }}</td>
+                                        ${{ number_format((float) ($totales->MntTotal ?? 0), 0, ',', '.') }}
+                                    </td>
                                 </tr>
+
                             </tbody>
                         </table>
                     </div>
                 </div>
+
 
                 <!-- Timbre Electrónico -->
                 <div class="mt-6 pt-6 border-t-2 border-gray-400 text-center">
