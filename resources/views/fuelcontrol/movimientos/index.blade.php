@@ -225,7 +225,7 @@
 
                                 <!-- Usuario -->
                                 <td class="px-6 py-4 text-center">
-                                    @if($m->user ?? false)
+                                    @if($m->usuario ?? false)
                                         <div class="flex items-center justify-center gap-2">
                                             <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
                                                 <span class="text-white text-xs font-bold">
