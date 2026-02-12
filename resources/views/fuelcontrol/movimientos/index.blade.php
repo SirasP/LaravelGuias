@@ -255,7 +255,7 @@
                                     <div class="flex items-center justify-center gap-2">
                                         @if($m->xml_path)
                                             <button 
-                                               onclick="abrirMovimiento('{{ route('xml.show', $m->id) }}')"
+                                               onclick="abrirMovimiento('{{ route('fuelcontrol.xml.show', $m->id) }}')"
 
                                                 class="group relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-black text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
