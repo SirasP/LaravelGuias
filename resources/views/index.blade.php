@@ -344,9 +344,9 @@
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-8">
 
         {{-- ══ SECCIÓN ODOO ══ --}}
-        <div class="au d2">
+        <div class="au d1">
             <div class="section-label">
-                <span class="inline-flex items-center gap-1.5">
+                <span class="inline-flex items-center gap-2.5">
                     <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
                     ODOO · últimos 120 días
                 </span>
