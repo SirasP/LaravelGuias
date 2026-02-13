@@ -1,11 +1,11 @@
 {{-- ================= MODAL AGREGAR (PRO) ================= --}}
-<div x-cloak x-show="$store.ui.open" class="fixed inset-0 z-50 flex items-center justify-center p-4"
-    @keydown.escape.window="$store.ui.open=false" aria-modal="true" role="dialog">
+<div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    @keydown.escape.window="open=false" aria-modal="true" role="dialog">
     {{-- Backdrop --}}
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]" @click="$store.ui.open=false"></div>
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]" @click="open=false"></div>
 
     {{-- Panel --}}
-    <div x-show="$store.ui.open" x-transition:enter="transition ease-out duration-200"
+    <div x-show="open" x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="opacity-0 translate-y-2 scale-95"
         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
         x-transition:leave="transition ease-in duration-150"
@@ -28,7 +28,7 @@
                 </div>
             </div>
 
-            <button type="button" @click="$store.ui.open=false" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700
+            <button type="button" @click="open=false" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700
                        dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100 transition"
                 aria-label="Cerrar">
                 ✕
@@ -96,14 +96,15 @@
 </div>
 
 {{-- ================= MODAL VER (PRO + GUARDAR is_active) ================= --}}
-<div x-cloak x-show="$store.ui.openView" class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-    @keydown.escape.window="$store.ui.openView=false; $store.ui.selectedUser=null" aria-modal="true" role="dialog">
+
+<div x-cloak x-show="open" class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+    @keydown.escape.window="open=false; selectedUser=null" aria-modal="true" role="dialog">
     {{-- Backdrop --}}
     <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-        @click="$store.ui.openView=false; $store.ui.selectedUser=null"></div>
+        @click="open=false; selectedUser=null"></div>
 
     {{-- Panel --}}
-    <div x-show="$store.ui.openView" x-transition:enter="transition ease-out duration-200"
+    <div x-show="openView" x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="opacity-0 translate-y-2 scale-95"
         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
         x-transition:leave="transition ease-in duration-150"
@@ -126,7 +127,7 @@
                 </div>
             </div>
 
-            <button type="button" @click="$store.ui.openView=false; $store.ui.selectedUser=null" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700
+            <button type="button" @click="openView=false; selectedUser=null" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700
                        dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100 transition"
                 aria-label="Cerrar">
                 ✕
@@ -136,7 +137,7 @@
         {{-- Body --}}
         <div class="px-6 py-5">
             {{-- Estado "cargando" por si selectedUser llega null --}}
-            <template x-if="!$store.ui.selectedUser">
+            <template x-if="!selectedUser">
                 <div class="space-y-3">
                     <div class="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800"></div>
                     <div class="h-4 w-full rounded bg-gray-200 dark:bg-gray-800"></div>

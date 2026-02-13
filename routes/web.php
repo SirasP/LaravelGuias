@@ -232,17 +232,17 @@ Route::middleware(['auth', 'role:admin,operator'])->group(function () {
     Route::get('/pdf/import', [PdfImportController::class, 'create'])->name('pdf.import.form');
     Route::post('/pdf/import', [PdfImportController::class, 'store'])->name('pdf.import');
 
-    Route::get('/pdf/imports/{id}', [PdfImportController::class, 'showJson'])
-        ->whereNumber('id')
-        ->name('pdf.import.show');
-
     Route::get('/pdf/imports/{id}/archivo', [PdfImportController::class, 'ver'])
         ->whereNumber('id')
-        ->name('pdf.show');
+        ->name('pdf.import.archivo');
 
     Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'show'])
         ->whereNumber('id')
-        ->name('pdf.show');
+        ->name('pdf.import.ver');
+
+    Route::get('/pdf/imports/{id}', [PdfImportController::class, 'showJson'])
+        ->whereNumber('id')
+        ->name('pdf.import.json');
 
     Route::get('/pdf/imports/export.xlsx', [PdfImportController::class, 'exportXlsx'])
         ->name('pdf.export.xlsx');
