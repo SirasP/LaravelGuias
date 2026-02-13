@@ -20,8 +20,8 @@ class CheckStockJob
         Log::info('🔥 CheckStockJob INICIADO por scheduler');
 
         $productos = [
-            'Diésel' => 500,
-            'Gasolina' => 200,
+            'Diésel' => 1000,
+            'Gasolina' => 20,
         ];
 
         foreach ($productos as $nombreProducto => $minimo) {
