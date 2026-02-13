@@ -24,32 +24,33 @@
 <body class="font-sans antialiased">
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
 
-        {{-- NAV PRINCIPAL (STICKY) --}}
-        <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            @include('layouts.navigation')
-        </header>
+        {{--
+        NAV PRINCIPAL (STICKY)
+        ⚠️ El propio navigation.blade.php ya maneja su bg, border y shadow.
+        El <header> solo necesita sticky + z-index.
+            --}}
+            <header class="sticky top-0 z-50">
+                @include('layouts.navigation')
+            </header>
 
-        {{-- HEADER DE CONTEXTO (NORMAL, NO STICKY) --}}
-        @isset($header)
-            <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div class="w-full px-12 sm:px-4 lg:px-8">
-                    <div class="h-16 flex items-center">
-                        {{ $header }}
+            {{-- HEADER DE CONTEXTO --}}
+            @isset($header)
+                <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <div class="w-full px-4 sm:px-6 lg:px-8">
+                        <div class="h-16 flex items-center">
+                            {{ $header }}
+                        </div>
                     </div>
                 </div>
-            </div>
-        @endisset
+            @endisset
 
-        {{-- CONTENIDO --}}
-        <main class="pb-6">
-            {{ $slot }}
-
-
-        </main>
+            {{-- CONTENIDO --}}
+            <main class="pb-6">
+                {{ $slot }}
+            </main>
 
     </div>
 
-    {{-- 👇 EL TOAST VA AQUÍ, FUERA DE TODO --}}
     @include('components.toast')
 
 </body>
