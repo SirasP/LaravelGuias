@@ -19,12 +19,7 @@
                 <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Dashboard</h2>
                 <p class="text-sm text-gray-400 mt-0.5">Resumen últimos 120 días</p>
             </div>
-            <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full
-                     bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
-                     border border-emerald-100 dark:border-emerald-800/50">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                En vivo
-            </span>
+          
         </div>
     </x-slot>
 
@@ -341,7 +336,7 @@
         $kgProm = (float) ($kgPromedioAgrak ?? 2.5);
     @endphp
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-8 mt-4">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-8 ">
 
         {{-- ══ SECCIÓN ODOO ══ --}}
         <div class="au d1">
