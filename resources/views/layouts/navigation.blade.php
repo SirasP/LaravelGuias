@@ -47,15 +47,15 @@
                                     style="display:none">
                                     <div class="px-4 pt-3 pb-2 border-b border-gray-50 dark:border-gray-800">
                                         <p
-                                            class="text-[11px] font-semibold uppercase tracking-widest text-indigo-500 opacity-70">
+                                            class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
                                             Documentos PDF</p>
                                     </div>
                                     <div class="py-1.5">
                                         <a href="{{ route('pdf.index') }}" @click="openDocs = false"
-                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors group">
+                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors group">
                                             <span
-                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900">
-                                                <svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-indigo-500 transition-colors"
+                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900">
+                                                <svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-emerald-500 transition-colors"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -116,15 +116,15 @@
                                     style="display:none">
                                     <div class="px-4 pt-3 pb-2 border-b border-gray-50 dark:border-gray-800">
                                         <p
-                                            class="text-[11px] font-semibold uppercase tracking-widest text-violet-500 opacity-70">
+                                            class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
                                             Guías ODOO</p>
                                     </div>
                                     <div class="py-1.5">
                                         <a href="{{ route('excel_out_transfers.index') }}" @click="openOdoo = false"
-                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors group">
+                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors group">
                                             <span
-                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-violet-100"><svg
-                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-violet-500 transition-colors"
+                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-emerald-100"><svg
+                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-emerald-500 transition-colors"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -244,15 +244,15 @@
                                     style="display:none">
                                     <div class="px-4 pt-3 pb-2 border-b border-gray-50 dark:border-gray-800">
                                         <p
-                                            class="text-[11px] font-semibold uppercase tracking-widest text-sky-500 opacity-70">
-                                            Guías Recepción Bandejas</p>
+                                           class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
+                                            Guías Recepción Bandejas Gmail</p>
                                     </div>
                                     <div class="py-1.5">
                                         <a href="{{ route('guias.comfrut.index') }}" @click="openGuias = false"
-                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors group">
+                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors group">
                                             <span
-                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-sky-100"><svg
-                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-sky-500 transition-colors"
+                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-emerald-100"><svg
+                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-emerald-500 transition-colors"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -309,15 +309,15 @@
                                     style="display:none">
                                     <div class="px-4 pt-3 pb-2 border-b border-gray-50 dark:border-gray-800">
                                         <p
-                                            class="text-[11px] font-semibold uppercase tracking-widest text-orange-500 opacity-70">
+                                            class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
                                             FuelControl</p>
                                     </div>
                                     <div class="py-1.5">
                                         <a href="{{ route('fuelcontrol.index') }}" @click="openFuel = false"
-                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-colors group">
+                                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors group">
                                             <span
-                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-orange-100"><svg
-                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-orange-500 transition-colors"
+                                                class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-emerald-100"><svg
+                                                    class="w-3.5 h-3.5 text-gray-500 group-hover:text-emerald-500 transition-colors"
                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
