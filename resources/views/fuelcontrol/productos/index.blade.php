@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div class="max-w-8xl mx-auto px-4 py-8 space-y-8">
 
         <!-- KPI CARDS -->
         @if($productos->isNotEmpty())
