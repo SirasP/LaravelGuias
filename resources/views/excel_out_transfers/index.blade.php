@@ -1,341 +1,356 @@
 <x-app-layout>
 
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-4">
-            <div class="text-sm text-gray-600 dark:text-gray-400">
-                Match ODOO
+{{-- ═══════════════════════════════════════
+     HEADER
+═══════════════════════════════════════ --}}
+<x-slot name="header">
+    <div class="flex items-center justify-between gap-3 w-full">
+
+        {{-- Título + stats --}}
+        <div class="flex items-center gap-4 min-w-0">
+            <div class="hidden sm:block">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">Match ODOO</h2>
+                <div class="flex items-center gap-2 mt-1.5">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                        Total <strong>{{ $total }}</strong>
+                    </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                        ✔ <strong>{{ $matched }}</strong>
+                    </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                        ✖ <strong>{{ $unmatched }}</strong>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Buscador desktop --}}
+        <form method="GET" class="hidden lg:flex items-center gap-2 flex-1 max-w-xl">
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                </svg>
+                <input name="q" value="{{ $q }}"
+                       placeholder="Contacto, guía, patente…"
+                       class="w-full pl-9 pr-3 py-2 text-sm rounded-xl
+                              border border-gray-200 dark:border-gray-700
+                              bg-white dark:bg-gray-900
+                              text-gray-900 dark:text-gray-100
+                              focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition">
             </div>
 
-            <form method="GET" class="hidden lg:block  flex items-center gap-2">
-                <input name="q" value="{{ $q }}" placeholder="Buscar contacto / guía / patente..."
-                    class="w-72 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 py-2 text-sm">
+            <select name="exists"
+                    class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
+                           bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200
+                           focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                <option value=""  {{ ($exists ?? '') === ''  ? 'selected' : '' }}>Todos</option>
+                <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
+                <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
+            </select>
 
-                <select name="exists"
-                    class="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 py-2 text-sm">
-                    <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
-                    <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
-                    <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
-                </select>
+            <button type="submit"
+                    class="px-4 py-2 text-sm font-semibold rounded-xl
+                           bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900
+                           hover:bg-gray-700 dark:hover:bg-white transition">
+                Buscar
+            </button>
 
-                <button class="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-sm">Buscar</button>
-
+            @if($q || ($exists ?? '') !== '')
                 <a href="{{ route('excel_out_transfers.index') }}"
-                    class="px-4 py-2 rounded-xl bg-white border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                   class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
+                          text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                     Limpiar
                 </a>
-            </form>
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
-                class="hidden lg:block px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700">
-                Descargar Excel
-            </a>
+            @endif
+        </form>
 
-            {{-- Mobile download button --}}
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}" class="sm:hidden inline-flex items-center gap-2 px-4 py-2 rounded-xl
-                        bg-emerald-600 text-white text-sm hover:bg-emerald-700">
+        {{-- Descargar Excel --}}
+        <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl
+                  bg-emerald-600 hover:bg-emerald-700 active:scale-95
+                  text-white transition-all shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span class="hidden sm:inline">Excel</span>
+        </a>
 
-                {{-- icono descarga --}}
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor" stroke-width="1">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                </svg>
+    </div>
+</x-slot>
 
+{{-- ═══════════════════════════════════════
+     ESTILOS
+═══════════════════════════════════════ --}}
+<style>
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+    .au { animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
+    .d1{animation-delay:.04s}.d2{animation-delay:.08s}.d3{animation-delay:.1s}
 
-            </a>
-            <form method="GET" class="sm:hidden">
-                <input name="q" value="{{ $q }}" placeholder="Buscar contacto / guía / patente…" inputmode="search"
-                    enterkeyhint="search" class="w-full rounded-xl border border-gray-300
-                        dark:border-gray-700 bg-white dark:bg-gray-950
-                        px-3 py-2 text-sm">
-            </form>
+    .page-wrap { background:#f1f5f9; min-height:100%; }
+    .dark .page-wrap { background:#0d1117; }
+
+    /* Table card */
+    .t-card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; }
+    .dark .t-card { background:#161c2c; border-color:#1e2a3b; }
+
+    /* Table */
+    .dt { width:100%; border-collapse:collapse; font-size:13px; }
+    .dt thead tr { border-bottom:1px solid #f1f5f9; background:#f8fafc; }
+    .dark .dt thead tr { border-bottom-color:#1e2a3b; background:#111827; }
+    .dt th { padding:11px 16px; text-align:left; font-size:10px; font-weight:700;
+             letter-spacing:.08em; text-transform:uppercase; color:#94a3b8; white-space:nowrap; }
+    .dt td { padding:12px 16px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle; }
+    .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1; }
+    .dt tbody tr:last-child td { border-bottom:none; }
+    .dt tbody tr { transition:background .1s; }
+    .dt tbody tr:hover td { background:#f8fafc; }
+    .dark .dt tbody tr:hover td { background:#1a2436; }
+
+    /* Badges */
+    .badge-match   { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px;
+                     font-size:11px; font-weight:700; background:#dcfce7; color:#15803d; }
+    .badge-nomatch { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px;
+                     font-size:11px; font-weight:700; background:#f1f5f9; color:#64748b; }
+    .dark .badge-match   { background:rgba(16,185,129,.15); color:#34d399; }
+    .dark .badge-nomatch { background:rgba(255,255,255,.05); color:#475569; }
+
+    /* Mobile cards */
+    .m-card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px 16px; }
+    .dark .m-card { background:#161c2c; border-color:#1e2a3b; }
+
+    /* Import report */
+    .ir-badge-imported  { background:#dcfce7; color:#15803d; }
+    .ir-badge-duplicate { background:#fef3c7; color:#92400e; }
+    .ir-badge-skip      { background:#f1f5f9; color:#64748b; }
+    .dark .ir-badge-imported  { background:rgba(16,185,129,.15); color:#34d399; }
+    .dark .ir-badge-duplicate { background:rgba(245,158,11,.15); color:#fcd34d; }
+    .dark .ir-badge-skip      { background:rgba(255,255,255,.05); color:#475569; }
+</style>
+
+<div class="page-wrap">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+
+    {{-- Buscador móvil --}}
+    <form method="GET" class="lg:hidden flex gap-2 au d1">
+        <div class="relative flex-1">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+            </svg>
+            <input name="q" value="{{ $q }}" inputmode="search" enterkeyhint="search"
+                   placeholder="Contacto, guía, patente…"
+                   class="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl
+                          border border-gray-200 dark:border-gray-700
+                          bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+                          focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
         </div>
-    </x-slot>
+        <button type="submit"
+                class="px-4 py-2 text-sm font-bold rounded-xl bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900">
+            Buscar
+        </button>
+    </form>
 
+    {{-- Stats móvil --}}
+    <div class="lg:hidden flex gap-2 flex-wrap au d1">
+        <span class="text-xs px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-medium">
+            Total <strong>{{ $total }}</strong>
+        </span>
+        <span class="text-xs px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
+            ✔ Match <strong>{{ $matched }}</strong>
+            <span class="opacity-60 ml-0.5">({{ round($matched / max($total,1) * 100) }}%)</span>
+        </span>
+        <span class="text-xs px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">
+            ✖ Sin match <strong>{{ $unmatched }}</strong>
+        </span>
+    </div>
 
+    {{-- Flash ok --}}
+    @if(session('ok'))
+        <div class="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 au d1">
+            {{ session('ok') }}
+        </div>
+    @endif
 
-    <div class="py-2">
-        <div class="w-full px-4 sm:px-7 lg:px-9">
-
-            @if(session('ok'))
-                <div class="mb-12 rounded-xl bg-green-50 border border-green-200 p-3 text-green-800">
-                    {{ session('ok') }}
-                </div>
-            @endif
-
-            {{-- ✅ Stats PRO arriba de la tabla --}}
-            <div class="hidden lg:block mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                    <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                        Total: <span class="font-semibold">{{ $total }}</span>
-                    </span>
-                    <span class="px-2 py-1 rounded-full bg-green-100 text-green-800">
-                        Con match: <span class="font-semibold">{{ $matched }}</span>
-                    </span>
-                    <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                        Sin match: <span class="font-semibold">{{ $unmatched }}</span>
-                    </span>
-                </div>
-            </div>
-
-            {{-- tabla (la tuya) --}}
-            <div
-                class="hidden lg:block rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 overflow-hidden">
-                <div class="hidden lg:block overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 dark:bg-gray-900/60">
-                            <tr class="[&>th]:px-4 [&>th]:py-3 [&>th]:text-left text-gray-700 dark:text-gray-200">
-                                <th>Contacto</th>
-                                <th>Fecha prevista</th>
-                                <th>Patente</th>
-                                <th>Nombre Chofer</th>
-                                <th>Guía entrega</th>
-                                <th>Referencia</th>
-                                <th>Detalles</th>
-                                {{-- Ordenar por match --}}
-                                <th
-                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                    @php
-                                        $isActive = $orderBy === 'exists_guia';
-                                        $nextDir = ($isActive && $dir === 'asc') ? 'desc' : 'asc';
-                                    @endphp
-
-                                    <a href="{{ request()->fullUrlWithQuery(['order_by' => 'exists_guia', 'dir' => $nextDir]) }}"
-                                        class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100">
-                                        Existe Guia
-                                        <svg class="w-3 h-3 opacity-60" xmlns="http://www.w3.org/2000/svg" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            @if($isActive && $dir === 'asc')
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 15l7-7 7 7" />
-                                            @else
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 9l-7 7-7-7" />
-                                            @endif
-                                        </svg>
-                                    </a>
-                                </th>
-
-                            </tr>
-                        </thead>
-
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            @forelse($rows as $r)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                                    <td class="px-4 py-3">{{ $r->contacto ?? '—' }}</td>
-                                    <td class="px-4 py-3">{{ $r->fecha_prevista?->format('Y-m-d H:i:s') ?? '—' }}</td>
-                                    <td class="px-4 py-3">{{ $r->patente ?? '—' }}</td>
-                                    <td class="px-4 py-3 uppercase">{{ $r->chofer ?? '—' }}</td>
-                                    <td class="px-4 py-3 font-mono font-semibold">
-                                        {{ $r->guia_entrega ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3">{{ $r->referencia ?? '—' }}</td>
-
-
-                                    <td class="px-4 py-3">
-                                        <a href="{{ route('excel_out_transfers.show', $r) }}"
-                                            class="inline-flex items-center gap-1 text-sm font-medium
-                                                   text-indigo-600 hover:text-indigo-800 underline-offset-4 hover:underline transition">
-                                            Ver detalle →
-                                        </a>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        @if((int) ($r->exists_guia ?? 0) === 1)
-                                            <div class="flex items-center gap-2">
-                                                <span
-                                                    class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                                    ✔ Match
-                                                </span>
-                                                <a class="text-xs text-green-700 hover:underline"
-                                                    href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}">
-                                                    Ver detalle
-                                                </a>
-
-
-                                            </div>
-                                        @else
-                                            <span
-                                                class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                                                —
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="px-4 py-10 text-center text-gray-500">
-                                        No hay registros.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-
-                    </table>
-                </div>
-
-            </div>
-
-            {{-- Pagination --}}
-            {{-- Esto evita que Turbo/SPA te "recicle" el DOM y se quede pegado con los mismos rows --}}
-            <div class="hidden lg:block mt-4" data-turbo="false">
-                {{ $rows->links() }}
-            </div>
-
-
-            {{-- Import report (si existe) --}}
-            @if(session('import_report'))
-                <div class="mt-6 p-4 rounded-xl border bg-white dark:bg-gray-950 dark:border-gray-700">
-                    <div class="font-semibold text-gray-800 dark:text-gray-100 mb-2">Detalle de importación</div>
-
-                    <div class="overflow-auto border rounded-lg dark:border-gray-700">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
-                                <tr class="text-left">
-                                    <th class="p-2">Archivo</th>
-                                    <th class="p-2 w-20">Estado</th>
-                                    <th class="p-2 w-24">Guía</th>
-                                    <th class="p-2">Detalle</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y dark:divide-gray-700">
-                                @foreach(session('import_report') as $r)
-                                    @php $st = $r['status'] ?? ''; @endphp
-                                    <tr>
-                                        <td class="p-2">{{ $r['file'] ?? '—' }}</td>
-                                        <td class="p-2">
-                                            <span
-                                                class="px-2 py-0.5 rounded text-xs
-                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'imported' ? 'bg-green-100 text-green-800' : '' }}
-                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'duplicate' ? 'bg-amber-100 text-amber-900' : '' }}
-                                                                                                                                                                                                                                                                                                                                                        {{ $st === 'skip' ? 'bg-gray-100 text-gray-700' : '' }}">
-                                                {{ $st }}
-                                            </span>
-                                        </td>
-                                        <td class="p-2 font-semibold">{{ $r['guia'] ?? '—' }}</td>
-                                        <td class="p-2 text-gray-600 dark:text-gray-300">{{ $r['reason'] ?? '' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @endif
-
+    {{-- ── TABLA DESKTOP ────────────────────────────────────────── --}}
+    <div class="hidden lg:block t-card au d2">
+        <div class="overflow-x-auto">
+            <table class="dt">
+                <thead>
+                    <tr>
+                        <th>Contacto</th>
+                        <th>Fecha prevista</th>
+                        <th>Patente</th>
+                        <th>Chofer</th>
+                        <th>Guía</th>
+                        <th>Referencia</th>
+                        <th>Detalle</th>
+                        <th>
+                            @php
+                                $isActive = ($orderBy ?? '') === 'exists_guia';
+                                $nextDir  = ($isActive && ($dir ?? '') === 'asc') ? 'desc' : 'asc';
+                            @endphp
+                            <a href="{{ request()->fullUrlWithQuery(['order_by'=>'exists_guia','dir'=>$nextDir]) }}"
+                               class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                                Match
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    @if($isActive && ($dir ?? '') === 'asc')
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
+                                    @else
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                    @endif
+                                </svg>
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $r)
+                        <tr>
+                            <td class="font-semibold">{{ $r->contacto ?? '—' }}</td>
+                            <td class="text-gray-500 dark:text-gray-400">
+                                <span>{{ $r->fecha_prevista?->format('d-m-Y') ?? '—' }}</span>
+                                @if($r->fecha_prevista)
+                                    <span class="block text-xs opacity-50">{{ $r->fecha_prevista->format('H:i') }}</span>
+                                @endif
+                            </td>
+                            <td class="font-mono text-sm">{{ $r->patente ?? '—' }}</td>
+                            <td class="uppercase text-gray-600 dark:text-gray-400 text-xs">{{ $r->chofer ?? '—' }}</td>
+                            <td class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ $r->guia_entrega ?? '—' }}</td>
+                            <td class="text-gray-500 dark:text-gray-400 text-xs">{{ $r->referencia ?? '—' }}</td>
+                            <td>
+                                <a href="{{ route('excel_out_transfers.show', $r) }}"
+                                   class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400
+                                          hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
+                                    Ver →
+                                </a>
+                            </td>
+                            <td>
+                                @if((int)($r->exists_guia ?? 0) === 1)
+                                    <div class="flex items-center gap-2">
+                                        <span class="badge-match">✔ Match</span>
+                                        <a href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}"
+                                           class="text-xs text-emerald-700 dark:text-emerald-400 hover:underline">PDF</a>
+                                    </div>
+                                @else
+                                    <span class="badge-nomatch">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">
+                                No hay registros que coincidan con los filtros.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
+    {{-- Paginación desktop --}}
+    <div class="hidden lg:block au d3" data-turbo="false">
+        {{ $rows->links() }}
+    </div>
 
-    <div class="sm:hidden max-w-7xl mx-auto px-4 py-4 space-y-6">
-
-        {{-- STATS --}}
-        <div class="flex flex-wrap gap-2 text-xs">
-            <span class="px-2 py-1 rounded-full bg-gray-100">
-                Total: <b>{{ $total }}</b>
-            </span>
-            <span class="px-2 py-1 rounded-full bg-green-100 text-green-800">
-                Con match: <b>{{ $matched }}</b>
-                ({{ round($matched / max($total, 1) * 100) }}%)
-            </span>
-            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700">
-                Sin match: <b>{{ $unmatched }}</b>
-            </span>
-        </div>
-
-        {{-- MOBILE --}}
-        <div class="sm:hidden space-y-3">
-            @foreach($rows as $r)
-                <div class="border rounded-lg p-3 bg-white dark:bg-gray-900">
-                    <p class="font-semibold text-sm">
+    {{-- ── CARDS MÓVIL ─────────────────────────────────────────── --}}
+    <div class="lg:hidden space-y-2 au d2">
+        @forelse($rows as $r)
+            <div class="m-card">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <span class="font-bold text-sm text-gray-800 dark:text-gray-100 leading-snug">
                         {{ $r->contacto ?? '—' }}
-                    </p>
+                    </span>
+                    @if((int)($r->exists_guia ?? 0) === 1)
+                        <span class="badge-match shrink-0">✔ Match</span>
+                    @else
+                        <span class="badge-nomatch shrink-0">Sin match</span>
+                    @endif
+                </div>
 
-                    <div class="text-xs text-gray-500 space-y-1 mt-1">
-                        <div>Guía: <b>{{ $r->guia_entrega ?? '—' }}</b></div>
-                        <div>Patente: {{ $r->patente ?? '—' }}</div>
-                        <div>
-                            Estado:
-                            @if($r->exists_guia)
-                                <span class="text-green-600 font-medium">✔ Match</span>
-                            @else
-                                <span class="text-red-600 font-medium">✖ Sin guía</span>
-                            @endif
-                        </div>
+                <div class="grid grid-cols-2 gap-y-1.5 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    <div>
+                        <span class="text-gray-400 dark:text-gray-600">Guía</span>
+                        <p class="font-bold font-mono text-indigo-600 dark:text-indigo-400 text-sm">{{ $r->guia_entrega ?? '—' }}</p>
                     </div>
+                    <div>
+                        <span class="text-gray-400 dark:text-gray-600">Patente</span>
+                        <p class="font-mono font-semibold text-gray-700 dark:text-gray-300">{{ $r->patente ?? '—' }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 dark:text-gray-600">Fecha</span>
+                        <p class="text-gray-700 dark:text-gray-300">{{ $r->fecha_prevista?->format('d-m-Y') ?? '—' }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 dark:text-gray-600">Chofer</span>
+                        <p class="uppercase text-gray-700 dark:text-gray-300">{{ $r->chofer ?? '—' }}</p>
+                    </div>
+                </div>
 
+                <div class="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-2.5">
                     <a href="{{ route('excel_out_transfers.show', $r) }}"
-                        class="inline-block mt-2 text-xs text-indigo-600 hover:underline">
+                       class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
                         Ver detalle →
                     </a>
+                    @if((int)($r->exists_guia ?? 0) === 1)
+                        <a href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}"
+                           class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">
+                            Ver PDF
+                        </a>
+                    @endif
                 </div>
-            @endforeach
-        </div>
+            </div>
+        @empty
+            <div class="m-card text-center text-sm text-gray-400 py-10">
+                No hay registros.
+            </div>
+        @endforelse
+    </div>
 
-        {{-- DESKTOP TABLE --}}
-        <div class="hidden lg:block rounded-xl border bg-white dark:bg-gray-950 overflow-hidden">
+    {{-- Paginación móvil --}}
+    <div class="lg:hidden au d3" data-turbo="false">
+        {{ $rows->links() }}
+    </div>
+
+    {{-- ── REPORTE DE IMPORTACIÓN ──────────────────────────────── --}}
+    @if(session('import_report'))
+        <div class="t-card au d3">
+            <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                <p class="text-sm font-bold text-gray-800 dark:text-gray-100">Detalle de importación</p>
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 dark:bg-gray-900/60">
-                        <tr class="text-gray-600 dark:text-gray-300">
-                            <th class="px-4 py-3 text-left">Contacto</th>
-                            <th class="px-4 py-3">Fecha</th>
-                            <th class="px-4 py-3">Patente</th>
-                            <th class="px-4 py-3">Chofer</th>
-                            <th class="px-4 py-3">Guía</th>
-                            <th class="px-4 py-3">Referencia</th>
-                            <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3"></th>
+                <table class="dt">
+                    <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th>Estado</th>
+                            <th>Guía</th>
+                            <th>Detalle</th>
                         </tr>
                     </thead>
-
-                    <tbody class="divide-y dark:divide-gray-700">
-                        @foreach($rows as $r)
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                                <td class="px-4 py-3">{{ $r->contacto ?? '—' }}</td>
-
-                                <td class="px-4 py-3 text-xs text-gray-500">
-                                    {{ $r->fecha_prevista?->format('d-m-Y') }}<br>
-                                    <span class="opacity-60">{{ $r->fecha_prevista?->format('H:i') }}</span>
+                    <tbody>
+                        @foreach(session('import_report') as $rep)
+                            @php $st = $rep['status'] ?? ''; @endphp
+                            <tr>
+                                <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['file'] ?? '—' }}</td>
+                                <td>
+                                    <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
+                                        {{ $st === 'imported'  ? 'ir-badge-imported'  : '' }}
+                                        {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
+                                        {{ $st === 'skip'      ? 'ir-badge-skip'      : '' }}">
+                                        {{ $st }}
+                                    </span>
                                 </td>
-
-                                <td class="px-4 py-3">{{ $r->patente ?? '—' }}</td>
-                                <td class="px-4 py-3 uppercase">{{ $r->chofer ?? '—' }}</td>
-
-                                <td class="px-4 py-3 font-mono font-semibold text-indigo-600">
-                                    {{ $r->guia_entrega ?? '—' }}
-                                </td>
-
-                                <td class="px-4 py-3">{{ $r->referencia ?? '—' }}</td>
-
-                                <td class="px-4 py-3">
-                                    @if($r->exists_guia)
-                                        <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                            ✔ Match
-                                        </span>
-                                    @else
-                                        <span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">
-                                            ✖ Sin guía
-                                        </span>
-                                    @endif
-                                </td>
-
-                                <td class="px-4 py-3">
-                                    <a href="{{ route('excel_out_transfers.show', $r) }}"
-                                        class="text-indigo-600 text-sm hover:underline">
-                                        Ver
-                                    </a>
-                                </td>
+                                <td class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ $rep['guia'] ?? '—' }}</td>
+                                <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['reason'] ?? '' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
         </div>
+    @endif
 
-        {{-- PAGINACIÓN --}}
-        <div class="sm:hidden" data-turbo="false">
-            {{ $rows->links() }}
-        </div>
-
-    </div>
+</div>
+</div>
 
 </x-app-layout>
