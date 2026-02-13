@@ -1,37 +1,36 @@
 <x-app-layout>
-
-{{-- ═══════════════════════════════════════════════════
-     HEADER
-═══════════════════════════════════════════════════ --}}
-<x-slot name="header">
-    <div class="flex items-center justify-between w-full gap-4">
-        <div class="flex items-center gap-2.5 min-w-0">
-            <a href="{{ route('pdf.index') }}"
-               class="hidden sm:inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700
+    {{-- ═══════════════════════════════════════════════════
+    HEADER
+    ═══════════════════════════════════════════════════ --}}
+    <x-slot name="header">
+        <div class="flex items-center justify-between w-full gap-4">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <a href="{{ route('pdf.index') }}" class="hidden sm:inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700
                       dark:hover:text-gray-200 transition shrink-0">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-                DTE / Facturas
-            </a>
-            <span class="hidden sm:block text-gray-200 dark:text-gray-700 text-sm">/</span>
-            <div>
-                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Importar documentos</h2>
-                <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">PDF · Excel · XML SII</p>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    DTE / Facturas
+                </a>
+                <span class="hidden sm:block text-gray-200 dark:text-gray-700 text-sm">/</span>
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Importar documentos</h2>
+                    <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">PDF · Excel · XML SII</p>
+                </div>
             </div>
-        </div>
-        <div class="hidden md:flex items-center gap-1.5 flex-wrap">
+
+            <div class="hidden md:flex items-center gap-1.5 flex-wrap">
             @foreach([
-                'QC'    => 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                'MP'    => 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                'SANCO' => 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-                'RFP'   => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-                'VT'    => 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-                'LIQ'   => 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-                'GRR'   => 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
-                'XML'   => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-            ] as $t => $cls)
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $cls }}">{{ $t }}</span>
+                    'QC' => 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    'MP' => 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                    'SANCO' => 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+                    'RFP' => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+                    'VT' => 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                    'LIQ' => 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+                    'GRR' => 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+                    'XML' => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+                ] as $t => $cls)
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $cls }}">{{ $t }}</span>
             @endforeach
         </div>
     </div>
@@ -144,24 +143,24 @@
 </style>
 
 <div class="page-bg">
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
 
     {{-- Flash --}}
     @if(session('ok'))
-    <div class="flash-ok au d1">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-        </svg>
-        {{ session('ok') }}
-    </div>
+        <div class="flash-ok au d1">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            {{ session('ok') }}
+        </div>
     @endif
     @if($errors->any())
-    <div class="flash-err au d1">
-        <p class="font-bold mb-1">Errores:</p>
-        <ul class="list-disc pl-4 space-y-0.5">
-            @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
-        </ul>
-    </div>
+        <div class="flash-err au d1">
+            <p class="font-bold mb-1">Errores:</p>
+            <ul class="list-disc pl-4 space-y-0.5">
+                @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
+            </ul>
+        </div>
     @endif
 
     {{-- ═══ GRID 3 paneles ═══ --}}
@@ -498,30 +497,30 @@
         <div class="p-4">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 @foreach([
-                    ['QC',    'Control de Calidad',   'Comfrut',    'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', 'PDF'],
-                    ['MP',    'Reporte MP',            'Río Futuro', 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',             'PDF'],
-                    ['SANCO', 'Guía Rec. Granel',      'Sanco',      'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',     'PDF'],
-                    ['RFP',   'Recepción Fruta Prod.', 'RFP',        'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',     'Excel'],
-                    ['VT',    'VitaFoods GDD',         'Excel',      'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',         'Excel'],
-                    ['LIQ',   'Liq. Productores',      'Compuagro',  'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',             'PDF'],
-                    ['GRR',   'Guía Rec. Resumen',     'Interno',    'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',                 'PDF'],
-                    ['XML',   'Guía Despacho SII',     'SII Tipo 46','bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',           'XML'],
-                ] as [$key, $name, $source, $cls, $format])
-                <div class="flex items-start gap-2 p-3 rounded-xl
-                            bg-gray-50 dark:bg-gray-900/30
-                            border border-gray-100 dark:border-gray-800">
-                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md {{ $cls }} shrink-0 mt-0.5">{{ $key }}</span>
-                    <div class="min-w-0">
-                        <p class="font-semibold text-gray-700 dark:text-gray-300 leading-snug">{{ $name }}</p>
-                        <p class="text-gray-400 mt-0.5 truncate">{{ $source }}</p>
-                        <span class="inline-block mt-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded
-                                     {{ $format === 'PDF'  ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-400'
-                                     : ($format === 'XML'  ? 'bg-violet-50 text-violet-500 dark:bg-violet-900/20 dark:text-violet-400'
-                                                           : 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 dark:text-emerald-400') }}">
-                            {{ $format }}
-                        </span>
-                    </div>
-                </div>
+                                ['QC', 'Control de Calidad', 'Comfrut', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', 'PDF'],
+                                ['MP', 'Reporte MP', 'Río Futuro', 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', 'PDF'],
+                                ['SANCO', 'Guía Rec. Granel', 'Sanco', 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', 'PDF'],
+                                ['RFP', 'Recepción Fruta Prod.', 'RFP', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', 'Excel'],
+                                ['VT', 'VitaFoods GDD', 'Excel', 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'Excel'],
+                                ['LIQ', 'Liq. Productores', 'Compuagro', 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400', 'PDF'],
+                                ['GRR', 'Guía Rec. Resumen', 'Interno', 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', 'PDF'],
+                                ['XML', 'Guía Despacho SII', 'SII Tipo 46', 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', 'XML'],
+                            ] as [$key, $name, $source, $cls, $format])
+                            <div class="flex items-start gap-2 p-3 rounded-xl
+                                        bg-gray-50 dark:bg-gray-900/30
+                                        border border-gray-100 dark:border-gray-800">
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md {{ $cls }} shrink-0 mt-0.5">{{ $key }}</span>
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-700 dark:text-gray-300 leading-snug">{{ $name }}</p>
+                                    <p class="text-gray-400 mt-0.5 truncate">{{ $source }}</p>
+                                    <span class="inline-block mt-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded
+                                                 {{ $format === 'PDF' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-400'
+                    : ($format === 'XML' ? 'bg-violet-50 text-violet-500 dark:bg-violet-900/20 dark:text-violet-400'
+                        : 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 dark:text-emerald-400') }}">
+                                        {{ $format }}
+                                    </span>
+                                </div>
+                            </div>
                 @endforeach
             </div>
         </div>
