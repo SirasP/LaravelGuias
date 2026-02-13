@@ -10,7 +10,7 @@
             <div class="flex items-center gap-4 min-w-0">
                 <div class="hidden sm:block">
                     <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">Match ODOO</h2>
-                    
+
                 </div>
             </div>
 
@@ -45,7 +45,7 @@
 
                 @if($q || ($exists ?? '') !== '')
                     <a href="{{ route('excel_out_transfers.index') }}" class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
-                              text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                                      text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                         Limpiar
                     </a>
                 @endif
@@ -258,25 +258,43 @@
     <div class="page-wrap">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-2">
             {{-- Título + stats --}}
-            <div class="flex items-center gap-4 min-w-0">
-                <div class="hidden sm:block">
-                    
-                    <div class="flex items-center gap-2 mt-2.5">
-                        <span
-                            class="text-xs px-2 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                            Total <strong>{{ $total }}</strong>
-                        </span>
-                        <span
-                            class="text-xs px-2 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                            Match <strong>{{ $matched }}</strong>
-                        </span>
-                        <span
-                            class="text-xs px-2 py-1.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                            Sin Match <strong>{{ $unmatched }}</strong>
-                        </span>
-                    </div>
+            <div class="hidden sm:flex items-center gap-6 mt-2.5">
+
+                {{-- Total --}}
+                <div class="flex items-baseline gap-2">
+                    <span class="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                        Total
+                    </span>
+                    <span class="text-lg font-black text-gray-800 dark:text-gray-100">
+                        {{ $total }}
+                    </span>
                 </div>
+
+                {{-- Match --}}
+                <div class="flex items-baseline gap-2">
+                    <span class="text-xs uppercase tracking-wider text-emerald-500 font-semibold">
+                        Match
+                    </span>
+                    <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                        {{ $matched }}
+                    </span>
+                    <span class="text-xs text-gray-400">
+                        ({{ round($matched / max($total, 1) * 100) }}%)
+                    </span>
+                </div>
+
+                {{-- Sin Match --}}
+                <div class="flex items-baseline gap-2">
+                    <span class="text-xs uppercase tracking-wider text-red-500 font-semibold">
+                        Sin match
+                    </span>
+                    <span class="text-lg font-black text-red-600 dark:text-red-400">
+                        {{ $unmatched }}
+                    </span>
+                </div>
+
             </div>
+
 
             {{-- Buscador móvil --}}
             <form method="GET" class="lg:hidden flex gap-2 au d1">
@@ -299,21 +317,47 @@
             </form>
 
             {{-- Stats móvil --}}
-            <div class="lg:hidden flex gap-2 flex-wrap au d1">
-                <span
-                    class="text-xs px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-medium">
-                    Total <strong>{{ $total }}</strong>
-                </span>
-                <span
-                    class="text-xs px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
-                    ✔ Match <strong>{{ $matched }}</strong>
-                    <span class="opacity-60 ml-0.5">({{ round($matched / max($total, 1) * 100) }}%)</span>
-                </span>
-                <span
-                    class="text-xs px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">
-                    ✖ Sin match <strong>{{ $unmatched }}</strong>
-                </span>
+            <div class="lg:hidden grid grid-cols-3 gap-2 au d1">
+
+                {{-- Total --}}
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700
+                bg-white dark:bg-gray-800 p-3 text-center">
+                    <div class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+                        Total
+                    </div>
+                    <div class="text-lg font-black text-gray-800 dark:text-gray-100">
+                        {{ $total }}
+                    </div>
+                </div>
+
+                {{-- Match --}}
+                <div class="rounded-xl border border-emerald-200 dark:border-emerald-800
+                bg-emerald-50 dark:bg-emerald-900/20 p-3 text-center">
+                    <div
+                        class="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">
+                        Match
+                    </div>
+                    <div class="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                        {{ $matched }}
+                    </div>
+                    <div class="text-[10px] text-emerald-500 opacity-80">
+                        {{ round($matched / max($total, 1) * 100) }}%
+                    </div>
+                </div>
+
+                {{-- Sin Match --}}
+                <div class="rounded-xl border border-red-200 dark:border-red-800
+                bg-red-50 dark:bg-red-900/20 p-3 text-center">
+                    <div class="text-[10px] uppercase tracking-wider text-red-600 dark:text-red-400 font-semibold">
+                        Sin match
+                    </div>
+                    <div class="text-lg font-black text-red-600 dark:text-red-400">
+                        {{ $unmatched }}
+                    </div>
+                </div>
+
             </div>
+
 
             {{-- Flash ok --}}
             @if(session('ok'))
@@ -372,11 +416,12 @@
                                     <td class="uppercase text-gray-600 dark:text-gray-400 text-xs">{{ $r->chofer ?? '—' }}
                                     </td>
                                     <td class="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                                        {{ $r->guia_entrega ?? '—' }}</td>
+                                        {{ $r->guia_entrega ?? '—' }}
+                                    </td>
                                     <td class="text-gray-500 dark:text-gray-400 text-xs">{{ $r->referencia ?? '—' }}</td>
                                     <td>
                                         <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400
-                                              hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
+                                                      hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
                                             Ver →
                                         </a>
                                     </td>
@@ -428,7 +473,8 @@
                             <div>
                                 <span class="text-gray-400 dark:text-gray-600">Guía</span>
                                 <p class="font-bold font-mono text-indigo-600 dark:text-indigo-400 text-sm">
-                                    {{ $r->guia_entrega ?? '—' }}</p>
+                                    {{ $r->guia_entrega ?? '—' }}
+                                </p>
                             </div>
                             <div>
                                 <span class="text-gray-400 dark:text-gray-600">Patente</span>
@@ -438,7 +484,8 @@
                             <div>
                                 <span class="text-gray-400 dark:text-gray-600">Fecha</span>
                                 <p class="text-gray-700 dark:text-gray-300">
-                                    {{ $r->fecha_prevista?->format('d-m-Y') ?? '—' }}</p>
+                                    {{ $r->fecha_prevista?->format('d-m-Y') ?? '—' }}
+                                </p>
                             </div>
                             <div>
                                 <span class="text-gray-400 dark:text-gray-600">Chofer</span>
@@ -494,15 +541,19 @@
                                         <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['file'] ?? '—' }}</td>
                                         <td>
                                             <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
-                                                {{ $st === 'imported' ? 'ir-badge-imported' : '' }}
-                                                {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
-                                                {{ $st === 'skip' ? 'ir-badge-skip' : '' }}">
+                                                                {{ $st === 'imported' ? 'ir-badge-imported' : '' }}
+                                                                {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
+                                                                {{ $st === 'skip' ? 'ir-badge-skip' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
                                         <td class="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                                            {{ $rep['guia'] ?? '—' }}</td>
-                                        <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['reason'] ?? '' }}</td>
+                                            {{ $rep['guia'] ?? '—' }}
+                                        </td>
+                                        <td class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $rep['reason'] ?? '' }}
+
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
