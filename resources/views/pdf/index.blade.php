@@ -45,7 +45,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span class="hidden sm:inline">Excel</span>
+                <span class="hidden sm:inline">Exportar Excel</span>
             </a>
         </div>
     </x-slot>
@@ -344,7 +344,7 @@
     </style>
 
     <div class="page-bg" x-data="pdfIndex({{ $rowsJson }})">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
 
             {{-- Buscador móvil --}}
             <div class="sm:hidden au d1">
