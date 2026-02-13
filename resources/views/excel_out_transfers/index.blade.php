@@ -43,7 +43,7 @@
                     class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
                            bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200
                            focus:ring-2 focus:ring-indigo-500 outline-none transition">
-                <option value=""  {{ ($exists ?? '') === ''  ? 'selected' : '' }}>Todos</option>
+                <option value=""  {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
                 <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
                 <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
             </select>
@@ -156,7 +156,7 @@
         </span>
         <span class="text-xs px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
             ✔ Match <strong>{{ $matched }}</strong>
-            <span class="opacity-60 ml-0.5">({{ round($matched / max($total,1) * 100) }}%)</span>
+            <span class="opacity-60 ml-0.5">({{ round($matched / max($total, 1) * 100) }}%)</span>
         </span>
         <span class="text-xs px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">
             ✖ Sin match <strong>{{ $unmatched }}</strong>
@@ -186,9 +186,9 @@
                         <th>
                             @php
                                 $isActive = ($orderBy ?? '') === 'exists_guia';
-                                $nextDir  = ($isActive && ($dir ?? '') === 'asc') ? 'desc' : 'asc';
+                                $nextDir = ($isActive && ($dir ?? '') === 'asc') ? 'desc' : 'asc';
                             @endphp
-                            <a href="{{ request()->fullUrlWithQuery(['order_by'=>'exists_guia','dir'=>$nextDir]) }}"
+                            <a href="{{ request()->fullUrlWithQuery(['order_by' => 'exists_guia', 'dir' => $nextDir]) }}"
                                class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                 Match
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +224,7 @@
                                 </a>
                             </td>
                             <td>
-                                @if((int)($r->exists_guia ?? 0) === 1)
+                                @if((int) ($r->exists_guia ?? 0) === 1)
                                     <div class="flex items-center gap-2">
                                         <span class="badge-match">✔ Match</span>
                                         <a href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}"
@@ -260,7 +260,7 @@
                     <span class="font-bold text-sm text-gray-800 dark:text-gray-100 leading-snug">
                         {{ $r->contacto ?? '—' }}
                     </span>
-                    @if((int)($r->exists_guia ?? 0) === 1)
+                    @if((int) ($r->exists_guia ?? 0) === 1)
                         <span class="badge-match shrink-0">✔ Match</span>
                     @else
                         <span class="badge-nomatch shrink-0">Sin match</span>
@@ -291,7 +291,7 @@
                        class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
                         Ver detalle →
                     </a>
-                    @if((int)($r->exists_guia ?? 0) === 1)
+                    @if((int) ($r->exists_guia ?? 0) === 1)
                         <a href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}"
                            class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">
                             Ver PDF
@@ -334,9 +334,9 @@
                                 <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['file'] ?? '—' }}</td>
                                 <td>
                                     <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
-                                        {{ $st === 'imported'  ? 'ir-badge-imported'  : '' }}
+                                        {{ $st === 'imported' ? 'ir-badge-imported' : '' }}
                                         {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
-                                        {{ $st === 'skip'      ? 'ir-badge-skip'      : '' }}">
+                                        {{ $st === 'skip' ? 'ir-badge-skip' : '' }}">
                                         {{ $st }}
                                     </span>
                                 </td>
