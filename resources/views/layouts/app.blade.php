@@ -21,7 +21,8 @@
     </style>
 </head>
 
-<body class="font-sans antialiased">
+<body {{ $attributes->merge(['class' => 'font-sans antialiased']) }}>
+
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
 
         {{--
