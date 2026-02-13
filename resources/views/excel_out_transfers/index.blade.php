@@ -44,22 +44,24 @@
                 </button>
 
                 @if($q || ($exists ?? '') !== '')
-                    <a href="{{ route('excel_out_transfers.index') }}" class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
-                                      text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                    <a href="{{ route('excel_out_transfers.index') }}"
+                        class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
+                                          text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                         Limpiar
                     </a>
                 @endif
             </form>
 
             {{-- Descargar Excel --}}
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl
-                  bg-emerald-600 hover:bg-emerald-700 active:scale-95
-                  text-white transition-all shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
+            <a href="{{ route('excel_out_transfers.export', request()->query()) }}" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
+   bg-emerald-600 hover:bg-emerald-700 active:scale-95
+   text-white transition-all shadow-md shadow-emerald-300/40
+   dark:shadow-emerald-900/40">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span class="hidden sm:inline">Excel</span>
+                Exportar Excel
             </a>
 
         </div>
@@ -420,8 +422,9 @@
                                     </td>
                                     <td class="text-gray-500 dark:text-gray-400 text-xs">{{ $r->referencia ?? '—' }}</td>
                                     <td>
-                                        <a href="{{ route('excel_out_transfers.show', $r) }}" class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400
-                                                      hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
+                                        <a href="{{ route('excel_out_transfers.show', $r) }}"
+                                            class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400
+                                                          hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
                                             Ver →
                                         </a>
                                     </td>
@@ -541,9 +544,9 @@
                                         <td class="text-xs text-gray-500 dark:text-gray-400">{{ $rep['file'] ?? '—' }}</td>
                                         <td>
                                             <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
-                                                                {{ $st === 'imported' ? 'ir-badge-imported' : '' }}
-                                                                {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
-                                                                {{ $st === 'skip' ? 'ir-badge-skip' : '' }}">
+                                                                        {{ $st === 'imported' ? 'ir-badge-imported' : '' }}
+                                                                        {{ $st === 'duplicate' ? 'ir-badge-duplicate' : '' }}
+                                                                        {{ $st === 'skip' ? 'ir-badge-skip' : '' }}">
                                                 {{ $st }}
                                             </span>
                                         </td>
