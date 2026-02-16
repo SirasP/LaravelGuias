@@ -10,6 +10,9 @@ use Google\Service\Gmail;
 use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Kreait\Firebase\Factory;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification;
 
 class GmailLeerXml extends Command
 {
@@ -235,14 +238,31 @@ class GmailLeerXml extends Command
                     /* ─── WebSocket notify ─────────── */
                     try {
                         Http::timeout(3)->post('http://127.0.0.1:3001/notify', [
+                            'type'    => $usaVehiculo ? 'xml_vehiculo' : 'xml_entrada',
                             'titulo'  => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
                             'mensaje' => $usaVehiculo
                                 ? "{$cantidad} L (Ley 18.502)"
                                 : "+{$cantidad} L desde XML ({$part->getFilename()})",
+                            'producto' => $productoNombre,  // 🔥 Diesel o Gasolina
+                            'cantidad' => $cantidad,
+                            'movimiento_id' => $movimientoId,
+                            'timestamp' => now()->toIso8601String(),
                         ]);
                     } catch (\Throwable) {
                         // El servidor de notificaciones no está disponible — ignorar
                     }
+
+                    /* ─── Firebase Push Notifications ─── */
+                    $this->enviarNotificacionPush(
+                        titulo: $usaVehiculo ? '🚗 XML requiere revisión' : "⛽ Ingreso de {$productoNombre}",
+                        mensaje: $usaVehiculo
+                            ? "{$cantidad} L detectados (Ley 18.502)"
+                            : "+{$cantidad} L agregados al stock",
+                        producto: $productoNombre,
+                        cantidad: $cantidad,
+                        movimientoId: $movimientoId,
+                        tipo: $usaVehiculo ? 'xml_revision' : 'xml_entrada'
+                    );
                 }
             }
 
@@ -258,5 +278,82 @@ class GmailLeerXml extends Command
 
         $this->info('✔ Proceso completo.');
         return Command::SUCCESS;
+    }
+
+    /**
+     * Enviar notificación push a todos los dispositivos activos
+     */
+    private function enviarNotificacionPush(
+        string $titulo,
+        string $mensaje,
+        string $producto,
+        float $cantidad,
+        int $movimientoId,
+        string $tipo
+    ): void
+    {
+        // Verificar si existe el archivo de credenciales de Firebase
+        $credentialsPath = storage_path('app/firebase/firebase-credentials.json');
+
+        if (!file_exists($credentialsPath)) {
+            $this->warn('⚠️  Firebase no configurado. Notificaciones push desactivadas.');
+            $this->line('   Para activarlas, configura Firebase (ver docs/FLUTTER_INTEGRATION.md)');
+            return;
+        }
+
+        try {
+            // Obtener tokens FCM activos
+            $tokens = DB::connection('fuelcontrol')
+                ->table('device_tokens')
+                ->where('active', true)
+                ->pluck('fcm_token')
+                ->toArray();
+
+            if (empty($tokens)) {
+                $this->line('   No hay dispositivos registrados para notificaciones push.');
+                return;
+            }
+
+            // Crear cliente Firebase
+            $factory = (new Factory)->withServiceAccount($credentialsPath);
+            $messaging = $factory->createMessaging();
+
+            // Crear notificación
+            $notification = Notification::create($titulo, $mensaje);
+
+            $enviados = 0;
+            $errores = 0;
+
+            foreach ($tokens as $token) {
+                try {
+                    $message = CloudMessage::withTarget('token', $token)
+                        ->withNotification($notification)
+                        ->withData([
+                            'tipo' => $tipo,
+                            'producto' => $producto,
+                            'cantidad' => (string) $cantidad,
+                            'movimiento_id' => (string) $movimientoId,
+                            'timestamp' => now()->toIso8601String(),
+                        ]);
+
+                    $messaging->send($message);
+                    $enviados++;
+                } catch (\Throwable $e) {
+                    $errores++;
+                    // Token inválido, desactivarlo
+                    if (str_contains($e->getMessage(), 'not-found') ||
+                        str_contains($e->getMessage(), 'invalid-registration-token')) {
+                        DB::connection('fuelcontrol')
+                            ->table('device_tokens')
+                            ->where('fcm_token', $token)
+                            ->update(['active' => false]);
+                    }
+                }
+            }
+
+            $this->info("📱 Push enviadas: {$enviados} exitosas" . ($errores > 0 ? ", {$errores} fallidas" : ""));
+        } catch (\Throwable $e) {
+            $this->error("Error al enviar notificaciones push: {$e->getMessage()}");
+        }
     }
 }
