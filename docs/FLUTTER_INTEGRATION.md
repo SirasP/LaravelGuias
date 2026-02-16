@@ -4,6 +4,16 @@
 
 Este documento explica cómo integrar la aplicación Flutter para recibir notificaciones cuando llegan **Diesel** o **Gasolina** desde los DTEs procesados por el sistema.
 
+### 🎯 Opciones disponibles:
+
+| Opción | App Abierta | App Cerrada | Complejidad | Documento |
+|--------|-------------|-------------|-------------|-----------|
+| **API REST (Polling)** | ✅ | ❌ | Baja | Este documento |
+| **WebSocket** | ✅ | ❌ | Media | Este documento |
+| **Firebase Push** | ✅ | ✅ | Media | [FIREBASE_SETUP.md](FIREBASE_SETUP.md) |
+
+> **💡 Recomendación**: Empieza con **API REST** (más simple), y luego agrega **Firebase Push** si necesitas notificaciones con la app cerrada.
+
 ---
 
 ## ✅ Opción 1: API REST (Recomendada para empezar)
@@ -469,43 +479,24 @@ Agregar en `config/cors.php`:
 
 ---
 
-## 📱 Notificaciones Push (Opcional - Firebase)
+## 📱 Notificaciones Push con Firebase (App Cerrada)
 
-Para notificaciones cuando la app está cerrada:
+¿Necesitas que las notificaciones lleguen **incluso cuando la app está cerrada**?
 
-1. Instalar Firebase en Flutter
-2. Guardar FCM tokens en Laravel
-3. Enviar push desde el comando:
+✅ **Firebase Push Notifications está completamente implementado**
 
-```php
-// En GmailLeerXml.php después de línea 245
-use Google\Client as GoogleClient;
-use Kreait\Firebase\Factory;
-use Kreait\Firebase\Messaging\CloudMessage;
+### 🚀 Configuración:
 
-$fcmTokens = DB::table('device_tokens')->pluck('fcm_token');
-foreach ($fcmTokens as $token) {
-    try {
-        $factory = (new Factory)->withServiceAccount(storage_path('app/firebase-credentials.json'));
-        $messaging = $factory->createMessaging();
+**Sigue la guía completa en**: [**FIREBASE_SETUP.md**](FIREBASE_SETUP.md)
 
-        $message = CloudMessage::withTarget('token', $token)
-            ->withNotification([
-                'title' => "Ingreso de {$productoNombre}",
-                'body' => "+{$cantidad} L",
-            ])
-            ->withData([
-                'producto' => $productoNombre,
-                'cantidad' => $cantidad,
-                'movimiento_id' => $movimientoId,
-            ]);
+La guía incluye:
+- ✅ Crear proyecto en Firebase Console (5 min)
+- ✅ Configurar credenciales en Laravel (2 min)
+- ✅ Configurar Flutter con Firebase (15 min)
+- ✅ Código completo de ejemplo
+- ✅ Testing y troubleshooting
 
-        $messaging->send($message);
-    } catch (\Throwable $e) {
-        \Log::error("Error FCM: {$e->getMessage()}");
-    }
-}
-```
+**Backend Laravel**: Ya está 100% configurado y listo para enviar push notifications.
 
 ---
 
