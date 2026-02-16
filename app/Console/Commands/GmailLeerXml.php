@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 
 class GmailLeerXml extends Command
 {
-    protected $signature = 'gmail:leer-xml';
+    protected $signature   = 'gmail:leer-xml';
     protected $description = 'Lee correos Gmail, procesa XML DTE y controla inventario';
 
     public function handle(): int
@@ -39,7 +39,7 @@ class GmailLeerXml extends Command
         $client = new GoogleClient();
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
-        $client->setAuthConfig(storage_path('app/gmail/credentials1.json'));
+        $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
         $client->setAccessType('offline');
 
         $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
@@ -83,13 +83,13 @@ class GmailLeerXml extends Command
 
             $db->table('gmail_imports')->insert([
                 'gmail_message_id' => $msg->getId(),
-                'processed_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'processed_at'     => now(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
             ]);
 
             $message = $service->users_messages->get('me', $msg->getId());
-            $parts = $message->getPayload()->getParts() ?? [];
+            $parts   = $message->getPayload()->getParts() ?? [];
 
             foreach ($parts as $part) {
 
@@ -103,13 +103,11 @@ class GmailLeerXml extends Command
                  | 5. DESCARGAR Y PARSEAR XML
                  ─────────────────────────────────  */
                 $attachment = $service->users_messages_attachments->get(
-                    'me',
-                    $msg->getId(),
-                    $part->getBody()->getAttachmentId()
+                    'me', $msg->getId(), $part->getBody()->getAttachmentId()
                 );
 
                 $contenidoXml = base64_decode(strtr($attachment->getData(), '-_', '+/'));
-                $xml = simplexml_load_string($contenidoXml);
+                $xml          = simplexml_load_string($contenidoXml);
 
                 if (!$xml) {
                     $this->error("❌ XML inválido: {$part->getFilename()}");
@@ -131,7 +129,7 @@ class GmailLeerXml extends Command
                 }
 
                 $fechaEmision = Carbon::parse((string) $fch);
-                $afectaStock = $fechaEmision->greaterThanOrEqualTo(now()->subDays(5));
+                $afectaStock  = $fechaEmision->greaterThanOrEqualTo(now()->subDays(5));
 
                 /* ─────────────────────────────────
                  | 7. DETECTAR LEY 18.502 (vehículo)
@@ -151,25 +149,21 @@ class GmailLeerXml extends Command
                  ─────────────────────────────────  */
                 foreach ($xml->xpath('//sii:Detalle') as $detalle) {
 
-                    $nombre = strtoupper((string) $detalle->NmbItem);
+                    $nombre   = strtoupper((string) $detalle->NmbItem);
                     $cantidad = (float) $detalle->QtyItem;
 
                     $productoNombre = match (true) {
-                        str_contains($nombre, 'DIESEL') => 'Diesel',
+                        str_contains($nombre, 'DIESEL')   => 'Diesel',
                         str_contains($nombre, 'GASOLINA') => 'Gasolina',
-                        default => null,
+                        default                            => null,
                     };
 
-                    if (!$productoNombre || $cantidad <= 0)
-                        continue;
+                    if (!$productoNombre || $cantidad <= 0) continue;
 
                     $this->line("⛽ {$productoNombre} → {$cantidad} L");
 
                     $hash = hash('sha256', implode('|', [
-                        $msg->getId(),
-                        $part->getFilename(),
-                        $productoNombre,
-                        $cantidad
+                        $msg->getId(), $part->getFilename(), $productoNombre, $cantidad
                     ]));
 
                     if ($db->table('movimientos')->where('hash_unico', $hash)->exists()) {
@@ -197,51 +191,51 @@ class GmailLeerXml extends Command
 
                     /* ─── Insertar movimiento ──────── */
                     $movimientoId = $db->table('movimientos')->insertGetId([
-                        'producto_id' => $producto->id,
-                        'vehiculo_id' => null,
-                        'cantidad' => $cantidad,
-                        'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
-                        'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
-                        'referencia' => $part->getFilename(),
-                        'requiere_revision' => $usaVehiculo ? 1 : 0,
-                        'estado' => $estado,
-                        'xml_path' => $part->getFilename(),
-                        'usuario' => 'gmail',
+                        'producto_id'      => $producto->id,
+                        'vehiculo_id'      => null,
+                        'cantidad'         => $cantidad,
+                        'tipo'             => $usaVehiculo ? 'vehiculo' : 'entrada',
+                        'origen'           => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
+                        'referencia'       => $part->getFilename(),
+                        'requiere_revision'=> $usaVehiculo ? 1 : 0,
+                        'estado'           => $estado,
+                        'xml_path'         => $part->getFilename(),
+                        'usuario'          => 'gmail',
                         'fecha_movimiento' => $fechaEmision,
-                        'hash_unico' => $hash,
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'hash_unico'       => $hash,
+                        'created_at'       => now(),
+                        'updated_at'       => now(),
                     ]);
 
                     /* ─── Notificaciones ───────────── */
                     $notificacionId = DB::connection('fuelcontrol')->table('notificaciones')->insertGetId([
-                        'tipo' => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
-                        'titulo' => $usaVehiculo
+                        'tipo'         => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
+                        'titulo'       => $usaVehiculo
                             ? 'XML requiere revisión'
                             : "Ingreso de {$productoNombre}",
-                        'movimiento_id' => $movimientoId,
-                        'mensaje' => $usaVehiculo
+                        'movimiento_id'=> $movimientoId,
+                        'mensaje'      => $usaVehiculo
                             ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
                             : "+{$cantidad} L desde XML ({$part->getFilename()})",
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
                     ]);
 
                     $users = DB::table('users')->pluck('id');
                     foreach ($users as $userId) {
                         DB::connection('fuelcontrol')->table('notificacion_usuarios')->insert([
                             'notificacion_id' => $notificacionId,
-                            'user_id' => $userId,
-                            'leido' => 0,
-                            'created_at' => now(),
-                            'updated_at' => now(),
+                            'user_id'         => $userId,
+                            'leido'           => 0,
+                            'created_at'      => now(),
+                            'updated_at'      => now(),
                         ]);
                     }
 
                     /* ─── WebSocket notify ─────────── */
                     try {
                         Http::timeout(3)->post('http://127.0.0.1:3001/notify', [
-                            'titulo' => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
+                            'titulo'  => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
                             'mensaje' => $usaVehiculo
                                 ? "{$cantidad} L (Ley 18.502)"
                                 : "+{$cantidad} L desde XML ({$part->getFilename()})",

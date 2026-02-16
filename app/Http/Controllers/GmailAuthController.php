@@ -18,7 +18,7 @@ class GmailAuthController extends Controller
         $client = new GoogleClient();
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
-        $client->setAuthConfig(storage_path('app/gmail/credentials1.json'));
+        $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
         $client->setAccessType('offline');
         $client->setPrompt('select_account consent');
         $client->setRedirectUri(route('gmail.callback'));
