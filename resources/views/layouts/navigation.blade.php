@@ -23,7 +23,7 @@
                             <div x-data="{ openDocs: false }" class="relative">
                                 <button @click="openDocs = !openDocs" @click.away="openDocs = false"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                                                   {{ request()->routeIs('pdf.*') ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                                                       {{ request()->routeIs('pdf.*') ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
                                     <svg class="w-3.5 h-3.5 {{ request()->routeIs('pdf.*') ? 'text-indigo-500' : 'opacity-40' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -92,7 +92,7 @@
                             <div x-data="{ openOdoo: false }" class="relative">
                                 <button @click="openOdoo = !openOdoo" @click.away="openOdoo = false"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                                                   {{ request()->routeIs('excel_out_transfers.*') ? 'bg-gray-100 dark:bg-gray-800 text-violet-600 dark:text-violet-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                                                       {{ request()->routeIs('excel_out_transfers.*') ? 'bg-gray-100 dark:bg-gray-800 text-violet-600 dark:text-violet-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
                                     <svg class="w-3.5 h-3.5 {{ request()->routeIs('excel_out_transfers.*') ? 'text-violet-500' : 'opacity-40' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -156,7 +156,7 @@
                             <div x-data="{ openAgrak: false }" class="relative">
                                 <button @click="openAgrak = !openAgrak" @click.away="openAgrak = false"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                                                   {{ request()->routeIs('agrak.*') ? 'bg-gray-100 dark:bg-gray-800 text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                                                       {{ request()->routeIs('agrak.*') ? 'bg-gray-100 dark:bg-gray-800 text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
                                     <svg class="w-3.5 h-3.5 {{ request()->routeIs('agrak.*') ? 'text-emerald-500' : 'opacity-40' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -220,7 +220,7 @@
                             <div x-data="{ openGuias: false }" class="relative">
                                 <button @click="openGuias = !openGuias" @click.away="openGuias = false"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                                                   {{ request()->routeIs('guias.*') ? 'bg-gray-100 dark:bg-gray-800 text-sky-600 dark:text-sky-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                                                       {{ request()->routeIs('guias.*') ? 'bg-gray-100 dark:bg-gray-800 text-sky-600 dark:text-sky-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
                                     <svg class="w-3.5 h-3.5 {{ request()->routeIs('guias.*') ? 'text-sky-500' : 'opacity-40' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -244,7 +244,7 @@
                                     style="display:none">
                                     <div class="px-4 pt-3 pb-2 border-b border-gray-50 dark:border-gray-800">
                                         <p
-                                           class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
+                                            class="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 opacity-70">
                                             Guías Recepción Bandejas Gmail</p>
                                     </div>
                                     <div class="py-1.5">
@@ -285,7 +285,7 @@
                             <div x-data="{ openFuel: false }" class="relative">
                                 <button @click="openFuel = !openFuel" @click.away="openFuel = false"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                                                   {{ request()->routeIs('fuelcontrol.*') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                                                       {{ request()->routeIs('fuelcontrol.*') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
                                     <svg class="w-3.5 h-3.5 {{ request()->routeIs('fuelcontrol.*') ? 'text-orange-500' : 'opacity-40' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -371,6 +371,32 @@
                                                 <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Movimientos
                                                 </p>
                                                 <p class="text-xs text-gray-400">Historial de salidas</p>
+                                            </div>
+                                        </a>
+                                        <a href="{{ route('gmail.index') }}" @click="openFuel = false" class="flex items-center gap-3 px-4 py-2.5 
+               hover:bg-indigo-50 dark:hover:bg-indigo-900/30 
+               transition-colors group">
+
+                                            <span class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 
+                   group-hover:bg-indigo-100">
+
+                                                <svg class="w-3.5 h-3.5 text-gray-500 
+                        group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+
+                                            </span>
+
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                                    Gmail DTE
+                                                </p>
+                                                <p class="text-xs text-gray-400">
+                                                    Importación automática XML
+                                                </p>
                                             </div>
                                         </a>
                                     </div>
