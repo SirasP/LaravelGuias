@@ -290,7 +290,7 @@
     @endif
 
     @if(session('error'))
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
             <div class="flex items-center gap-3 px-4 py-3 rounded-xl
                     bg-red-50 border border-red-200 text-red-700 text-sm font-medium
                     dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
