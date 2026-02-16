@@ -73,6 +73,10 @@ class GmailAuthController extends Controller
         $client = $this->makeClient();
         $authUrl = $client->createAuthUrl();
 
+        // Log temporal para debug
+        \Log::info('Gmail OAuth URL: ' . $authUrl);
+        \Log::info('Redirect URI configurada: ' . route('gmail.callback'));
+
         return redirect()->away($authUrl);
     }
 
