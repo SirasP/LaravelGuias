@@ -168,7 +168,7 @@ function odooStatus($m): array {
 </style>
 
 <div class="page-bg">
-<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
     {{-- Flash --}}
     @if(session('ok'))
