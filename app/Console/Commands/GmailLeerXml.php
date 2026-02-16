@@ -39,7 +39,7 @@ class GmailLeerXml extends Command
         $client = new GoogleClient();
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
-        $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
+        $client->setAuthConfig(storage_path('app/gmail/credentials1.json'));
         $client->setAccessType('offline');
 
         $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
