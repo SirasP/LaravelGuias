@@ -28,18 +28,8 @@
     INICIALIZAR STORE Alpine.js
     DEBE ir ANTES de cualquier uso de $store.ui
     ═══════════════════════════════════════════════════ --}}
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.store('ui', {
-                open: false,
-                openView: false,
-                selectedUser: null,
-            });
-        });
-    </script>
 
-    {{-- Modales --}}
-    @include('users.partials.modals')
+
 
     {{-- SweetAlert2 success flash --}}
     @php($success = session()->pull('success'))
@@ -458,6 +448,9 @@
     </button>
 
     <div class="page-bg" x-data="{ users: @js($movimientos) }">
+
+        {{-- Modales --}}
+        @include('users.partials.modals')
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -525,10 +518,10 @@
                                                     {{-- Ver → abre modal de detalle --}}
                                                     <button type="button" class="act-btn act-view" title="Ver usuario"
                                                         @click="
-                                                        $store.ui.selectedUser = user;
-                                                        $store.ui.open = false;
-                                                        $store.ui.openView = true;
-                                                    ">
+   $store.ui.selectedUser = user;
+    $store.ui.open = false;
+    $store.ui.openView = true;
+">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"

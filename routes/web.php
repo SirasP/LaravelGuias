@@ -19,6 +19,7 @@ use App\Http\Controllers\FuelControl\DashboardController as FuelDashboard;
 use App\Http\Controllers\FuelControl\ProductoController;
 use App\Http\Controllers\FuelControl\VehiculoController;
 use App\Http\Controllers\FuelControl\MovimientoController;
+use App\Http\Controllers\GmailAuthController;
 
 
 /*
@@ -433,3 +434,34 @@ Route::middleware(['auth'])
         Route::get('/movimientos', [MovimientoController::class, 'index'])
             ->name('movimientos');
     });
+
+/*
+|--------------------------------------------------------------------------
+| routes/web.php  —  añade estas rutas
+|--------------------------------------------------------------------------
+*/
+
+
+Route::middleware(['auth'])->prefix('gmail')->name('gmail.')->group(function () {
+
+    // Vista principal de estado
+    Route::get('/', [GmailAuthController::class, 'index'])->name('index');
+
+    // Redirige a Google para autorizar
+    Route::get('/connect', [GmailAuthController::class, 'redirect'])->name('redirect');
+
+    // Google redirige aquí con el código
+    Route::get('/callback', [GmailAuthController::class, 'callback'])->name('callback');
+
+    // Desconectar (revoca token)
+    Route::delete('/disconnect', [GmailAuthController::class, 'disconnect'])->name('disconnect');
+
+    // Ejecutar sync manual desde la UI (POST → JSON)
+    Route::post('/run', [GmailAuthController::class, 'runNow'])->name('run');
+
+    // Polling de estado (GET → JSON)
+    Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
+
+});
+
+

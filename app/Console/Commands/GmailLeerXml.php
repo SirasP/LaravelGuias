@@ -16,61 +16,67 @@ class GmailLeerXml extends Command
     protected $signature = 'gmail:leer-xml';
     protected $description = 'Lee correos Gmail, procesa XML DTE y controla inventario';
 
-    public function handle()
+    public function handle(): int
     {
-        /* ===============================
-         | 1️⃣ CONEXIÓN BD
-         =============================== */
+        /* ─────────────────────────────────────────
+         | 1. CONEXIÓN BD
+         ───────────────────────────────────────── */
         $db = DB::connection('fuelcontrol');
 
-        /* ===============================
-         | 2️⃣ CLIENTE GMAIL
-         =============================== */
+        /* ─────────────────────────────────────────
+         | 2. CLIENTE GMAIL  (solo token guardado)
+         |    Si no hay token → error claro, sin
+         |    pedir input por consola.
+         ───────────────────────────────────────── */
+        $tokenPath = storage_path('app/gmail/token.json');
+
+        if (!file_exists($tokenPath)) {
+            $this->error('No hay token de Gmail guardado.');
+            $this->line('Visita la sección Gmail DTE en la aplicación para autorizar el acceso.');
+            return Command::FAILURE;
+        }
+
         $client = new GoogleClient();
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
         $client->setAccessType('offline');
-        $client->setPrompt('select_account consent');
 
-        $tokenPath = storage_path('app/gmail/token.json');
+        $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
 
-        if (file_exists($tokenPath)) {
-            $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
-        }
-
+        // Refrescar si expiró
         if ($client->isAccessTokenExpired()) {
-            if ($client->getRefreshToken()) {
-                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
-            } else {
-                $this->line($client->createAuthUrl());
-                $this->info("Pega aquí el código:");
-                $client->setAccessToken(
-                    $client->fetchAccessTokenWithAuthCode(trim(fgets(STDIN)))
-                );
+            if (!$client->getRefreshToken()) {
+                $this->error('El token expiró y no hay refresh token.');
+                $this->line('Reconecta Gmail desde la aplicación web.');
+                return Command::FAILURE;
             }
+
+            $this->line('Renovando token…');
+            $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
             file_put_contents($tokenPath, json_encode($client->getAccessToken()));
+            $this->info('Token renovado.');
         }
 
         $service = new Gmail($client);
 
-        /* ===============================
-         | 3️⃣ CORREOS NO LEÍDOS
-         =============================== */
+        /* ─────────────────────────────────────────
+         | 3. CORREOS NO LEÍDOS CON ADJUNTO
+         ───────────────────────────────────────── */
         $messages = $service->users_messages->listUsersMessages('me', [
             'q' => 'has:attachment is:unread'
         ]);
 
         if (!$messages->getMessages()) {
-            $this->info('No hay correos nuevos');
+            $this->info('No hay correos nuevos.');
             return Command::SUCCESS;
         }
 
         foreach ($messages->getMessages() as $msg) {
 
-            /* ===============================
-             | 4️⃣ REGISTRAR GMAIL IMPORT
-             =============================== */
+            /* ─────────────────────────────────────
+             | 4. EVITAR REPROCESAR
+             ───────────────────────────────────── */
             if ($db->table('gmail_imports')->where('gmail_message_id', $msg->getId())->exists()) {
                 continue;
             }
@@ -83,7 +89,7 @@ class GmailLeerXml extends Command
             ]);
 
             $message = $service->users_messages->get('me', $msg->getId());
-            $parts = $message->getPayload()->getParts();
+            $parts = $message->getPayload()->getParts() ?? [];
 
             foreach ($parts as $part) {
 
@@ -93,72 +99,71 @@ class GmailLeerXml extends Command
 
                 $this->info("📎 XML encontrado: {$part->getFilename()}");
 
+                /* ─────────────────────────────────
+                 | 5. DESCARGAR Y PARSEAR XML
+                 ─────────────────────────────────  */
                 $attachment = $service->users_messages_attachments->get(
                     'me',
                     $msg->getId(),
                     $part->getBody()->getAttachmentId()
                 );
 
-                $xml = simplexml_load_string(
-                    base64_decode(strtr($attachment->getData(), '-_', '+/'))
-                );
+                $contenidoXml = base64_decode(strtr($attachment->getData(), '-_', '+/'));
+                $xml = simplexml_load_string($contenidoXml);
 
                 if (!$xml) {
-                    $this->error("❌ XML inválido");
+                    $this->error("❌ XML inválido: {$part->getFilename()}");
                     continue;
                 }
 
                 $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
-                $contenidoXml = base64_decode(strtr($attachment->getData(), '-_', '+/'));
+                Storage::disk('local')->put('xml/' . $part->getFilename(), $contenidoXml);
 
-                $nombreArchivo = $part->getFilename();
-
-                // Guardar archivo
-                Storage::disk('local')->put('xml/' . $nombreArchivo, $contenidoXml);
-
-
-                /* ===============================
-                 | 5️⃣ FECHA DTE
-                 =============================== */
+                /* ─────────────────────────────────
+                 | 6. FECHA EMISIÓN (rango 5 días)
+                 ─────────────────────────────────  */
                 $fch = $xml->xpath('//sii:Encabezado/sii:IdDoc/sii:FchEmis')[0] ?? null;
 
                 if (!$fch) {
-                    $this->error("❌ No se pudo leer FchEmis");
+                    $this->error("❌ No se pudo leer FchEmis en {$part->getFilename()}");
                     continue;
                 }
 
                 $fechaEmision = Carbon::parse((string) $fch);
-                $limite = now()->subDays(5);
-                $afectaStock = $fechaEmision->greaterThanOrEqualTo($limite);
-                /* ===============================
-                 | 🔍 DETECTAR LEY 18.502
-                 =============================== */
+                $afectaStock = $fechaEmision->greaterThanOrEqualTo(now()->subDays(5));
+
+                /* ─────────────────────────────────
+                 | 7. DETECTAR LEY 18.502 (vehículo)
+                 ─────────────────────────────────  */
                 $usaVehiculo = false;
 
                 foreach ($xml->xpath('//sii:Referencia') as $ref) {
                     $razon = strtoupper((string) ($ref->RazonRef ?? ''));
-
                     if (str_contains($razon, 'LEY 18.502') || str_contains($razon, 'VEHICUL')) {
                         $usaVehiculo = true;
                         break;
                     }
                 }
-                /* ===============================
-                 | 6️⃣ DETALLES
-                 =============================== */
+
+                /* ─────────────────────────────────
+                 | 8. PROCESAR DETALLES
+                 ─────────────────────────────────  */
                 foreach ($xml->xpath('//sii:Detalle') as $detalle) {
 
                     $nombre = strtoupper((string) $detalle->NmbItem);
                     $cantidad = (float) $detalle->QtyItem;
 
-                    $productoNombre = str_contains($nombre, 'DIESEL') ? 'Diesel' :
-                        (str_contains($nombre, 'GASOLINA') ? 'Gasolina' : null);
+                    $productoNombre = match (true) {
+                        str_contains($nombre, 'DIESEL') => 'Diesel',
+                        str_contains($nombre, 'GASOLINA') => 'Gasolina',
+                        default => null,
+                    };
 
                     if (!$productoNombre || $cantidad <= 0)
                         continue;
 
-                    $this->line("⛽ {$productoNombre} → {$cantidad}");
+                    $this->line("⛽ {$productoNombre} → {$cantidad} L");
 
                     $hash = hash('sha256', implode('|', [
                         $msg->getId(),
@@ -168,31 +173,29 @@ class GmailLeerXml extends Command
                     ]));
 
                     if ($db->table('movimientos')->where('hash_unico', $hash)->exists()) {
+                        $this->line("⏭ Ya procesado, omitiendo.");
                         continue;
                     }
 
                     $producto = $db->table('productos')->where('nombre', $productoNombre)->first();
-                    if (!$producto)
+                    if (!$producto) {
+                        $this->warn("⚠ Producto '{$productoNombre}' no encontrado en BD.");
                         continue;
+                    }
 
+                    /* ─── Actualizar stock ─────────── */
                     if (!$usaVehiculo && $afectaStock) {
-
                         $db->table('productos')
                             ->where('id', $producto->id)
                             ->increment('cantidad', $cantidad);
-
-                        $this->info("📦 Stock actualizado automáticamente");
-
+                        $this->info("📦 Stock actualizado: +{$cantidad} L de {$productoNombre}");
                         $estado = 'aprobado';
-
                     } else {
-
-                        $this->warn("🚫 DTE asociado a VEHÍCULO → Requiere aprobación");
-
+                        $this->warn("🚫 DTE vehicular → Requiere aprobación manual.");
                         $estado = 'pendiente';
                     }
 
-
+                    /* ─── Insertar movimiento ──────── */
                     $movimientoId = $db->table('movimientos')->insertGetId([
                         'producto_id' => $producto->id,
                         'vehiculo_id' => null,
@@ -200,83 +203,66 @@ class GmailLeerXml extends Command
                         'tipo' => $usaVehiculo ? 'vehiculo' : 'entrada',
                         'origen' => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
                         'referencia' => $part->getFilename(),
-
                         'requiere_revision' => $usaVehiculo ? 1 : 0,
-                        'estado' => $estado, // 🔥 AQUÍ VA
-
+                        'estado' => $estado,
                         'xml_path' => $part->getFilename(),
-
                         'usuario' => 'gmail',
                         'fecha_movimiento' => $fechaEmision,
                         'hash_unico' => $hash,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
+                    /* ─── Notificaciones ───────────── */
+                    $notificacionId = DB::connection('fuelcontrol')->table('notificaciones')->insertGetId([
+                        'tipo' => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
+                        'titulo' => $usaVehiculo
+                            ? 'XML requiere revisión'
+                            : "Ingreso de {$productoNombre}",
+                        'movimiento_id' => $movimientoId,
+                        'mensaje' => $usaVehiculo
+                            ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
+                            : "+{$cantidad} L desde XML ({$part->getFilename()})",
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
 
-                    $notificacionId = DB::connection('fuelcontrol')
-                        ->table('notificaciones')
-                        ->insertGetId([
-                            'tipo' => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
-                            'titulo' => $usaVehiculo
-                                ? 'XML requiere revisión'
-                                : "Ingreso de {$productoNombre}",
-
-                            'movimiento_id' => $movimientoId, // ✅ AHORA SÍ
-
-                            'mensaje' => $usaVehiculo
-                                ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
-                                : "+{$cantidad} L desde XML ({$part->getFilename()})",
-
+                    $users = DB::table('users')->pluck('id');
+                    foreach ($users as $userId) {
+                        DB::connection('fuelcontrol')->table('notificacion_usuarios')->insert([
+                            'notificacion_id' => $notificacionId,
+                            'user_id' => $userId,
+                            'leido' => 0,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
-
-
-
-                    $users = DB::table('users')->pluck('id');
-
-                    foreach ($users as $userId) {
-                        DB::connection('fuelcontrol')
-                            ->table('notificacion_usuarios')
-                            ->insert([
-                                'notificacion_id' => $notificacionId,
-                                'user_id' => $userId,
-                                'leido' => 0,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
                     }
 
-
-
-                    $titulo = $usaVehiculo
-                        ? "XML de consumo vehicular detectado"
-                        : "Ingreso de {$productoNombre}";
-
-                    $mensaje = $usaVehiculo
-                        ? "{$cantidad} L (Ley 18.502, no suma stock)"
-                        : "+{$cantidad} L desde XML ({$part->getFilename()})";
-
-
-                    Http::post('http://127.0.0.1:3001/notify', [
-                        'titulo' => $titulo,
-                        'mensaje' => $mensaje,
-                    ]);
-
+                    /* ─── WebSocket notify ─────────── */
+                    try {
+                        Http::timeout(3)->post('http://127.0.0.1:3001/notify', [
+                            'titulo' => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
+                            'mensaje' => $usaVehiculo
+                                ? "{$cantidad} L (Ley 18.502)"
+                                : "+{$cantidad} L desde XML ({$part->getFilename()})",
+                        ]);
+                    } catch (\Throwable) {
+                        // El servidor de notificaciones no está disponible — ignorar
+                    }
                 }
             }
 
-
-            /* ===============================
-             | 7️⃣ MARCAR LEÍDO
-             =============================== */
+            /* ─────────────────────────────────────
+             | 9. MARCAR CORREO COMO LEÍDO
+             ───────────────────────────────────── */
             $modify = new ModifyMessageRequest();
             $modify->setRemoveLabelIds(['UNREAD']);
             $service->users_messages->modify('me', $msg->getId(), $modify);
 
-            $this->line("✉️ Correo {$msg->getId()} marcado como leído");
+            $this->line("✉️ Correo {$msg->getId()} marcado como leído.");
         }
 
-        $this->info('✔ Proceso completo');
+        $this->info('✔ Proceso completo.');
         return Command::SUCCESS;
     }
 }

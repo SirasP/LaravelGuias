@@ -18,6 +18,34 @@ class Kernel extends ConsoleKernel
         $schedule->job(new CheckStockJob)
             ->everyMinute()
             ->evenInMaintenanceMode();
+
+        /*
+        |--------------------------------------------------------------------------
+        | app/Console/Kernel.php  —  agregar schedule
+        |--------------------------------------------------------------------------
+        */
+
+        // En el método schedule(Schedule $schedule):
+        $schedule->command('gmail:leer-xml')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->onFailure(function () {
+                // opcional: Log::error('gmail:leer-xml falló');
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GOOGLE CLOUD CONSOLE
+        | Configurar la URI de redirección autorizada:
+        |
+        |   https://tu-dominio.com/gmail/callback
+        |
+        | (o http://localhost/gmail/callback en desarrollo)
+        |--------------------------------------------------------------------------
+        */
+
     }
 
     protected function commands()
