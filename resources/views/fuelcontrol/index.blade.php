@@ -1,739 +1,621 @@
 <x-app-layout>
 
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
+{{-- ═══════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════ --}}
+<x-slot name="header">
+    <div class="flex items-center justify-between w-full gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 3v18m4-10v10m4-6v6M7 13v8M3 9v12"/>
+                </svg>
+            </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <!-- ICONO DASHBOARD -->
-                    <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 3v18m4-10v10m4-6v6M7 13v8M3 9v12" />
-                    </svg>
-
-                    Dashboard
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Resumen general del sistema de control de combustible
-                </p>
+                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Dashboard</h2>
+                <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Control de combustible</p>
             </div>
         </div>
-    </x-slot>
 
-    @if($notificaciones->count())
-        @php
-            $notificacionesData = $notificaciones->map(function ($n) {
-                return [
-                    'id' => $n->id,
-                    'tipo' => $n->tipo,
-                    'movimiento_id' => $n->movimiento_id,
-                    'titulo' => $n->titulo,
-                    'mensaje' => $n->mensaje,
-                    'estado' => $n->estado ?? null,
+        <div class="flex items-center gap-2">
+            <span class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                En línea · {{ now()->format('d M Y, H:i') }}
+            </span>
+        </div>
+    </div>
+</x-slot>
 
-                    'url_leer' => route('fuelcontrol.notificaciones.leer', $n->id),
+{{-- ─── Notificaciones SweetAlert ─── --}}
+@if($notificaciones->count())
+@php
+    $notificacionesData = $notificaciones->map(fn($n) => [
+        'id'           => $n->id,
+        'tipo'         => $n->tipo,
+        'movimiento_id'=> $n->movimiento_id,
+        'titulo'       => $n->titulo,
+        'mensaje'      => $n->mensaje,
+        'estado'       => $n->estado ?? null,
+        'url_leer'     => route('fuelcontrol.notificaciones.leer', $n->id),
+        'url_xml'      => in_array($n->tipo, ['xml_revision','xml_entrada']) && $n->movimiento_id
+                            ? route('fuelcontrol.xml.show', $n->movimiento_id) : null,
+        'url_aprobar'  => in_array($n->tipo, ['xml_revision','xml_entrada']) && $n->movimiento_id
+                            ? route('fuelcontrol.xml.aprobar', $n->movimiento_id) : null,
+        'url_rechazar' => in_array($n->tipo, ['xml_revision','xml_entrada']) && $n->movimiento_id
+                            ? route('fuelcontrol.xml.rechazar', $n->movimiento_id) : null,
+    ])->values();
+@endphp
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const notificaciones = @json($notificacionesData);
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const post = (url) => fetch(url, { method:'POST', headers:{'X-CSRF-TOKEN': csrf} });
 
-                    'url_xml' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
-                        ? route('fuelcontrol.xml.show', $n->movimiento_id)
-                        : null,
-
-                    'url_aprobar' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
-                        ? route('fuelcontrol.xml.aprobar', $n->movimiento_id)
-                        : null,
-
-                    'url_rechazar' => in_array($n->tipo, ['xml_revision', 'xml_entrada']) && $n->movimiento_id
-                        ? route('fuelcontrol.xml.rechazar', $n->movimiento_id)
-                        : null,
-                ];
-            })->values();
-        @endphp
-
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-
-                const notificaciones = @json($notificacionesData);
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-
-                const mostrarNotificaciones = async () => {
-
-                    for (const notif of notificaciones) {
-
-                        const result = await Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: notif.url_xml ? 'info' : 'success',
-                            title: notif.titulo,
-                            text: notif.mensaje,
-
-                            showConfirmButton: !notif.url_xml,
-                            confirmButtonText: '✔ Marcar como leída',
-                            confirmButtonColor: '#16a34a',
-
-                            showDenyButton: !!notif.url_xml,
-                            denyButtonText: '📄 Ver XML',
-
-                            showCloseButton: true,
-                            timer: null,
-                        });
-
-                        /* =========================
-                         * 📄 VER XML
-                         * ========================= */
-                        if (result.isDenied && notif.url_xml) {
-
-                            const esPendiente = notif.estado === 'pendiente';
-
-                            const modalResult = await Swal.fire({
-                                title: esPendiente
-                                    ? 'Detalle del XML'
-                                    : `Documento ${notif.estado}`,
-
-                                width: '75%',
-                                showCloseButton: true,
-
-                                showConfirmButton: esPendiente,
-                                confirmButtonText: '✔ Aprobar e Ingresar',
-                                confirmButtonColor: '#16a34a',
-
-                                showDenyButton: esPendiente,
-                                denyButtonText: '❌ Rechazar',
-                                denyButtonColor: '#dc2626',
-
-                                showCancelButton: true,
-                                cancelButtonText: 'Cerrar',
-
-                                html: '<div class="py-6 text-center">Cargando XML...</div>',
-
-                                didOpen: async () => {
-                                    const container = Swal.getHtmlContainer();
-                                    try {
-                                        const res = await fetch(notif.url_xml);
-                                        container.innerHTML = await res.text();
-                                    } catch {
-                                        container.innerHTML =
-                                            '<p class="text-red-500 text-center">Error al cargar XML</p>';
-                                    }
-                                }
-                            });
-
-                            /* =========================
-                             * ✔ APROBAR
-                             * ========================= */
-                            if (esPendiente && modalResult.isConfirmed && notif.url_aprobar) {
-
-                                try {
-
-                                    const response = await fetch(notif.url_aprobar, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': csrfToken
-                                        }
-                                    });
-
-                                    const data = await response.json();
-
-                                    if (!response.ok) {
-                                        throw new Error(data.message || 'Error interno');
-                                    }
-
-                                    if (notif.url_leer) {
-                                        await fetch(notif.url_leer, {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRF-TOKEN': csrfToken
-                                            }
-                                        });
-                                    }
-
-                                    await Swal.fire({
-                                        icon: 'success',
-                                        title: 'Documento aprobado',
-                                        text: 'Stock ingresado correctamente',
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    });
-
-                                } catch (error) {
-
-                                    await Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error backend',
-                                        text: error.message
-                                    });
-
-                                    console.error(error);
-                                }
-
-                                continue;
-                            }
-
-                            /* =========================
-                             * ❌ RECHAZAR
-                             * ========================= */
-                            if (esPendiente && modalResult.isDenied && notif.url_rechazar) {
-
-                                try {
-
-                                    const response = await fetch(notif.url_rechazar, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': csrfToken
-                                        }
-                                    });
-
-                                    const data = await response.json();
-
-                                    if (!response.ok) {
-                                        throw new Error(data.message || 'Error interno');
-                                    }
-
-                                    if (notif.url_leer) {
-                                        await fetch(notif.url_leer, {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRF-TOKEN': csrfToken
-                                            }
-                                        });
-                                    }
-
-                                    await Swal.fire({
-                                        icon: 'info',
-                                        title: 'Documento rechazado',
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    });
-
-                                } catch (error) {
-
-                                    await Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error backend',
-                                        text: error.message
-                                    });
-
-                                    console.error(error);
-                                }
-
-                                continue;
-                            }
-
-                            /* =========================
-                             * 🔒 CERRAR (solo si NO es pendiente)
-                             * ========================= */
-                            if (
-                                modalResult.dismiss === Swal.DismissReason.cancel &&
-                                notif.estado !== 'pendiente' &&
-                                notif.url_leer
-                            ) {
-                                await fetch(notif.url_leer, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrfToken
-                                    }
-                                });
-                            }
-
-                            continue;
-                        }
-
-                        /* =========================
-                         * ✔ NOTIFICACIÓN NORMAL
-                         * ========================= */
-                        if (result.isConfirmed && notif.url_leer) {
-                            await fetch(notif.url_leer, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken
-                                }
-                            });
-                        }
-                    }
-                };
-
-                mostrarNotificaciones();
+    (async () => {
+        for (const n of notificaciones) {
+            const r = await Swal.fire({
+                toast: true, position: 'top-end',
+                icon: n.url_xml ? 'info' : 'success',
+                title: n.titulo, text: n.mensaje,
+                showConfirmButton: !n.url_xml,
+                confirmButtonText: '✔ Marcar leída', confirmButtonColor: '#16a34a',
+                showDenyButton: !!n.url_xml, denyButtonText: '📄 Ver XML',
+                showCloseButton: true, timer: null,
             });
-        </script>
-    @endif
+            if (r.isDenied && n.url_xml) {
+                const esPendiente = n.estado === 'pendiente';
+                const mr = await Swal.fire({
+                    title: esPendiente ? 'Detalle XML' : `Documento ${n.estado}`,
+                    width: '75%', showCloseButton: true,
+                    showConfirmButton: esPendiente, confirmButtonText: '✔ Aprobar', confirmButtonColor: '#16a34a',
+                    showDenyButton: esPendiente, denyButtonText: '✖ Rechazar', denyButtonColor: '#dc2626',
+                    showCancelButton: true, cancelButtonText: 'Cerrar',
+                    html: '<div class="py-8 text-center text-gray-400">Cargando…</div>',
+                    didOpen: async () => {
+                        try { Swal.getHtmlContainer().innerHTML = await (await fetch(n.url_xml)).text(); }
+                        catch { Swal.getHtmlContainer().innerHTML = '<p class="text-red-500 text-center p-4">Error al cargar</p>'; }
+                    }
+                });
+                if (esPendiente && mr.isConfirmed && n.url_aprobar) {
+                    try {
+                        const res = await post(n.url_aprobar); const data = await res.json();
+                        if (!res.ok) throw new Error(data.message);
+                        if (n.url_leer) await post(n.url_leer);
+                        await Swal.fire({ icon:'success', title:'Aprobado', text:'Stock ingresado correctamente', timer:2000, showConfirmButton:false });
+                    } catch(e) { await Swal.fire({ icon:'error', title:'Error', text:e.message }); }
+                    continue;
+                }
+                if (esPendiente && mr.isDenied && n.url_rechazar) {
+                    try {
+                        const res = await post(n.url_rechazar); const data = await res.json();
+                        if (!res.ok) throw new Error(data.message);
+                        if (n.url_leer) await post(n.url_leer);
+                        await Swal.fire({ icon:'info', title:'Rechazado', timer:2000, showConfirmButton:false });
+                    } catch(e) { await Swal.fire({ icon:'error', title:'Error', text:e.message }); }
+                    continue;
+                }
+                if (mr.dismiss === Swal.DismissReason.cancel && !esPendiente && n.url_leer) await post(n.url_leer);
+                continue;
+            }
+            if (r.isConfirmed && n.url_leer) await post(n.url_leer);
+        }
+    })();
+});
+</script>
+@endif
 
-    {{-- CONTENIDO PRINCIPAL --}}
-    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 gap-3 ">
+<style>
+    [x-cloak] { display:none !important; }
 
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes fadeIn   { from { opacity:0 } to { opacity:1 } }
+    @keyframes scaleIn  { from { opacity:0; transform:scale(.95) } to { opacity:1; transform:scale(1) } }
+    @keyframes slideBar { from { width:0 } to { width:var(--w) } }
+    .au  { animation:fadeUp  .45s cubic-bezier(.22,1,.36,1) both }
+    .au2 { animation:scaleIn .35s cubic-bezier(.22,1,.36,1) both }
+    .d1  { animation-delay:.05s } .d2 { animation-delay:.11s }
+    .d3  { animation-delay:.17s } .d4 { animation-delay:.23s }
+    .d5  { animation-delay:.29s } .d6 { animation-delay:.35s }
 
-        <!-- TARJETAS DE RESUMEN -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
-            <!-- Productos -->
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden mb-4">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                            </svg>
-                        </div>
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Total Productos
-                    </h3>
-                    <p class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {{ $resumen['total_productos'] }}
-                    </p>
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Tipos de combustible registrados
-                    </p>
+    /* ── Page ── */
+    .page-bg       { background:#f1f5f9; min-height:100% }
+    .dark .page-bg { background:#0d1117 }
+
+    /* ── Panel ── */
+    .panel        { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
+    .dark .panel  { background:#161c2c; border-color:#1e2a3b }
+    .panel-head   { padding:15px 20px; border-bottom:1px solid #f1f5f9;
+                    display:flex; align-items:center; justify-content:space-between; gap:12px }
+    .dark .panel-head { border-bottom-color:#1e2a3b }
+
+    /* ── Stat card ── */
+    .stat-card       { background:#fff; border:1px solid #e2e8f0; border-radius:18px; padding:20px;
+                       display:flex; flex-direction:column; gap:12px; overflow:hidden; position:relative }
+    .dark .stat-card { background:#161c2c; border-color:#1e2a3b }
+    .stat-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .3s }
+    .stat-card:hover::before { opacity:1 }
+    .sc-blue::before   { background:radial-gradient(circle at top right, rgba(99,102,241,.06), transparent 60%) }
+    .sc-green::before  { background:radial-gradient(circle at top right, rgba(16,185,129,.06), transparent 60%) }
+    .sc-amber::before  { background:radial-gradient(circle at top right, rgba(245,158,11,.06), transparent 60%) }
+    .sc-rose::before   { background:radial-gradient(circle at top right, rgba(244,63,94,.06), transparent 60%) }
+
+    .stat-icon { width:40px; height:40px; border-radius:12px; flex-shrink:0;
+                 display:flex; align-items:center; justify-content:center }
+    .stat-num  { font-size:28px; font-weight:800; letter-spacing:-.03em; color:#0f172a;
+                 font-variant-numeric:tabular-nums; line-height:1 }
+    .dark .stat-num { color:#f8fafc }
+    .stat-lbl  { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#94a3b8 }
+    .stat-sub  { font-size:11px; color:#94a3b8 }
+
+    /* ── Table ── */
+    .dt { width:100%; border-collapse:collapse; font-size:13px }
+    .dt thead tr { background:#f8fafc; border-bottom:1px solid #f1f5f9 }
+    .dark .dt thead tr { background:#111827; border-bottom-color:#1e2a3b }
+    .dt th { padding:10px 18px; text-align:left; font-size:10px; font-weight:700;
+             letter-spacing:.08em; text-transform:uppercase; color:#94a3b8; white-space:nowrap }
+    .dt th.r { text-align:right } .dt th.c { text-align:center }
+    .dt td { padding:13px 18px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle }
+    .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
+    .dt tbody tr:last-child td { border-bottom:none }
+    .dt tbody tr { transition:background .12s }
+    .dt tbody tr:hover td { background:#f8fafc }
+    .dark .dt tbody tr:hover td { background:#1a2436 }
+
+    /* ── Progress bar ── */
+    .prog-track { height:6px; background:#f1f5f9; border-radius:99px; overflow:hidden; min-width:120px }
+    .dark .prog-track { background:#1e2a3b }
+    .prog-fill  { height:100%; border-radius:99px; animation:slideBar .8s cubic-bezier(.22,1,.36,1) both }
+    @keyframes slideBar { from { width:0 } }
+
+    /* ── Status badges ── */
+    .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+             border-radius:999px; font-size:11px; font-weight:700 }
+    .badge-ok     { background:#dcfce7; color:#15803d }
+    .badge-warn   { background:#fef9c3; color:#854d0e }
+    .badge-crit   { background:#fee2e2; color:#dc2626 }
+    .dark .badge-ok   { background:rgba(22,163,74,.15); color:#4ade80 }
+    .dark .badge-warn { background:rgba(234,179,8,.15);  color:#facc15 }
+    .dark .badge-crit { background:rgba(220,38,38,.15);  color:#f87171 }
+
+    /* ── Movement row ── */
+    .mv-row      { padding:14px 20px; display:flex; align-items:center; gap:14px;
+                   border-bottom:1px solid #f8fafc; transition:background .12s; cursor:default }
+    .dark .mv-row { border-bottom-color:#1a2232 }
+    .mv-row:last-child { border-bottom:none }
+    .mv-row:hover { background:#f8fafc }
+    .dark .mv-row:hover { background:#1a2436 }
+    .mv-row.clickable { cursor:pointer }
+    .mv-icon { width:38px; height:38px; border-radius:11px; flex-shrink:0;
+               display:flex; align-items:center; justify-content:center }
+    .mv-pos { background:#dcfce7 } .mv-pos svg { color:#16a34a }
+    .mv-neg { background:#fee2e2 } .mv-neg svg { color:#dc2626 }
+    .dark .mv-pos { background:rgba(22,163,74,.15) }  .dark .mv-pos svg { color:#4ade80 }
+    .dark .mv-neg { background:rgba(220,38,38,.15) }  .dark .mv-neg svg { color:#f87171 }
+
+    /* ── Section toggle button ── */
+    .sec-toggle { display:flex; align-items:center; justify-content:space-between; width:100%;
+                  padding:0; background:none; border:none; cursor:pointer }
+    .sec-toggle:focus { outline:none }
+    .chevron-icon { width:16px; height:16px; color:#94a3b8; transition:transform .25s; flex-shrink:0 }
+    .chevron-icon.rotated { transform:rotate(180deg) }
+
+    /* ── Chart card ── */
+    .chart-card       { background:#fff; border:1px solid #e2e8f0; border-radius:18px; padding:20px }
+    .dark .chart-card { background:#161c2c; border-color:#1e2a3b }
+    .chart-title { font-size:13px; font-weight:700; color:#334155; display:flex; align-items:center; gap:8px }
+    .dark .chart-title { color:#cbd5e1 }
+
+    /* ── Divider label ── */
+    .section-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+                     color:#94a3b8; margin-bottom:0 }
+
+    /* ── Fuel icon dot ── */
+    .fuel-dot { width:36px; height:36px; border-radius:10px; flex-shrink:0;
+                display:flex; align-items:center; justify-content:center }
+
+    /* ── Tipo pill ── */
+    .tipo-ingreso { background:#dcfce7; color:#15803d }
+    .tipo-egreso  { background:#fee2e2; color:#dc2626 }
+    .dark .tipo-ingreso { background:rgba(22,163,74,.15);  color:#4ade80 }
+    .dark .tipo-egreso  { background:rgba(220,38,38,.15);  color:#f87171 }
+    .tipo-pill { display:inline-flex; padding:2px 8px; border-radius:999px;
+                 font-size:10px; font-weight:700; text-transform:capitalize }
+</style>
+
+<div class="page-bg">
+<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+
+    {{-- ══════════════════════════════════════════
+         STAT CARDS
+    ══════════════════════════════════════════ --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {{-- Productos --}}
+        <div class="stat-card sc-blue au d1">
+            <div class="flex items-center justify-between">
+                <span class="stat-lbl">Productos</span>
+                <div class="stat-icon bg-indigo-50 dark:bg-indigo-900/30">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                    </svg>
                 </div>
             </div>
-
-            <!-- Vehículos -->
-            <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden mb-4">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                            <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                        </div>
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Flota de Vehículos
-                    </h3>
-                    <p class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {{ $resumen['total_vehiculos'] }}
-                    </p>
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Vehículos activos en el sistema
-                    </p>
-                </div>
-            </div>
-
-            <!-- Movimientos -->
-            <div
-                class="bg-white dark:bg-gray-800 mb-4 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
-                <div class="p-6 ">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                            <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        </div>
-                    </div>
-                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Movimientos Hoy
-                    </h3>
-                    <p class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {{ $resumen['movimientos_hoy'] }}
-                    </p>
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Transacciones del día
-                    </p>
-                </div>
+            <div>
+                <p class="stat-num">{{ $resumen['total_productos'] }}</p>
+                <p class="stat-sub mt-1">Tipos de combustible</p>
             </div>
         </div>
 
-        <!-- STOCK ACTUAL -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-4">
-
-            <!-- HEADER -->
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer flex items-center justify-between"
-                onclick="toggleInventario()">
-
-                <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
+        {{-- Vehículos --}}
+        <div class="stat-card sc-green au d2">
+            <div class="flex items-center justify-between">
+                <span class="stat-lbl">Vehículos</span>
+                <div class="stat-icon bg-emerald-50 dark:bg-emerald-900/30">
+                    <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Inventario Actual
-                    </h2>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <span
-                        class="px-3 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
-                        {{ count($productos) }} productos
-                    </span>
-
-                    <!-- Flecha -->
-                    <svg id="inventario-arrow" class="w-5 h-5 text-gray-500 transition-transform duration-300"
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                              d="M8 17h8m-4-4v4M3 11h18M3 11l2-5h14l2 5M3 11v6a1 1 0 001 1h1m12 0h1a1 1 0 001-1v-6"/>
                     </svg>
                 </div>
             </div>
+            <div>
+                <p class="stat-num">{{ $resumen['total_vehiculos'] }}</p>
+                <p class="stat-sub mt-1">Activos en sistema</p>
+            </div>
+        </div>
 
-            <!-- CONTENIDO COLAPSABLE -->
-            <div id="inventario-content" class="overflow-hidden transition-all duration-300 ease-in-out"
-                style="max-height: 2000px;">
+        {{-- Movimientos hoy --}}
+        <div class="stat-card sc-amber au d3">
+            <div class="flex items-center justify-between">
+                <span class="stat-lbl">Hoy</span>
+                <div class="stat-icon bg-amber-50 dark:bg-amber-900/30">
+                    <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="stat-num">{{ $resumen['movimientos_hoy'] }}</p>
+                <p class="stat-sub mt-1">Transacciones del día</p>
+            </div>
+        </div>
 
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-900/50">
-                        <tr>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Producto
-                            </th>
-                            <th scope="col"
-                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Stock Actual
-                            </th>
-                            <th scope="col"
-                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Nivel de Inventario
-                            </th>
-                            <th scope="col"
-                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Estado
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        @forelse ($productos as $p)
+        {{-- Notificaciones pendientes --}}
+        <div class="stat-card sc-rose au d4">
+            <div class="flex items-center justify-between">
+                <span class="stat-lbl">Notificaciones</span>
+                <div class="stat-icon bg-rose-50 dark:bg-rose-900/30">
+                    <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="stat-num">{{ $notificaciones->count() }}</p>
+                <p class="stat-sub mt-1">Pendientes de revisión</p>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ══════════════════════════════════════════
+         GRÁFICOS
+    ══════════════════════════════════════════ --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {{-- Gasolina --}}
+        <div class="chart-card au d3">
+            <div class="flex items-center justify-between mb-5">
+                <div class="chart-title">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
+                    Gasolina — últimos 30 días
+                </div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+            </div>
+            <div class="relative h-48">
+                <canvas id="gasolinaChart"></canvas>
+            </div>
+        </div>
+
+        {{-- Diesel --}}
+        <div class="chart-card au d4">
+            <div class="flex items-center justify-between mb-5">
+                <div class="chart-title">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                    Diésel — últimos 30 días
+                </div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+            </div>
+            <div class="relative h-48">
+                <canvas id="dieselChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ══════════════════════════════════════════
+         ROW: INVENTARIO + MOVIMIENTOS
+    ══════════════════════════════════════════ --}}
+    <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+
+        {{-- ── INVENTARIO (3 cols) ───────────────── --}}
+        <div class="xl:col-span-3 panel au d4" x-data="{ open: true }">
+            <div class="panel-head">
+                <button class="sec-toggle" @click="open = !open">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-gray-900 dark:text-gray-100">Inventario actual</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                            {{ count($productos) }} productos
+                        </span>
+                    </div>
+                    <svg class="chevron-icon" :class="{ rotated: !open }"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div x-show="open" x-collapse>
+                <div class="overflow-x-auto">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="r">Stock (L)</th>
+                                <th>Nivel</th>
+                                <th class="c">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($productos as $p)
                             @php
-                                $capacidades = [
-                                    'diesel' => 10000,
-                                    'gasolina' => 100,
-                                ];
-
-                                $nombre = strtolower($p->nombre);
-                                $capacidad = $capacidades[$nombre] ?? 100; // fallback seguro
-
-                                $porcentaje = ($p->cantidad / $capacidad) * 100;
-                                $porcentaje = min(100, max(0, round($porcentaje)));
-
-                                if ($porcentaje < 20) {
-                                    $color = 'bg-red-500';
-                                    $textColor = 'text-red-600 dark:text-red-400';
-                                    $bgColor = 'bg-red-100 dark:bg-red-900/30';
-                                    $borderColor = 'border-red-200 dark:border-red-800';
-                                    $estado = 'Crítico';
-                                } elseif ($porcentaje < 50) {
-                                    $color = 'bg-yellow-500';
-                                    $textColor = 'text-yellow-600 dark:text-yellow-400';
-                                    $bgColor = 'bg-yellow-100 dark:bg-yellow-900/30';
-                                    $borderColor = 'border-yellow-200 dark:border-yellow-800';
-                                    $estado = 'Bajo';
-                                } else {
-                                    $color = 'bg-green-500';
-                                    $textColor = 'text-green-600 dark:text-green-400';
-                                    $bgColor = 'bg-green-100 dark:bg-green-900/30';
-                                    $borderColor = 'border-green-200 dark:border-green-800';
-                                    $estado = 'Normal';
-                                }
+                                $caps      = ['diesel' => 10000, 'gasolina' => 100];
+                                $nombre    = strtolower($p->nombre);
+                                $cap       = $caps[$nombre] ?? 100;
+                                $pct       = min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                [$barColor, $badgeClass, $estado] = match(true) {
+                                    $pct < 20 => ['bg-rose-500',   'badge-crit', 'Crítico'],
+                                    $pct < 50 => ['bg-amber-400',  'badge-warn', 'Bajo'],
+                                    default   => ['bg-emerald-500','badge-ok',   'Normal'],
+                                };
+                                $iconBg = match(true) {
+                                    $pct < 20 => 'bg-rose-50 dark:bg-rose-900/20',
+                                    $pct < 50 => 'bg-amber-50 dark:bg-amber-900/20',
+                                    default   => 'bg-emerald-50 dark:bg-emerald-900/20',
+                                };
+                                $iconColor = match(true) {
+                                    $pct < 20 => 'text-rose-500',
+                                    $pct < 50 => 'text-amber-500',
+                                    default   => 'text-emerald-500',
+                                };
                             @endphp
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-4">
-                                        <div
-                                            class="h-10 w-10 flex-shrink-0 {{ $bgColor }} rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 {{ $textColor }}" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
+                            <tr>
+                                <td>
+                                    <div class="flex items-center gap-3">
+                                        <div class="fuel-dot {{ $iconBg }}">
+                                            <svg class="w-4 h-4 {{ $iconColor }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                                      d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
                                             </svg>
                                         </div>
-
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                            {{ ucfirst($p->nombre) }}
-                                        </div>
-                                    </div>
-
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right">
-                                    <div class="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                        {{ number_format($p->cantidad, 2) }} L
+                                        <span class="font-semibold text-gray-800 dark:text-gray-100">{{ ucfirst($p->nombre) }}</span>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <div
-                                            class="w-full max-w-xs h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                            <div class="{{ $color }} h-3 rounded-full transition-all duration-300"
-                                                style="width: {{ $porcentaje }}%"></div>
+                                <td class="text-right font-bold tabular-nums text-gray-800 dark:text-gray-100">
+                                    {{ number_format($p->cantidad, 2) }}
+                                </td>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <div class="prog-track flex-1">
+                                            <div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%"></div>
                                         </div>
-                                        <span
-                                            class="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[45px] text-right">
-                                            {{ number_format($porcentaje, 0) }}%
+                                        <span class="text-[11px] font-bold text-gray-400 w-9 text-right tabular-nums">
+                                            {{ $pct }}%
                                         </span>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <span
-                                        class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $bgColor }} {{ $textColor }}">
+                                <td class="text-center">
+                                    <span class="badge {{ $badgeClass }}">
+                                        @if($pct < 20)
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>
+                                        @elseif($pct < 50)
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>
+                                        @else
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>
+                                        @endif
                                         {{ $estado }}
                                     </span>
                                 </td>
                             </tr>
-                        @empty
+                            @empty
                             <tr>
-                                <td colspan="4" class="px-6 py-12 text-center">
-                                    <div class="flex flex-col items-center gap-2">
-                                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                        </svg>
-                                        <p class="text-gray-500 dark:text-gray-400 text-sm">
-                                            No hay productos registrados
-                                        </p>
-                                    </div>
+                                <td colspan="4" class="py-12 text-center text-sm text-gray-400">
+                                    No hay productos registrados.
                                 </td>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- ÚLTIMOS MOVIMIENTOS -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-4">
-
-            <!-- HEADER CLICKEABLE -->
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer flex items-center
-                justify-between" onclick="toggleMovimientos()">
-                <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        {{-- ── MOVIMIENTOS (2 cols) ──────────────── --}}
+        <div class="xl:col-span-2 panel au d5 flex flex-col" x-data="{ open: true }">
+            <div class="panel-head">
+                <button class="sec-toggle" @click="open = !open">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-gray-900 dark:text-gray-100">Últimos movimientos</span>
+                    </div>
+                    <svg class="chevron-icon" :class="{ rotated: !open }"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
-
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Últimos Movimientos
-                    </h2>
-                </div>
-
-                <!-- Flecha animada -->
-                <svg id="movimientos-arrow" class="w-5 h-5 text-gray-500 transition-transform duration-300" fill="none"
-                    stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                </button>
             </div>
 
-            <!-- CONTENIDO COLAPSABLE -->
-            <div id="movimientos-content"
-                class="divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden transition-all duration-300 ease-in-out"
-                style="max-height: 2000px;">
-
-
-                @forelse ($movimientos as $m)
-                            <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {{ $m->xml_path ? 'cursor-pointer' : '' }}"
-                                @if(!empty($m->xml_path)) onclick="abrirMovimiento({{ $m->id }})" @endif>
-                                <div class="flex items-center justify-between">
-
-                                    <div class="flex items-center gap-4 flex-1">
-                                        <div class="flex-shrink-0">
-                                            <div
-                                                class="h-10 w-10 rounded-lg flex items-center justify-center
-                                                                                                                                                                                                                                                                                                                                                                    {{ $m->cantidad < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30' }}">
-
-                                                @if($m->cantidad < 0)
-                                                    <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                            d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                                                    </svg>
-                                                @else
-                                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none"
-                                                        stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                                    </svg>
-                                                @endif
-
-                                            </div>
-                                        </div>
-
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                {{ ucfirst($m->producto_nombre) ?? 'Producto #' . $m->producto_id }}
-                                            </p>
-                                            <div class="flex items-center gap-2 mt-1">
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                                                                                                                                                                                                                                                                                                                                                        {{ $m->tipo === 'ingreso'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }}">
-                                                    {{ ucfirst($m->tipo) }}
-                                                </span>
-
-                                                <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                    • {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="ml-4">
-                                        <p
-                                            class="text-lg font-bold font-mono
-                                                                                                                                                                                                                                                                                                                                                                {{ $m->cantidad < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
-                                            {{ $m->cantidad > 0 ? '+' : '' }}{{ number_format($m->cantidad, 2) }} L
-                                        </p>
-                                    </div>
-
-                                </div>
-                            </div>
-
-                @empty
-                    <div class="px-6 py-12">
-                        <div class="flex flex-col items-center gap-2">
-                            <p class="text-gray-500 dark:text-gray-400 text-sm">
-                                No hay movimientos registrados
-                            </p>
+            <div x-show="open" x-collapse class="flex-1 overflow-y-auto" style="max-height:420px">
+                @forelse($movimientos as $m)
+                @php
+                    $isPos    = $m->cantidad >= 0;
+                    $tipoClass = $isPos ? 'tipo-ingreso' : 'tipo-egreso';
+                @endphp
+                <div class="mv-row {{ !empty($m->xml_path) ? 'clickable' : '' }}"
+                     @if(!empty($m->xml_path)) onclick="abrirMovimiento({{ $m->id }})" @endif>
+                    <div class="mv-icon {{ $isPos ? 'mv-pos' : 'mv-neg' }}">
+                        @if($isPos)
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                        @else
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                        </svg>
+                        @endif
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[13px] font-semibold text-gray-800 dark:text-gray-100 truncate">
+                            {{ ucfirst($m->producto_nombre ?? 'Producto #' . $m->producto_id) }}
+                        </p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="tipo-pill {{ $tipoClass }}">{{ ucfirst($m->tipo) }}</span>
+                            <span class="text-[11px] text-gray-400">
+                                {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
+                            </span>
                         </div>
                     </div>
+                    <p class="text-sm font-bold tabular-nums shrink-0
+                               {{ $isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                        {{ $m->cantidad > 0 ? '+' : '' }}{{ number_format($m->cantidad, 2) }} L
+                    </p>
+                </div>
+                @empty
+                <div class="flex flex-col items-center justify-center py-16 gap-2">
+                    <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <p class="text-sm text-gray-400">Sin movimientos</p>
+                </div>
                 @endforelse
-
             </div>
-
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <!-- GASOLINA -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                <h3 class="font-semibold mb-3">⛽ Gasolina — últimos 30 días</h3>
-                <div class="relative h-48">
-                    <canvas id="gasolinaChart"></canvas>
-                </div>
-            </div>
+    </div>{{-- /row --}}
 
-            <!-- DIESEL -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                <h3 class="font-semibold mb-3">🛢️ Diésel — últimos 30 días</h3>
-                <div class="relative h-48">
-                    <canvas id="dieselChart"></canvas>
-                </div>
-            </div>
+</div>
+</div>
 
-        </div>
-    </div>
-
-</x-app-layout>
+{{-- ══ Chart.js ══ --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
 
-        const gasCtx = document.getElementById('gasolinaChart');
-        const dieCtx = document.getElementById('dieselChart');
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor  = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
+    const tickColor  = isDark ? '#475569' : '#94a3b8';
+    const tooltipBg  = isDark ? '#1e293b' : '#fff';
+    const tooltipFg  = isDark ? '#f1f5f9' : '#1e293b';
 
-        if (gasCtx) {
-            new Chart(gasCtx, {
-                type: 'bar',
-                data: {
-                    labels: @json($labelsGasolina),
-                    datasets: [{
-                        label: 'Gasolina (L)',
-                        data: @json($dataGasolina),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 6
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+    const sharedOpts = (color) => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: tooltipBg,
+                titleColor: tooltipFg,
+                bodyColor: tickColor,
+                borderColor: isDark ? '#1e2a3b' : '#e2e8f0',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 10,
+                callbacks: {
+                    label: (ctx) => ` ${ctx.parsed.y.toLocaleString('es-CL')} L`,
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: gridColor, drawTicks: false },
+                ticks: { color: tickColor, font: { size: 10 }, maxRotation: 0 },
+                border: { display: false },
+            },
+            y: {
+                grid: { color: gridColor },
+                ticks: { color: tickColor, font: { size: 10 },
+                         callback: (v) => v.toLocaleString('es-CL') + ' L' },
+                border: { display: false },
+            }
         }
-
-        if (dieCtx) {
-            new Chart(dieCtx, {
-                type: 'bar',
-                data: {
-                    labels: @json($labelsDiesel),
-                    datasets: [{
-                        label: 'Diésel (L)',
-                        data: @json($dataDiesel),
-                        backgroundColor: '#16a34a',
-                        borderRadius: 6
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
     });
+
+    const gasCtx = document.getElementById('gasolinaChart');
+    const dieCtx = document.getElementById('dieselChart');
+
+    if (gasCtx) new Chart(gasCtx, {
+        type: 'bar',
+        data: {
+            labels: @json($labelsGasolina),
+            datasets: [{
+                label: 'Gasolina (L)',
+                data: @json($dataGasolina),
+                backgroundColor: 'rgba(99,102,241,.75)',
+                hoverBackgroundColor: 'rgba(99,102,241,1)',
+                borderRadius: 7,
+                borderSkipped: false,
+            }]
+        },
+        options: sharedOpts('indigo')
+    });
+
+    if (dieCtx) new Chart(dieCtx, {
+        type: 'bar',
+        data: {
+            labels: @json($labelsDiesel),
+            datasets: [{
+                label: 'Diésel (L)',
+                data: @json($dataDiesel),
+                backgroundColor: 'rgba(16,185,129,.75)',
+                hoverBackgroundColor: 'rgba(16,185,129,1)',
+                borderRadius: 7,
+                borderSkipped: false,
+            }]
+        },
+        options: sharedOpts('emerald')
+    });
+
+});
 </script>
+
 <script>
-    window.abrirMovimiento = async function (movimientoId) {
-
-        try {
-
-            const response = await fetch(`/fuelcontrol/xml/${movimientoId}`);
-            const html = await response.text();
-
-            await Swal.fire({
-
-                width: '75%',
-                showCloseButton: true,
-                showConfirmButton: false,
-                html: html
-            });
-
-        } catch (error) {
-            console.error(error);
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudo cargar el XML'
-            });
-        }
-    };
-</script>
-<script>
-    window.switchTab = function (tab) {
-
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
-            btn.classList.add('border-transparent', 'text-gray-500');
-        });
-
-        const content = document.getElementById('content-' + tab);
-        if (content) content.classList.remove('hidden');
-
-        const activeTab = document.getElementById('tab-' + tab);
-        if (activeTab) {
-            activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-            activeTab.classList.remove('border-transparent', 'text-gray-500');
-        }
-    };
-</script>
-<script>
-    function toggleInventario() {
-
-        const content = document.getElementById('inventario-content');
-        const arrow = document.getElementById('inventario-arrow');
-
-        if (content.style.maxHeight && content.style.maxHeight !== "0px") {
-            content.style.maxHeight = "0px";
-            arrow.classList.remove('rotate-180');
-        } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-            arrow.classList.add('rotate-180');
-        }
+window.abrirMovimiento = async (id) => {
+    try {
+        const html = await (await fetch(`/fuelcontrol/xml/${id}`)).text();
+        await Swal.fire({ width:'75%', showCloseButton:true, showConfirmButton:false, html });
+    } catch {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudo cargar el XML.' });
     }
-
-    function toggleMovimientos() {
-
-        const content = document.getElementById('movimientos-content');
-        const arrow = document.getElementById('movimientos-arrow');
-
-        if (content.style.maxHeight && content.style.maxHeight !== "0px") {
-            content.style.maxHeight = "0px";
-            arrow.classList.remove('rotate-180');
-        } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-            arrow.classList.add('rotate-180');
-        }
-    }
+};
 </script>
+
+</x-app-layout>
