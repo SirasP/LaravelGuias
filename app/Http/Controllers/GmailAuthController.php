@@ -21,10 +21,12 @@ class GmailAuthController extends Controller
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
         $client->setAccessType('offline');
         $client->setPrompt('select_account consent');
-        $client->setRedirectUri(route('gmail.callback'));
+
+        // ── Forzar siempre HTTPS, sin depender del request ──
+        $redirectUri = str_replace('http://', 'https://', route('gmail.callback'));
+        $client->setRedirectUri($redirectUri);
 
         $tokenPath = storage_path('app/gmail/token.json');
-
         if (file_exists($tokenPath)) {
             $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
         }
