@@ -13,27 +13,40 @@
 
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --primary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --secondary-gradient: linear-gradient(135deg, #0ba360 0%, #3cba92 100%);
+            --accent-gradient: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
         }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             position: relative;
             overflow-x: hidden;
         }
 
+        /* Gradiente verde superpuesto */
         body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(17, 153, 142, 0.8) 0%, rgba(56, 239, 125, 0.6) 100%);
+            pointer-events: none;
+        }
+
+        /* Patrón de puntos animado */
+        body::after {
             content: '';
             position: absolute;
             top: -50%;
             right: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
             background-size: 50px 50px;
             animation: moveBackground 20s linear infinite;
             pointer-events: none;
@@ -42,6 +55,44 @@
         @keyframes moveBackground {
             0% { transform: translate(0, 0); }
             100% { transform: translate(50px, 50px); }
+        }
+
+        /* Partículas flotantes */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(120deg); }
+            66% { transform: translateY(-10px) rotate(240deg); }
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(56, 239, 125, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .particle:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            top: 10%;
+            left: 10%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .particle:nth-child(2) {
+            width: 60px;
+            height: 60px;
+            top: 70%;
+            left: 80%;
+            animation: float 10s ease-in-out infinite 2s;
+        }
+
+        .particle:nth-child(3) {
+            width: 100px;
+            height: 100px;
+            top: 40%;
+            left: 5%;
+            animation: float 12s ease-in-out infinite 1s;
         }
 
         .auth-card {
@@ -76,8 +127,8 @@
         }
 
         .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+            border-color: #11998e;
+            box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.15), 0 0 20px rgba(56, 239, 125, 0.3);
             transform: translateY(-2px);
         }
 
@@ -86,6 +137,7 @@
             border: 2px solid #e9ecef;
             background: transparent;
             border-right: 0;
+            transition: all 0.3s ease;
         }
 
         .input-group .form-control {
@@ -93,7 +145,8 @@
         }
 
         .input-group:focus-within .input-group-text {
-            border-color: #667eea;
+            border-color: #11998e;
+            background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
         }
 
         .btn-primary {
@@ -103,12 +156,29 @@
             padding: 14px;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 8px 25px rgba(17, 153, 142, 0.6), 0 0 30px rgba(56, 239, 125, 0.4);
         }
 
         .btn-password-toggle {
@@ -121,12 +191,13 @@
         }
 
         .btn-password-toggle:hover {
-            color: #667eea;
+            color: #11998e;
         }
 
         .form-check-input:checked {
-            background-color: #667eea;
-            border-color: #667eea;
+            background-color: #11998e;
+            border-color: #11998e;
+            box-shadow: 0 0 10px rgba(17, 153, 142, 0.5);
         }
 
         .text-gradient {
@@ -137,13 +208,29 @@
         }
 
         a {
-            color: #667eea;
+            color: #11998e;
             text-decoration: none;
-            transition: color 0.2s;
+            transition: all 0.2s;
+            position: relative;
         }
 
         a:hover {
-            color: #764ba2;
+            color: #38ef7d;
+        }
+
+        a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            transition: width 0.3s ease;
+        }
+
+        a:hover::after {
+            width: 100%;
         }
 
         .alert {
@@ -165,21 +252,28 @@
 </head>
 
 <body>
+    <!-- Partículas flotantes -->
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
 
-    <main class="container">
+    <main class="container" style="position: relative; z-index: 1;">
         <div class="row justify-content-center align-items-center" style="min-height: 100vh;">
             <div class="col-12 col-sm-10 col-md-6 col-lg-4">
 
-                <div class="text-center mb-3">
-                    <div class="auth-brand fs-4">Tu Sistema</div>
-                    <div class="text-muted small">Acceso seguro</div>
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 2.5rem;"></i>
+                        <div class="auth-brand" style="font-size: 2.5rem;">EHE</div>
+                    </div>
+                    <div class="footer-text small">Sistema de Gestión Empresarial</div>
                 </div>
 
                 @yield('content')
 
                 <div class="text-center footer-text small mt-4">
                     <i class="bi bi-shield-check me-1"></i>
-                    © {{ date('Y') }} Sistema de Inventario
+                    © {{ date('Y') }} EHE - Soluciones Empresariales
                 </div>
             </div>
         </div>
