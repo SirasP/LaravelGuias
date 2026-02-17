@@ -4,191 +4,64 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Acceso')</title>
+    <title>@yield('title', 'Acceso') — EHE</title>
 
-    <!-- Bootstrap 5 (CDN) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
+
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        :root {
-            --primary-color: #3b82f6;
-            --primary-dark: #2563eb;
-            --primary-light: #60a5fa;
-        }
+        [x-cloak] { display: none !important; }
 
         body {
-            background: #f3f4f6;
-            height: 100vh;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            position: relative;
+            font-family: 'Figtree', system-ui, sans-serif;
         }
 
-        /* Patrón sutil de fondo */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+        .auth-grid {
             background-image:
                 linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
-            background-size: 20px 20px;
-            pointer-events: none;
+            background-size: 24px 24px;
         }
 
-        .auth-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            background: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transition: box-shadow 0.3s ease;
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .auth-card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-
-        .auth-brand {
-            font-weight: 800;
-            font-size: 2rem;
-            color: #1f2937;
-            letter-spacing: -0.5px;
-        }
-
-        .form-control {
-            border-radius: 12px;
-            border: 2px solid #e9ecef;
-            padding: 12px 16px;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            outline: none;
-        }
-
-        .input-group-text {
-            border-radius: 0.375rem 0 0 0.375rem;
-            border: 2px solid #e5e7eb;
-            background: #f9fafb;
-            border-right: 0;
-            transition: all 0.2s ease;
-        }
-
-        .input-group .form-control {
-            border-left: 0;
-            border-radius: 0 0.375rem 0.375rem 0;
-        }
-
-        .input-group:focus-within .input-group-text {
-            border-color: var(--primary-color);
-            background: #eff6ff;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            border: 0;
-            border-radius: 0.375rem;
-            padding: 0.625rem 1rem;
-            font-weight: 600;
-            color: white;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .btn-password-toggle {
-            border: 0;
-            background: transparent;
-            color: #6b7280;
-            cursor: pointer;
-            padding: 0 12px;
-            transition: color 0.2s;
-        }
-
-        .btn-password-toggle:hover {
-            color: var(--primary-color);
-        }
-
-        .form-check-input:checked {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-
-        .text-primary {
-            color: var(--primary-color);
-        }
-
-        a {
-            color: var(--primary-color);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        a:hover {
-            color: var(--primary-dark);
-        }
-
-        .alert {
-            border-radius: 12px;
-            border: 0;
-        }
-
-        .tagline {
-            color: #6b7280;
-            font-weight: 500;
-            font-size: 0.875rem;
-        }
-
-        .footer-text {
-            color: #9ca3af;
-            font-weight: 400;
-            font-size: 0.875rem;
-        }
-
-        @media (max-width: 576px) {
-            .auth-brand {
-                font-size: 1.5rem;
-            }
-            .footer-section {
-                padding: 12px 16px;
-            }
-        }
+        .au { animation: fadeUp .5s cubic-bezier(.22, 1, .36, 1) both; }
+        .d1 { animation-delay: .05s; }
+        .d2 { animation-delay: .12s; }
+        .d3 { animation-delay: .20s; }
     </style>
 </head>
 
-<body>
-    <main class="container" style="height: 100vh; overflow-y: auto; display: flex; align-items: center;">
-        <div class="row justify-content-center w-100" style="padding: 20px 0;">
-            <div class="col-12 col-sm-10 col-md-6 col-lg-4" style="max-width: 420px;">
+<body class="bg-gray-50 text-gray-900 antialiased">
+    <div class="auth-grid min-h-screen flex flex-col items-center justify-center px-4 py-8 sm:px-6">
 
-                <div class="text-center mb-4">
-                    <div class="auth-brand mb-2">EHE</div>
-                    <p class="tagline mb-0">Sistema de Gestión Agrícola</p>
-                </div>
+        {{-- Brand --}}
+        <div class="au d1 text-center mb-6">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-200 mb-4">
+                <span class="text-xl font-extrabold text-white tracking-tight">E</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">EHE</h1>
+            <p class="text-sm text-gray-500 mt-1">Sistema de Gesti&oacute;n Agr&iacute;cola</p>
+        </div>
 
+        {{-- Card --}}
+        <div class="au d2 w-full max-w-sm sm:max-w-md">
+            <div class="bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-100 overflow-hidden">
                 @yield('content')
-
-                <div class="text-center mt-4">
-                    <p class="footer-text mb-0">
-                        © {{ date('Y') }} EHE. Todos los derechos reservados.
-                    </p>
-                </div>
             </div>
         </div>
-    </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        {{-- Footer --}}
+        <p class="au d3 text-xs text-gray-400 mt-6 text-center">
+            &copy; {{ date('Y') }} EHE. Todos los derechos reservados.
+        </p>
+
+    </div>
 </body>
 
 </html>

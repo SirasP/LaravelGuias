@@ -1,633 +1,336 @@
 <x-app-layout>
 
-   <x-slot name="header">
-    <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white ">
-            📦 Movimientos de Inventario
-        </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Historial completo de ingresos y salidas de productos
-        </p>
-    </div>
-</x-slot>
-
-<!-- Card de Filtros -->
-<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-        
-        <!-- Header del Card -->
-        <div class="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-white">
-                            Filtros de Búsqueda
-                        </h3>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            Refina los resultados según tus necesidades
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- Botón limpiar filtros -->
-                <button 
-                    onclick="limpiarFiltros()"
-                    id="btnLimpiarFiltros"
-                    class="hidden items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    <x-slot name="header">
+        <div class="flex items-center justify-between w-full gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-orange-600 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    Limpiar filtros
-                </button>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Movimientos</h2>
+                    <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Historial de ingresos y salidas</p>
+                </div>
             </div>
         </div>
+    </x-slot>
 
-        <!-- Contenido del Card -->
-        <div class="p-6">
-            <form id="formFiltros" method="GET" action="{{ route('fuelcontrol.movimientos') }}">
+    <style>
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        .au { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both }
+        .d1 { animation-delay: .04s } .d2 { animation-delay: .08s } .d3 { animation-delay: .12s } .d4 { animation-delay: .16s }
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    
-                    <!-- Filtro por Estado -->
-                    <div class="space-y-2">
-                        <label for="filtroEstado" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Estado
-                            </div>
-                        </label>
-                        <select 
-                            id="filtroEstado"
-                            name="estado"
-                            onchange="aplicarFiltros()"
-                            class="w-full text-sm border-gray-300 dark:border-gray-600 
-                                   dark:bg-gray-700 dark:text-white 
-                                   rounded-lg shadow-sm
-                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                   transition-all duration-200
-                                   cursor-pointer">
-                            <option value="">📋 Todos los estados</option>
-                            <option value="pendiente" {{ request('estado') == 'pendiente' ? 'selected' : '' }}>
-                                ⏳ Pendiente
-                            </option>
-                            <option value="aprobado" {{ request('estado') == 'aprobado' ? 'selected' : '' }}>
-                                ✅ Aprobado
-                            </option>
-                            <option value="rechazado" {{ request('estado') == 'rechazado' ? 'selected' : '' }}>
-                                ❌ Rechazado
-                            </option>
-                        </select>
-                    </div>
+        .page-bg { background: #f1f5f9; min-height: 100% }
+        .dark .page-bg { background: #0d1117 }
 
-                    <!-- Filtro por Tipo -->
-                    <div class="space-y-2">
-                        <label for="filtroTipo" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                                </svg>
-                                Tipo de Movimiento
-                            </div>
-                        </label>
-                        <select 
-                            id="filtroTipo"
-                            name="tipo"
-                            onchange="aplicarFiltros()"
-                            class="w-full text-sm border-gray-300 dark:border-gray-600 
-                                   dark:bg-gray-700 dark:text-white 
-                                   rounded-lg shadow-sm
-                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                   transition-all duration-200
-                                   cursor-pointer">
-                            <option value="">🔄 Todos los tipos</option>
-                            <option value="entrada" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>
-                                ⬇️ Entrada
-                            </option>
-                            <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>
-                                ⬆️ Salidas
-                            </option>
-                        </select>
-                    </div>
+        .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden }
+        .dark .panel { background: #161c2c; border-color: #1e2a3b }
 
-                    <!-- Filtro por Producto -->
-                    <div class="space-y-2">
-                        <label for="filtroProducto" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                </svg>
-                                Producto
-                            </div>
-                        </label>
-                        <select 
-                            id="filtroProducto"
-                            name="producto_id"
-                            onchange="aplicarFiltros()"
-                            class="w-full text-sm border-gray-300 dark:border-gray-600 
-                                   dark:bg-gray-700 dark:text-white 
-                                   rounded-lg shadow-sm
-                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                   transition-all duration-200
-                                   cursor-pointer">
-                            <option value="">📦 Todos los productos</option>
-                            @foreach($productos ?? [] as $producto)
-                                <option value="{{ $producto->id }}" {{ request('producto_id') == $producto->id ? 'selected' : '' }}>
-                                    {{ ucfirst($producto->nombre) }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+        .dt { width: 100%; border-collapse: collapse; font-size: 13px }
+        .dt thead tr { background: #f8fafc; border-bottom: 1px solid #f1f5f9 }
+        .dark .dt thead tr { background: #111827; border-bottom-color: #1e2a3b }
+        .dt th { padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; white-space: nowrap }
+        .dt th.r { text-align: right } .dt th.c { text-align: center }
+        .dt td { padding: 12px 16px; border-bottom: 1px solid #f8fafc; color: #334155; vertical-align: middle }
+        .dark .dt td { border-bottom-color: #1a2232; color: #cbd5e1 }
+        .dt tbody tr:last-child td { border-bottom: none }
+        .dt tbody tr:hover td { background: #f8fafc }
+        .dark .dt tbody tr:hover td { background: #1a2436 }
 
-                    <!-- Filtro por Fecha -->
-                    <div class="space-y-2">
-                        <label for="filtroFecha" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
-                                Rango de Fecha
-                            </div>
-                        </label>
-                        <select 
-                            id="filtroFecha"
-                            name="fecha"
-                            onchange="aplicarFiltros()"
-                            class="w-full text-sm border-gray-300 dark:border-gray-600 
-                                   dark:bg-gray-700 dark:text-white 
-                                   rounded-lg shadow-sm
-                                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                   transition-all duration-200
-                                   cursor-pointer">
-                            <option value="">📅 Todas las fechas</option>
-                            <option value="hoy" {{ request('fecha') == 'hoy' ? 'selected' : '' }}>
-                                Hoy
-                            </option>
-                            <option value="semana" {{ request('fecha') == 'semana' ? 'selected' : '' }}>
-                                Esta semana
-                            </option>
-                            <option value="mes" {{ request('fecha') == 'mes' ? 'selected' : '' }}>
-                                Este mes
-                            </option>
-                            <option value="trimestre" {{ request('fecha') == 'trimestre' ? 'selected' : '' }}>
-                                Este trimestre
-                            </option>
-                        </select>
-                    </div>
+        .m-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px }
+        .dark .m-card { background: #161c2c; border-color: #1e2a3b }
 
-                </div>
+        .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between }
+        .dark .stat-card { background: #161c2c; border-color: #1e2a3b }
 
-                <!-- Indicador de filtros activos -->
-                <div id="filtrosActivos" class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                            </svg>
-                            <span class="font-medium">Filtros activos:</span>
-                            <span id="contadorFiltros" class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold">
-                                0
-                            </span>
-                        </div>
-                        <div id="tagsFiltros" class="flex flex-wrap gap-2">
-                            <!-- Tags de filtros activos se generan aquí -->
-                        </div>
-                    </div>
-                </div>
+        .badge-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700 }
+        .badge-pendiente { background: #fef3c7; color: #92400e }
+        .badge-aprobado { background: #dcfce7; color: #15803d }
+        .badge-rechazado { background: #fee2e2; color: #dc2626 }
+        .dark .badge-pendiente { background: rgba(234,179,8,.15); color: #fcd34d }
+        .dark .badge-aprobado { background: rgba(22,163,74,.15); color: #4ade80 }
+        .dark .badge-rechazado { background: rgba(220,38,38,.15); color: #f87171 }
 
-            </form>
-        </div>
+        .tipo-entrada { background: #dcfce7; color: #15803d }
+        .tipo-salida { background: #fee2e2; color: #dc2626 }
+        .dark .tipo-entrada { background: rgba(22,163,74,.15); color: #4ade80 }
+        .dark .tipo-salida { background: rgba(220,38,38,.15); color: #f87171 }
 
-    </div>
-
-</div>
-
-<script>
-    function aplicarFiltros() {
-        document.getElementById('formFiltros').submit();
-    }
-
-    function limpiarFiltros() {
-        // Resetear todos los selects
-        document.getElementById('filtroEstado').value = '';
-        document.getElementById('filtroTipo').value = '';
-        document.getElementById('filtroProducto').value = '';
-        document.getElementById('filtroFecha').value = '';
-        
-        // Enviar formulario limpio
-        aplicarFiltros();
-    }
-
-    function actualizarIndicadorFiltros() {
-        const estado = document.getElementById('filtroEstado').value;
-        const tipo = document.getElementById('filtroTipo').value;
-        const producto = document.getElementById('filtroProducto').value;
-        const fecha = document.getElementById('filtroFecha').value;
-        
-        const filtrosActivos = [estado, tipo, producto, fecha].filter(f => f !== '');
-        const count = filtrosActivos.length;
-        
-        const contenedor = document.getElementById('filtrosActivos');
-        const btnLimpiar = document.getElementById('btnLimpiarFiltros');
-        const contador = document.getElementById('contadorFiltros');
-        const tagsContainer = document.getElementById('tagsFiltros');
-        
-        if (count > 0) {
-            contenedor.classList.remove('hidden');
-            btnLimpiar.classList.remove('hidden');
-            btnLimpiar.classList.add('flex');
-            contador.textContent = count;
-            
-            // Generar tags
-            tagsContainer.innerHTML = '';
-            
-            if (estado) {
-                const estadoTexto = document.querySelector(`#filtroEstado option[value="${estado}"]`).textContent;
-                tagsContainer.innerHTML += `
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg text-xs font-medium">
-                        ${estadoTexto}
-                    </span>
-                `;
-            }
-            
-            if (tipo) {
-                const tipoTexto = document.querySelector(`#filtroTipo option[value="${tipo}"]`).textContent;
-                tagsContainer.innerHTML += `
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-xs font-medium">
-                        ${tipoTexto}
-                    </span>
-                `;
-            }
-            
-            if (producto) {
-                const productoTexto = document.querySelector(`#filtroProducto option[value="${producto}"]`).textContent;
-                tagsContainer.innerHTML += `
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium">
-                        ${productoTexto}
-                    </span>
-                `;
-            }
-            
-            if (fecha) {
-                const fechaTexto = document.querySelector(`#filtroFecha option[value="${fecha}"]`).textContent;
-                tagsContainer.innerHTML += `
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium">
-                        ${fechaTexto}
-                    </span>
-                `;
-            }
-        } else {
-            contenedor.classList.add('hidden');
-            btnLimpiar.classList.add('hidden');
-            btnLimpiar.classList.remove('flex');
+        .flt-select {
+            padding: 6px 26px 6px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
+            cursor: pointer; border: 1px solid #e2e8f0; background: #fff; color: #475569;
+            outline: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 8px center;
         }
-    }
+        .flt-select:focus { border-color: #6366f1 }
+        .dark .flt-select { background-color: #161c2c; border-color: #1e2a3b; color: #94a3b8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+        }
 
-    // Ejecutar al cargar la página
-    document.addEventListener('DOMContentLoaded', actualizarIndicadorFiltros);
-</script>
+        .btn-xml { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; background: #eef2ff; color: #4f46e5; transition: background .15s }
+        .btn-xml:hover { background: #e0e7ff }
+        .dark .btn-xml { background: rgba(99,102,241,.15); color: #a5b4fc }
+        .dark .btn-xml:hover { background: rgba(99,102,241,.25) }
+    </style>
 
-    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="page-bg">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <!-- Total Movimientos -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
-                <div class="flex items-center justify-between">
+            {{-- ── STAT CARDS ─────────────────────────────── --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 au d1">
+                <div class="stat-card">
                     <div>
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $movimientos->total() }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $movimientos->total() }}</p>
                     </div>
-                    <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                        <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
                     </div>
                 </div>
-            </div>
-
-            <!-- Pendientes -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border-l-4 border-yellow-500">
-                <div class="flex items-center justify-between">
+                <div class="stat-card">
                     <div>
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Pendientes</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $movimientos->where('estado', 'pendiente')->count() }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Pendientes</p>
+                        <p class="text-xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{{ $movimientos->where('estado', 'pendiente')->count() }}</p>
                     </div>
-                    <div class="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                        <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
                 </div>
-            </div>
-
-            <!-- Aprobados -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                <div class="flex items-center justify-between">
+                <div class="stat-card">
                     <div>
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aprobados</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $movimientos->where('estado', 'aprobado')->count() }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Aprobados</p>
+                        <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{{ $movimientos->where('estado', 'aprobado')->count() }}</p>
                     </div>
-                    <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                        <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
                 </div>
-            </div>
-
-            <!-- Rechazados -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border-l-4 border-red-500">
-                <div class="flex items-center justify-between">
+                <div class="stat-card">
                     <div>
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Rechazados</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $movimientos->where('estado', 'rechazado')->count() }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Rechazados</p>
+                        <p class="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">{{ $movimientos->where('estado', 'rechazado')->count() }}</p>
                     </div>
-                    <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                        <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Tabla de Movimientos -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            {{-- ── FILTROS ────────────────────────────────── --}}
+            <form id="formFiltros" method="GET" action="{{ route('fuelcontrol.movimientos') }}" class="panel au d1">
+                <div class="px-4 py-3 flex flex-wrap items-center gap-2">
+                    <select name="estado" onchange="this.form.submit()" class="flt-select">
+                        <option value="">Estado — todos</option>
+                        <option value="pendiente" {{ request('estado') == 'pendiente' ? 'selected' : '' }}>Pendiente</option>
+                        <option value="aprobado" {{ request('estado') == 'aprobado' ? 'selected' : '' }}>Aprobado</option>
+                        <option value="rechazado" {{ request('estado') == 'rechazado' ? 'selected' : '' }}>Rechazado</option>
+                    </select>
+                    <select name="tipo" onchange="this.form.submit()" class="flt-select">
+                        <option value="">Tipo — todos</option>
+                        <option value="entrada" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>Entrada</option>
+                        <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>Salida</option>
+                    </select>
+                    <select name="producto_id" onchange="this.form.submit()" class="flt-select">
+                        <option value="">Producto — todos</option>
+                        @foreach($productos ?? [] as $producto)
+                            <option value="{{ $producto->id }}" {{ request('producto_id') == $producto->id ? 'selected' : '' }}>
+                                {{ ucfirst($producto->nombre) }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <select name="fecha" onchange="this.form.submit()" class="flt-select">
+                        <option value="">Fecha — todas</option>
+                        <option value="hoy" {{ request('fecha') == 'hoy' ? 'selected' : '' }}>Hoy</option>
+                        <option value="semana" {{ request('fecha') == 'semana' ? 'selected' : '' }}>Esta semana</option>
+                        <option value="mes" {{ request('fecha') == 'mes' ? 'selected' : '' }}>Este mes</option>
+                        <option value="trimestre" {{ request('fecha') == 'trimestre' ? 'selected' : '' }}>Trimestre</option>
+                    </select>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    @if(request('estado') || request('tipo') || request('producto_id') || request('fecha'))
+                        <a href="{{ route('fuelcontrol.movimientos') }}"
+                            class="text-xs font-semibold text-gray-500 hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                            Limpiar
+                        </a>
+                    @endif
 
-                    <thead class="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-                        <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Producto
-                            </th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Tipo
-                            </th>
-                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Cantidad
-                            </th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Estado
-                            </th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Fecha
-                            </th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Usuario
-                            </th>
-                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                Acciones
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-
-                        @forelse ($movimientos as $m)
-
-                            @php
-                                $estadoConfig = match ($m->estado) {
-                                    'pendiente' => [
-                                        'bg' => 'bg-yellow-100 dark:bg-yellow-900/30',
-                                        'text' => 'text-yellow-800 dark:text-yellow-300',
-                                        'icon' => '⏳'
-                                    ],
-                                    'aprobado' => [
-                                        'bg' => 'bg-green-100 dark:bg-green-900/30',
-                                        'text' => 'text-green-800 dark:text-green-300',
-                                        'icon' => '✓'
-                                    ],
-                                    'rechazado' => [
-                                        'bg' => 'bg-red-100 dark:bg-red-900/30',
-                                        'text' => 'text-red-800 dark:text-red-300',
-                                        'icon' => '✗'
-                                    ],
-                                    default => [
-                                        'bg' => 'bg-gray-100 dark:bg-gray-700',
-                                        'text' => 'text-gray-800 dark:text-gray-300',
-                                        'icon' => '•'
-                                    ]
-                                };
-                            @endphp
-
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-
-                                <!-- Producto -->
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                            <span class="text-red font-bold text-lg">
-                                                {{ strtoupper(substr($m->producto_nombre ?? 'N', 0, 1)) }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                                                {{ ucfirst($m->producto_nombre ?? 'N/A') }}
-                                            </p>
-                                            @if($m->producto->codigo ?? false)
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                    Código: {{ $m->producto->codigo }}
-                                                </p>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <!-- Tipo -->
-                                <td class="px-6 py-4">
-                                   @if(strtolower(trim($m->tipo)) == 'entrada')
-
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"/>
-                                            </svg>
-                                            Ingreso
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd" transform="rotate(180 10 10)"/>
-                                            </svg>
-                                            Salida
-                                        </span>
-                                    @endif
-                                </td>
-
-                                <!-- Cantidad -->
-                                <td class="px-6 py-4 text-right">
-                                    <span class="font-mono text-lg font-bold {{ $m->tipo === 'ingreso' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
-                                        {{ $m->tipo === 'ingreso' ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }}
-                                    </span>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">L</span>
-                                </td>
-
-                                <!-- Estado -->
-                                <td class="px-6 py-4 text-center">
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold {{ $estadoConfig['bg'] }} {{ $estadoConfig['text'] }}">
-                                        <span>{{ $estadoConfig['icon'] }}</span>
-                                        {{ ucfirst($m->estado) }}
-                                    </span>
-                                </td>
-
-                                <!-- Fecha -->
-                                <td class="px-6 py-4 text-center">
-                                    <div class="text-sm text-gray-900 dark:text-white font-medium">
-                                        {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
-
-                                    </div>
-                                 
-                                </td>
-
-                                <!-- Usuario -->
-                                 @php
-                                    $nombreUsuario = $m->usuario;
-
-                                    if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) {
-                                        $nombreUsuario = 'Carga Automática';
-                                    }
-                                @endphp
-                                <td class="px-6 py-4 text-center">
-                                    @if($m->usuario ?? false)
-                                        <div class="flex items-center justify-center gap-2">
-                                            <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                                                <span class="text-black text-xs font-bold">
-                                                    {{ strtoupper(substr($m->usuario, 0, 1)) }}
-                                                </span>
-                                            </div>
-                                            <div class="text-left">
-                                                <p class="text-xs font-medium text-gray-900 dark:text-white">
-                                                    {{ $nombreUsuario }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
-                                    @endif
-                                </td>
-
-                                <!-- Acciones -->
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex items-center justify-center gap-2">
-                                        @if($m->xml_path)
-                                            <button 
-                                               onclick="abrirMovimiento('{{ route('fuelcontrol.xml.show', $m->id) }}')"
-
-
-                                                class="group relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-black text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                </svg>
-                                                Ver XML
-                                            </button>
-                                            
-                                            @if($m->requiere_revision)
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" title="Requiere revisión">
-                                                    ⚠
-                                                </span>
-                                            @endif
-                                        @else
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">Sin XML</span>
-                                        @endif
-                                    </div>
-                                </td>
-
-                            </tr>
-
-                        @empty
-
-                            <tr>
-                                <td colspan="7" class="px-6 py-16 text-center">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                                            <svg class="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                                            </svg>
-                                        </div>
-                                        <p class="text-gray-500 dark:text-gray-400 font-medium text-lg">
-                                            No hay movimientos registrados
-                                        </p>
-                                        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">
-                                            Los movimientos aparecerán aquí una vez que se registren
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-
-                        @endforelse
-
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginación mejorada -->
-            @if($movimientos->hasPages())
-                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
-                    
-                        <div>
-                            {{ $movimientos->links() }}
-                        </div>
+                    <div class="ml-auto text-xs text-gray-400 hidden sm:block">
+                        {{ $movimientos->total() }} registros
                     </div>
                 </div>
+            </form>
+
+            {{-- ── TABLA DESKTOP ──────────────────────────── --}}
+            <div class="hidden lg:block panel au d2">
+                <div class="overflow-x-auto">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Tipo</th>
+                                <th class="r">Cantidad</th>
+                                <th class="c">Estado</th>
+                                <th class="c">Fecha</th>
+                                <th class="c">Usuario</th>
+                                <th class="c">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($movimientos as $m)
+                                @php
+                                    $isEntrada = strtolower(trim($m->tipo)) === 'entrada';
+                                    $nombreUsuario = $m->usuario;
+                                    if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) $nombreUsuario = 'Carga Autom.';
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-[10px] font-bold text-orange-600 dark:text-orange-400 shrink-0">
+                                                {{ strtoupper(substr($m->producto_nombre ?? 'N', 0, 1)) }}
+                                            </div>
+                                            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ ucfirst($m->producto_nombre ?? 'N/A') }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge-pill {{ $isEntrada ? 'tipo-entrada' : 'tipo-salida' }}">
+                                            {{ $isEntrada ? 'Ingreso' : 'Salida' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-right font-bold tabular-nums {{ $isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                        {{ $isEntrada ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }}
+                                        <span class="text-xs text-gray-400 ml-0.5">L</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-pill badge-{{ $m->estado }}">
+                                            {{ ucfirst($m->estado) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center text-sm text-gray-600 dark:text-gray-400">
+                                        {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
+                                    </td>
+                                    <td class="text-center">
+                                        @if($m->usuario)
+                                            <div class="flex items-center justify-center gap-2">
+                                                <div class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-[9px] font-bold text-indigo-600 dark:text-indigo-400">
+                                                    {{ strtoupper(substr($m->usuario, 0, 1)) }}
+                                                </div>
+                                                <span class="text-xs text-gray-600 dark:text-gray-400">{{ $nombreUsuario }}</span>
+                                            </div>
+                                        @else
+                                            <span class="text-xs text-gray-300 dark:text-gray-700">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        @if($m->xml_path)
+                                            <button onclick="abrirMovimiento('{{ route('fuelcontrol.xml.show', $m->id) }}')" class="btn-xml">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                </svg>
+                                                XML
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-gray-300 dark:text-gray-700">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-14 text-center text-sm text-gray-400">
+                                        No hay movimientos registrados.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Paginación desktop --}}
+            @if($movimientos->hasPages())
+                <div class="hidden lg:block au d3">{{ $movimientos->links() }}</div>
+            @endif
+
+            {{-- ── CARDS MÓVIL ────────────────────────────── --}}
+            <div class="lg:hidden space-y-2 au d2">
+                @forelse ($movimientos as $m)
+                    @php
+                        $isEntrada = strtolower(trim($m->tipo)) === 'entrada';
+                        $nombreUsuario = $m->usuario;
+                        if(in_array($nombreUsuario, ['gmail', 'gmail_historico'])) $nombreUsuario = 'Carga Autom.';
+                    @endphp
+                    <div class="m-card">
+                        <div class="flex items-start justify-between gap-2 mb-2.5">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-9 h-9 rounded-xl {{ $isEntrada ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20' }} flex items-center justify-center shrink-0">
+                                    @if($isEntrada)
+                                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                                        </svg>
+                                    @else
+                                        <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                                        </svg>
+                                    @endif
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ ucfirst($m->producto_nombre ?? 'N/A') }}</p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="badge-pill text-[10px] {{ $isEntrada ? 'tipo-entrada' : 'tipo-salida' }}">{{ $isEntrada ? 'Ingreso' : 'Salida' }}</span>
+                                        <span class="text-[11px] text-gray-400">{{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-sm font-black tabular-nums shrink-0 {{ $isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                {{ $isEntrada ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }} L
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-2.5">
+                            <div class="flex items-center gap-2">
+                                <span class="badge-pill badge-{{ $m->estado }} text-[10px]">{{ ucfirst($m->estado) }}</span>
+                                @if($m->usuario)
+                                    <span class="text-[11px] text-gray-400">{{ $nombreUsuario }}</span>
+                                @endif
+                            </div>
+                            @if($m->xml_path)
+                                <button onclick="abrirMovimiento('{{ route('fuelcontrol.xml.show', $m->id) }}')" class="btn-xml">XML</button>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div class="m-card text-center text-sm text-gray-400 py-12">
+                        No hay movimientos registrados.
+                    </div>
+                @endforelse
+            </div>
+
+            {{-- Paginación móvil --}}
+            @if($movimientos->hasPages())
+                <div class="lg:hidden au d3">{{ $movimientos->links() }}</div>
             @endif
 
         </div>
-
     </div>
 
+    <script>
+        window.abrirMovimiento = async function (url) {
+            try {
+                const html = await (await fetch(url)).text();
+                await Swal.fire({ width: '85%', showCloseButton: true, showConfirmButton: false, html, background: '#f9fafb' });
+            } catch {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el XML.' });
+            }
+        };
+    </script>
 
 </x-app-layout>
-<script>
-window.abrirMovimiento = async function (url) {
-    try {
-        const response = await fetch(url);
-        const html = await response.text();
-
-        await Swal.fire({
-            width: '85%',
-            showCloseButton: true,
-            showConfirmButton: false,
-            html: html,
-            background: '#f9fafb'
-        });
-
-    } catch (error) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo cargar el XML'
-        });
-    }
-};
-</script>
-<script>
-    window.switchTab = function (tab) {
-
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
-            btn.classList.add('border-transparent', 'text-gray-500');
-        });
-
-        const content = document.getElementById('content-' + tab);
-        if (content) content.classList.remove('hidden');
-
-        const activeTab = document.getElementById('tab-' + tab);
-        if (activeTab) {
-            activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-            activeTab.classList.remove('border-transparent', 'text-gray-500');
-        }
-    };
-</script>
