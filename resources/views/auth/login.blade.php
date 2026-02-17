@@ -4,9 +4,9 @@
 
 @section('content')
     <div class="card auth-card">
-        <div class="card-body p-5">
-            <div class="text-center mb-4">
-                <div class="position-relative d-inline-block mb-3">
+        <div class="card-body p-4">
+            <div class="text-center mb-3">
+                <div class="position-relative d-inline-block mb-2">
                     <div class="d-inline-flex align-items-center justify-content-center rounded-circle p-3"
                         style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%); border: 3px solid #e9ecef;">
                         <i class="bi bi-shield-lock text-gradient" style="font-size: 2.2rem;"></i>
@@ -31,7 +31,7 @@
             <form method="POST" action="{{ route('login') }}" id="loginForm">
                 @csrf
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <label class="form-label fw-semibold small mb-2">
                         <i class="bi bi-envelope me-1"></i>Correo electrónico
                     </label>
@@ -48,7 +48,7 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <label class="form-label fw-semibold small mb-2">
                         <i class="bi bi-key me-1"></i>Contraseña
                     </label>
@@ -68,7 +68,7 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="remember" id="remember">
                         <label class="form-check-label small" for="remember">

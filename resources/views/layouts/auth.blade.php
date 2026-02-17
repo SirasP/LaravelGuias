@@ -250,7 +250,7 @@
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
             border-radius: 16px;
-            padding: 16px 24px;
+            padding: 12px 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
@@ -282,19 +282,19 @@
     <div class="particle"></div>
 
     <main class="container" style="position: relative; z-index: 1;">
-        <div class="row justify-content-center align-items-center" style="min-height: 100vh;">
-            <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="row justify-content-center align-items-center" style="min-height: 100vh; padding: 20px 0;">
+            <div class="col-12 col-sm-10 col-md-6 col-lg-4" style="max-width: 480px;">
 
-                <div class="text-center mb-5">
-                    <div class="d-inline-flex align-items-center gap-3 mb-3">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center gap-2 mb-2">
                         <div style="position: relative;">
-                            <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 3rem; filter: drop-shadow(0 4px 8px rgba(17, 153, 142, 0.5));"></i>
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: radial-gradient(circle, rgba(56, 239, 125, 0.3), transparent); border-radius: 50%; filter: blur(10px);"></div>
+                            <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 2.5rem; filter: drop-shadow(0 4px 8px rgba(17, 153, 142, 0.5));"></i>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; background: radial-gradient(circle, rgba(56, 239, 125, 0.3), transparent); border-radius: 50%; filter: blur(10px);"></div>
                         </div>
-                        <div class="auth-brand" style="font-size: 3rem; text-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);">EHE</div>
+                        <div class="auth-brand" style="font-size: 2.5rem; text-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);">EHE</div>
                     </div>
                     <div class="tagline">
-                        <span style="display: inline-block; padding: 6px 20px; background: rgba(17, 153, 142, 0.2); border-radius: 20px; border: 1px solid rgba(56, 239, 125, 0.3);">
+                        <span style="display: inline-block; padding: 4px 16px; background: rgba(17, 153, 142, 0.2); border-radius: 20px; border: 1px solid rgba(56, 239, 125, 0.3); font-size: 0.65rem;">
                             Sistema de Gestión Empresarial
                         </span>
                     </div>
@@ -302,7 +302,7 @@
 
                 @yield('content')
 
-                <div class="footer-section mt-5">
+                <div class="footer-section mt-4">
                     <div class="text-center">
                         <div class="d-flex align-items-center justify-content-center gap-2">
                             <i class="bi bi-shield-check-fill footer-icon text-success" style="font-size: 1.1rem;"></i>
