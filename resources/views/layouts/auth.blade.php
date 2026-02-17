@@ -238,14 +238,38 @@
             border: 0;
         }
 
+        .tagline {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+        }
+
+        .footer-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            padding: 16px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
         .footer-text {
-            color: rgba(255, 255, 255, 0.8);
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .footer-icon {
+            filter: drop-shadow(0 2px 4px rgba(17, 153, 142, 0.5));
         }
 
         @media (max-width: 576px) {
             .auth-brand {
                 font-size: 1.5rem;
+            }
+            .footer-section {
+                padding: 12px 16px;
             }
         }
     </style>
@@ -261,19 +285,35 @@
         <div class="row justify-content-center align-items-center" style="min-height: 100vh;">
             <div class="col-12 col-sm-10 col-md-6 col-lg-4">
 
-                <div class="text-center mb-4">
-                    <div class="d-inline-flex align-items-center gap-2 mb-2">
-                        <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 2.5rem;"></i>
-                        <div class="auth-brand" style="font-size: 2.5rem;">EHE</div>
+                <div class="text-center mb-5">
+                    <div class="d-inline-flex align-items-center gap-3 mb-3">
+                        <div style="position: relative;">
+                            <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 3rem; filter: drop-shadow(0 4px 8px rgba(17, 153, 142, 0.5));"></i>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: radial-gradient(circle, rgba(56, 239, 125, 0.3), transparent); border-radius: 50%; filter: blur(10px);"></div>
+                        </div>
+                        <div class="auth-brand" style="font-size: 3rem; text-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);">EHE</div>
                     </div>
-                    <div class="footer-text small">Sistema de Gestión Empresarial</div>
+                    <div class="tagline">
+                        <span style="display: inline-block; padding: 6px 20px; background: rgba(17, 153, 142, 0.2); border-radius: 20px; border: 1px solid rgba(56, 239, 125, 0.3);">
+                            Sistema de Gestión Empresarial
+                        </span>
+                    </div>
                 </div>
 
                 @yield('content')
 
-                <div class="text-center footer-text small mt-4">
-                    <i class="bi bi-shield-check me-1"></i>
-                    © {{ date('Y') }} EHE - Soluciones Empresariales
+                <div class="footer-section mt-5">
+                    <div class="text-center">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-shield-check-fill footer-icon text-success" style="font-size: 1.1rem;"></i>
+                            <span class="footer-text">
+                                © {{ date('Y') }} <strong>EHE</strong> - Plataforma Empresarial
+                            </span>
+                        </div>
+                        <div class="mt-2" style="color: rgba(255, 255, 255, 0.6); font-size: 0.7rem;">
+                            Protegido con encriptación de grado empresarial
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
