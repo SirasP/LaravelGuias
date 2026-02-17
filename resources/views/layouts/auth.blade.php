@@ -13,20 +13,20 @@
 
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            --secondary-gradient: linear-gradient(135deg, #0ba360 0%, #3cba92 100%);
-            --accent-gradient: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            --primary-color: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #60a5fa;
         }
 
         body {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            background: #f3f4f6;
             height: 100vh;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             position: relative;
         }
 
-        /* Gradiente verde superpuesto */
+        /* Patrón sutil de fondo */
         body::before {
             content: '';
             position: absolute;
@@ -34,88 +34,29 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(17, 153, 142, 0.8) 0%, rgba(56, 239, 125, 0.6) 100%);
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
             pointer-events: none;
-        }
-
-        /* Patrón de puntos animado */
-        body::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: moveBackground 20s linear infinite;
-            pointer-events: none;
-        }
-
-        @keyframes moveBackground {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
-        }
-
-        /* Partículas flotantes */
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            33% { transform: translateY(-20px) rotate(120deg); }
-            66% { transform: translateY(-10px) rotate(240deg); }
-        }
-
-        .particle {
-            position: absolute;
-            background: rgba(56, 239, 125, 0.3);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        .particle:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            top: 10%;
-            left: 10%;
-            animation: float 8s ease-in-out infinite;
-        }
-
-        .particle:nth-child(2) {
-            width: 60px;
-            height: 60px;
-            top: 70%;
-            left: 80%;
-            animation: float 10s ease-in-out infinite 2s;
-        }
-
-        .particle:nth-child(3) {
-            width: 100px;
-            height: 100px;
-            top: 40%;
-            left: 5%;
-            animation: float 12s ease-in-out infinite 1s;
         }
 
         .auth-card {
-            border: 0;
-            border-radius: 24px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: box-shadow 0.3s ease;
         }
 
         .auth-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         .auth-brand {
             font-weight: 800;
             font-size: 2rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #1f2937;
             letter-spacing: -0.5px;
         }
 
@@ -127,110 +68,75 @@
         }
 
         .form-control:focus {
-            border-color: #11998e;
-            box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.15), 0 0 20px rgba(56, 239, 125, 0.3);
-            transform: translateY(-2px);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
         }
 
         .input-group-text {
-            border-radius: 12px;
-            border: 2px solid #e9ecef;
-            background: transparent;
+            border-radius: 0.375rem 0 0 0.375rem;
+            border: 2px solid #e5e7eb;
+            background: #f9fafb;
             border-right: 0;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .input-group .form-control {
             border-left: 0;
+            border-radius: 0 0.375rem 0.375rem 0;
         }
 
         .input-group:focus-within .input-group-text {
-            border-color: #11998e;
-            background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
+            border-color: var(--primary-color);
+            background: #eff6ff;
         }
 
         .btn-primary {
-            background: var(--primary-gradient);
+            background: var(--primary-color);
             border: 0;
-            border-radius: 12px;
-            padding: 14px;
+            border-radius: 0.375rem;
+            padding: 0.625rem 1rem;
             font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn-primary:hover::before {
-            left: 100%;
+            color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(17, 153, 142, 0.6), 0 0 30px rgba(56, 239, 125, 0.4);
+            background: var(--primary-dark);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         .btn-password-toggle {
             border: 0;
             background: transparent;
-            color: #6c757d;
+            color: #6b7280;
             cursor: pointer;
             padding: 0 12px;
             transition: color 0.2s;
         }
 
         .btn-password-toggle:hover {
-            color: #11998e;
+            color: var(--primary-color);
         }
 
         .form-check-input:checked {
-            background-color: #11998e;
-            border-color: #11998e;
-            box-shadow: 0 0 10px rgba(17, 153, 142, 0.5);
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
         }
 
-        .text-gradient {
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .text-primary {
+            color: var(--primary-color);
         }
 
         a {
-            color: #11998e;
+            color: var(--primary-color);
             text-decoration: none;
-            transition: all 0.2s;
-            position: relative;
+            transition: color 0.2s;
         }
 
         a:hover {
-            color: #38ef7d;
-        }
-
-        a::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--primary-gradient);
-            transition: width 0.3s ease;
-        }
-
-        a:hover::after {
-            width: 100%;
+            color: var(--primary-dark);
         }
 
         .alert {
@@ -239,29 +145,15 @@
         }
 
         .tagline {
-            color: rgba(255, 255, 255, 0.9);
+            color: #6b7280;
             font-weight: 500;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-        }
-
-        .footer-section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            border-radius: 16px;
-            padding: 12px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.875rem;
         }
 
         .footer-text {
-            color: rgba(255, 255, 255, 0.95);
-            font-weight: 500;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .footer-icon {
-            filter: drop-shadow(0 2px 4px rgba(17, 153, 142, 0.5));
+            color: #9ca3af;
+            font-weight: 400;
+            font-size: 0.875rem;
         }
 
         @media (max-width: 576px) {
@@ -276,44 +168,21 @@
 </head>
 
 <body>
-    <!-- Partículas flotantes -->
-    <div class="particle"></div>
-    <div class="particle"></div>
-    <div class="particle"></div>
-
-    <main class="container" style="position: relative; z-index: 1; height: 100vh; overflow-y: auto; display: flex; align-items: center;">
+    <main class="container" style="height: 100vh; overflow-y: auto; display: flex; align-items: center;">
         <div class="row justify-content-center w-100" style="padding: 20px 0;">
-            <div class="col-12 col-sm-10 col-md-6 col-lg-4" style="max-width: 480px;">
+            <div class="col-12 col-sm-10 col-md-6 col-lg-4" style="max-width: 420px;">
 
                 <div class="text-center mb-4">
-                    <div class="d-inline-flex align-items-center gap-2 mb-2">
-                        <div style="position: relative;">
-                            <i class="bi bi-lightning-charge-fill text-gradient" style="font-size: 2.5rem; filter: drop-shadow(0 4px 8px rgba(17, 153, 142, 0.5));"></i>
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; background: radial-gradient(circle, rgba(56, 239, 125, 0.3), transparent); border-radius: 50%; filter: blur(10px);"></div>
-                        </div>
-                        <div class="auth-brand" style="font-size: 2.5rem; text-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);">EHE</div>
-                    </div>
-                    <div class="tagline">
-                        <span style="display: inline-block; padding: 4px 16px; background: rgba(17, 153, 142, 0.2); border-radius: 20px; border: 1px solid rgba(56, 239, 125, 0.3); font-size: 0.65rem;">
-                            Sistema de Gestión Empresarial
-                        </span>
-                    </div>
+                    <div class="auth-brand mb-2">EHE</div>
+                    <p class="tagline mb-0">Sistema de Gestión Agrícola</p>
                 </div>
 
                 @yield('content')
 
-                <div class="footer-section mt-4">
-                    <div class="text-center">
-                        <div class="d-flex align-items-center justify-content-center gap-2">
-                            <i class="bi bi-shield-check-fill footer-icon text-success" style="font-size: 1.1rem;"></i>
-                            <span class="footer-text">
-                                © {{ date('Y') }} <strong>EHE</strong> - Plataforma Empresarial
-                            </span>
-                        </div>
-                        <div class="mt-2" style="color: rgba(255, 255, 255, 0.6); font-size: 0.7rem;">
-                            Protegido con encriptación de grado empresarial
-                        </div>
-                    </div>
+                <div class="text-center mt-4">
+                    <p class="footer-text mb-0">
+                        © {{ date('Y') }} EHE. Todos los derechos reservados.
+                    </p>
                 </div>
             </div>
         </div>

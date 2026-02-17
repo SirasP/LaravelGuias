@@ -5,19 +5,9 @@
 @section('content')
     <div class="card auth-card">
         <div class="card-body p-4">
-            <div class="text-center mb-3">
-                <div class="position-relative d-inline-block mb-2">
-                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle p-3"
-                        style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%); border: 3px solid #e9ecef;">
-                        <i class="bi bi-shield-lock text-gradient" style="font-size: 2.2rem;"></i>
-                    </div>
-                    <span class="position-absolute top-0 start-100 translate-middle p-2 bg-success border border-light rounded-circle"
-                        style="width: 20px; height: 20px;">
-                        <span class="visually-hidden">Online</span>
-                    </span>
-                </div>
-                <h1 class="h4 fw-bold mb-1">¡Bienvenido a EHE!</h1>
-                <p class="text-muted small mb-0">Accede a tu cuenta de forma segura</p>
+            <div class="text-center mb-4">
+                <h1 class="h4 fw-bold mb-1" style="color: #1f2937;">Iniciar sesión</h1>
+                <p class="text-muted small mb-0">Ingresa tus credenciales para continuar</p>
             </div>
 
             {{-- Mensaje de estado (ej: reset password enviado) --}}
@@ -90,24 +80,6 @@
         </div>
     </div>
 
-    <style>
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4); }
-            50% { box-shadow: 0 4px 25px rgba(17, 153, 142, 0.6), 0 0 30px rgba(56, 239, 125, 0.3); }
-        }
-
-        .btn-primary:focus {
-            animation: pulse 2s infinite;
-        }
-
-        .icon-rotate {
-            transition: transform 0.3s ease;
-        }
-
-        .icon-rotate:hover {
-            transform: rotate(15deg);
-        }
-    </style>
 
     <script>
         // Toggle password visibility with smooth animation
