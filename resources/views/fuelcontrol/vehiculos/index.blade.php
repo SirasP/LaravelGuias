@@ -1,13 +1,13 @@
-<x-app-layout>
-    <div x-data="{
-        openCreate: false,
-        openEdit: false,
-        openDelete: false,
-        openShow: false,
-        deleteId: null,
-        editVehiculo: {},
-        showVehiculo: {}
-    }">
+
+   <x-app-layout x-data="{
+    openCreate: false,
+    openEdit: false,
+    openDelete: false,
+    openShow: false,
+    deleteId: null,
+    editVehiculo: {},
+    showVehiculo: {}
+}">
 
         <x-slot name="header">
             <div class="flex items-center justify-between gap-4 w-full">
@@ -33,6 +33,8 @@
                     </svg>
                     <span class="hidden sm:inline">Nuevo Vehículo</span>
                 </button>
+    
+
             </div>
         </x-slot>
 
