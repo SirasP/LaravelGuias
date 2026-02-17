@@ -20,10 +20,10 @@
 
         body {
             background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             position: relative;
-            overflow-x: hidden;
         }
 
         /* Gradiente verde superpuesto */
@@ -281,8 +281,8 @@
     <div class="particle"></div>
     <div class="particle"></div>
 
-    <main class="container" style="position: relative; z-index: 1;">
-        <div class="row justify-content-center align-items-center" style="min-height: 100vh; padding: 20px 0;">
+    <main class="container" style="position: relative; z-index: 1; height: 100vh; overflow-y: auto; display: flex; align-items: center;">
+        <div class="row justify-content-center w-100" style="padding: 20px 0;">
             <div class="col-12 col-sm-10 col-md-6 col-lg-4" style="max-width: 480px;">
 
                 <div class="text-center mb-4">
