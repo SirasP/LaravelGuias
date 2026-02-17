@@ -326,15 +326,20 @@ class GmailLeerXml extends Command
 
             foreach ($tokens as $token) {
                 try {
-                    $message = CloudMessage::withTarget('token', $token)
-                        ->withNotification($notification)
-                        ->withData([
+                    $message = CloudMessage::fromArray([
+                        'token' => $token,
+                        'notification' => [
+                            'title' => $titulo,
+                            'body' => $mensaje,
+                        ],
+                        'data' => [
                             'tipo' => $tipo,
                             'producto' => $producto,
                             'cantidad' => (string) $cantidad,
                             'movimiento_id' => (string) $movimientoId,
                             'timestamp' => now()->toIso8601String(),
-                        ]);
+                        ],
+                    ]);
 
                     $messaging->send($message);
                     $enviados++;
