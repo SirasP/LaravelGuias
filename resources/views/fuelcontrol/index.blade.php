@@ -674,6 +674,11 @@
                     <div class="relative h-56">
                         <canvas id="vehiculosConsumoChart"></canvas>
                     </div>
+                    @if($topVehiculosLabels->isEmpty())
+                        <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">
+                            Sin datos para el período (revisa tipo, vehículo u origen en movimientos).
+                        </p>
+                    @endif
                 </div>
 
                 {{-- Uso diario vehículos --}}
@@ -688,11 +693,30 @@
                     <div class="relative h-56">
                         <canvas id="usoDiarioVehiculosChart"></canvas>
                     </div>
+                    @if($usoDiarioLabels->isEmpty())
+                        <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">
+                            Sin datos diarios para consumo de vehículos en los últimos 30 días.
+                        </p>
+                    @endif
                     @if(!$hasOdomAny)
                         <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">
                             Sin odómetro disponible (odómetro/odómetro bomba): se muestra solo consumo en litros.
                         </p>
                     @endif
+                </div>
+            </div>
+
+            <div class="panel au d6">
+                <div class="panel-head">
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100">Debug charts vehículos</div>
+                </div>
+                <div class="px-5 py-3 text-[12px] text-gray-600 dark:text-gray-300 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    <div>Rows top: <b>{{ $vehiculosDebug['rows_top'] ?? 0 }}</b></div>
+                    <div>Rows daily: <b>{{ $vehiculosDebug['rows_daily_grouped'] ?? 0 }}</b></div>
+                    <div>Labels top: <b>{{ $vehiculosDebug['labels_top'] ?? 0 }}</b></div>
+                    <div>Labels daily: <b>{{ $vehiculosDebug['labels_daily'] ?? 0 }}</b></div>
+                    <div>Litros top: <b>{{ number_format((float) ($vehiculosDebug['litros_top'] ?? 0), 2, ',', '.') }}</b></div>
+                    <div>Litros daily: <b>{{ number_format((float) ($vehiculosDebug['litros_daily'] ?? 0), 2, ',', '.') }}</b></div>
                 </div>
             </div>
 

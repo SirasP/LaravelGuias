@@ -145,6 +145,13 @@ class DashboardController extends Controller
 
             $topVehiculosRaw = collect();
             $usoDiarioVehiculosRaw = collect();
+            $vehiculosDebug = [];
+
+            $vehiculoScope = function ($q) {
+                $q->whereNotNull('m.vehiculo_id')
+                    ->orWhereRaw("LOWER(COALESCE(m.tipo, '')) IN ('vehiculo', 'salida', 'egreso')")
+                    ->orWhereRaw("LOWER(COALESCE(m.origen, '')) LIKE '%vehiculo%'");
+            };
 
             if ($hasVehiculoId) {
                 $topVehiculosQuery = DB::connection('fuelcontrol')
@@ -160,7 +167,7 @@ class DashboardController extends Controller
                     ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
                     ->selectRaw('COUNT(*) as cargas')
                     ->where('m.fecha_movimiento', '>=', $desde)
-                    ->whereRaw("LOWER(m.tipo) = 'vehiculo'")
+                    ->where($vehiculoScope)
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
@@ -189,7 +196,7 @@ class DashboardController extends Controller
                     ->selectRaw('COALESCE(m.vehiculo_id, 0) as vehiculo_id')
                     ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
                     ->where('m.fecha_movimiento', '>=', $desde)
-                    ->whereRaw("LOWER(m.tipo) = 'vehiculo'")
+                    ->where($vehiculoScope)
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
@@ -203,6 +210,13 @@ class DashboardController extends Controller
                 }
 
                 $usoDiarioVehiculosRaw = $usoDiarioVehiculosQuery->get();
+
+                $vehiculosDebug = [
+                    'rows_top' => $topVehiculosRaw->count(),
+                    'rows_daily_grouped' => $usoDiarioVehiculosRaw->count(),
+                    'litros_top' => round($topVehiculosRaw->sum(fn($r) => (float) ($r->litros ?? 0)), 2),
+                    'litros_daily' => round($usoDiarioVehiculosRaw->sum(fn($r) => (float) ($r->litros ?? 0)), 2),
+                ];
             }
 
             $topVehiculosLabels = $topVehiculosRaw
@@ -260,6 +274,9 @@ class DashboardController extends Controller
                 ->pluck('kml')
                 ->values();
 
+            $vehiculosDebug['labels_top'] = $topVehiculosLabels->count();
+            $vehiculosDebug['labels_daily'] = $usoDiarioLabels->count();
+
         } catch (\Throwable $e) {
             dd([
                 'error' => true,
@@ -283,6 +300,7 @@ class DashboardController extends Controller
             'usoDiarioLitros',
             'usoDiarioKmL',
             'hasOdomAny',
+            'vehiculosDebug',
             'notificaciones'
         ));
     }
