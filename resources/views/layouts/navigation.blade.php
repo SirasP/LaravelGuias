@@ -17,7 +17,8 @@
 {{-- ── SIDEBAR ───────────────────────────────────────────── --}}
 <aside
     :class="mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'"
-    @click.stop
+    @click.stop="if(!expanded && window.innerWidth >= 1024) { expanded = true; localStorage.setItem('sidebar_state','expanded'); }"
+    :class="[mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0', !expanded ? 'lg:cursor-pointer' : '']"
     class="fixed lg:sticky top-0.5 left-0 z-50 lg:z-30
            h-[calc(100vh-2px)] flex flex-col
            bg-white dark:bg-gray-950
