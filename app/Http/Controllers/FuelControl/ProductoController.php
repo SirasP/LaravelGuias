@@ -71,14 +71,9 @@ class ProductoController extends Controller
     }
     public function edit($id)
     {
-        $producto = DB::connection('fuelcontrol')
-            ->table('productos')
-            ->where('id', $id)
-            ->first();
-
-        abort_if(!$producto, 404);
-
-        return view('fuelcontrol.productos.edit', compact('producto'));
+        return redirect()
+            ->route('fuelcontrol.productos')
+            ->with('warning', 'La edicion se realiza desde el modal en la lista de productos.');
     }
     public function destroy($id)
     {

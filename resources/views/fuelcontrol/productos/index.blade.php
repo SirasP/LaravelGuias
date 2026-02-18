@@ -2,6 +2,10 @@
     open: false,
     deleteId: null,
     createOpen: false,
+    editOpen: false,
+    editId: null,
+    editNombre: '',
+    editCantidad: '',
 }" class="min-h-screen">
 
     <x-slot name="header">
@@ -78,8 +82,8 @@
                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Producto</label>
                     <select name="nombre" required class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                         <option value="">Selecciona un producto</option>
-                        <option value="Di&eacute;sel">Di&eacute;sel</option>
-                        <option value="Gasolina">Gasolina</option>
+                        <option value="diesel">Diesel</option>
+                        <option value="gasolina">Gasolina</option>
                     </select>
                 </div>
                 <div>
@@ -106,6 +110,34 @@
         </div>
     </div>
 
+    {{-- Modal editar --}}
+    <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+        <div @click.outside="editOpen=false" class="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Editar producto</h2>
+            <form method="POST"
+                :action="editId ? `{{ url('/fuelcontrol/productos') }}/${editId}` : '{{ url('/fuelcontrol/productos') }}'"
+                class="space-y-4">
+                @csrf
+                @method('PUT')
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Producto</label>
+                    <select name="nombre" x-model="editNombre" required class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="diesel">Diesel</option>
+                        <option value="gasolina">Gasolina</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Cantidad (L)</label>
+                    <input type="number" step="0.01" min="0" name="cantidad" x-model="editCantidad" required class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="editOpen=false" class="px-4 py-2 text-sm rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 font-semibold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
@@ -114,7 +146,8 @@
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 au d1">
                     @foreach ($productos as $p)
                         @php
-                            $capacidad = strtolower($p->nombre) === 'diesel' ? 10000 : 100;
+                            $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                            $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
                             $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
                         @endphp
                         <div class="stat-card">
@@ -171,10 +204,11 @@
                         <tbody>
                             @forelse ($productos as $p)
                                 @php
-                                    $capacidad = strtolower($p->nombre) === 'diesel' ? 10000 : 100;
+                                    $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                                    $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
                                     $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
                                     [$barColor, $badgeClass, $estado] = match(true) {
-                                        $pct < 20 => ['bg-rose-500', 'badge-crit', 'Cr&iacute;tico'],
+                                        $pct < 20 => ['bg-rose-500', 'badge-crit', 'Critico'],
                                         $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
                                         default   => ['bg-emerald-500', 'badge-ok', 'Normal'],
                                     };
@@ -198,8 +232,9 @@
                                     <td class="text-center"><span class="badge-pill {{ $badgeClass }}">{{ $estado }}</span></td>
                                     <td class="text-center">
                                         <div class="flex justify-center gap-1.5">
-                                            <a href="{{ route('fuelcontrol.productos.edit', $p->id) }}"
-                                                class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hover:bg-indigo-100 transition">Editar</a>
+                                            <button
+                                                @click='editOpen=true; editId={{ $p->id }}; editNombre=@json($nombreNorm); editCantidad=@json((string) $p->cantidad)'
+                                                class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hover:bg-indigo-100 transition">Editar</button>
                                             <button @click="open=true; deleteId={{ $p->id }}"
                                                 class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 transition">Eliminar</button>
                                             <form id="delete-form-{{ $p->id }}" action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST" class="hidden">@csrf @method('DELETE')</form>
@@ -218,10 +253,11 @@
             <div class="sm:hidden space-y-2 au d2">
                 @forelse ($productos as $p)
                     @php
-                        $capacidad = strtolower($p->nombre) === 'diesel' ? 10000 : 100;
+                        $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                        $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
                         $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
                         [$barColor, $badgeClass, $estado] = match(true) {
-                            $pct < 20 => ['bg-rose-500', 'badge-crit', 'Cr&iacute;tico'],
+                            $pct < 20 => ['bg-rose-500', 'badge-crit', 'Critico'],
                             $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
                             default   => ['bg-emerald-500', 'badge-ok', 'Normal'],
                         };
@@ -247,8 +283,9 @@
                             <span class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct }}%</span>
                         </div>
                         <div class="flex items-center justify-end gap-2 border-t border-gray-100 dark:border-gray-800 pt-2.5">
-                            <a href="{{ route('fuelcontrol.productos.edit', $p->id) }}"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">Editar</a>
+                            <button
+                                @click='editOpen=true; editId={{ $p->id }}; editNombre=@json($nombreNorm); editCantidad=@json((string) $p->cantidad)'
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">Editar</button>
                             <button @click="open=true; deleteId={{ $p->id }}"
                                 class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">Eliminar</button>
                             <form id="delete-form-{{ $p->id }}" action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST" class="hidden">@csrf @method('DELETE')</form>
