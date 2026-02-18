@@ -132,150 +132,134 @@ class DashboardController extends Controller
             /* =========================
              * CHARTS VEHÍCULOS (30 DÍAS)
              * ========================= */
+            // Cálculo de km por vehículo usando SOLO odómetro (lectura secuencial)
             $hasOdomCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro');
-            $hasOdomBombaCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro_bomba');
-            $hasOdomAny = $hasOdomCol || $hasOdomBombaCol;
+            $hasOdomAny = $hasOdomCol;
             $hasVehiculoId = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'vehiculo_id');
-            $odoExpr = match (true) {
-                $hasOdomCol && $hasOdomBombaCol => 'COALESCE(NULLIF(m.odometro,0), NULLIF(m.odometro_bomba,0))',
-                $hasOdomCol => 'NULLIF(m.odometro,0)',
-                $hasOdomBombaCol => 'NULLIF(m.odometro_bomba,0)',
-                default => null,
-            };
 
-            $topVehiculosRaw = collect();
-            $usoDiarioVehiculosRaw = collect();
+            $topVehiculosLabels = collect();
+            $topVehiculosLitros = collect();
+            $topVehiculosKmL = collect();
+            $usoDiarioLabels = collect();
+            $usoDiarioLitros = collect();
+            $usoDiarioKmL = collect();
             $vehiculosDebug = [];
 
-            $vehiculoScope = function ($q) {
-                $q->whereNotNull('m.vehiculo_id')
-                    ->orWhereRaw("LOWER(COALESCE(m.tipo, '')) IN ('vehiculo', 'salida', 'egreso')")
-                    ->orWhereRaw("LOWER(COALESCE(m.origen, '')) LIKE '%vehiculo%'");
-            };
-
-            if ($hasVehiculoId) {
-                $topVehiculosQuery = DB::connection('fuelcontrol')
+            if ($hasVehiculoId && $hasOdomCol) {
+                $vehRows = DB::connection('fuelcontrol')
                     ->table('movimientos as m')
                     ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+                    ->select(
+                        'm.vehiculo_id',
+                        'm.fecha_movimiento',
+                        'm.cantidad',
+                        'm.odometro'
+                    )
                     ->selectRaw("
                         COALESCE(
                             NULLIF(TRIM(v.patente), ''),
-                            CONCAT('Vehículo #', m.vehiculo_id),
-                            'Sin vehículo'
+                            CONCAT('Vehículo #', m.vehiculo_id)
                         ) as vehiculo
                     ")
-                    ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
-                    ->selectRaw('COUNT(*) as cargas')
                     ->where('m.fecha_movimiento', '>=', $desde)
-                    ->where($vehiculoScope)
+                    ->whereNotNull('m.vehiculo_id')
+                    ->whereRaw("LOWER(COALESCE(m.tipo, '')) = 'vehiculo'")
+                    ->whereNotNull('m.odometro')
+                    ->where('m.odometro', '>', 0)
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
                     })
-                    ->groupByRaw("
-                        COALESCE(
-                            NULLIF(TRIM(v.patente), ''),
-                            CONCAT('Vehículo #', m.vehiculo_id),
-                            'Sin vehículo'
-                        )
-                    ")
-                    ->orderByDesc('litros')
-                    ->limit(8);
+                    ->orderBy('m.vehiculo_id')
+                    ->orderBy('m.fecha_movimiento')
+                    ->get();
 
-                if ($hasOdomAny && $odoExpr) {
-                    $topVehiculosQuery
-                        ->selectRaw("MIN({$odoExpr}) as odo_min")
-                        ->selectRaw("MAX({$odoExpr}) as odo_max");
+                $vehiculosCalc = collect();
+                $daily = [];
+
+                foreach ($vehRows->groupBy('vehiculo_id') as $vehiculoId => $rows) {
+                    $prevOdo = null;
+                    $vehLitros = 0.0;
+                    $vehKm = 0.0;
+                    $vehName = (string) ($rows->first()->vehiculo ?? "Vehículo #{$vehiculoId}");
+
+                    foreach ($rows as $r) {
+                        $litros = abs((float) ($r->cantidad ?? 0));
+                        $odo = (float) ($r->odometro ?? 0);
+                        $fecha = Carbon::parse($r->fecha_movimiento)->toDateString();
+
+                        $vehLitros += $litros;
+                        if (!isset($daily[$fecha])) {
+                            $daily[$fecha] = ['litros' => 0.0, 'km' => 0.0];
+                        }
+                        $daily[$fecha]['litros'] += $litros;
+
+                        if (!is_null($prevOdo) && $odo > $prevOdo) {
+                            $deltaKm = $odo - $prevOdo;
+                            $vehKm += $deltaKm;
+                            $daily[$fecha]['km'] += $deltaKm;
+                        }
+                        $prevOdo = $odo;
+                    }
+
+                    $vehiculosCalc->push([
+                        'vehiculo' => $vehName,
+                        'litros' => round($vehLitros, 2),
+                        'km' => round($vehKm, 2),
+                        'kml' => ($vehLitros > 0 && $vehKm > 0) ? round($vehKm / $vehLitros, 2) : null,
+                    ]);
                 }
 
-                $topVehiculosRaw = $topVehiculosQuery->get();
+                $top = $vehiculosCalc
+                    ->sortByDesc('litros')
+                    ->take(8)
+                    ->values();
 
-                $usoDiarioVehiculosQuery = DB::connection('fuelcontrol')
-                    ->table('movimientos as m')
-                    ->selectRaw('DATE(m.fecha_movimiento) as fecha')
-                    ->selectRaw('COALESCE(m.vehiculo_id, 0) as vehiculo_id')
-                    ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
-                    ->where('m.fecha_movimiento', '>=', $desde)
-                    ->where($vehiculoScope)
-                    ->where(function ($q) {
-                        $q->whereNull('m.estado')
-                            ->orWhere('m.estado', 'aprobado');
-                    })
-                    ->groupByRaw('DATE(m.fecha_movimiento), COALESCE(m.vehiculo_id, 0)')
-                    ->orderBy('fecha')
-                    ->orderBy('vehiculo_id');
+                $topVehiculosLabels = $top
+                    ->pluck('vehiculo')
+                    ->map(fn($v) => mb_strimwidth((string) $v, 0, 18, '…'))
+                    ->values();
 
-                if ($hasOdomAny && $odoExpr) {
-                    $usoDiarioVehiculosQuery->selectRaw("MAX({$odoExpr}) - MIN({$odoExpr}) as km_dia");
-                }
+                $topVehiculosLitros = $top
+                    ->pluck('litros')
+                    ->values();
 
-                $usoDiarioVehiculosRaw = $usoDiarioVehiculosQuery->get();
+                $topVehiculosKmL = $top
+                    ->pluck('kml')
+                    ->values();
 
-                $vehiculosDebug = [
-                    'rows_top' => $topVehiculosRaw->count(),
-                    'rows_daily_grouped' => $usoDiarioVehiculosRaw->count(),
-                    'litros_top' => round($topVehiculosRaw->sum(fn($r) => (float) ($r->litros ?? 0)), 2),
-                    'litros_daily' => round($usoDiarioVehiculosRaw->sum(fn($r) => (float) ($r->litros ?? 0)), 2),
-                ];
-            }
-
-            $topVehiculosLabels = $topVehiculosRaw
-                ->pluck('vehiculo')
-                ->map(fn($v) => mb_strimwidth((string) $v, 0, 18, '…'))
-                ->values();
-
-            $topVehiculosLitros = $topVehiculosRaw
-                ->pluck('litros')
-                ->map(fn($v) => round((float) $v, 2))
-                ->values();
-
-            $topVehiculosKmL = $topVehiculosRaw
-                ->map(function ($r) use ($hasOdomAny) {
-                    if (!$hasOdomAny) {
-                        return null;
-                    }
-                    $litros = (float) ($r->litros ?? 0);
-                    $km = (float) (($r->odo_max ?? 0) - ($r->odo_min ?? 0));
-                    if ($litros <= 0 || $km <= 0) {
-                        return null;
-                    }
-                    return round($km / $litros, 2);
-                })
-                ->values();
-
-            // Agregación diaria correcta: primero por vehículo, luego total por día
-            $usoDiarioAgg = $usoDiarioVehiculosRaw
-                ->groupBy('fecha')
-                ->map(function ($rows) use ($hasOdomAny) {
-                    $litros = $rows->sum(fn($r) => (float) ($r->litros ?? 0));
-                    $km = $hasOdomAny
-                        ? $rows->sum(fn($r) => max(0, (float) ($r->km_dia ?? 0)))
-                        : 0;
-
+                ksort($daily);
+                $usoDiarioAgg = collect($daily)->map(function ($r) {
+                    $litros = (float) ($r['litros'] ?? 0);
+                    $km = (float) ($r['km'] ?? 0);
                     return [
                         'litros' => round($litros, 2),
-                        'kml' => ($hasOdomAny && $litros > 0 && $km > 0)
-                            ? round($km / $litros, 2)
-                            : null,
+                        'kml' => ($litros > 0 && $km > 0) ? round($km / $litros, 2) : null,
                     ];
-                })
-                ->sortKeys();
+                });
 
-            $usoDiarioLabels = $usoDiarioAgg
-                ->keys()
-                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
-                ->values();
+                $usoDiarioLabels = $usoDiarioAgg
+                    ->keys()
+                    ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                    ->values();
 
-            $usoDiarioLitros = $usoDiarioAgg
-                ->pluck('litros')
-                ->values();
+                $usoDiarioLitros = $usoDiarioAgg
+                    ->pluck('litros')
+                    ->values();
 
-            $usoDiarioKmL = $usoDiarioAgg
-                ->pluck('kml')
-                ->values();
+                $usoDiarioKmL = $usoDiarioAgg
+                    ->pluck('kml')
+                    ->values();
 
-            $vehiculosDebug['labels_top'] = $topVehiculosLabels->count();
-            $vehiculosDebug['labels_daily'] = $usoDiarioLabels->count();
+                $vehiculosDebug = [
+                    'rows_top' => $top->count(),
+                    'rows_daily_grouped' => $usoDiarioAgg->count(),
+                    'litros_top' => round($top->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),
+                    'litros_daily' => round($usoDiarioAgg->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),
+                    'labels_top' => $topVehiculosLabels->count(),
+                    'labels_daily' => $usoDiarioLabels->count(),
+                ];
+            }
 
         } catch (\Throwable $e) {
             dd([

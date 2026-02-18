@@ -1084,113 +1084,131 @@
                 options: sharedOpts('emerald')
             });
 
-            if (topVehCtx) new Chart(topVehCtx, {
-                type: 'bar',
-                data: {
-                    labels: @json($topVehiculosLabels),
-                    datasets: [
-                        {
-                            label: 'Consumo (L)',
-                            data: @json($topVehiculosLitros),
-                            backgroundColor: 'rgba(244,63,94,.75)',
-                            hoverBackgroundColor: 'rgba(244,63,94,1)',
-                            borderRadius: 7,
-                            borderSkipped: false,
-                            yAxisID: 'y',
-                        },
-                        {
-                            type: 'line',
-                            label: 'km/L',
-                            data: @json($topVehiculosKmL),
-                            borderColor: 'rgba(14,165,233,1)',
-                            backgroundColor: 'rgba(14,165,233,.2)',
-                            borderWidth: 2,
-                            pointRadius: 3,
-                            pointHoverRadius: 4,
-                            tension: .28,
-                            yAxisID: 'y1',
-                            spanGaps: true,
-                        }
-                    ]
-                },
-                options: {
-                    ...sharedOpts('rose'),
-                    scales: {
-                        x: sharedOpts('rose').scales.x,
-                        y: {
-                            ...sharedOpts('rose').scales.y,
-                            ticks: {
-                                ...sharedOpts('rose').scales.y.ticks,
-                                callback: (v) => v.toLocaleString('es-CL') + ' L'
-                            }
-                        },
-                        y1: {
-                            position: 'right',
-                            grid: { drawOnChartArea: false },
-                            ticks: {
-                                color: tickColor,
-                                font: { size: 10 },
-                                callback: (v) => `${v} km/L`
-                            },
-                            border: { display: false }
-                        }
-                    }
-                }
-            });
+            if (topVehCtx) {
+                const topLabels = @json($topVehiculosLabels);
+                const topLitros = (@json($topVehiculosLitros) || []).map(v => Number(v) || 0);
+                const topKmLRaw = (@json($topVehiculosKmL) || []);
+                const topKmL = topKmLRaw.map(v => (v === null || v === '' ? null : Number(v)));
+                const hasTopKmL = topKmL.some(v => Number.isFinite(v));
 
-            if (usoDiarioCtx) new Chart(usoDiarioCtx, {
-                type: 'bar',
-                data: {
-                    labels: @json($usoDiarioLabels),
-                    datasets: [
-                        {
-                            label: 'Litros (L)',
-                            data: @json($usoDiarioLitros),
-                            backgroundColor: 'rgba(56,189,248,.72)',
-                            hoverBackgroundColor: 'rgba(56,189,248,1)',
-                            borderRadius: 7,
-                            borderSkipped: false,
-                            yAxisID: 'y',
-                        },
-                        {
-                            type: 'line',
-                            label: 'km/L estimado',
-                            data: @json($usoDiarioKmL),
-                            borderColor: 'rgba(16,185,129,1)',
-                            backgroundColor: 'rgba(16,185,129,.2)',
-                            borderWidth: 2,
-                            pointRadius: 2.5,
-                            pointHoverRadius: 4,
-                            tension: .3,
-                            yAxisID: 'y1',
-                            spanGaps: true,
-                        }
-                    ]
-                },
-                options: {
-                    ...sharedOpts('sky'),
-                    scales: {
-                        x: sharedOpts('sky').scales.x,
-                        y: {
-                            ...sharedOpts('sky').scales.y,
-                            ticks: {
-                                ...sharedOpts('sky').scales.y.ticks,
-                                callback: (v) => v.toLocaleString('es-CL') + ' L'
-                            }
-                        },
-                        y1: {
-                            position: 'right',
-                            grid: { drawOnChartArea: false },
-                            ticks: {
-                                color: tickColor,
-                                font: { size: 10 },
-                                callback: (v) => `${v} km/L`
+                const topDatasets = [{
+                    label: 'Consumo (L)',
+                    data: topLitros,
+                    backgroundColor: 'rgba(244,63,94,.75)',
+                    hoverBackgroundColor: 'rgba(244,63,94,1)',
+                    borderRadius: 7,
+                    borderSkipped: false,
+                    yAxisID: 'y',
+                }];
+
+                if (hasTopKmL) {
+                    topDatasets.push({
+                        type: 'line',
+                        label: 'km/L',
+                        data: topKmL,
+                        borderColor: 'rgba(14,165,233,1)',
+                        backgroundColor: 'rgba(14,165,233,.2)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 4,
+                        tension: .28,
+                        yAxisID: 'y1',
+                        spanGaps: true,
+                    });
+                }
+
+                new Chart(topVehCtx, {
+                    type: 'bar',
+                    data: { labels: topLabels, datasets: topDatasets },
+                    options: {
+                        ...sharedOpts('rose'),
+                        scales: {
+                            x: sharedOpts('rose').scales.x,
+                            y: {
+                                ...sharedOpts('rose').scales.y,
+                                ticks: {
+                                    ...sharedOpts('rose').scales.y.ticks,
+                                    callback: (v) => v.toLocaleString('es-CL') + ' L'
+                                }
                             },
-                            border: { display: false }
+                            y1: {
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: {
+                                    color: tickColor,
+                                    font: { size: 10 },
+                                    callback: (v) => `${v} km/L`
+                                },
+                                border: { display: false },
+                                display: hasTopKmL
+                            }
                         }
                     }
+                });
+            }
+
+            if (usoDiarioCtx) {
+                const dailyLabels = @json($usoDiarioLabels);
+                const dailyLitros = (@json($usoDiarioLitros) || []).map(v => Number(v) || 0);
+                const dailyKmLRaw = (@json($usoDiarioKmL) || []);
+                const dailyKmL = dailyKmLRaw.map(v => (v === null || v === '' ? null : Number(v)));
+                const hasDailyKmL = dailyKmL.some(v => Number.isFinite(v));
+
+                const dailyDatasets = [{
+                    label: 'Litros (L)',
+                    data: dailyLitros,
+                    backgroundColor: 'rgba(56,189,248,.72)',
+                    hoverBackgroundColor: 'rgba(56,189,248,1)',
+                    borderRadius: 7,
+                    borderSkipped: false,
+                    yAxisID: 'y',
+                }];
+
+                if (hasDailyKmL) {
+                    dailyDatasets.push({
+                        type: 'line',
+                        label: 'km/L estimado',
+                        data: dailyKmL,
+                        borderColor: 'rgba(16,185,129,1)',
+                        backgroundColor: 'rgba(16,185,129,.2)',
+                        borderWidth: 2,
+                        pointRadius: 2.5,
+                        pointHoverRadius: 4,
+                        tension: .3,
+                        yAxisID: 'y1',
+                        spanGaps: true,
+                    });
                 }
-            });
+
+                new Chart(usoDiarioCtx, {
+                    type: 'bar',
+                    data: { labels: dailyLabels, datasets: dailyDatasets },
+                    options: {
+                        ...sharedOpts('sky'),
+                        scales: {
+                            x: sharedOpts('sky').scales.x,
+                            y: {
+                                ...sharedOpts('sky').scales.y,
+                                ticks: {
+                                    ...sharedOpts('sky').scales.y.ticks,
+                                    callback: (v) => v.toLocaleString('es-CL') + ' L'
+                                }
+                            },
+                            y1: {
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: {
+                                    color: tickColor,
+                                    font: { size: 10 },
+                                    callback: (v) => `${v} km/L`
+                                },
+                                border: { display: false },
+                                display: hasDailyKmL
+                            }
+                        }
+                    }
+                });
+            }
 
         });
     </script>
