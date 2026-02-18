@@ -1,5 +1,5 @@
 <x-app-layout>
-probando
+
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-4">
             <div class="flex items-center gap-3">
