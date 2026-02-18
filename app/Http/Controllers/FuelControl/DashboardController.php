@@ -160,10 +160,7 @@ class DashboardController extends Controller
                     ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
                     ->selectRaw('COUNT(*) as cargas')
                     ->where('m.fecha_movimiento', '>=', $desde)
-                    ->where(function ($q) {
-                        $q->whereNotNull('m.vehiculo_id')
-                            ->orWhereRaw("LOWER(m.tipo) = 'vehiculo'");
-                    })
+                    ->whereRaw("LOWER(m.tipo) = 'vehiculo'")
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
@@ -189,18 +186,17 @@ class DashboardController extends Controller
                 $usoDiarioVehiculosQuery = DB::connection('fuelcontrol')
                     ->table('movimientos as m')
                     ->selectRaw('DATE(m.fecha_movimiento) as fecha')
+                    ->selectRaw('COALESCE(m.vehiculo_id, 0) as vehiculo_id')
                     ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
                     ->where('m.fecha_movimiento', '>=', $desde)
-                    ->where(function ($q) {
-                        $q->whereNotNull('m.vehiculo_id')
-                            ->orWhereRaw("LOWER(m.tipo) = 'vehiculo'");
-                    })
+                    ->whereRaw("LOWER(m.tipo) = 'vehiculo'")
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
                     })
-                    ->groupByRaw('DATE(m.fecha_movimiento)')
-                    ->orderBy('fecha');
+                    ->groupByRaw('DATE(m.fecha_movimiento), COALESCE(m.vehiculo_id, 0)')
+                    ->orderBy('fecha')
+                    ->orderBy('vehiculo_id');
 
                 if ($hasOdomAny && $odoExpr) {
                     $usoDiarioVehiculosQuery->selectRaw("MAX({$odoExpr}) - MIN({$odoExpr}) as km_dia");
@@ -233,28 +229,35 @@ class DashboardController extends Controller
                 })
                 ->values();
 
-            $usoDiarioLabels = $usoDiarioVehiculosRaw
-                ->pluck('fecha')
+            // Agregación diaria correcta: primero por vehículo, luego total por día
+            $usoDiarioAgg = $usoDiarioVehiculosRaw
+                ->groupBy('fecha')
+                ->map(function ($rows) use ($hasOdomAny) {
+                    $litros = $rows->sum(fn($r) => (float) ($r->litros ?? 0));
+                    $km = $hasOdomAny
+                        ? $rows->sum(fn($r) => max(0, (float) ($r->km_dia ?? 0)))
+                        : 0;
+
+                    return [
+                        'litros' => round($litros, 2),
+                        'kml' => ($hasOdomAny && $litros > 0 && $km > 0)
+                            ? round($km / $litros, 2)
+                            : null,
+                    ];
+                })
+                ->sortKeys();
+
+            $usoDiarioLabels = $usoDiarioAgg
+                ->keys()
                 ->map(fn($f) => Carbon::parse($f)->format('d-m'))
                 ->values();
 
-            $usoDiarioLitros = $usoDiarioVehiculosRaw
+            $usoDiarioLitros = $usoDiarioAgg
                 ->pluck('litros')
-                ->map(fn($v) => round((float) $v, 2))
                 ->values();
 
-            $usoDiarioKmL = $usoDiarioVehiculosRaw
-                ->map(function ($r) use ($hasOdomAny) {
-                    if (!$hasOdomAny) {
-                        return null;
-                    }
-                    $litros = (float) ($r->litros ?? 0);
-                    $km = (float) ($r->km_dia ?? 0);
-                    if ($litros <= 0 || $km <= 0) {
-                        return null;
-                    }
-                    return round($km / $litros, 2);
-                })
+            $usoDiarioKmL = $usoDiarioAgg
+                ->pluck('kml')
                 ->values();
 
         } catch (\Throwable $e) {
