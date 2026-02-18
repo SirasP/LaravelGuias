@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
@@ -311,12 +314,14 @@ class DashboardController extends Controller
             $vehRows = DB::connection('fuelcontrol')
                 ->table('movimientos as m')
                 ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+                ->leftJoin('productos as p', 'p.id', '=', 'm.producto_id')
                 ->select(
                     'm.vehiculo_id',
                     'm.fecha_movimiento',
                     'm.cantidad',
                     'm.odometro',
-                    'm.odometro_bomba'
+                    'm.odometro_bomba',
+                    'p.nombre as combustible_nombre'
                 )
                 ->selectRaw("
                     COALESCE(
@@ -340,6 +345,11 @@ class DashboardController extends Controller
                 $vehKm = 0.0;
                 $cargas = 0;
                 $vehName = (string) ($rows->first()->vehiculo ?? "Vehículo #{$vehiculoId}");
+                $combustibles = [];
+                $odoInicial = null;
+                $odoFinal = null;
+                $odoBombaInicial = null;
+                $odoBombaFinal = null;
 
                 foreach ($rows as $r) {
                     $litros = abs((float) ($r->cantidad ?? 0));
@@ -350,6 +360,11 @@ class DashboardController extends Controller
 
                     $vehLitros += $litros;
                     $cargas++;
+                    $comb = trim((string) ($r->combustible_nombre ?? ''));
+                    if ($comb !== '') {
+                        $k = mb_strtolower($comb);
+                        $combustibles[$k] = ($combustibles[$k] ?? 0) + $litros;
+                    }
 
                     if (!isset($daily[$fecha])) {
                         $daily[$fecha] = ['litros' => 0.0, 'km' => 0.0];
@@ -362,17 +377,47 @@ class DashboardController extends Controller
                         $daily[$fecha]['km'] += $deltaKm;
                     }
 
+                    if ($odoPrincipal > 0) {
+                        if (is_null($odoInicial)) {
+                            $odoInicial = $odoPrincipal;
+                        }
+                        $odoFinal = $odoPrincipal;
+                    }
+                    if ($odoBomba > 0) {
+                        if (is_null($odoBombaInicial)) {
+                            $odoBombaInicial = $odoBomba;
+                        }
+                        $odoBombaFinal = $odoBomba;
+                    }
+
                     if ($odo > 0) {
                         $prevOdo = $odo;
                     }
                 }
 
+                $combustiblePrincipal = '—';
+                $combustiblesUsados = '—';
+                if (!empty($combustibles)) {
+                    arsort($combustibles);
+                    $principalKey = array_key_first($combustibles);
+                    $combustiblePrincipal = ucfirst((string) $principalKey);
+                    $combustiblesUsados = collect(array_keys($combustibles))
+                        ->map(fn($k) => ucfirst((string) $k))
+                        ->join(', ');
+                }
+
                 $vehiculos->push([
                     'vehiculo' => $vehName,
+                    'combustible_principal' => $combustiblePrincipal,
+                    'combustibles_usados' => $combustiblesUsados,
                     'cargas' => $cargas,
                     'litros' => round($vehLitros, 2),
                     'km' => round($vehKm, 2),
                     'kml' => ($vehLitros > 0 && $vehKm > 0) ? round($vehKm / $vehLitros, 2) : null,
+                    'odo_inicial' => $odoInicial,
+                    'odo_final' => $odoFinal,
+                    'odo_bomba_inicial' => $odoBombaInicial,
+                    'odo_bomba_final' => $odoBombaFinal,
                 ]);
             }
         }
@@ -393,31 +438,74 @@ class DashboardController extends Controller
         $spreadsheet = new Spreadsheet();
         $sheet1 = $spreadsheet->getActiveSheet();
         $sheet1->setTitle('Vehiculos');
-        $sheet1->fromArray(['Vehículo', 'Cargas', 'Litros', 'Km', 'Km/L'], null, 'A1');
+        $sheet1->mergeCells('A1:K1');
+        $sheet1->setCellValue('A1', 'FuelControl - Consumo de Vehículos (últimos 30 días)');
+        $sheet1->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+        $sheet1->fromArray(
+            ['Vehículo', 'Combustible principal', 'Combustibles usados', 'Cargas', 'Litros', 'Km', 'Km/L', 'Odómetro inicial', 'Odómetro final', 'Odómetro bomba inicial', 'Odómetro bomba final'],
+            null,
+            'A4'
+        );
 
-        $row = 2;
+        $row = 5;
         if ($vehiculos->isEmpty()) {
             $sheet1->setCellValue("A{$row}", 'Sin datos para exportar');
         } else {
             foreach ($vehiculos as $v) {
                 $sheet1->setCellValue("A{$row}", $v['vehiculo']);
-                $sheet1->setCellValue("B{$row}", $v['cargas']);
-                $sheet1->setCellValue("C{$row}", $v['litros']);
-                $sheet1->setCellValue("D{$row}", $v['km']);
-                $sheet1->setCellValue("E{$row}", $v['kml']);
+                $sheet1->setCellValue("B{$row}", $v['combustible_principal']);
+                $sheet1->setCellValue("C{$row}", $v['combustibles_usados']);
+                $sheet1->setCellValue("D{$row}", $v['cargas']);
+                $sheet1->setCellValue("E{$row}", $v['litros']);
+                $sheet1->setCellValue("F{$row}", $v['km']);
+                $sheet1->setCellValue("G{$row}", $v['kml']);
+                $sheet1->setCellValue("H{$row}", $v['odo_inicial']);
+                $sheet1->setCellValue("I{$row}", $v['odo_final']);
+                $sheet1->setCellValue("J{$row}", $v['odo_bomba_inicial']);
+                $sheet1->setCellValue("K{$row}", $v['odo_bomba_final']);
                 $row++;
             }
+
+            $sheet1->setCellValue("A{$row}", 'TOTAL');
+            $sheet1->setCellValue("D{$row}", $vehiculos->sum('cargas'));
+            $sheet1->setCellValue("E{$row}", round((float) $vehiculos->sum('litros'), 2));
+            $sheet1->setCellValue("F{$row}", round((float) $vehiculos->sum('km'), 2));
+            $totalLitros = (float) $vehiculos->sum('litros');
+            $totalKm = (float) $vehiculos->sum('km');
+            $sheet1->setCellValue("G{$row}", ($totalLitros > 0 && $totalKm > 0) ? round($totalKm / $totalLitros, 2) : null);
+            $sheet1->getStyle("A{$row}:K{$row}")->getFont()->setBold(true);
+            $row++;
         }
 
-        foreach (range('A', 'E') as $col) {
+        foreach (range('A', 'K') as $col) {
             $sheet1->getColumnDimension($col)->setAutoSize(true);
         }
+        $sheet1->freezePane('A5');
+        $sheet1->setAutoFilter('A4:K4');
+        $sheet1->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet1->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet1->getStyle('A4:K4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $lastVehRow = max(5, $row - 1);
+        $sheet1->getStyle("A4:K{$lastVehRow}")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E2E8F0']]],
+        ]);
+        $sheet1->getStyle("D5:D{$lastVehRow}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet1->getStyle("E5:F{$lastVehRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet1->getStyle("G5:G{$lastVehRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet1->getStyle("H5:K{$lastVehRow}")->getNumberFormat()->setFormatCode('#,##0');
 
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Diario');
-        $sheet2->fromArray(['Fecha', 'Litros', 'Km', 'Km/L'], null, 'A1');
+        $sheet2->mergeCells('A1:D1');
+        $sheet2->setCellValue('A1', 'FuelControl - Resumen Diario');
+        $sheet2->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+        $sheet2->fromArray(['Fecha', 'Litros', 'Km', 'Km/L'], null, 'A4');
 
-        $row = 2;
+        $row = 5;
         if ($dailyRows->isEmpty()) {
             $sheet2->setCellValue("A{$row}", 'Sin datos para exportar');
         } else {
@@ -433,6 +521,20 @@ class DashboardController extends Controller
         foreach (range('A', 'D') as $col) {
             $sheet2->getColumnDimension($col)->setAutoSize(true);
         }
+        $sheet2->freezePane('A5');
+        $sheet2->setAutoFilter('A4:D4');
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet2->getStyle('A4:D4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F766E']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $lastDailyRow = max(5, $row - 1);
+        $sheet2->getStyle("A4:D{$lastDailyRow}")->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E2E8F0']]],
+        ]);
+        $sheet2->getStyle("B5:C{$lastDailyRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet2->getStyle("D5:D{$lastDailyRow}")->getNumberFormat()->setFormatCode('#,##0.00');
 
         $filename = 'fuelcontrol_vehiculos_' . now()->format('Ymd_His') . '.xlsx';
 
