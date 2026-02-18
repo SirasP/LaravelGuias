@@ -886,7 +886,7 @@
                     <div x-show="open" x-collapse class="flex-1 overflow-y-auto" style="max-height:420px">
                         @forelse($movimientos as $m)
                             @php
-                                $isPos = $m->cantidad >= 0;
+                                $isPos = strtolower($m->tipo) === 'entrada' || strtolower($m->tipo) === 'ingreso';
                                 $tipoClass = $isPos ? 'tipo-ingreso' : 'tipo-egreso';
                             @endphp
                             <div class="mv-row {{ !empty($m->xml_path) ? 'clickable' : '' }}" @if(!empty($m->xml_path))
@@ -918,7 +918,7 @@
                                 <p
                                     class="text-sm font-bold tabular-nums shrink-0
                                        {{ $isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                    {{ $m->cantidad > 0 ? '+' : '' }}{{ number_format($m->cantidad, 2) }} L
+                                    {{ $isPos ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }} L
                                 </p>
                             </div>
                         @empty

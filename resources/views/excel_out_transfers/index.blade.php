@@ -433,7 +433,7 @@
                                             <div class="flex items-center gap-2">
                                                 <span class="badge-match">✔ Match</span>
                                                 <a href="{{ route('pdf.index', ['q' => $r->guia_entrega]) }}"
-                                                    class="text-xs text-emerald-700 dark:text-emerald-400 hover:underline">PDF</a>
+                                                    class="text-xs text-emerald-700 dark:text-emerald-400 hover:underline"> Ver →</a>
                                             </div>
                                         @else
                                             <span class="badge-nomatch">—</span>
