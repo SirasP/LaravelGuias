@@ -3,8 +3,8 @@
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                    :class="connected ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-700'" x-data x-cloak>
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0
+                    {{ $connected ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-700' }}">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
