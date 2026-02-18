@@ -31,7 +31,8 @@
             @include('layouts.navigation')
 
             {{-- ── CONTENIDO PRINCIPAL ─────────────────────────── --}}
-            <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div class="flex-1 flex flex-col min-w-0 overflow-hidden"
+                @click="if(expanded && window.innerWidth >= 1024) { expanded = false; localStorage.setItem('sidebar_state','collapsed'); openSection = null; }">
 
                 {{-- Topbar mobile: hamburger + logo --}}
                 <header class="lg:hidden bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800 h-14 flex items-center px-4 gap-3 shrink-0 z-40">

@@ -17,6 +17,7 @@
 {{-- ── SIDEBAR ───────────────────────────────────────────── --}}
 <aside
     :class="mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'"
+    @click.stop
     class="fixed lg:sticky top-0.5 left-0 z-50 lg:z-30
            h-[calc(100vh-2px)] flex flex-col
            bg-white dark:bg-gray-950
@@ -247,19 +248,19 @@
                     <p class="text-[10px] text-gray-400 truncate">{{ Auth::user()->email }}</p>
                 </div>
             </div>
-            <div class="flex gap-1.5">
+            <div class="grid grid-cols-2 gap-1.5">
                 <a href="{{ route('profile.edit') }}"
-                    class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                    class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                            text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800
                            border border-gray-200 dark:border-gray-700
                            hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-indigo-400
                            transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     Perfil
                 </a>
-                <form method="POST" action="{{ route('logout') }}" class="flex-1">
+                <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit"
                         class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
@@ -267,7 +268,7 @@
                                border border-gray-200 dark:border-gray-700
                                hover:border-red-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20
                                transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
