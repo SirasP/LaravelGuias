@@ -139,23 +139,54 @@
 <style>
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .au{animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both}
-    .d1{animation-delay:.04s}.d2{animation-delay:.08s}.d3{animation-delay:.12s}
+    .d1{animation-delay:.04s}.d2{animation-delay:.08s}.d3{animation-delay:.12s}.d4{animation-delay:.16s}
 
     .page-bg{background:#f1f5f9;min-height:100%}
     .dark .page-bg{background:#0d1117}
 
     /* Card wrapper */
-    .mc{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden}
-    .dark .mc{background:#161c2c;border-color:#1e2a3b}
-    .mc-head{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between}
-    .dark .mc-head{border-bottom-color:#1e2a3b}
-    .mc-body{padding:16px 20px}
+    .panel{background:#fff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden}
+    .dark .panel{background:#161c2c;border-color:#1e2a3b}
+    .panel-head{padding:15px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative}
+    .dark .panel-head{border-bottom-color:#1e2a3b}
+    .panel-body{padding:16px 20px}
+    .stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between}
+    .dark .stat-card{background:#161c2c;border-color:#1e2a3b}
+    .panel-head > :first-child{display:flex;align-items:center;gap:10px}
+    .panel-head > :first-child::before{
+        content:'';
+        width:30px;height:30px;border-radius:12px;flex-shrink:0;
+        background:linear-gradient(135deg,#eef2ff,#e0e7ff);
+        border:1px solid #e0e7ff;
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+    }
+    .dark .panel-head > :first-child::before{
+        background:linear-gradient(135deg,rgba(99,102,241,.2),rgba(79,70,229,.25));
+        border-color:rgba(99,102,241,.35);
+    }
 
-    /* Info cells */
-    .ic{background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:12px 14px}
-    .dark .ic{background:#1a2436;border-color:#1e2a3b}
-    .ic-lbl{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:4px}
-    .ic-val{font-size:14px;font-weight:700;color:#1e293b;line-height:1.3}
+    /* KPI cells (igualados al patrón stat-card) */
+    .ic{
+        background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;
+        display:flex;flex-direction:column;justify-content:center;position:relative;padding-right:56px;
+        transition:border-color .15s ease, transform .15s ease;
+    }
+    .dark .ic{background:#161c2c;border-color:#1e2a3b}
+    .ic::after{
+        content:'';
+        position:absolute;right:14px;top:50%;transform:translateY(-50%);
+        width:30px;height:30px;border-radius:12px;
+        background:linear-gradient(135deg,#ecfeff,#cffafe);
+        border:1px solid #bae6fd;
+    }
+    .dark .ic::after{
+        background:linear-gradient(135deg,rgba(14,165,233,.18),rgba(2,132,199,.22));
+        border-color:rgba(14,165,233,.35);
+    }
+    .ic:hover{border-color:#cbd5e1;transform:translateY(-1px)}
+    .dark .ic:hover{border-color:#334155}
+    .ic-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:4px}
+    .ic-val{font-size:16px;font-weight:900;color:#0f172a;line-height:1.25}
     .dark .ic-val{color:#f1f5f9}
     .ic-sub{font-size:11px;color:#94a3b8;margin-top:2px}
 
@@ -206,17 +237,73 @@
      x-data="pdfViewer({{ $linesArr->toJson(JSON_UNESCAPED_UNICODE) }}, @json($isQC))">
 
 {{-- ══════════════════════════════════════════════════
+     KPI - RESUMEN
+══════════════════════════════════════════════════ --}}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="stat-card au d1">
+        <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Plantilla</p>
+            <p class="text-base font-black text-gray-900 dark:text-gray-100 truncate">{{ $tpl ?: '—' }}</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="stat-card au d2">
+        <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Guía</p>
+            <p class="text-base font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $import->guia_no ?? '—' }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ $import->doc_fecha ?? '—' }}</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="stat-card au d3">
+        <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Productor</p>
+            <p class="text-base font-black text-gray-900 dark:text-gray-100 truncate">{{ $import->productor ?? '—' }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5 truncate">{{ $import->original_name ?? '—' }}</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="stat-card au d4">
+        <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Líneas</p>
+            <p class="text-base font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ number_format($linesArr->count(), 0, ',', '.') }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">visor</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════
      SECCIÓN META — varía según template
 ══════════════════════════════════════════════════ --}}
 
 {{-- ── XML SII 46 ──────────────────────────────── --}}
 @if($isXML && $xmlTotals)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">XML SII · Tipo 46</span>
             <span class="text-xs text-slate-500 dark:text-slate-400 font-mono">Folio {{ $meta['folio_sii'] ?? '—' }}</span>
         </div>
-        <div class="mc-body">
+        <div class="panel-body">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="ic sm:col-span-2">
                     <div class="ic-lbl">Emisor</div>
@@ -255,14 +342,14 @@
 
 {{-- ── QC ─────────────────────────────────────── --}}
 @if($isQC)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Control de Calidad</span>
             @if($qcTotal)
                 <span class="text-xs font-semibold text-gray-500">{{ $qcTotal }} bandejas</span>
             @endif
         </div>
-        <div class="mc-body space-y-4">
+        <div class="panel-body space-y-4">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía (G.Prod)</div>
@@ -317,11 +404,11 @@
 
 {{-- ── MP ─────────────────────────────────────── --}}
 @if($isMP)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Reporte MP</span>
         </div>
-        <div class="mc-body space-y-4">
+        <div class="panel-body space-y-4">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía (G.Despacho)</div>
@@ -371,11 +458,11 @@
 
 {{-- ── RFP ────────────────────────────────────── --}}
 @if($isRFP)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Recepción Fruta Producción</span>
         </div>
-        <div class="mc-body">
+        <div class="panel-body">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía despacho</div>
@@ -428,11 +515,11 @@
 
 {{-- ── SANCO ──────────────────────────────────── --}}
 @if($isSANCO)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Guía Recepción Fruta Granel — SANCO</span>
         </div>
-        <div class="mc-body space-y-4">
+        <div class="panel-body space-y-4">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía</div>
@@ -504,8 +591,8 @@
 
 {{-- ── VT (VitaFoods / Excel) ─────────────────── --}}
 @if($isVT)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">VitaFoods · Excel</span>
             @if($meta['source'] ?? null)
                 <span class="text-xs text-amber-500 dark:text-amber-400 font-semibold uppercase tracking-wide">
@@ -513,7 +600,7 @@
                 </span>
             @endif
         </div>
-        <div class="mc-body">
+        <div class="panel-body">
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía (GDD)</div>
@@ -558,8 +645,8 @@
 
 {{-- ── LIQ_COMPUAGRO ──────────────────────────── --}}
 @if($isLIQ)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Liquidación Compuagro</span>
             @if($liqDoc['liquidacion_no'] ?? null)
                 <span class="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
@@ -567,7 +654,7 @@
                 </span>
             @endif
         </div>
-        <div class="mc-body space-y-4">
+        <div class="panel-body space-y-4">
 
             {{-- Documento --}}
             <div>
@@ -661,11 +748,11 @@
 
 {{-- ── GUIA_RECEPCION_RESUMEN ─────────────────── --}}
 @if($isGRR)
-    <div class="mc au d1">
-        <div class="mc-head">
+    <div class="panel au d1">
+        <div class="panel-head">
             <span class="text-sm font-bold text-gray-800 dark:text-gray-100">Guía Recepción — Resumen</span>
         </div>
-        <div class="mc-body">
+        <div class="panel-body">
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div class="ic">
                     <div class="ic-lbl">Guía recepción</div>
@@ -702,7 +789,7 @@
      VISOR DE LÍNEAS
 ══════════════════════════════════════════════════ --}}
 @if($linesArr->count())
-    <div class="mc au d2">
+    <div class="panel au d2">
 
         {{-- Toolbar sticky --}}
         <div class="sticky-bar space-y-2">
