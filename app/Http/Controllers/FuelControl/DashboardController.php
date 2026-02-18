@@ -150,6 +150,7 @@ class DashboardController extends Controller
             $usoDiarioLabels = collect();
             $usoDiarioLitros = collect();
             $usoDiarioKmL = collect();
+            $ciclosEstanque = collect();
             $vehiculosDebug = [];
 
             if ($hasVehiculoId && $hasOdomAny) {
@@ -187,6 +188,7 @@ class DashboardController extends Controller
                     $vehLitros = 0.0;
                     $vehKm = 0.0;
                     $vehName = (string) ($rows->first()->vehiculo ?? "Vehículo #{$vehiculoId}");
+                    $prevCarga = null;
 
                     foreach ($rows as $r) {
                         $litros = abs((float) ($r->cantidad ?? 0));
@@ -208,6 +210,28 @@ class DashboardController extends Controller
                         }
                         if ($odo > 0) {
                             $prevOdo = $odo;
+                        }
+
+                        if (!is_null($prevCarga) && $litros > 0) {
+                            $prevCargaOdo = (float) ($prevCarga['odo'] ?? 0);
+                            if ($prevCargaOdo > 0 && $odo > $prevCargaOdo) {
+                                $kmCiclo = $odo - $prevCargaOdo;
+                                $ciclosEstanque->push([
+                                    'vehiculo' => $vehName,
+                                    'fecha_inicial' => Carbon::parse($prevCarga['fecha'])->toDateString(),
+                                    'fecha_siguiente' => Carbon::parse($r->fecha_movimiento)->toDateString(),
+                                    'litros_proxima_carga' => round($litros, 2),
+                                    'km' => round($kmCiclo, 2),
+                                    'kml' => $litros > 0 ? round($kmCiclo / $litros, 2) : null,
+                                ]);
+                            }
+                        }
+
+                        if ($litros > 0 && $odo > 0) {
+                            $prevCarga = [
+                                'fecha' => $r->fecha_movimiento,
+                                'odo' => $odo,
+                            ];
                         }
                     }
 
@@ -260,6 +284,15 @@ class DashboardController extends Controller
                     ->pluck('kml')
                     ->values();
 
+                $ultimosCiclosEstanque = $ciclosEstanque
+                    ->sortByDesc('fecha_siguiente')
+                    ->take(12)
+                    ->values();
+
+                $primeraCargaInicial = $ciclosEstanque->isNotEmpty()
+                    ? Carbon::parse((string) $ciclosEstanque->sortBy('fecha_inicial')->first()['fecha_inicial'])->format('d-m-Y')
+                    : null;
+
                 $vehiculosDebug = [
                     'rows_source' => $vehRows->count(),
                     'rows_top' => $top->count(),
@@ -268,7 +301,11 @@ class DashboardController extends Controller
                     'litros_daily' => round($usoDiarioAgg->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),
                     'labels_top' => $topVehiculosLabels->count(),
                     'labels_daily' => $usoDiarioLabels->count(),
+                    'ciclos_total' => $ciclosEstanque->count(),
+                    'primera_carga_inicial' => $primeraCargaInicial,
                 ];
+            } else {
+                $ultimosCiclosEstanque = collect();
             }
 
         } catch (\Throwable $e) {
@@ -293,6 +330,7 @@ class DashboardController extends Controller
             'usoDiarioLabels',
             'usoDiarioLitros',
             'usoDiarioKmL',
+            'ultimosCiclosEstanque',
             'hasOdomAny',
             'vehiculosDebug',
             'notificaciones'

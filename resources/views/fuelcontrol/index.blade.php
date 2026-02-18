@@ -727,6 +727,53 @@
                     <div>Labels daily: <b>{{ $vehiculosDebug['labels_daily'] ?? 0 }}</b></div>
                     <div>Litros top: <b>{{ number_format((float) ($vehiculosDebug['litros_top'] ?? 0), 2, ',', '.') }}</b></div>
                     <div>Litros daily: <b>{{ number_format((float) ($vehiculosDebug['litros_daily'] ?? 0), 2, ',', '.') }}</b></div>
+                    <div>Ciclos: <b>{{ $vehiculosDebug['ciclos_total'] ?? 0 }}</b></div>
+                    <div>Primera carga inicial:
+                        <b>{{ $vehiculosDebug['primera_carga_inicial'] ?? '—' }}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel au d6">
+                <div class="panel-head">
+                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100">Ciclos entre cargas de estanque</div>
+                    <div class="text-[11px] text-gray-400">Fecha inicial -> próxima carga</div>
+                </div>
+                <div class="px-5 py-4">
+                    @if($ultimosCiclosEstanque->isEmpty())
+                        <p class="text-[12px] text-amber-600 dark:text-amber-400">
+                            Sin ciclos válidos para mostrar (requiere dos cargas con odómetro creciente por vehículo).
+                        </p>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="dt">
+                                <thead>
+                                    <tr>
+                                        <th>Vehículo</th>
+                                        <th>Inicio</th>
+                                        <th>Próxima carga</th>
+                                        <th class="r">Litros carga</th>
+                                        <th class="r">Km tramo</th>
+                                        <th class="r">Km/L</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($ultimosCiclosEstanque as $c)
+                                        <tr>
+                                            <td class="font-semibold text-gray-800 dark:text-gray-100">{{ $c['vehiculo'] }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($c['fecha_inicial'])->format('d-m-Y') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($c['fecha_siguiente'])->format('d-m-Y') }}</td>
+                                            <td class="text-right tabular-nums">{{ number_format((float) $c['litros_proxima_carga'], 2, ',', '.') }}</td>
+                                            <td class="text-right tabular-nums">{{ number_format((float) $c['km'], 2, ',', '.') }}</td>
+                                            <td class="text-right tabular-nums">
+                                                {{ is_null($c['kml']) ? '—' : number_format((float) $c['kml'], 2, ',', '.') }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             </div>
 
