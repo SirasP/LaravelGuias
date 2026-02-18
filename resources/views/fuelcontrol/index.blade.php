@@ -19,6 +19,15 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <a href="{{ route('fuelcontrol.export.vehiculos.xlsx') }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl
+                           bg-emerald-600 hover:bg-emerald-700 text-white transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                    </svg>
+                    Exportar Excel
+                </a>
                 <span class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                     En línea · {{ now()->format('d M Y, H:i') }}

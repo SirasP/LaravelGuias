@@ -361,6 +361,8 @@ Route::middleware(['auth'])
 
         Route::get('/', [FuelDashboard::class, 'index'])
             ->name('index');
+        Route::get('/export/vehiculos.xlsx', [FuelDashboard::class, 'exportVehiculosExcel'])
+            ->name('export.vehiculos.xlsx');
 
         /* PRODUCTOS */
         Route::get('/productos', [ProductoController::class, 'index'])
@@ -463,5 +465,4 @@ Route::middleware(['auth'])->prefix('gmail')->name('gmail.')->group(function () 
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
 
 });
-
 

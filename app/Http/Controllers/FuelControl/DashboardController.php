@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -291,6 +294,156 @@ class DashboardController extends Controller
             'vehiculosDebug',
             'notificaciones'
         ));
+    }
+
+    public function exportVehiculosExcel(): StreamedResponse
+    {
+        $desde = now()->subDays(30)->startOfDay();
+        $hasVehiculoId = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'vehiculo_id');
+        $hasOdomCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro');
+        $hasOdomBombaCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro_bomba');
+        $hasOdomAny = $hasOdomCol || $hasOdomBombaCol;
+
+        $vehiculos = collect();
+        $daily = [];
+
+        if ($hasVehiculoId && $hasOdomAny) {
+            $vehRows = DB::connection('fuelcontrol')
+                ->table('movimientos as m')
+                ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+                ->select(
+                    'm.vehiculo_id',
+                    'm.fecha_movimiento',
+                    'm.cantidad',
+                    'm.odometro',
+                    'm.odometro_bomba'
+                )
+                ->selectRaw("
+                    COALESCE(
+                        NULLIF(TRIM(v.patente), ''),
+                        CONCAT('Vehículo #', m.vehiculo_id)
+                    ) as vehiculo
+                ")
+                ->where('m.fecha_movimiento', '>=', $desde)
+                ->whereNotNull('m.vehiculo_id')
+                ->where(function ($q) {
+                    $q->whereNull('m.estado')
+                        ->orWhere('m.estado', 'aprobado');
+                })
+                ->orderBy('m.vehiculo_id')
+                ->orderBy('m.fecha_movimiento')
+                ->get();
+
+            foreach ($vehRows->groupBy('vehiculo_id') as $vehiculoId => $rows) {
+                $prevOdo = null;
+                $vehLitros = 0.0;
+                $vehKm = 0.0;
+                $cargas = 0;
+                $vehName = (string) ($rows->first()->vehiculo ?? "Vehículo #{$vehiculoId}");
+
+                foreach ($rows as $r) {
+                    $litros = abs((float) ($r->cantidad ?? 0));
+                    $odoPrincipal = (float) ($r->odometro ?? 0);
+                    $odoBomba = (float) ($r->odometro_bomba ?? 0);
+                    $odo = $odoPrincipal > 0 ? $odoPrincipal : ($odoBomba > 0 ? $odoBomba : 0);
+                    $fecha = Carbon::parse($r->fecha_movimiento)->toDateString();
+
+                    $vehLitros += $litros;
+                    $cargas++;
+
+                    if (!isset($daily[$fecha])) {
+                        $daily[$fecha] = ['litros' => 0.0, 'km' => 0.0];
+                    }
+                    $daily[$fecha]['litros'] += $litros;
+
+                    if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
+                        $deltaKm = $odo - $prevOdo;
+                        $vehKm += $deltaKm;
+                        $daily[$fecha]['km'] += $deltaKm;
+                    }
+
+                    if ($odo > 0) {
+                        $prevOdo = $odo;
+                    }
+                }
+
+                $vehiculos->push([
+                    'vehiculo' => $vehName,
+                    'cargas' => $cargas,
+                    'litros' => round($vehLitros, 2),
+                    'km' => round($vehKm, 2),
+                    'kml' => ($vehLitros > 0 && $vehKm > 0) ? round($vehKm / $vehLitros, 2) : null,
+                ]);
+            }
+        }
+
+        $vehiculos = $vehiculos->sortByDesc('litros')->values();
+        ksort($daily);
+        $dailyRows = collect($daily)->map(function ($r, $fecha) {
+            $litros = (float) ($r['litros'] ?? 0);
+            $km = (float) ($r['km'] ?? 0);
+            return [
+                'fecha' => $fecha,
+                'litros' => round($litros, 2),
+                'km' => round($km, 2),
+                'kml' => ($litros > 0 && $km > 0) ? round($km / $litros, 2) : null,
+            ];
+        })->values();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Vehiculos');
+        $sheet1->fromArray(['Vehículo', 'Cargas', 'Litros', 'Km', 'Km/L'], null, 'A1');
+
+        $row = 2;
+        if ($vehiculos->isEmpty()) {
+            $sheet1->setCellValue("A{$row}", 'Sin datos para exportar');
+        } else {
+            foreach ($vehiculos as $v) {
+                $sheet1->setCellValue("A{$row}", $v['vehiculo']);
+                $sheet1->setCellValue("B{$row}", $v['cargas']);
+                $sheet1->setCellValue("C{$row}", $v['litros']);
+                $sheet1->setCellValue("D{$row}", $v['km']);
+                $sheet1->setCellValue("E{$row}", $v['kml']);
+                $row++;
+            }
+        }
+
+        foreach (range('A', 'E') as $col) {
+            $sheet1->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Diario');
+        $sheet2->fromArray(['Fecha', 'Litros', 'Km', 'Km/L'], null, 'A1');
+
+        $row = 2;
+        if ($dailyRows->isEmpty()) {
+            $sheet2->setCellValue("A{$row}", 'Sin datos para exportar');
+        } else {
+            foreach ($dailyRows as $d) {
+                $sheet2->setCellValue("A{$row}", Carbon::parse($d['fecha'])->format('d-m-Y'));
+                $sheet2->setCellValue("B{$row}", $d['litros']);
+                $sheet2->setCellValue("C{$row}", $d['km']);
+                $sheet2->setCellValue("D{$row}", $d['kml']);
+                $row++;
+            }
+        }
+
+        foreach (range('A', 'D') as $col) {
+            $sheet2->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'fuelcontrol_vehiculos_' . now()->format('Ymd_His') . '.xlsx';
+
+        return new StreamedResponse(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     /* =========================
