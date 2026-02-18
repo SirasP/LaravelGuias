@@ -931,6 +931,24 @@
                                             {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
                                         </span>
                                     </div>
+                                    @php
+                                        $odo = $m->odometro ?? null;
+                                        $odoBomba = $m->odometro_bomba ?? null;
+                                    @endphp
+                                    @if(!is_null($odo) || !is_null($odoBomba))
+                                        <div class="flex flex-wrap items-center gap-2 mt-1">
+                                            @if(!is_null($odo))
+                                                <span class="text-[11px] text-gray-500 dark:text-gray-400">
+                                                    Odo: <span class="font-semibold tabular-nums">{{ number_format((float) $odo, 0, ',', '.') }}</span>
+                                                </span>
+                                            @endif
+                                            @if(!is_null($odoBomba))
+                                                <span class="text-[11px] text-gray-500 dark:text-gray-400">
+                                                    Odo bomba: <span class="font-semibold tabular-nums">{{ number_format((float) $odoBomba, 0, ',', '.') }}</span>
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 <p
                                     class="text-sm font-bold tabular-nums shrink-0
