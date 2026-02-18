@@ -250,7 +250,7 @@
             </div>
             <div class="grid grid-cols-2 gap-1.5">
                 <a href="{{ route('profile.edit') }}"
-                    class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                    class="h-8 flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-semibold
                            text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800
                            border border-gray-200 dark:border-gray-700
                            hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-indigo-400
@@ -263,7 +263,7 @@
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit"
-                        class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                        class="h-8 w-full flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-semibold
                                text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800
                                border border-gray-200 dark:border-gray-700
                                hover:border-red-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20
