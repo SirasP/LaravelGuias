@@ -132,9 +132,10 @@ class DashboardController extends Controller
             /* =========================
              * CHARTS VEHÍCULOS (30 DÍAS)
              * ========================= */
-            // Cálculo de km por vehículo usando SOLO odómetro (lectura secuencial)
+            // Cálculo de km por vehículo usando odómetro (fallback: odómetro bomba)
             $hasOdomCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro');
-            $hasOdomAny = $hasOdomCol;
+            $hasOdomBombaCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro_bomba');
+            $hasOdomAny = $hasOdomCol || $hasOdomBombaCol;
             $hasVehiculoId = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'vehiculo_id');
 
             $topVehiculosLabels = collect();
@@ -145,7 +146,7 @@ class DashboardController extends Controller
             $usoDiarioKmL = collect();
             $vehiculosDebug = [];
 
-            if ($hasVehiculoId && $hasOdomCol) {
+            if ($hasVehiculoId && $hasOdomAny) {
                 $vehRows = DB::connection('fuelcontrol')
                     ->table('movimientos as m')
                     ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
@@ -153,7 +154,8 @@ class DashboardController extends Controller
                         'm.vehiculo_id',
                         'm.fecha_movimiento',
                         'm.cantidad',
-                        'm.odometro'
+                        'm.odometro',
+                        'm.odometro_bomba'
                     )
                     ->selectRaw("
                         COALESCE(
@@ -163,9 +165,6 @@ class DashboardController extends Controller
                     ")
                     ->where('m.fecha_movimiento', '>=', $desde)
                     ->whereNotNull('m.vehiculo_id')
-                    ->whereRaw("LOWER(COALESCE(m.tipo, '')) = 'vehiculo'")
-                    ->whereNotNull('m.odometro')
-                    ->where('m.odometro', '>', 0)
                     ->where(function ($q) {
                         $q->whereNull('m.estado')
                             ->orWhere('m.estado', 'aprobado');
@@ -185,7 +184,9 @@ class DashboardController extends Controller
 
                     foreach ($rows as $r) {
                         $litros = abs((float) ($r->cantidad ?? 0));
-                        $odo = (float) ($r->odometro ?? 0);
+                        $odoPrincipal = (float) ($r->odometro ?? 0);
+                        $odoBomba = (float) ($r->odometro_bomba ?? 0);
+                        $odo = $odoPrincipal > 0 ? $odoPrincipal : ($odoBomba > 0 ? $odoBomba : 0);
                         $fecha = Carbon::parse($r->fecha_movimiento)->toDateString();
 
                         $vehLitros += $litros;
@@ -194,12 +195,14 @@ class DashboardController extends Controller
                         }
                         $daily[$fecha]['litros'] += $litros;
 
-                        if (!is_null($prevOdo) && $odo > $prevOdo) {
+                        if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
                             $deltaKm = $odo - $prevOdo;
                             $vehKm += $deltaKm;
                             $daily[$fecha]['km'] += $deltaKm;
                         }
-                        $prevOdo = $odo;
+                        if ($odo > 0) {
+                            $prevOdo = $odo;
+                        }
                     }
 
                     $vehiculosCalc->push([
@@ -252,6 +255,7 @@ class DashboardController extends Controller
                     ->values();
 
                 $vehiculosDebug = [
+                    'rows_source' => $vehRows->count(),
                     'rows_top' => $top->count(),
                     'rows_daily_grouped' => $usoDiarioAgg->count(),
                     'litros_top' => round($top->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),

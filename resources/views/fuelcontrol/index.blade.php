@@ -711,6 +711,7 @@
                     <div class="text-sm font-bold text-gray-900 dark:text-gray-100">Debug charts vehículos</div>
                 </div>
                 <div class="px-5 py-3 text-[12px] text-gray-600 dark:text-gray-300 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    <div>Rows source: <b>{{ $vehiculosDebug['rows_source'] ?? 0 }}</b></div>
                     <div>Rows top: <b>{{ $vehiculosDebug['rows_top'] ?? 0 }}</b></div>
                     <div>Rows daily: <b>{{ $vehiculosDebug['rows_daily_grouped'] ?? 0 }}</b></div>
                     <div>Labels top: <b>{{ $vehiculosDebug['labels_top'] ?? 0 }}</b></div>
