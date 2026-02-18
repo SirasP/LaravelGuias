@@ -661,6 +661,41 @@
 
             </div>
 
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {{-- Top consumo por vehículo --}}
+                <div class="chart-card au d5">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="chart-title">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+                            Vehículos que más consumen (30 días)
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                    </div>
+                    <div class="relative h-56">
+                        <canvas id="vehiculosConsumoChart"></canvas>
+                    </div>
+                </div>
+
+                {{-- Uso diario vehículos --}}
+                <div class="chart-card au d6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="chart-title">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span>
+                            Uso diario vehículos (30 días)
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros / km/L</span>
+                    </div>
+                    <div class="relative h-56">
+                        <canvas id="usoDiarioVehiculosChart"></canvas>
+                    </div>
+                    @if(!$hasOdomAny)
+                        <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">
+                            Sin odómetro disponible (odómetro/odómetro bomba): se muestra solo consumo en litros.
+                        </p>
+                    @endif
+                </div>
+            </div>
+
             {{-- ══════════════════════════════════════════
             ROW: INVENTARIO + MOVIMIENTOS
             ══════════════════════════════════════════ --}}
@@ -972,6 +1007,8 @@
 
             const gasCtx = document.getElementById('gasolinaChart');
             const dieCtx = document.getElementById('dieselChart');
+            const topVehCtx = document.getElementById('vehiculosConsumoChart');
+            const usoDiarioCtx = document.getElementById('usoDiarioVehiculosChart');
 
             if (gasCtx) new Chart(gasCtx, {
                 type: 'bar',
@@ -1003,6 +1040,114 @@
                     }]
                 },
                 options: sharedOpts('emerald')
+            });
+
+            if (topVehCtx) new Chart(topVehCtx, {
+                type: 'bar',
+                data: {
+                    labels: @json($topVehiculosLabels),
+                    datasets: [
+                        {
+                            label: 'Consumo (L)',
+                            data: @json($topVehiculosLitros),
+                            backgroundColor: 'rgba(244,63,94,.75)',
+                            hoverBackgroundColor: 'rgba(244,63,94,1)',
+                            borderRadius: 7,
+                            borderSkipped: false,
+                            yAxisID: 'y',
+                        },
+                        {
+                            type: 'line',
+                            label: 'km/L',
+                            data: @json($topVehiculosKmL),
+                            borderColor: 'rgba(14,165,233,1)',
+                            backgroundColor: 'rgba(14,165,233,.2)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 4,
+                            tension: .28,
+                            yAxisID: 'y1',
+                            spanGaps: true,
+                        }
+                    ]
+                },
+                options: {
+                    ...sharedOpts('rose'),
+                    scales: {
+                        x: sharedOpts('rose').scales.x,
+                        y: {
+                            ...sharedOpts('rose').scales.y,
+                            ticks: {
+                                ...sharedOpts('rose').scales.y.ticks,
+                                callback: (v) => v.toLocaleString('es-CL') + ' L'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                color: tickColor,
+                                font: { size: 10 },
+                                callback: (v) => `${v} km/L`
+                            },
+                            border: { display: false }
+                        }
+                    }
+                }
+            });
+
+            if (usoDiarioCtx) new Chart(usoDiarioCtx, {
+                type: 'bar',
+                data: {
+                    labels: @json($usoDiarioLabels),
+                    datasets: [
+                        {
+                            label: 'Litros (L)',
+                            data: @json($usoDiarioLitros),
+                            backgroundColor: 'rgba(56,189,248,.72)',
+                            hoverBackgroundColor: 'rgba(56,189,248,1)',
+                            borderRadius: 7,
+                            borderSkipped: false,
+                            yAxisID: 'y',
+                        },
+                        {
+                            type: 'line',
+                            label: 'km/L estimado',
+                            data: @json($usoDiarioKmL),
+                            borderColor: 'rgba(16,185,129,1)',
+                            backgroundColor: 'rgba(16,185,129,.2)',
+                            borderWidth: 2,
+                            pointRadius: 2.5,
+                            pointHoverRadius: 4,
+                            tension: .3,
+                            yAxisID: 'y1',
+                            spanGaps: true,
+                        }
+                    ]
+                },
+                options: {
+                    ...sharedOpts('sky'),
+                    scales: {
+                        x: sharedOpts('sky').scales.x,
+                        y: {
+                            ...sharedOpts('sky').scales.y,
+                            ticks: {
+                                ...sharedOpts('sky').scales.y.ticks,
+                                callback: (v) => v.toLocaleString('es-CL') + ' L'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                color: tickColor,
+                                font: { size: 10 },
+                                callback: (v) => `${v} km/L`
+                            },
+                            border: { display: false }
+                        }
+                    }
+                }
             });
 
         });

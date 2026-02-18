@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -129,8 +130,132 @@ class DashboardController extends Controller
                 ->values();
 
             /* =========================
-             * COMBINAR DATOS PARA GRÁFICO
+             * CHARTS VEHÍCULOS (30 DÍAS)
              * ========================= */
+            $hasOdomCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro');
+            $hasOdomBombaCol = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'odometro_bomba');
+            $hasOdomAny = $hasOdomCol || $hasOdomBombaCol;
+            $hasVehiculoId = Schema::connection('fuelcontrol')->hasColumn('movimientos', 'vehiculo_id');
+            $odoExpr = match (true) {
+                $hasOdomCol && $hasOdomBombaCol => 'COALESCE(NULLIF(m.odometro,0), NULLIF(m.odometro_bomba,0))',
+                $hasOdomCol => 'NULLIF(m.odometro,0)',
+                $hasOdomBombaCol => 'NULLIF(m.odometro_bomba,0)',
+                default => null,
+            };
+
+            $topVehiculosRaw = collect();
+            $usoDiarioVehiculosRaw = collect();
+
+            if ($hasVehiculoId) {
+                $topVehiculosQuery = DB::connection('fuelcontrol')
+                    ->table('movimientos as m')
+                    ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+                    ->selectRaw("
+                        COALESCE(
+                            NULLIF(TRIM(v.patente), ''),
+                            CONCAT('Vehículo #', m.vehiculo_id),
+                            'Sin vehículo'
+                        ) as vehiculo
+                    ")
+                    ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
+                    ->selectRaw('COUNT(*) as cargas')
+                    ->where('m.fecha_movimiento', '>=', $desde)
+                    ->where(function ($q) {
+                        $q->whereNotNull('m.vehiculo_id')
+                            ->orWhereRaw("LOWER(m.tipo) = 'vehiculo'");
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('m.estado')
+                            ->orWhere('m.estado', 'aprobado');
+                    })
+                    ->groupByRaw("
+                        COALESCE(
+                            NULLIF(TRIM(v.patente), ''),
+                            CONCAT('Vehículo #', m.vehiculo_id),
+                            'Sin vehículo'
+                        )
+                    ")
+                    ->orderByDesc('litros')
+                    ->limit(8);
+
+                if ($hasOdomAny && $odoExpr) {
+                    $topVehiculosQuery
+                        ->selectRaw("MIN({$odoExpr}) as odo_min")
+                        ->selectRaw("MAX({$odoExpr}) as odo_max");
+                }
+
+                $topVehiculosRaw = $topVehiculosQuery->get();
+
+                $usoDiarioVehiculosQuery = DB::connection('fuelcontrol')
+                    ->table('movimientos as m')
+                    ->selectRaw('DATE(m.fecha_movimiento) as fecha')
+                    ->selectRaw('SUM(ABS(COALESCE(m.cantidad, 0))) as litros')
+                    ->where('m.fecha_movimiento', '>=', $desde)
+                    ->where(function ($q) {
+                        $q->whereNotNull('m.vehiculo_id')
+                            ->orWhereRaw("LOWER(m.tipo) = 'vehiculo'");
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('m.estado')
+                            ->orWhere('m.estado', 'aprobado');
+                    })
+                    ->groupByRaw('DATE(m.fecha_movimiento)')
+                    ->orderBy('fecha');
+
+                if ($hasOdomAny && $odoExpr) {
+                    $usoDiarioVehiculosQuery->selectRaw("MAX({$odoExpr}) - MIN({$odoExpr}) as km_dia");
+                }
+
+                $usoDiarioVehiculosRaw = $usoDiarioVehiculosQuery->get();
+            }
+
+            $topVehiculosLabels = $topVehiculosRaw
+                ->pluck('vehiculo')
+                ->map(fn($v) => mb_strimwidth((string) $v, 0, 18, '…'))
+                ->values();
+
+            $topVehiculosLitros = $topVehiculosRaw
+                ->pluck('litros')
+                ->map(fn($v) => round((float) $v, 2))
+                ->values();
+
+            $topVehiculosKmL = $topVehiculosRaw
+                ->map(function ($r) use ($hasOdomAny) {
+                    if (!$hasOdomAny) {
+                        return null;
+                    }
+                    $litros = (float) ($r->litros ?? 0);
+                    $km = (float) (($r->odo_max ?? 0) - ($r->odo_min ?? 0));
+                    if ($litros <= 0 || $km <= 0) {
+                        return null;
+                    }
+                    return round($km / $litros, 2);
+                })
+                ->values();
+
+            $usoDiarioLabels = $usoDiarioVehiculosRaw
+                ->pluck('fecha')
+                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                ->values();
+
+            $usoDiarioLitros = $usoDiarioVehiculosRaw
+                ->pluck('litros')
+                ->map(fn($v) => round((float) $v, 2))
+                ->values();
+
+            $usoDiarioKmL = $usoDiarioVehiculosRaw
+                ->map(function ($r) use ($hasOdomAny) {
+                    if (!$hasOdomAny) {
+                        return null;
+                    }
+                    $litros = (float) ($r->litros ?? 0);
+                    $km = (float) ($r->km_dia ?? 0);
+                    if ($litros <= 0 || $km <= 0) {
+                        return null;
+                    }
+                    return round($km / $litros, 2);
+                })
+                ->values();
 
         } catch (\Throwable $e) {
             dd([
@@ -148,6 +273,13 @@ class DashboardController extends Controller
             'dataGasolina',
             'labelsDiesel',
             'dataDiesel',
+            'topVehiculosLabels',
+            'topVehiculosLitros',
+            'topVehiculosKmL',
+            'usoDiarioLabels',
+            'usoDiarioLitros',
+            'usoDiarioKmL',
+            'hasOdomAny',
             'notificaciones'
         ));
     }
