@@ -226,13 +226,11 @@
         .stat-card {
             background: #fff;
             border: 1px solid #e2e8f0;
-            border-radius: 18px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 16px 18px;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
-            overflow: hidden;
-            position: relative
+            align-items: center;
+            justify-content: space-between
         }
 
         .dark .stat-card {
@@ -240,68 +238,17 @@
             border-color: #1e2a3b
         }
 
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            transition: opacity .3s
+        /* ── Mobile card ── */
+        .m-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px 16px
         }
 
-        .stat-card:hover::before {
-            opacity: 1
-        }
-
-        .sc-blue::before {
-            background: radial-gradient(circle at top right, rgba(99, 102, 241, .06), transparent 60%)
-        }
-
-        .sc-green::before {
-            background: radial-gradient(circle at top right, rgba(16, 185, 129, .06), transparent 60%)
-        }
-
-        .sc-amber::before {
-            background: radial-gradient(circle at top right, rgba(245, 158, 11, .06), transparent 60%)
-        }
-
-        .sc-rose::before {
-            background: radial-gradient(circle at top right, rgba(244, 63, 94, .06), transparent 60%)
-        }
-
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center
-        }
-
-        .stat-num {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -.03em;
-            color: #0f172a;
-            font-variant-numeric: tabular-nums;
-            line-height: 1
-        }
-
-        .dark .stat-num {
-            color: #f8fafc
-        }
-
-        .stat-lbl {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: .07em;
-            text-transform: uppercase;
-            color: #94a3b8
-        }
-
-        .stat-sub {
-            font-size: 11px;
-            color: #94a3b8
+        .dark .m-card {
+            background: #161c2c;
+            border-color: #1e2a3b
         }
 
         /* ── Table ── */
@@ -619,77 +566,61 @@
             {{-- ══════════════════════════════════════════
             STAT CARDS
             ══════════════════════════════════════════ --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 
                 {{-- Productos --}}
-                <div class="stat-card sc-blue au d1">
-                    <div class="flex items-center justify-between">
-                        <span class="stat-lbl">Productos</span>
-                        <div class="stat-icon bg-indigo-50 dark:bg-indigo-900/30">
-                            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                            </svg>
-                        </div>
-                    </div>
+                <div class="stat-card au d1">
                     <div>
-                        <p class="stat-num">{{ $resumen['total_productos'] }}</p>
-                        <p class="stat-sub mt-1">Tipos de combustible</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Productos</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $resumen['total_productos'] }}</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
                     </div>
                 </div>
 
                 {{-- Vehículos --}}
-                <div class="stat-card sc-green au d2">
-                    <div class="flex items-center justify-between">
-                        <span class="stat-lbl">Vehículos</span>
-                        <div class="stat-icon bg-emerald-50 dark:bg-emerald-900/30">
-                            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 17h8m-4-4v4M3 11h18M3 11l2-5h14l2 5M3 11v6a1 1 0 001 1h1m12 0h1a1 1 0 001-1v-6" />
-                            </svg>
-                        </div>
-                    </div>
+                <div class="stat-card au d2">
                     <div>
-                        <p class="stat-num">{{ $resumen['total_vehiculos'] }}</p>
-                        <p class="stat-sub mt-1">Activos en sistema</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Vehículos</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $resumen['total_vehiculos'] }}</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 17h8m-4-4v4M3 11h18M3 11l2-5h14l2 5M3 11v6a1 1 0 001 1h1m12 0h1a1 1 0 001-1v-6" />
+                        </svg>
                     </div>
                 </div>
 
                 {{-- Movimientos hoy --}}
-                <div class="stat-card sc-amber au d3">
-                    <div class="flex items-center justify-between">
-                        <span class="stat-lbl">Hoy</span>
-                        <div class="stat-icon bg-amber-50 dark:bg-amber-900/30">
-                            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                    </div>
+                <div class="stat-card au d3">
                     <div>
-                        <p class="stat-num">{{ $resumen['movimientos_hoy'] }}</p>
-                        <p class="stat-sub mt-1">Transacciones del día</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Hoy</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $resumen['movimientos_hoy'] }}</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
                 </div>
 
                 {{-- Notificaciones pendientes --}}
-                <div class="stat-card sc-rose au d4">
-                    <div class="flex items-center justify-between">
-                        <span class="stat-lbl">Notificaciones</span>
-                        <div class="stat-icon bg-rose-50 dark:bg-rose-900/30">
-                            <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                        </div>
-                    </div>
+                <div class="stat-card au d4">
                     <div>
-                        <p class="stat-num">{{ $notificaciones->count() }}</p>
-                        <p class="stat-sub mt-1">Pendientes de revisión</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Notificaciones</p>
+                        <p class="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">{{ $notificaciones->count() }}</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
                     </div>
                 </div>
 
@@ -764,7 +695,8 @@
                     </div>
 
                     <div x-show="open" x-collapse>
-                        <div class="overflow-x-auto">
+                        {{-- Desktop table --}}
+                        <div class="hidden lg:block overflow-x-auto">
                             <table class="dt">
                                 <thead>
                                     <tr>
@@ -829,19 +761,9 @@
                                             </td>
                                             <td class="text-center">
                                                 <span class="badge {{ $badgeClass }}">
-                                                    @if($pct < 20)
-                                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
-                                                            <circle cx="4" cy="4" r="3" />
-                                                        </svg>
-                                                    @elseif($pct < 50)
-                                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
-                                                            <circle cx="4" cy="4" r="3" />
-                                                        </svg>
-                                                    @else
-                                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
-                                                            <circle cx="4" cy="4" r="3" />
-                                                        </svg>
-                                                    @endif
+                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
+                                                        <circle cx="4" cy="4" r="3" />
+                                                    </svg>
                                                     {{ $estado }}
                                                 </span>
                                             </td>
@@ -855,6 +777,66 @@
                                     @endforelse
                                 </tbody>
                             </table>
+                        </div>
+
+                        {{-- Mobile cards --}}
+                        <div class="lg:hidden p-3 space-y-2">
+                            @forelse($productos as $p)
+                                @php
+                                    $caps = ['diesel' => 10000, 'gasolina' => 100];
+                                    $nombre = strtolower($p->nombre);
+                                    $cap = $caps[$nombre] ?? 100;
+                                    $pct = min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                    [$barColor, $badgeClass, $estado] = match (true) {
+                                        $pct < 20 => ['bg-rose-500', 'badge-crit', 'Crítico'],
+                                        $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
+                                        default => ['bg-emerald-500', 'badge-ok', 'Normal'],
+                                    };
+                                    $iconBg = match (true) {
+                                        $pct < 20 => 'bg-rose-50 dark:bg-rose-900/20',
+                                        $pct < 50 => 'bg-amber-50 dark:bg-amber-900/20',
+                                        default => 'bg-emerald-50 dark:bg-emerald-900/20',
+                                    };
+                                    $iconColor = match (true) {
+                                        $pct < 20 => 'text-rose-500',
+                                        $pct < 50 => 'text-amber-500',
+                                        default => 'text-emerald-500',
+                                    };
+                                @endphp
+                                <div class="m-card">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <div class="fuel-dot {{ $iconBg }} shrink-0">
+                                                <svg class="w-4 h-4 {{ $iconColor }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                                </svg>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ ucfirst($p->nombre) }}</p>
+                                                <span class="badge {{ $badgeClass }} mt-0.5">
+                                                    <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
+                                                    {{ $estado }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p class="text-base font-black tabular-nums text-gray-900 dark:text-gray-100 shrink-0">
+                                            {{ number_format($p->cantidad, 2) }}
+                                            <span class="text-[10px] font-bold text-gray-400">L</span>
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="prog-track flex-1">
+                                            <div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%"></div>
+                                        </div>
+                                        <span class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct }}%</span>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="text-center text-sm text-gray-400 py-8">
+                                    No hay productos registrados.
+                                </div>
+                            @endforelse
                         </div>
                     </div>
                 </div>
