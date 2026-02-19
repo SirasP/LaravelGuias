@@ -113,7 +113,7 @@
                     </div>
 
                     @php
-                        $maxUnidad = max(1, ...collect($unidadResumen)->pluck('cantidad')->all());
+                        $maxUnidad = max(1, (int) collect($unidadResumen)->pluck('cantidad')->max());
                     @endphp
                     <div>
                         <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Distribución por unidad</p>

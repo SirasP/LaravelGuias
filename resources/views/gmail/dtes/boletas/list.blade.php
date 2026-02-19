@@ -226,6 +226,9 @@
                             @forelse($documents as $d)
                                 @php
                                     $tipo = $tipoMap[(int) ($d->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'color' => 'bg-gray-100 text-gray-600'];
+                                    $sign = ((int) ($d->tipo_dte ?? 0) === 61) ? -1 : 1;
+                                    $montoNetoSigned = ((float) ($d->monto_neto ?? 0)) * $sign;
+                                    $montoTotalSigned = ((float) ($d->monto_total ?? 0)) * $sign;
                                     $vencDate = $d->fecha_vencimiento ? \Carbon\Carbon::parse($d->fecha_vencimiento)->startOfDay() : null;
                                     $hoy = now()->startOfDay();
                                     $diasVencido = $vencDate ? (int) $vencDate->diffInDays($hoy, false) : null;
@@ -277,10 +280,10 @@
                                         </div>
                                     </td>
                                     <td class="text-right">
-                                        <span class="amt-sub">$ {{ number_format((float) $d->monto_neto, 0, ',', '.') }}</span>
+                                        <span class="amt-sub">{{ $montoNetoSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoNetoSigned), 0, ',', '.') }}</span>
                                     </td>
                                     <td class="text-right">
-                                        <span class="amt-main">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</span>
+                                        <span class="amt-main">{{ $montoTotalSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoTotalSigned), 0, ',', '.') }}</span>
                                     </td>
                                     <td>
                                         <span class="chip {{
@@ -311,6 +314,8 @@
                     @forelse($documents as $d)
                         @php
                             $tipo = $tipoMap[(int) ($d->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'color' => 'bg-gray-100 text-gray-600'];
+                            $sign = ((int) ($d->tipo_dte ?? 0) === 61) ? -1 : 1;
+                            $montoTotalSigned = ((float) ($d->monto_total ?? 0)) * $sign;
                             $vencDate = $d->fecha_vencimiento ? \Carbon\Carbon::parse($d->fecha_vencimiento)->startOfDay() : null;
                             $hoy = now()->startOfDay();
                             $diasVencido = $vencDate ? (int) $vencDate->diffInDays($hoy, false) : null;
@@ -375,7 +380,7 @@
                                 </div>
                                 <div class="text-right shrink-0">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
-                                    <p class="text-base font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</p>
+                                    <p class="text-base font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">{{ $montoTotalSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoTotalSigned), 0, ',', '.') }}</p>
                                 </div>
                             </div>
                         </a>

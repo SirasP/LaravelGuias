@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Services\GmailDteInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class GmailDteDocumentController extends Controller
 {
     private const FACTURA_TYPES = [33, 34, 56, 61];
     private const BOLETA_TYPES = [39, 41];
+    private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
 
     public function index()
     {
@@ -62,11 +64,20 @@ class GmailDteDocumentController extends Controller
 
     private function buildSummaryByTypes(array $types): array
     {
-        $docs = DB::connection('fuelcontrol')
+        $docsQuery = DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
-            ->select(['payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
+            ->select(['tipo_dte', 'payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
             ->whereIn('tipo_dte', $types)
-            ->get();
+            ->where(function ($query) {
+                $query->whereNull('workflow_status')
+                    ->orWhereNotIn(DB::raw('LOWER(workflow_status)'), self::EXCLUDED_WORKFLOW_STATUSES);
+            });
+
+        if (Schema::connection('fuelcontrol')->hasColumn('gmail_dte_documents', 'saldo_pendiente')) {
+            $docsQuery->addSelect('saldo_pendiente');
+        }
+
+        $docs = $docsQuery->get();
 
         $today = now()->startOfDay();
         $summary = [
@@ -89,23 +100,27 @@ class GmailDteDocumentController extends Controller
         ];
 
         foreach ($docs as $doc) {
-            $monto = (float) ($doc->monto_total ?? 0);
+            $sign = ((int) ($doc->tipo_dte ?? 0) === 61) ? -1.0 : 1.0;
+            $montoTotal = (float) ($doc->monto_total ?? 0) * $sign;
             $isPaid = (string) ($doc->payment_status ?? 'sin_pagar') === 'pagado';
             $isDraft = (string) ($doc->workflow_status ?? 'aceptado') === 'borrador';
+            $saldoPendienteRaw = property_exists($doc, 'saldo_pendiente')
+                ? (float) ($doc->saldo_pendiente ?? 0)
+                : ($isPaid ? 0.0 : (float) ($doc->monto_total ?? 0));
+            $saldoPendiente = $saldoPendienteRaw * $sign;
 
             $summary['total_docs']++;
 
             if ($isDraft) {
                 $summary['por_validar_count']++;
-                $summary['por_validar_monto'] += $monto;
+                $summary['por_validar_monto'] += $saldoPendiente;
             }
 
             if (!$isPaid) {
-                $summary['por_pagar_count']++;
-                $summary['por_pagar_monto'] += $monto;
-
                 $venc = $doc->fecha_vencimiento ? \Carbon\Carbon::parse($doc->fecha_vencimiento)->startOfDay() : null;
                 if (!$venc) {
+                    $summary['por_pagar_count']++;
+                    $summary['por_pagar_monto'] += $saldoPendiente;
                     $aging['no_adeudado']++;
                     continue;
                 }
@@ -127,7 +142,11 @@ class GmailDteDocumentController extends Controller
 
                 if ($days > 0) {
                     $summary['atrasado_count']++;
-                    $summary['atrasado_monto'] += $monto;
+                    $summary['atrasado_monto'] += $saldoPendiente;
+                } else {
+                    // Por pagar sin doble contar vencidos.
+                    $summary['por_pagar_count']++;
+                    $summary['por_pagar_monto'] += $saldoPendiente;
                 }
             } else {
                 $aging['no_adeudado']++;
@@ -142,6 +161,10 @@ class GmailDteDocumentController extends Controller
         return DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
             ->whereIn('tipo_dte', $types)
+            ->where(function ($query) {
+                $query->whereNull('workflow_status')
+                    ->orWhereNotIn(DB::raw('LOWER(workflow_status)'), self::EXCLUDED_WORKFLOW_STATUSES);
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('folio', 'like', "%{$q}%")
