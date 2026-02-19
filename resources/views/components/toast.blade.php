@@ -28,10 +28,10 @@
     }
 
     $containerClasses = match ($toastType) {
-        'success' => 'bg-emerald-50/95 border-emerald-200 text-emerald-900 dark:bg-emerald-900/90 dark:border-emerald-700 dark:text-emerald-100',
-        'warning' => 'bg-amber-50/95 border-amber-200 text-amber-900 dark:bg-amber-900/90 dark:border-amber-700 dark:text-amber-100',
-        'info' => 'bg-sky-50/95 border-sky-200 text-sky-900 dark:bg-sky-900/90 dark:border-sky-700 dark:text-sky-100',
-        default => 'bg-rose-50/95 border-rose-200 text-rose-900 dark:bg-rose-900/90 dark:border-rose-700 dark:text-rose-100',
+        'success' => 'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-100',
+        'warning' => 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-700 dark:text-amber-100',
+        'info' => 'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950 dark:border-sky-700 dark:text-sky-100',
+        default => 'bg-rose-50 border-rose-300 text-rose-900 dark:bg-rose-950 dark:border-rose-700 dark:text-rose-100',
     };
 
     $iconClasses = match ($toastType) {
@@ -71,7 +71,7 @@
         role="status"
         aria-live="polite"
     >
-        <div class="rounded-2xl border shadow-2xl backdrop-blur-sm overflow-hidden {{ $containerClasses }}">
+        <div class="rounded-2xl border shadow-xl overflow-hidden {{ $containerClasses }}">
             <div class="flex items-start gap-3 px-4 py-3.5">
                 <div class="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center {{ $iconClasses }}">
                     @if($toastType === 'success')
