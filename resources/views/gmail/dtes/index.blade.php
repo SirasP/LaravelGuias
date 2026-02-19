@@ -28,14 +28,25 @@
     </x-slot>
 
     <style>
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .au { animation: fadeUp .35s ease both; }
+        .d1 { animation-delay: .06s; }
+        .d2 { animation-delay: .12s; }
+        .d3 { animation-delay: .18s; }
+        .d4 { animation-delay: .24s; }
+
         .page-bg { background:#f1f5f9; min-height:100% }
         .dark .page-bg { background:#0d1117 }
 
-        .panel { background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden }
+        .panel { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
         .dark .panel { background:#161c2c; border-color:#1e2a3b }
 
         .panel-head {
-            padding:14px 16px;
+            padding:15px 20px;
             border-bottom:1px solid #f1f5f9;
             display:flex;
             justify-content:space-between;
@@ -44,13 +55,13 @@
         }
         .dark .panel-head { border-bottom-color:#1e2a3b }
 
-        .stat {
+        .stat-card {
             background:#fff;
             border:1px solid #e2e8f0;
-            border-radius:14px;
-            padding:12px 14px;
+            border-radius:16px;
+            padding:14px 16px;
         }
-        .dark .stat { background:#161c2c; border-color:#1e2a3b }
+        .dark .stat-card { background:#161c2c; border-color:#1e2a3b }
 
         .dt { width:100%; border-collapse:collapse; font-size:13px }
         .dt thead tr { background:#f8fafc; border-bottom:1px solid #f1f5f9 }
@@ -130,20 +141,20 @@
                 </div>
             </form>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div class="stat">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 au d1">
+                <div class="stat-card">
                     <p class="text-[11px] uppercase tracking-wide text-gray-400">Registros</p>
                     <p class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $documents->total() }}</p>
                 </div>
-                <div class="stat">
+                <div class="stat-card">
                     <p class="text-[11px] uppercase tracking-wide text-gray-400">Pagina</p>
                     <p class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $documents->currentPage() }} / {{ $documents->lastPage() }}</p>
                 </div>
-                <div class="stat">
+                <div class="stat-card">
                     <p class="text-[11px] uppercase tracking-wide text-gray-400">Total pagina</p>
                     <p class="text-xl font-bold text-gray-900 dark:text-gray-100">$ {{ number_format((float) $documents->sum('monto_total'), 0, ',', '.') }}</p>
                 </div>
-                <div class="stat">
+                <div class="stat-card">
                     <p class="text-[11px] uppercase tracking-wide text-gray-400">Filtro</p>
                     <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">{{ $q !== '' ? $q : 'Sin filtro' }}</p>
                 </div>
@@ -158,7 +169,7 @@
                 ];
             @endphp
 
-            <div class="panel hidden lg:block">
+            <div class="panel hidden lg:block au d2">
                 <div class="panel-head">
                     <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado</p>
                     <p class="text-xs text-gray-400">Haz clic en una fila para ver detalle y desplaza horizontalmente si necesitas ver más columnas</p>
@@ -174,8 +185,8 @@
                                 <th class="w-[130px]">Fecha contable</th>
                                 <th class="w-[140px]">Vencimiento</th>
                                 <th class="w-[320px]">Referencia</th>
-                                <th class="w-[150px]">Imp. no incluidos</th>
-                                <th class="w-[150px]">Total facturacion</th>
+                                <th class="w-[150px] text-right">Imp. no incluidos</th>
+                                <th class="w-[150px] text-right">Total facturacion</th>
                                 <th class="w-[140px]">Estado</th>
                             </tr>
                         </thead>
@@ -215,8 +226,8 @@
                                     <td>{{ $d->fecha_contable ?? '—' }}</td>
                                     <td><span class="text-rose-600 dark:text-rose-400 font-semibold">{{ $vencHuman }}</span></td>
                                     <td title="{{ $d->referencia }}"><div class="col-ref">{{ $d->referencia ?? '—' }}</div></td>
-                                    <td>{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
-                                    <td class="font-bold">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
+                                    <td class="font-bold text-right">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
                                     <td>
                                         <span class="chip {{
                                             $estado === 'Pagado'
@@ -239,7 +250,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 lg:hidden">
+            <div class="grid grid-cols-1 gap-3 lg:hidden au d3">
                 @forelse($documents as $d)
                     @php
                         $tipo = $tipoMap[(int) ($d->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario'];
