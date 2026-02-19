@@ -69,7 +69,7 @@
                                 <a href="{{ route('gmail.dtes.facturas.list') }}" class="text-2xl font-bold text-cyan-700 dark:text-cyan-300 hover:underline">
                                     Facturas de proveedores
                                 </a>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 33, 34, 56 y 61</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 33, 34 y 56</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs uppercase tracking-wide text-gray-400">Total documentos</p>
