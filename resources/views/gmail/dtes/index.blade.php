@@ -9,8 +9,8 @@
                     </svg>
                 </div>
                 <div>
-                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">DTE XML</h2>
-                    <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">No combustible (admin)</p>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Facturas proveedor</h2>
+                    <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Tablero (admin)</p>
                 </div>
             </div>
         </div>
@@ -95,4 +95,3 @@
         </div>
     </div>
 </x-app-layout>
-
