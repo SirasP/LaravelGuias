@@ -37,9 +37,10 @@
 
         $tipo = $tipoMap[(int) ($document->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario'];
 
-        $vencDate = $document->fecha_vencimiento ? \Carbon\Carbon::parse($document->fecha_vencimiento)->startOfDay() : null;
-        $hoy = now()->startOfDay();
-        $estadoPago = ($vencDate && $vencDate->lt($hoy)) ? 'Sin pagar' : 'Pagado';
+        $estadoPagoRaw = data_get($document, 'payment_status');
+        $estadoPago = $estadoPagoRaw === 'pagado' ? 'Pagado' : 'Sin pagar';
+        $workflowStatus = data_get($document, 'workflow_status', 'borrador');
+        $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
     @endphp
 
     <style>
@@ -70,6 +71,54 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            @if(session('success'))
+                <div class="panel p-3 text-sm font-semibold text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if(session('warning'))
+                <div class="panel p-3 text-sm font-semibold text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300">
+                    {{ session('warning') }}
+                </div>
+            @endif
+
+            <div class="panel p-3">
+                <div class="flex flex-wrap gap-2">
+                    <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}">
+                        @csrf
+                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
+                            Pagar
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}">
+                        @csrf
+                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
+                            Nota de credito
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}">
+                        @csrf
+                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition">
+                            Aceptar documento
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}">
+                        @csrf
+                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">
+                            Agregar a stock
+                        </button>
+                    </form>
+
+                    <a href="{{ route('gmail.inventory.index') }}"
+                        class="px-3 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        Ver inventario DTE
+                    </a>
+                </div>
+            </div>
+
             <div class="panel">
                 <div class="panel-head">
                     <div>
@@ -79,6 +128,10 @@
                     <div class="flex items-center gap-2">
                         <span class="chip bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">{{ $tipo['nombre'] }}</span>
                         <span class="chip {{ $estadoPago === 'Pagado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">{{ $estadoPago }}</span>
+                        <span class="chip bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{{ strtoupper((string) $workflowStatus) }}</span>
+                        <span class="chip {{ $inventoryStatus === 'ingresado' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
+                            {{ $inventoryStatus === 'ingresado' ? 'Stock ingresado' : 'Stock pendiente' }}
+                        </span>
                     </div>
                 </div>
 

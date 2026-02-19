@@ -260,6 +260,9 @@
                     <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Tablero</a>
+                    <a href="{{ route('gmail.inventory.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Inventario DTE</a>
                 </div>
             </div>
         @endif
@@ -361,7 +364,7 @@
                 else if (path.startsWith('/excel') || path.startsWith('/odoo')) this.openSection = 'odoo';
                 else if (path.startsWith('/agrak')) this.openSection = 'agrak';
                 else if (path.startsWith('/guias')) this.openSection = 'xml';
-                else if (path.startsWith('/gmail/dtes')) this.openSection = 'dteprov';
+                else if (path.startsWith('/gmail/dtes') || path.startsWith('/gmail/inventario')) this.openSection = 'dteprov';
                 else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
 
                 // En mobile siempre expandido cuando se abre

@@ -441,9 +441,22 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
 
     Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
+    Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])
         ->whereNumber('id')
         ->name('dtes.print');
+    Route::post('/dtes/{id}/pay', [GmailDteDocumentController::class, 'markPaid'])
+        ->whereNumber('id')
+        ->name('dtes.pay');
+    Route::post('/dtes/{id}/accept', [GmailDteDocumentController::class, 'markAccepted'])
+        ->whereNumber('id')
+        ->name('dtes.accept');
+    Route::post('/dtes/{id}/credit-note', [GmailDteDocumentController::class, 'markCreditNote'])
+        ->whereNumber('id')
+        ->name('dtes.credit_note');
+    Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])
+        ->whereNumber('id')
+        ->name('dtes.add_stock');
     Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])
         ->whereNumber('id')
         ->name('dtes.show');

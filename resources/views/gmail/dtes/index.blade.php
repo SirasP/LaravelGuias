@@ -154,7 +154,12 @@
                                     $hoy = now()->startOfDay();
                                     $diasVencido = $vencDate ? $vencDate->diffInDays($hoy, false) : null;
 
-                                    if ($diasVencido !== null && $diasVencido > 0) {
+                                    $paymentStatus = data_get($d, 'payment_status');
+
+                                    if ($paymentStatus === 'pagado') {
+                                        $vencHuman = '—';
+                                        $estado = 'Pagado';
+                                    } elseif ($diasVencido !== null && $diasVencido > 0) {
                                         $vencHuman = $diasVencido === 1 ? 'ayer' : "hace {$diasVencido} dias";
                                         $estado = 'Sin pagar';
                                     } else {
@@ -203,7 +208,12 @@
                         $hoy = now()->startOfDay();
                         $diasVencido = $vencDate ? $vencDate->diffInDays($hoy, false) : null;
 
-                        if ($diasVencido !== null && $diasVencido > 0) {
+                        $paymentStatus = data_get($d, 'payment_status');
+
+                        if ($paymentStatus === 'pagado') {
+                            $vencHuman = '—';
+                            $estado = 'Pagado';
+                        } elseif ($diasVencido !== null && $diasVencido > 0) {
                             $vencHuman = $diasVencido === 1 ? 'ayer' : "hace {$diasVencido} dias";
                             $estado = 'Sin pagar';
                         } else {
