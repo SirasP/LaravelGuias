@@ -35,6 +35,17 @@
         61 => ['sigla' => 'NC', 'nombre' => 'Nota de credito'],
     ];
     $tipo = $tipoMap[(int) ($document->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario'];
+
+    $taxSummary = collect($document->tax_summary ?? []);
+    $ivaMonto = (float) ($document->monto_iva ?? 0);
+    $impuestoEspecifico = $taxSummary
+        ->filter(function ($tax) {
+            $label = strtoupper((string) ($tax['label'] ?? ''));
+            return str_contains($label, 'IMPUESTO ESPECIFICO') || str_contains($label, 'ILA');
+        })
+        ->sum(function ($tax) {
+            return (float) ($tax['monto'] ?? 0);
+        });
 @endphp
 
 <div class="no-print" style="margin-bottom:14px;">
@@ -107,7 +118,7 @@
                 <td class="right">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
                 <td>{{ $l->unidad ?? '—' }}</td>
                 <td class="right">{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
-                <td>{{ $taxLabels->implode(' | ') }}</td>
+                <td>{{ $taxLabels->map(fn($x) => preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', (string) $x))->implode(' | ') }}</td>
                 <td class="right">{{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
             </tr>
         @empty
@@ -118,7 +129,10 @@
 
 <div class="totals">
     <div><span>Monto neto</span><span>{{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span></div>
-    <div><span>IVA</span><span>{{ number_format((float) $document->monto_iva, 0, ',', '.') }}</span></div>
+    <div><span>IVA</span><span>{{ $ivaMonto > 0 ? number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span></div>
+    @if($impuestoEspecifico > 0)
+        <div><span>Impuesto específico</span><span>{{ number_format($impuestoEspecifico, 0, ',', '.') }}</span></div>
+    @endif
     <div class="t"><span>Total</span><span>{{ number_format((float) $document->monto_total, 0, ',', '.') }}</span></div>
 </div>
 

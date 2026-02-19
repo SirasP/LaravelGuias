@@ -196,8 +196,11 @@ class GmailDteDocumentController extends Controller
         // Montos provenientes de impuestos por línea (si vienen explícitos).
         foreach ($lines as $line) {
             foreach (($line->taxes ?? collect()) as $tax) {
-                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
                 $type = strtoupper((string) ($tax->tax_type ?? 'TAX'));
+                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
+                if ($type === 'IMP_ADIC') {
+                    $label = 'Impuesto específico';
+                }
                 $monto = is_null($tax->monto) ? null : (float) $tax->monto;
                 $add($type . '|' . $label, $label, $monto, !is_null($monto));
             }
@@ -220,7 +223,7 @@ class GmailDteDocumentController extends Controller
 
                     $mntImp = (float) ((string) ($tot->MntImp ?? 0));
                     if ($mntImp > 0) {
-                        $add('MntImp', 'Impuestos específicos', $mntImp, true);
+                        $add('MntImp', 'Impuesto específico', $mntImp, true);
                     }
 
                     if (isset($tot->ImptoReten)) {

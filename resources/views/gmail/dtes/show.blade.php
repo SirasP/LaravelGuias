@@ -45,10 +45,10 @@
         $taxSummary = collect($document->tax_summary ?? []);
 
         $ivaMonto = (float) ($document->monto_iva ?? 0);
-        $impuestosAdicionales = $taxSummary
+        $impuestoEspecifico = $taxSummary
             ->filter(function ($tax) {
                 $label = strtoupper((string) ($tax['label'] ?? ''));
-                return !str_starts_with($label, 'IVA');
+                return str_contains($label, 'IMPUESTO ESPECIFICO') || str_contains($label, 'ILA');
             })
             ->sum(function ($tax) {
                 return (float) ($tax['monto'] ?? 0);
@@ -235,7 +235,10 @@
                                     <td>
                                         <div class="flex flex-wrap gap-1">
                                             @foreach($taxLabels as $label)
-                                                <span class="chip bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $label }}</span>
+                                                @php
+                                                    $prettyLabel = preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', (string) $label);
+                                                @endphp
+                                                <span class="chip bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $prettyLabel }}</span>
                                             @endforeach
                                         </div>
                                     </td>
@@ -260,10 +263,12 @@
                             <span>IVA</span>
                             <span class="font-semibold">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span>
                         </div>
-                        <div class="flex justify-between text-gray-600 dark:text-gray-300">
-                            <span>Impuestos adicionales</span>
-                            <span class="font-semibold">{{ $impuestosAdicionales > 0 ? '$ ' . number_format($impuestosAdicionales, 0, ',', '.') : 'No aplica' }}</span>
-                        </div>
+                        @if($impuestoEspecifico > 0)
+                            <div class="flex justify-between text-gray-600 dark:text-gray-300">
+                                <span>Impuesto específico</span>
+                                <span class="font-semibold">$ {{ number_format($impuestoEspecifico, 0, ',', '.') }}</span>
+                            </div>
+                        @endif
                         <div class="flex justify-between text-base text-gray-900 dark:text-gray-100">
                             <span>Total</span>
                             <span class="font-bold">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
