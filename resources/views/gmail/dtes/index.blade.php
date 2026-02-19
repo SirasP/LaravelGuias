@@ -57,23 +57,72 @@
                                 <th>Referencia</th>
                                 <th>Imp. no incluidos</th>
                                 <th>Total facturación</th>
+                                <th>Estado</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $tipoMap = [
+                                    33 => ['sigla' => 'FAC', 'nombre' => 'Factura electrónica'],
+                                    34 => ['sigla' => 'FEX', 'nombre' => 'Factura exenta'],
+                                    56 => ['sigla' => 'ND',  'nombre' => 'Nota de débito'],
+                                    61 => ['sigla' => 'NC',  'nombre' => 'Nota de crédito'],
+                                ];
+                            @endphp
                             @forelse($documents as $d)
+                                @php
+                                    $tipo = $tipoMap[(int) ($d->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario'];
+                                    $vencDate = $d->fecha_vencimiento ? \Carbon\Carbon::parse($d->fecha_vencimiento) : null;
+                                    $hoy = now()->startOfDay();
+
+                                    if (!$vencDate) {
+                                        $vencHuman = 'Sin vencimiento';
+                                        $estado = 'Sin vencimiento';
+                                    } else {
+                                        $vencDay = $vencDate->copy()->startOfDay();
+                                        $diff = $hoy->diffInDays($vencDay, false);
+                                        if ($diff === 0) {
+                                            $vencHuman = 'Vence hoy';
+                                            $estado = 'Vence hoy';
+                                        } elseif ($diff < 0) {
+                                            $dias = abs($diff);
+                                            $vencHuman = $dias === 1 ? 'Venció ayer' : "Venció hace {$dias} días";
+                                            $estado = 'Vencida';
+                                        } else {
+                                            $vencHuman = $diff === 1 ? 'Vence mañana' : "Vence en {$diff} días";
+                                            $estado = 'Vigente';
+                                        }
+                                    }
+                                @endphp
                                 <tr>
-                                    <td class="font-semibold">{{ $d->folio ?? '—' }}</td>
+                                    <td>
+                                        <div class="font-semibold">{{ $tipo['sigla'] }} {{ $d->folio ?? '—' }}</div>
+                                        <div class="text-[11px] text-gray-400">{{ $tipo['nombre'] }}</div>
+                                    </td>
                                     <td>
                                         <div class="font-semibold">{{ $d->proveedor_nombre ?? '—' }}</div>
                                         <div class="text-[11px] text-gray-400">{{ $d->proveedor_rut ?? '—' }}</div>
                                     </td>
                                     <td>{{ $d->fecha_factura ?? '—' }}</td>
                                     <td>{{ $d->fecha_contable ?? '—' }}</td>
-                                    <td>{{ $d->fecha_vencimiento ?? '—' }}</td>
+                                    <td>
+                                        <div>{{ $d->fecha_vencimiento ?? '—' }}</div>
+                                        <div class="text-[11px] text-gray-400">{{ $vencHuman }}</div>
+                                    </td>
                                     <td class="max-w-[220px] truncate" title="{{ $d->referencia }}">{{ $d->referencia ?? '—' }}</td>
                                     <td>{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
                                     <td class="font-bold">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
+                                    <td>
+                                        <span class="inline-flex px-2.5 py-1 text-[11px] font-semibold rounded-full
+                                            {{ $estado === 'Vencida'
+                                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
+                                                : ($estado === 'Vigente'
+                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
+                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300') }}">
+                                            {{ $estado }}
+                                        </span>
+                                    </td>
                                     <td>
                                         <a href="{{ route('gmail.dtes.show', $d->id) }}"
                                             class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300">
@@ -83,7 +132,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-10 text-gray-400">No hay DTE no combustible.</td>
+                                    <td colspan="10" class="text-center py-10 text-gray-400">No hay DTE no combustible.</td>
                                 </tr>
                             @endforelse
                         </tbody>
