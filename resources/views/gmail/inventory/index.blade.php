@@ -56,6 +56,29 @@
         .kv { font-size:12px; color:#94a3b8 }
         .vv { font-size:14px; font-weight:700; color:#334155 }
         .dark .vv { color:#e2e8f0 }
+
+        .fab {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 70;
+            width: 54px;
+            height: 54px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #7c3aed;
+            color: #fff;
+            box-shadow: 0 14px 28px rgba(76, 29, 149, 0.35);
+            transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+        }
+        .fab:hover {
+            transform: translateY(-2px);
+            background: #6d28d9;
+            box-shadow: 0 16px 32px rgba(76, 29, 149, 0.45);
+        }
+        .fab:active { transform: translateY(0); }
     </style>
 
     <div class="page-bg">
@@ -134,5 +157,11 @@
 
             <div>{{ $products->links() }}</div>
         </div>
+
+        <button type="button" class="fab" title="Acción rápida (definiremos flujo)">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+            </svg>
+        </button>
     </div>
 </x-app-layout>
