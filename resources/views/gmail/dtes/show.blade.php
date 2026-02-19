@@ -45,6 +45,9 @@
         $taxSummary = collect($document->tax_summary ?? []);
 
         $ivaMonto = (float) ($document->monto_iva ?? 0);
+        $ivaLabel = (string) (collect($taxSummary)->first(function ($tax) {
+            return str_starts_with(strtoupper((string) ($tax['label'] ?? '')), 'IVA');
+        })['label'] ?? 'IVA');
         $impuestoEspecifico = $taxSummary
             ->filter(function ($tax) {
                 $label = strtoupper((string) ($tax['label'] ?? ''));
@@ -75,9 +78,24 @@
         .dt td { padding:12px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle }
         .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
         .dt tbody tr:last-child td { border-bottom:none }
+        .totals-zone { border-top:1px solid #e5e7eb }
+        .dark .totals-zone { border-top-color:#273244 }
+        .totals-grid { width:100%; max-width:520px; margin-left:auto }
+        .totals-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:2px 0 }
+        .totals-k { color:#4b5563; font-size:20px; font-weight:500 }
+        .dark .totals-k { color:#9ca3af }
+        .totals-v { color:#374151; font-size:20px; font-weight:700 }
+        .dark .totals-v { color:#cbd5e1 }
+        .totals-row-total .totals-k { color:#374151; font-size:42px; font-weight:700 }
+        .totals-row-total .totals-v { color:#1f2937; font-size:52px; font-weight:800; line-height:1 }
+        .dark .totals-row-total .totals-k { color:#cbd5e1 }
+        .dark .totals-row-total .totals-v { color:#f8fafc }
 
         @media (max-width: 768px) {
             .kv { grid-template-columns:1fr; gap:4px 0 }
+            .totals-k, .totals-v { font-size:16px }
+            .totals-row-total .totals-k { font-size:24px }
+            .totals-row-total .totals-v { font-size:34px }
         }
     </style>
 
@@ -253,25 +271,28 @@
                     </table>
                 </div>
 
-                <div class="p-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
-                    <div class="w-full sm:w-80 text-sm space-y-1">
-                        <div class="flex justify-between text-gray-600 dark:text-gray-300">
-                            <span>Monto neto</span>
-                            <span class="font-semibold">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="flex justify-between text-gray-600 dark:text-gray-300">
-                            <span>IVA</span>
-                            <span class="font-semibold">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span>
-                        </div>
-                        @if($impuestoEspecifico > 0)
-                            <div class="flex justify-between text-gray-600 dark:text-gray-300">
-                                <span>Impuesto específico</span>
-                                <span class="font-semibold">$ {{ number_format($impuestoEspecifico, 0, ',', '.') }}</span>
+                <div class="p-4 totals-zone">
+                    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                        <p class="text-3xl text-gray-400 dark:text-gray-500">Términos y condiciones</p>
+                        <div class="totals-grid">
+                            <div class="totals-row">
+                                <span class="totals-k">Monto neto:</span>
+                                <span class="totals-v">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span>
                             </div>
-                        @endif
-                        <div class="flex justify-between text-base text-gray-900 dark:text-gray-100">
-                            <span>Total</span>
-                            <span class="font-bold">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
+                            <div class="totals-row">
+                                <span class="totals-k">{{ $ivaLabel }}:</span>
+                                <span class="totals-v">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span>
+                            </div>
+                            @if($impuestoEspecifico > 0)
+                                <div class="totals-row">
+                                    <span class="totals-k">Impuestos Específicos:</span>
+                                    <span class="totals-v">$ {{ number_format($impuestoEspecifico, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
+                            <div class="totals-row totals-row-total">
+                                <span class="totals-k">Total:</span>
+                                <span class="totals-v">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
