@@ -1,11 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between w-full gap-4">
-            <div class="flex items-center gap-3">
+        <div class="w-full grid grid-cols-1 md:grid-cols-[auto,1fr,auto] items-center gap-3">
+            <div class="flex items-center gap-3 md:justify-self-start">
                 <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </div>
                 <div>
@@ -13,6 +13,15 @@
                     <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Tablero (admin)</p>
                 </div>
             </div>
+
+            <form method="GET" class="w-full md:max-w-xl md:justify-self-center">
+                <div class="flex gap-2">
+                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por folio, proveedor, referencia...">
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition">Buscar</button>
+                </div>
+            </form>
+
+            <div class="hidden md:block md:justify-self-end w-8 h-8"></div>
         </div>
     </x-slot>
 
@@ -37,13 +46,6 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
-            <div class="panel p-4">
-                <form method="GET" class="flex gap-2">
-                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por folio, proveedor, referencia...">
-                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition">Buscar</button>
-                </form>
-            </div>
-
             <div class="panel">
                 <div class="overflow-x-auto">
                     <table class="dt">
@@ -56,46 +58,37 @@
                                 <th>Vencimiento</th>
                                 <th>Referencia</th>
                                 <th>Imp. no incluidos</th>
-                                <th>Total facturación</th>
+                                <th>Total facturacion</th>
                                 <th>Estado</th>
-                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                             @php
                                 $tipoMap = [
-                                    33 => ['sigla' => 'FAC', 'nombre' => 'Factura electrónica'],
+                                    33 => ['sigla' => 'FAC', 'nombre' => 'Factura electronica'],
                                     34 => ['sigla' => 'FEX', 'nombre' => 'Factura exenta'],
-                                    56 => ['sigla' => 'ND',  'nombre' => 'Nota de débito'],
-                                    61 => ['sigla' => 'NC',  'nombre' => 'Nota de crédito'],
+                                    56 => ['sigla' => 'ND',  'nombre' => 'Nota de debito'],
+                                    61 => ['sigla' => 'NC',  'nombre' => 'Nota de credito'],
                                 ];
                             @endphp
                             @forelse($documents as $d)
                                 @php
                                     $tipo = $tipoMap[(int) ($d->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario'];
-                                    $vencDate = $d->fecha_vencimiento ? \Carbon\Carbon::parse($d->fecha_vencimiento) : null;
+                                    $vencDate = $d->fecha_vencimiento ? \Carbon\Carbon::parse($d->fecha_vencimiento)->startOfDay() : null;
                                     $hoy = now()->startOfDay();
+                                    $diasVencido = $vencDate ? $vencDate->diffInDays($hoy, false) : null;
 
-                                    if (!$vencDate) {
-                                        $vencHuman = 'Sin vencimiento';
-                                        $estado = 'Sin vencimiento';
+                                    if ($diasVencido !== null && $diasVencido > 0) {
+                                        $vencHuman = $diasVencido === 1 ? 'ayer' : "hace {$diasVencido} dias";
+                                        $estado = 'Sin pagar';
                                     } else {
-                                        $vencDay = $vencDate->copy()->startOfDay();
-                                        $diff = $hoy->diffInDays($vencDay, false);
-                                        if ($diff === 0) {
-                                            $vencHuman = 'Vence hoy';
-                                            $estado = 'Vence hoy';
-                                        } elseif ($diff < 0) {
-                                            $dias = abs($diff);
-                                            $vencHuman = $dias === 1 ? 'Venció ayer' : "Venció hace {$dias} días";
-                                            $estado = 'Vencida';
-                                        } else {
-                                            $vencHuman = $diff === 1 ? 'Vence mañana' : "Vence en {$diff} días";
-                                            $estado = 'Vigente';
-                                        }
+                                        $vencHuman = '—';
+                                        $estado = 'Pagado';
                                     }
                                 @endphp
-                                <tr>
+                                <tr class="cursor-pointer" tabindex="0"
+                                    onclick="window.location='{{ route('gmail.dtes.show', $d->id) }}'"
+                                    onkeydown="if(event.key==='Enter'){window.location='{{ route('gmail.dtes.show', $d->id) }}'}">
                                     <td>
                                         <div class="font-semibold">{{ $tipo['sigla'] }} {{ $d->folio ?? '—' }}</div>
                                         <div class="text-[11px] text-gray-400">{{ $tipo['nombre'] }}</div>
@@ -106,33 +99,19 @@
                                     </td>
                                     <td>{{ $d->fecha_factura ?? '—' }}</td>
                                     <td>{{ $d->fecha_contable ?? '—' }}</td>
-                                    <td>
-                                        <div>{{ $d->fecha_vencimiento ?? '—' }}</div>
-                                        <div class="text-[11px] text-gray-400">{{ $vencHuman }}</div>
-                                    </td>
+                                    <td><span class="text-rose-600 dark:text-rose-400 font-semibold">{{ $vencHuman }}</span></td>
                                     <td class="max-w-[220px] truncate" title="{{ $d->referencia }}">{{ $d->referencia ?? '—' }}</td>
                                     <td>{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
                                     <td class="font-bold">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
                                     <td>
-                                        <span class="inline-flex px-2.5 py-1 text-[11px] font-semibold rounded-full
-                                            {{ $estado === 'Vencida'
-                                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
-                                                : ($estado === 'Vigente'
-                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
-                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300') }}">
+                                        <span class="inline-flex px-3 py-1 text-[11px] font-semibold rounded-full {{ $estado === 'Pagado' ? 'bg-green-600 text-white' : 'bg-rose-600 text-white' }}">
                                             {{ $estado }}
                                         </span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ route('gmail.dtes.show', $d->id) }}"
-                                            class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300">
-                                            Ver
-                                        </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center py-10 text-gray-400">No hay DTE no combustible.</td>
+                                    <td colspan="9" class="text-center py-10 text-gray-400">No hay DTE no combustible.</td>
                                 </tr>
                             @endforelse
                         </tbody>
