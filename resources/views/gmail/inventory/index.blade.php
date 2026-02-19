@@ -48,6 +48,29 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === '' && $stock === '' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Todos ({{ $products->total() }})
+                </a>
+                <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q, 'estado' => 'activos', 'stock' => $stock])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === 'activos' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Activos ({{ $totalActivos }})
+                </a>
+                <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q, 'estado' => 'inactivos', 'stock' => $stock])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === 'inactivos' ? 'bg-gray-700 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Inactivos ({{ $totalInactivos }})
+                </a>
+                <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'con_stock'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'con_stock' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Con stock ({{ $totalConStock }})
+                </a>
+                <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'sin_stock'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'sin_stock' ? 'bg-amber-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Sin stock ({{ $totalSinStock }})
+                </a>
+            </div>
+
             @if($products->count() > 0)
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                     @foreach($products as $p)

@@ -93,6 +93,32 @@
         .dark .m-card { background:#161c2c; border-color:#1e2a3b }
 
         .chip { display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:700 }
+
+        .table-scroll {
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+        }
+        .dt-wide {
+            min-width:1320px;
+            table-layout:auto;
+        }
+        .col-ref {
+            max-width:240px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+        @media (min-width: 1280px) {
+            .col-ref { max-width:420px; }
+        }
+        @media (min-width: 1536px) {
+            .col-ref {
+                max-width:none;
+                white-space:normal;
+                overflow:visible;
+            }
+        }
     </style>
 
     <div class="page-bg">
@@ -128,22 +154,22 @@
             <div class="panel hidden lg:block">
                 <div class="panel-head">
                     <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado</p>
-                    <p class="text-xs text-gray-400">Haz clic en una fila para ver detalle</p>
+                    <p class="text-xs text-gray-400">Haz clic en una fila para ver detalle y desplaza horizontalmente si necesitas ver más columnas</p>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="dt">
+                <div class="table-scroll">
+                    <table class="dt dt-wide">
                         <thead>
                             <tr>
-                                <th>Folio</th>
-                                <th>Proveedor</th>
-                                <th>Fecha factura</th>
-                                <th>Fecha contable</th>
-                                <th>Vencimiento</th>
-                                <th>Referencia</th>
-                                <th>Imp. no incluidos</th>
-                                <th>Total facturacion</th>
-                                <th>Estado</th>
+                                <th class="w-[170px]">Folio</th>
+                                <th class="w-[280px]">Proveedor</th>
+                                <th class="w-[130px]">Fecha factura</th>
+                                <th class="w-[130px]">Fecha contable</th>
+                                <th class="w-[140px]">Vencimiento</th>
+                                <th class="w-[320px]">Referencia</th>
+                                <th class="w-[150px]">Imp. no incluidos</th>
+                                <th class="w-[150px]">Total facturacion</th>
+                                <th class="w-[140px]">Estado</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -181,7 +207,7 @@
                                     <td>{{ $d->fecha_factura ?? '—' }}</td>
                                     <td>{{ $d->fecha_contable ?? '—' }}</td>
                                     <td><span class="text-rose-600 dark:text-rose-400 font-semibold">{{ $vencHuman }}</span></td>
-                                    <td class="max-w-[220px] truncate" title="{{ $d->referencia }}">{{ $d->referencia ?? '—' }}</td>
+                                    <td title="{{ $d->referencia }}"><div class="col-ref">{{ $d->referencia ?? '—' }}</div></td>
                                     <td>{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
                                     <td class="font-bold">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
                                     <td>

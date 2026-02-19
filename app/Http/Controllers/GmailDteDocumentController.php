@@ -99,8 +99,10 @@ class GmailDteDocumentController extends Controller
     public function inventoryIndex(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $estado = trim((string) $request->query('estado', ''));
+        $stock = trim((string) $request->query('stock', ''));
 
-        $products = DB::connection('fuelcontrol')
+        $baseQuery = DB::connection('fuelcontrol')
             ->table('gmail_inventory_products')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
@@ -109,11 +111,31 @@ class GmailDteDocumentController extends Controller
                         ->orWhere('unidad', 'like', "%{$q}%");
                 });
             })
+            ->when($estado === 'activos', fn($query) => $query->where('is_active', 1))
+            ->when($estado === 'inactivos', fn($query) => $query->where('is_active', 0))
+            ->when($stock === 'con_stock', fn($query) => $query->where('stock_actual', '>', 0))
+            ->when($stock === 'sin_stock', fn($query) => $query->where('stock_actual', '<=', 0));
+
+        $products = (clone $baseQuery)
             ->orderBy('nombre')
             ->paginate(30)
             ->withQueryString();
 
-        return view('gmail.inventory.index', compact('products', 'q'));
+        $totalActivos = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 1)->count();
+        $totalInactivos = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 0)->count();
+        $totalConStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '>', 0)->count();
+        $totalSinStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '<=', 0)->count();
+
+        return view('gmail.inventory.index', compact(
+            'products',
+            'q',
+            'estado',
+            'stock',
+            'totalActivos',
+            'totalInactivos',
+            'totalConStock',
+            'totalSinStock'
+        ));
     }
 
     private function getDocumentWithLines(int $id): array
