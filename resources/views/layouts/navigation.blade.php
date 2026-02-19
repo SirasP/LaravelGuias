@@ -239,7 +239,7 @@
             </div>
             <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
-            @php $dteProvActive = request()->routeIs('gmail.dtes.*'); @endphp
+            @php $dteProvActive = request()->routeIs('gmail.dtes.*') || request()->routeIs('gmail.inventory.*'); @endphp
             <div class="mb-0.5">
                 <button @click="toggleSection('dteprov')" :title="!expanded ? 'Facturas Proveedor' : ''"
                     class="w-full flex items-center rounded-xl transition-all duration-150"
