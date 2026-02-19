@@ -152,6 +152,17 @@ class GmailDteDocumentController extends Controller
             ->orderBy('id')
             ->get();
 
+        $taxesByLine = DB::connection('fuelcontrol')
+            ->table('gmail_dte_document_line_taxes')
+            ->where('document_id', $id)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('dte_line_id');
+
+        foreach ($lines as $line) {
+            $line->taxes = $taxesByLine->get($line->id, collect());
+        }
+
         return [$document, $lines];
     }
 }

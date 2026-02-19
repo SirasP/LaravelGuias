@@ -83,17 +83,21 @@
     <tbody>
         @forelse($lines as $l)
             @php
-                $taxLabel = $l->impuesto_label;
-                if (!$taxLabel) {
-                    if ((int) ($l->es_exento ?? 0) === 1) {
-                        $taxLabel = 'Exento';
-                    } elseif (!is_null($l->impuesto_tasa)) {
-                        $taxLabel = 'IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%';
-                    } elseif ((float) $document->monto_iva > 0) {
-                        $taxLabel = 'IVA incluido';
-                    } else {
-                        $taxLabel = 'Sin IVA';
+                $taxLabels = collect($l->taxes ?? [])->pluck('descripcion')->filter()->values();
+                if ($taxLabels->isEmpty()) {
+                    $fallback = $l->impuesto_label;
+                    if (!$fallback) {
+                        if ((int) ($l->es_exento ?? 0) === 1) {
+                            $fallback = 'Exento';
+                        } elseif (!is_null($l->impuesto_tasa)) {
+                            $fallback = 'IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%';
+                        } elseif ((float) $document->monto_iva > 0) {
+                            $fallback = 'IVA incluido';
+                        } else {
+                            $fallback = 'Sin IVA';
+                        }
                     }
+                    $taxLabels = collect([$fallback]);
                 }
             @endphp
             <tr>
@@ -103,7 +107,7 @@
                 <td class="right">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
                 <td>{{ $l->unidad ?? '—' }}</td>
                 <td class="right">{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
-                <td>{{ $taxLabel }}</td>
+                <td>{{ $taxLabels->implode(' | ') }}</td>
                 <td class="right">{{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
             </tr>
         @empty

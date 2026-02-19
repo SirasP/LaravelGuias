@@ -196,17 +196,21 @@
                         <tbody>
                             @forelse($lines as $l)
                                 @php
-                                    $taxLabel = $l->impuesto_label;
-                                    if (!$taxLabel) {
-                                        if ((int) ($l->es_exento ?? 0) === 1) {
-                                            $taxLabel = 'Exento';
-                                        } elseif (!is_null($l->impuesto_tasa)) {
-                                            $taxLabel = 'IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%';
-                                        } elseif ((float) $document->monto_iva > 0) {
-                                            $taxLabel = 'IVA incluido';
-                                        } else {
-                                            $taxLabel = 'Sin IVA';
+                                    $taxLabels = collect($l->taxes ?? [])->pluck('descripcion')->filter()->values();
+                                    if ($taxLabels->isEmpty()) {
+                                        $fallback = $l->impuesto_label;
+                                        if (!$fallback) {
+                                            if ((int) ($l->es_exento ?? 0) === 1) {
+                                                $fallback = 'Exento';
+                                            } elseif (!is_null($l->impuesto_tasa)) {
+                                                $fallback = 'IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%';
+                                            } elseif ((float) $document->monto_iva > 0) {
+                                                $fallback = 'IVA incluido';
+                                            } else {
+                                                $fallback = 'Sin IVA';
+                                            }
                                         }
+                                        $taxLabels = collect([$fallback]);
                                     }
                                 @endphp
                                 <tr>
@@ -217,7 +221,11 @@
                                     <td>{{ $l->unidad ?? '—' }}</td>
                                     <td>{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
                                     <td>
-                                        <span class="chip bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $taxLabel }}</span>
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach($taxLabels as $label)
+                                                <span class="chip bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $label }}</span>
+                                            @endforeach
+                                        </div>
                                     </td>
                                     <td class="font-semibold">$ {{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
                                 </tr>

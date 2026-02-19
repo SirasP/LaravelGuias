@@ -63,7 +63,8 @@ class GmailDteInventoryService
                     continue;
                 }
 
-                $unit = trim((string) ($line->unidad ?? '')) ?: 'UN';
+                $rawUnit = trim((string) ($line->unidad ?? ''));
+                $unit = $this->normalizeUnit($rawUnit);
                 $name = trim((string) ($line->descripcion ?? 'SIN DESCRIPCION'));
                 $code = trim((string) ($line->codigo ?? '')) ?: null;
                 $unitCost = $qty > 0 ? ((float) $line->monto_item / $qty) : 0.0;
@@ -172,5 +173,79 @@ class GmailDteInventoryService
                 'movement_id' => $movementId,
             ];
         });
+    }
+
+    private function normalizeUnit(?string $unit): string
+    {
+        $u = strtoupper(trim((string) $unit));
+        if ($u === '') {
+            return 'UN';
+        }
+
+        // Quita puntos/espacios para variantes tipo "K.G." o "MTS ".
+        $key = str_replace(['.', ' '], '', $u);
+
+        $map = [
+            'UN' => 'UN',
+            'UND' => 'UN',
+            'UNID' => 'UN',
+            'UNIDAD' => 'UN',
+            'UNIDADES' => 'UN',
+            'U' => 'UN',
+
+            'KG' => 'KG',
+            'KGS' => 'KG',
+            'KILO' => 'KG',
+            'KILO' => 'KG',
+            'KILOS' => 'KG',
+            'KILOGRAMO' => 'KG',
+            'KILOGRAMOS' => 'KG',
+
+            'G' => 'G',
+            'GRAMO' => 'G',
+            'GRAMOS' => 'G',
+            'GR' => 'G',
+            'GRS' => 'G',
+
+            'L' => 'L',
+            'LT' => 'L',
+            'LTS' => 'L',
+            'LTR' => 'L',
+            'LITRO' => 'L',
+            'LITROS' => 'L',
+
+            'ML' => 'ML',
+            'ML' => 'ML',
+            'CC' => 'ML',
+            'CM3' => 'ML',
+
+            'M' => 'M',
+            'MT' => 'M',
+            'MTS' => 'M',
+            'METRO' => 'M',
+            'METROS' => 'M',
+
+            'CM' => 'CM',
+            'CENTIMETRO' => 'CM',
+            'CENTIMETROS' => 'CM',
+
+            'MM' => 'MM',
+            'MILIMETRO' => 'MM',
+            'MILIMETROS' => 'MM',
+
+            'M2' => 'M2',
+            'MT2' => 'M2',
+            'MTS2' => 'M2',
+            'METRO2' => 'M2',
+            'METROS2' => 'M2',
+
+            'M3' => 'M3',
+            'MT3' => 'M3',
+            'MTS3' => 'M3',
+            'METRO3' => 'M3',
+            'METROS3' => 'M3',
+        ];
+
+        return $map[$key] ?? $u;
     }
 }

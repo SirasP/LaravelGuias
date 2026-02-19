@@ -18,7 +18,8 @@ class GmailLeerXml extends Command
 {
     protected $signature   = 'gmail:leer-xml
                             {--all : Leer tambien correos ya leidos (has:attachment)}
-                            {--reprocess : Reprocesar tambien mensajes ya registrados en gmail_imports}';
+                            {--reprocess : Reprocesar tambien mensajes ya registrados en gmail_imports}
+                            {--fuel-to-dte-only : Temporal: guardar tambien Diesel/Gasolina en DTE y NO tocar FuelControl}';
     protected $description = 'Lee correos Gmail, procesa XML DTE y controla inventario';
 
     public function handle(): int
@@ -70,6 +71,7 @@ class GmailLeerXml extends Command
          ───────────────────────────────────────── */
         $gmailQuery = $this->option('all') ? 'has:attachment' : 'has:attachment is:unread';
         $reprocess = (bool) $this->option('reprocess');
+        $fuelToDteOnly = (bool) $this->option('fuel-to-dte-only');
 
         $this->line($this->option('all')
             ? 'Modo forzado: leyendo correos leidos y no leidos con adjuntos.'
@@ -77,6 +79,9 @@ class GmailLeerXml extends Command
         $this->line($reprocess
             ? 'Modo reproceso: se incluiran mensajes ya registrados.'
             : 'Modo normal de historial: mensajes ya registrados se omiten.');
+        $this->line($fuelToDteOnly
+            ? 'Modo temporal fuel->DTE: Diesel/Gasolina se guardan en DTE y se omite FuelControl.'
+            : 'Modo normal combustible: Diesel/Gasolina siguen flujo FuelControl.');
 
         $pageToken = null;
         $totalFound = 0;
@@ -142,13 +147,32 @@ class GmailLeerXml extends Command
                         'me', $msg->getId(), $part->getBody()->getAttachmentId()
                     );
 
-                    $contenidoXml = base64_decode(strtr($attachment->getData(), '-_', '+/'));
-                    $xml          = simplexml_load_string($contenidoXml);
+                    $rawData = (string) $attachment->getData();
+                    $b64 = strtr($rawData, '-_', '+/');
+                    $pad = strlen($b64) % 4;
+                    if ($pad > 0) {
+                        $b64 .= str_repeat('=', 4 - $pad);
+                    }
 
-                    if (!$xml) {
-                        $this->error("❌ XML inválido: {$part->getFilename()}");
+                    $contenidoXml = base64_decode($b64, true);
+                    if ($contenidoXml === false || trim($contenidoXml) === '') {
+                        $this->error("❌ Adjunto no decodificable como XML: {$part->getFilename()}");
                         continue;
                     }
+
+                    // Limpia BOM UTF-8 y espacios iniciales para evitar fallos de parser.
+                    $contenidoXml = ltrim($contenidoXml, "\xEF\xBB\xBF \t\r\n");
+
+                    libxml_use_internal_errors(true);
+                    $xml = simplexml_load_string($contenidoXml);
+                    if (!$xml) {
+                        $err = libxml_get_last_error();
+                        $detail = $err ? trim($err->message) : 'contenido no XML';
+                        libxml_clear_errors();
+                        $this->error("❌ XML inválido: {$part->getFilename()} ({$detail})");
+                        continue;
+                    }
+                    libxml_clear_errors();
 
                     $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
 
@@ -208,21 +232,26 @@ class GmailLeerXml extends Command
                         ];
                     }
 
-                    // ✅ Si NO hay Diesel/Gasolina, guardar en módulo DTE XML (no combustible)
-                    if (count($fuelDetails) === 0) {
+                    // ✅ Sin combustible, o en modo temporal fuel->DTE: guardar en módulo DTE.
+                    if (count($fuelDetails) === 0 || $fuelToDteOnly) {
                         $saved = $this->persistNonFuelDte(
                             $db,
                             $msg->getId(),
                             (string) $part->getFilename(),
                             $xml,
                             $fechaEmision,
-                            $reprocess
+                            $reprocess,
+                            $contenidoXml
                         );
 
                         if ($saved) {
-                            $this->info("🧾 DTE no combustible guardado: {$part->getFilename()}");
+                            $this->info($fuelToDteOnly && count($fuelDetails) > 0
+                                ? "🧾 DTE combustible guardado temporalmente en DTE: {$part->getFilename()}"
+                                : "🧾 DTE no combustible guardado: {$part->getFilename()}");
                         } else {
-                            $this->line("⏭ DTE no combustible ya existía: {$part->getFilename()}");
+                            $this->line($fuelToDteOnly && count($fuelDetails) > 0
+                                ? "⏭ DTE combustible ya existía en DTE: {$part->getFilename()}"
+                                : "⏭ DTE no combustible ya existía: {$part->getFilename()}");
                         }
                         continue;
                     }
@@ -361,7 +390,7 @@ class GmailLeerXml extends Command
     /**
      * Guardar DTE no combustible para módulo administrativo.
      */
-    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false): bool
+    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false, ?string $xmlRaw = null): bool
     {
         $get = function (string $path) use ($xml): ?string {
             $node = $xml->xpath($path)[0] ?? null;
@@ -402,6 +431,12 @@ class GmailLeerXml extends Command
             if ($refreshExisting) {
                 $existing = $db->table('gmail_dte_documents')->where('hash_unico', $hash)->first();
                 if ($existing) {
+                    $db->table('gmail_dte_documents')
+                        ->where('id', $existing->id)
+                        ->update([
+                            'xml_raw' => $xmlRaw,
+                            'updated_at' => now(),
+                        ]);
                     $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
                 }
             }
@@ -412,6 +447,7 @@ class GmailLeerXml extends Command
             'gmail_message_id' => $messageId,
             'xml_filename' => $filename,
             'xml_path' => 'xml/' . $filename,
+            'xml_raw' => $xmlRaw,
             'hash_unico' => $hash,
             'tipo_dte' => $tipoDte ?: null,
             'folio' => $folio,
@@ -430,6 +466,7 @@ class GmailLeerXml extends Command
 
         $lines = $xml->xpath('//sii:Detalle') ?? [];
         foreach ($lines as $line) {
+            $nroLinea = (int) ((string) ($line->NroLinDet ?? 0));
             $esExento = ((string) ($line->IndExe ?? '')) === '1';
             $impuestoCodigo = trim((string) ($line->CodImpAdic ?? '')) ?: null;
             $impuestoTasa = null;
@@ -449,9 +486,9 @@ class GmailLeerXml extends Command
                 $impuestoLabel = 'IVA ' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%';
             }
 
-            $db->table('gmail_dte_document_lines')->insert([
+            $lineId = $db->table('gmail_dte_document_lines')->insertGetId([
                 'document_id' => $docId,
-                'nro_linea' => (int) ((string) ($line->NroLinDet ?? 0)),
+                'nro_linea' => $nroLinea,
                 'codigo' => trim((string) ($line->CdgItem->VlrCodigo ?? '')) ?: null,
                 'descripcion' => trim((string) ($line->NmbItem ?? '')) ?: null,
                 'cantidad' => (float) ((string) ($line->QtyItem ?? 0)),
@@ -465,6 +502,9 @@ class GmailLeerXml extends Command
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            $taxes = $this->extractLineTaxes($line, $tasaIvaDoc);
+            $this->persistLineTaxes($db, $docId, $lineId, $nroLinea, $taxes);
         }
 
         return true;
@@ -499,6 +539,11 @@ class GmailLeerXml extends Command
                 $impuestoLabel = 'IVA ' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%';
             }
 
+            $lineRow = $db->table('gmail_dte_document_lines')
+                ->where('document_id', $documentId)
+                ->where('nro_linea', $nroLinea)
+                ->first();
+
             $db->table('gmail_dte_document_lines')
                 ->where('document_id', $documentId)
                 ->where('nro_linea', $nroLinea)
@@ -509,6 +554,112 @@ class GmailLeerXml extends Command
                     'es_exento' => $esExento ? 1 : 0,
                     'updated_at' => now(),
                 ]);
+
+            if ($lineRow) {
+                $db->table('gmail_dte_document_line_taxes')
+                    ->where('document_id', $documentId)
+                    ->where('dte_line_id', $lineRow->id)
+                    ->delete();
+
+                $taxes = $this->extractLineTaxes($line, $tasaIvaDoc);
+                $this->persistLineTaxes($db, $documentId, (int) $lineRow->id, $nroLinea, $taxes);
+            }
+        }
+    }
+
+    private function extractLineTaxes(\SimpleXMLElement $line, float $tasaIvaDoc): array
+    {
+        $taxes = [];
+        $esExento = ((string) ($line->IndExe ?? '')) === '1';
+
+        if ($esExento) {
+            $taxes[] = [
+                'tax_type' => 'EXENTO',
+                'codigo' => null,
+                'tasa' => 0,
+                'monto' => null,
+                'base' => null,
+                'descripcion' => 'Exento',
+                'raw_json' => json_encode(['IndExe' => (string) ($line->IndExe ?? '1')], JSON_UNESCAPED_UNICODE),
+            ];
+        } elseif ($tasaIvaDoc > 0) {
+            $taxes[] = [
+                'tax_type' => 'IVA',
+                'codigo' => 'IVA',
+                'tasa' => $tasaIvaDoc,
+                'monto' => null,
+                'base' => null,
+                'descripcion' => 'IVA ' . rtrim(rtrim((string) $tasaIvaDoc, '0'), '.') . '%',
+                'raw_json' => json_encode(['TasaIVA' => $tasaIvaDoc], JSON_UNESCAPED_UNICODE),
+            ];
+        }
+
+        $codImpAdic = trim((string) ($line->CodImpAdic ?? ''));
+        if ($codImpAdic !== '') {
+            $desc = 'Imp. adic. ' . $codImpAdic;
+            $taxes[] = [
+                'tax_type' => 'IMP_ADIC',
+                'codigo' => $codImpAdic,
+                'tasa' => null,
+                'monto' => null,
+                'base' => null,
+                'descripcion' => $desc,
+                'raw_json' => json_encode(['CodImpAdic' => $codImpAdic], JSON_UNESCAPED_UNICODE),
+            ];
+        }
+
+        if (isset($line->ImptoReten)) {
+            foreach ($line->ImptoReten as $ret) {
+                $codigo = trim((string) ($ret->TipoImp ?? '')) ?: null;
+                $tasa = is_numeric((string) ($ret->TasaImp ?? null)) ? (float) $ret->TasaImp : null;
+                $monto = is_numeric((string) ($ret->MontoImp ?? null)) ? (float) $ret->MontoImp : null;
+                $base = is_numeric((string) ($ret->BaseImp ?? null)) ? (float) $ret->BaseImp : null;
+
+                $desc = 'Retencion';
+                if ($codigo) {
+                    $desc .= ' ' . $codigo;
+                }
+                if (!is_null($tasa)) {
+                    $desc .= ' (' . rtrim(rtrim((string) $tasa, '0'), '.') . '%)';
+                }
+
+                $taxes[] = [
+                    'tax_type' => 'IMPTO_RETEN',
+                    'codigo' => $codigo,
+                    'tasa' => $tasa,
+                    'monto' => $monto,
+                    'base' => $base,
+                    'descripcion' => $desc,
+                    'raw_json' => json_encode([
+                        'TipoImp' => (string) ($ret->TipoImp ?? ''),
+                        'TasaImp' => (string) ($ret->TasaImp ?? ''),
+                        'MontoImp' => (string) ($ret->MontoImp ?? ''),
+                        'BaseImp' => (string) ($ret->BaseImp ?? ''),
+                    ], JSON_UNESCAPED_UNICODE),
+                ];
+            }
+        }
+
+        return $taxes;
+    }
+
+    private function persistLineTaxes($db, int $documentId, int $lineId, int $nroLinea, array $taxes): void
+    {
+        foreach ($taxes as $tax) {
+            $db->table('gmail_dte_document_line_taxes')->insert([
+                'document_id' => $documentId,
+                'dte_line_id' => $lineId,
+                'nro_linea' => $nroLinea > 0 ? $nroLinea : null,
+                'tax_type' => $tax['tax_type'] ?? null,
+                'codigo' => $tax['codigo'] ?? null,
+                'tasa' => $tax['tasa'] ?? null,
+                'monto' => $tax['monto'] ?? null,
+                'base' => $tax['base'] ?? null,
+                'descripcion' => $tax['descripcion'] ?? null,
+                'raw_json' => $tax['raw_json'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 
