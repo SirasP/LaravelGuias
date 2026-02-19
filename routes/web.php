@@ -441,6 +441,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
 
     Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
+    Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])
+        ->whereNumber('id')
+        ->name('dtes.print');
     Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])
         ->whereNumber('id')
         ->name('dtes.show');

@@ -32,6 +32,20 @@ class GmailDteDocumentController extends Controller
 
     public function show(int $id)
     {
+        [$document, $lines] = $this->getDocumentWithLines($id);
+
+        return view('gmail.dtes.show', compact('document', 'lines'));
+    }
+
+    public function print(int $id)
+    {
+        [$document, $lines] = $this->getDocumentWithLines($id);
+
+        return view('gmail.dtes.print', compact('document', 'lines'));
+    }
+
+    private function getDocumentWithLines(int $id): array
+    {
         $document = DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
             ->where('id', $id)
@@ -44,7 +58,6 @@ class GmailDteDocumentController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('gmail.dtes.show', compact('document', 'lines'));
+        return [$document, $lines];
     }
 }
-

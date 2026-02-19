@@ -215,7 +215,8 @@ class GmailLeerXml extends Command
                             $msg->getId(),
                             (string) $part->getFilename(),
                             $xml,
-                            $fechaEmision
+                            $fechaEmision,
+                            $reprocess
                         );
 
                         if ($saved) {
@@ -360,7 +361,7 @@ class GmailLeerXml extends Command
     /**
      * Guardar DTE no combustible para módulo administrativo.
      */
-    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision): bool
+    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false): bool
     {
         $get = function (string $path) use ($xml): ?string {
             $node = $xml->xpath($path)[0] ?? null;
@@ -385,6 +386,7 @@ class GmailLeerXml extends Command
 
         $montoNeto = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntNeto') ?? 0);
         $montoIva = (float) ($get('//sii:Encabezado/sii:Totales/sii:IVA') ?? 0);
+        $tasaIvaDoc = (float) ($get('//sii:Encabezado/sii:Totales/sii:TasaIVA') ?? 0);
         $montoTotal = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntTotal') ?? 0);
 
         $hash = hash('sha256', implode('|', [
@@ -397,6 +399,12 @@ class GmailLeerXml extends Command
         ]));
 
         if ($db->table('gmail_dte_documents')->where('hash_unico', $hash)->exists()) {
+            if ($refreshExisting) {
+                $existing = $db->table('gmail_dte_documents')->where('hash_unico', $hash)->first();
+                if ($existing) {
+                    $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
+                }
+            }
             return false;
         }
 
@@ -422,6 +430,25 @@ class GmailLeerXml extends Command
 
         $lines = $xml->xpath('//sii:Detalle') ?? [];
         foreach ($lines as $line) {
+            $esExento = ((string) ($line->IndExe ?? '')) === '1';
+            $impuestoCodigo = trim((string) ($line->CodImpAdic ?? '')) ?: null;
+            $impuestoTasa = null;
+
+            if (isset($line->ImptoReten) && isset($line->ImptoReten->TasaImp)) {
+                $impuestoTasa = (float) ((string) $line->ImptoReten->TasaImp);
+            } elseif (!$esExento && $tasaIvaDoc > 0) {
+                $impuestoTasa = $tasaIvaDoc;
+            }
+
+            $impuestoLabel = null;
+            if ($esExento) {
+                $impuestoLabel = 'Exento';
+            } elseif ($impuestoCodigo) {
+                $impuestoLabel = 'Imp. adic. ' . $impuestoCodigo . ($impuestoTasa !== null ? ' (' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%)' : '');
+            } elseif ($impuestoTasa !== null) {
+                $impuestoLabel = 'IVA ' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%';
+            }
+
             $db->table('gmail_dte_document_lines')->insert([
                 'document_id' => $docId,
                 'nro_linea' => (int) ((string) ($line->NroLinDet ?? 0)),
@@ -431,12 +458,58 @@ class GmailLeerXml extends Command
                 'unidad' => trim((string) ($line->UnmdItem ?? '')) ?: null,
                 'precio_unitario' => (float) ((string) ($line->PrcItem ?? 0)),
                 'monto_item' => (float) ((string) ($line->MontoItem ?? 0)),
+                'impuesto_codigo' => $impuestoCodigo,
+                'impuesto_tasa' => $impuestoTasa,
+                'impuesto_label' => $impuestoLabel,
+                'es_exento' => $esExento ? 1 : 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
         }
 
         return true;
+    }
+
+    private function updateExistingDocumentLineTaxes($db, int $documentId, \SimpleXMLElement $xml, float $tasaIvaDoc): void
+    {
+        $lines = $xml->xpath('//sii:Detalle') ?? [];
+
+        foreach ($lines as $line) {
+            $nroLinea = (int) ((string) ($line->NroLinDet ?? 0));
+            if ($nroLinea <= 0) {
+                continue;
+            }
+
+            $esExento = ((string) ($line->IndExe ?? '')) === '1';
+            $impuestoCodigo = trim((string) ($line->CodImpAdic ?? '')) ?: null;
+            $impuestoTasa = null;
+
+            if (isset($line->ImptoReten) && isset($line->ImptoReten->TasaImp)) {
+                $impuestoTasa = (float) ((string) $line->ImptoReten->TasaImp);
+            } elseif (!$esExento && $tasaIvaDoc > 0) {
+                $impuestoTasa = $tasaIvaDoc;
+            }
+
+            $impuestoLabel = null;
+            if ($esExento) {
+                $impuestoLabel = 'Exento';
+            } elseif ($impuestoCodigo) {
+                $impuestoLabel = 'Imp. adic. ' . $impuestoCodigo . ($impuestoTasa !== null ? ' (' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%)' : '');
+            } elseif ($impuestoTasa !== null) {
+                $impuestoLabel = 'IVA ' . rtrim(rtrim((string) $impuestoTasa, '0'), '.') . '%';
+            }
+
+            $db->table('gmail_dte_document_lines')
+                ->where('document_id', $documentId)
+                ->where('nro_linea', $nroLinea)
+                ->update([
+                    'impuesto_codigo' => $impuestoCodigo,
+                    'impuesto_tasa' => $impuestoTasa,
+                    'impuesto_label' => $impuestoLabel,
+                    'es_exento' => $esExento ? 1 : 0,
+                    'updated_at' => now(),
+                ]);
+        }
     }
 
     /**
