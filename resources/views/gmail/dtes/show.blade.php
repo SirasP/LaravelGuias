@@ -32,7 +32,7 @@
                     <button type="submit" class="hdr-btn {{ $estadoPagoRaw === 'pagado' ? 'hdr-gray' : 'hdr-emerald' }}">
                         @if($estadoPagoRaw === 'pagado')
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            <span class="hidden sm:inline">Desregistrar pago</span>
+                            <span class="hidden sm:inline">Cancelar pago</span>
                         @else
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span class="hidden sm:inline">Registrar pago</span>
