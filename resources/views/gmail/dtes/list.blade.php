@@ -10,16 +10,16 @@
                 </div>
                 <div class="min-w-0">
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Facturas proveedor</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Listado · {{ $documents->total() }} documentos</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Listado {{ ($tipo ?? 'facturas') === 'boletas' ? 'boletas' : 'facturas' }} · {{ $documents->total() }} documentos</p>
                 </div>
             </div>
 
             <form method="GET" class="hidden lg:block w-full lg:max-w-xl lg:justify-self-center">
                 <div class="relative">
-                   
+                    <input type="hidden" name="tipo" value="{{ $tipo ?? 'facturas' }}">
                     <input type="text" name="q" value="{{ $q }}" class="f-input pl-9" placeholder="Buscar por folio, proveedor, referencia...">
                     @if($q)
-                        <a href="{{ route('gmail.dtes.list') }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                        <a href="{{ route('gmail.dtes.list', ['tipo' => $tipo ?? 'facturas']) }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -47,6 +47,8 @@
             34 => ['sigla' => 'FEX', 'color' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'],
             56 => ['sigla' => 'ND',  'color' => 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'],
             61 => ['sigla' => 'NC',  'color' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'],
+            39 => ['sigla' => 'BOL', 'color' => 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'],
+            41 => ['sigla' => 'BEX', 'color' => 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300'],
         ];
     @endphp
 
@@ -162,6 +164,7 @@
             {{-- Búsqueda móvil --}}
             <form method="GET" class="lg:hidden">
                 <div class="relative">
+                    <input type="hidden" name="tipo" value="{{ $tipo ?? 'facturas' }}">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
                     </svg>
@@ -175,6 +178,14 @@
                 {{-- Toolbar con filtros --}}
                 <div class="panel-toolbar">
                     <div class="flex items-center gap-1.5 flex-wrap">
+                        <a href="{{ route('gmail.dtes.list', array_filter(['q' => $q, 'tipo' => 'facturas'])) }}"
+                            class="{{ ($tipo ?? 'facturas') === 'facturas' ? 'f-btn active-all' : 'f-btn' }}">
+                            Facturas
+                        </a>
+                        <a href="{{ route('gmail.dtes.list', array_filter(['q' => $q, 'tipo' => 'boletas'])) }}"
+                            class="{{ ($tipo ?? 'facturas') === 'boletas' ? 'f-btn active-all' : 'f-btn' }}">
+                            Boletas
+                        </a>
                         <button @click="filter = 'todos'" :class="filter === 'todos' ? 'f-btn active-all' : 'f-btn'" class="f-btn">
                             Todas
                         </button>

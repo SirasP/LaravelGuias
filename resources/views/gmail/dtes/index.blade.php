@@ -76,34 +76,34 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <p class="text-2xl font-bold text-cyan-700 dark:text-cyan-300">Facturas de proveedores</p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Resumen general de DTE cargados</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 33, 34, 56 y 61</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs uppercase tracking-wide text-gray-400">Total documentos</p>
-                                <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ number_format($summary['total_docs'], 0, ',', '.') }}</p>
+                                <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ number_format($summaryFacturas['total_docs'], 0, ',', '.') }}</p>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="card">
                                 <p class="text-xs uppercase tracking-wide text-gray-400">Por validar</p>
-                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summary['por_validar_count'], 0, ',', '.') }}</p>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summary['por_validar_monto'], 0, ',', '.') }}</p>
+                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summaryFacturas['por_validar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryFacturas['por_validar_monto'], 0, ',', '.') }}</p>
                             </div>
                             <div class="card">
                                 <p class="text-xs uppercase tracking-wide text-gray-400">Por pagar</p>
-                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summary['por_pagar_count'], 0, ',', '.') }}</p>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summary['por_pagar_monto'], 0, ',', '.') }}</p>
+                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summaryFacturas['por_pagar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryFacturas['por_pagar_monto'], 0, ',', '.') }}</p>
                             </div>
                             <div class="card">
                                 <p class="text-xs uppercase tracking-wide text-gray-400">Atrasado</p>
-                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summary['atrasado_count'], 0, ',', '.') }}</p>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summary['atrasado_monto'], 0, ',', '.') }}</p>
+                                <p class="text-lg font-bold text-cyan-700 dark:text-cyan-300">{{ number_format($summaryFacturas['atrasado_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryFacturas['atrasado_monto'], 0, ',', '.') }}</p>
                             </div>
                         </div>
 
                         @php
-                            $maxAge = max(1, ...array_values($aging));
+                            $maxAge = max(1, ...array_values($agingFacturas));
                             $bars = [
                                 ['label' => 'Debido', 'key' => 'vencido', 'color' => '#fda4af'],
                                 ['label' => '1 - 7 días', 'key' => 'd1_7', 'color' => '#fde68a'],
@@ -117,7 +117,7 @@
                         <div class="mini-grid">
                             @foreach($bars as $bar)
                                 @php
-                                    $value = (int) ($aging[$bar['key']] ?? 0);
+                                    $value = (int) ($agingFacturas[$bar['key']] ?? 0);
                                     $height = (int) round(($value / $maxAge) * 100);
                                 @endphp
                                 <div class="mini-col">
@@ -134,18 +134,71 @@
 
                 <div class="panel">
                     <div class="p-4 sm:p-5 space-y-3">
-                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Accesos rápidos</p>
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-2xl font-bold text-violet-700 dark:text-violet-300">Boletas proveedor</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 39 y 41</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Total documentos</p>
+                                <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ number_format($summaryBoletas['total_docs'], 0, ',', '.') }}</p>
+                            </div>
+                        </div>
 
-                        <a href="{{ route('gmail.dtes.list') }}" class="card block hover:border-cyan-300 dark:hover:border-cyan-700 transition">
-                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado de facturas</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Ver tabla completa con filtros y búsqueda</p>
-                        </a>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Por validar</p>
+                                <p class="text-lg font-bold text-violet-700 dark:text-violet-300">{{ number_format($summaryBoletas['por_validar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryBoletas['por_validar_monto'], 0, ',', '.') }}</p>
+                            </div>
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Por pagar</p>
+                                <p class="text-lg font-bold text-violet-700 dark:text-violet-300">{{ number_format($summaryBoletas['por_pagar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryBoletas['por_pagar_monto'], 0, ',', '.') }}</p>
+                            </div>
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Atrasado</p>
+                                <p class="text-lg font-bold text-violet-700 dark:text-violet-300">{{ number_format($summaryBoletas['atrasado_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryBoletas['atrasado_monto'], 0, ',', '.') }}</p>
+                            </div>
+                        </div>
 
-                        <a href="{{ route('gmail.inventory.index') }}" class="card block hover:border-violet-300 dark:hover:border-violet-700 transition">
-                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Inventario DTE</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Revisar productos ingresados por facturas</p>
-                        </a>
+                        @php
+                            $maxAgeB = max(1, ...array_values($agingBoletas));
+                        @endphp
+                        <div class="mini-grid">
+                            @foreach($bars as $bar)
+                                @php
+                                    $value = (int) ($agingBoletas[$bar['key']] ?? 0);
+                                    $height = (int) round(($value / $maxAgeB) * 100);
+                                @endphp
+                                <div class="mini-col">
+                                    <div class="mini-bar-wrap">
+                                        <div class="mini-bar" style="height: {{ max(4, $height) }}%; background: {{ $bar['color'] }}"></div>
+                                    </div>
+                                    <p class="mini-label">{{ $bar['label'] }}</p>
+                                    <p class="text-xs text-gray-400">{{ number_format($value, 0, ',', '.') }}</p>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <a href="{{ route('gmail.dtes.list', ['tipo' => 'facturas']) }}" class="card block hover:border-cyan-300 dark:hover:border-cyan-700 transition">
+                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado facturas</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Tabla filtrada por facturas</p>
+                    </a>
+                    <a href="{{ route('gmail.dtes.list', ['tipo' => 'boletas']) }}" class="card block hover:border-violet-300 dark:hover:border-violet-700 transition">
+                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado boletas</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Tabla filtrada por boletas</p>
+                    </a>
+                    <a href="{{ route('gmail.inventory.index') }}" class="card block hover:border-indigo-300 dark:hover:border-indigo-700 transition">
+                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Inventario DTE</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Revisar productos ingresados</p>
+                    </a>
                 </div>
             </div>
 
