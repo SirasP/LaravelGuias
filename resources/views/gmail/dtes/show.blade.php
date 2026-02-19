@@ -342,9 +342,6 @@
                                             <th class="text-right">Precio unit.</th>
                                             <th>Impuesto</th>
                                             <th class="text-right pr-5">Importe</th>
-                                            @if($isDraft)
-                                                <th class="text-right pr-5">Editar</th>
-                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -380,13 +377,36 @@
                                                     @endif
                                                 </td>
                                                 <td class="text-right whitespace-nowrap">
-                                                    <span class="font-semibold tabular-nums text-gray-800 dark:text-gray-200">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</span>
-                                                    @if($l->unidad)
-                                                        <span class="ml-1 text-[11px] font-semibold text-gray-400">{{ $l->unidad }}</span>
+                                                    @if($isDraft)
+                                                        <input type="number"
+                                                            name="cantidad"
+                                                            form="line-form-{{ $l->id }}"
+                                                            step="0.0001"
+                                                            min="0"
+                                                            value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
+                                                            class="w-24 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs text-right">
+                                                        @if($l->unidad)
+                                                            <span class="ml-1 text-[11px] font-semibold text-gray-400">{{ $l->unidad }}</span>
+                                                        @endif
+                                                    @else
+                                                        <span class="font-semibold tabular-nums text-gray-800 dark:text-gray-200">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</span>
+                                                        @if($l->unidad)
+                                                            <span class="ml-1 text-[11px] font-semibold text-gray-400">{{ $l->unidad }}</span>
+                                                        @endif
                                                     @endif
                                                 </td>
                                                 <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
-                                                    $ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}
+                                                    @if($isDraft)
+                                                        <input type="number"
+                                                            name="precio_unitario"
+                                                            form="line-form-{{ $l->id }}"
+                                                            step="0.0001"
+                                                            min="0"
+                                                            value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
+                                                            class="w-28 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs text-right ml-auto">
+                                                    @else
+                                                        $ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}
+                                                    @endif
                                                 </td>
                                                 <td>
                                                     <div class="flex flex-wrap gap-1">
@@ -397,25 +417,21 @@
                                                 </td>
                                                 <td class="text-right tabular-nums amt-col pr-5 text-sm">
                                                     $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
-                                                </td>
-                                                @if($isDraft)
-                                                    <td class="text-right pr-5">
-                                                        <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="flex items-center justify-end gap-1.5">
-                                                            @csrf
-                                                            <input type="number" name="cantidad" step="0.0001" min="0" value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
-                                                                class="w-20 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
-                                                            <input type="number" name="precio_unitario" step="0.0001" min="0" value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
-                                                                class="w-24 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
-                                                            <button type="submit" class="hdr-btn hdr-indigo !py-1.5 !px-2.5">
+                                                    @if($isDraft)
+                                                        <div class="mt-1.5">
+                                                            <button type="submit" form="line-form-{{ $l->id }}" class="hdr-btn hdr-indigo !py-1.5 !px-2.5 ml-auto">
                                                                 Guardar
                                                             </button>
+                                                        </div>
+                                                        <form id="line-form-{{ $l->id }}" method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="hidden">
+                                                            @csrf
                                                         </form>
-                                                    </td>
-                                                @endif
+                                                    @endif
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="{{ $isDraft ? 7 : 6 }}" class="text-center py-12 text-gray-400 text-sm">Sin líneas de detalle.</td>
+                                                <td colspan="6" class="text-center py-12 text-gray-400 text-sm">Sin líneas de detalle.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -474,14 +490,14 @@
                                             @endforeach
                                         </div>
                                         @if($isDraft)
-                                            <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="grid grid-cols-2 gap-2 mt-3">
+                                            <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="grid grid-cols-2 gap-2 mt-3 border-t border-gray-100 dark:border-gray-800 pt-3">
                                                 @csrf
                                                 <input type="number" name="cantidad" step="0.0001" min="0" value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
                                                     class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
                                                 <input type="number" name="precio_unitario" step="0.0001" min="0" value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
                                                     class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
                                                 <button type="submit" class="col-span-2 hdr-btn hdr-indigo justify-center">
-                                                    Guardar línea
+                                                    Guardar
                                                 </button>
                                             </form>
                                         @endif
