@@ -251,18 +251,6 @@
                 <span x-show="expanded" class="text-sm font-medium truncate {{ $usersActive ? 'text-rose-700 dark:text-rose-300' : 'text-gray-600 dark:text-gray-400' }}">Usuarios</span>
             </a>
 
-            <a href="{{ route('dashboard') }}#nuevo-usuario" @click="mobileOpen = false" :title="!expanded ? 'Agregar usuario' : ''"
-                class="flex items-center rounded-xl transition-all duration-150 mb-0.5"
-                :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
-                :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                    bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800">
-                    <svg class="w-[18px] h-[18px] text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                </div>
-                <span x-show="expanded" class="text-sm font-medium truncate text-gray-600 dark:text-gray-400">Agregar usuario</span>
-            </a>
         @endif
 
     </nav>

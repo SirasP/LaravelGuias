@@ -9,18 +9,6 @@
                 <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Usuarios</h2>
                 <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Gestión de accesos al sistema</p>
             </div>
-
-            {{-- Botón agregar (desktop) --}}
-            <button type="button"
-                @click="$store.ui.open = true; $store.ui.openView = false; $store.ui.selectedUser = null" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-2
-                       text-xs font-semibold rounded-xl
-                       bg-indigo-600 hover:bg-indigo-700 active:scale-95
-                       text-white transition shadow-sm shadow-indigo-200 dark:shadow-indigo-900">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                </svg>
-                Nuevo usuario
-            </button>
         </div>
     </x-slot>
 
