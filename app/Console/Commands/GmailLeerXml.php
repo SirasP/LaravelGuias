@@ -16,7 +16,7 @@ use Kreait\Firebase\Messaging\Notification;
 
 class GmailLeerXml extends Command
 {
-    protected $signature   = 'gmail:leer-xml';
+    protected $signature   = 'gmail:leer-xml {--all : Leer tambien correos ya leidos (has:attachment)}';
     protected $description = 'Lee correos Gmail, procesa XML DTE y controla inventario';
 
     public function handle(): int
@@ -66,8 +66,14 @@ class GmailLeerXml extends Command
         /* ─────────────────────────────────────────
          | 3. CORREOS NO LEÍDOS CON ADJUNTO
          ───────────────────────────────────────── */
+        $gmailQuery = $this->option('all') ? 'has:attachment' : 'has:attachment is:unread';
+
+        $this->line($this->option('all')
+            ? 'Modo forzado: leyendo correos leidos y no leidos con adjuntos.'
+            : 'Modo normal: leyendo solo correos no leidos con adjuntos.');
+
         $messages = $service->users_messages->listUsersMessages('me', [
-            'q' => 'has:attachment is:unread'
+            'q' => $gmailQuery
         ]);
 
         if (!$messages->getMessages()) {
