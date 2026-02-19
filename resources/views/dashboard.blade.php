@@ -653,7 +653,7 @@
                 </div>
 
                 {{-- ── FORM LATERAL (sticky) ─────────────── --}}
-                <div class="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-4 sticky top-6 au d2">
+                <div id="nuevo-usuario" class="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-4 sticky top-6 au d2">
                     <div class="panel">
                         <div class="panel-head">
                             <div class="icon-dot bg-indigo-50 dark:bg-indigo-900/30">

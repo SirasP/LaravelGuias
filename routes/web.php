@@ -33,7 +33,7 @@ Route::get('/', [InventarioDashboard::class, 'index'])
 
 /*
 |--------------------------------------------------------------------------
-| INVENTARIO (todos los usuarios autenticados)
+| INVENTARIO (solo ADMIN)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])
@@ -55,6 +55,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/movimientos', function () {
             return view('inventario.movimientos');
         })->name('movimientos');
+
         Route::get('/stock', [App\Http\Controllers\Inventario\StockController::class, 'index'])
             ->name('stock');
 
@@ -63,8 +64,10 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::post('/stock/entrada', [App\Http\Controllers\Inventario\StockEntradaController::class, 'store'])
             ->name('stock.entrada.store');
+
         Route::patch('/productos/{id}/toggle', [App\Http\Controllers\Inventario\ProductosController::class, 'toggle'])
             ->name('productos.toggle');
+
         Route::get('/dte', function () {
             return view('inventario.dte');
         })->name('dte');
@@ -78,21 +81,15 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('dte/ver/{id}', [\App\Http\Controllers\Inventario\DteController::class, 'ver'])
             ->name('dte.ver');
 
-        // =======================
-// DTEs (Gmail primero)
-// =======================
-    
         Route::get('/dtes/gmail', [DtesController::class, 'gmailIndex'])
             ->name('dtes.gmail');
 
         Route::post('/dtes/gmail/import', [DtesController::class, 'gmailImportSelected'])
             ->name('dtes.gmail.import');
 
-        // Importar desde Gmail (por message id)
         Route::post('/dtes/import', [DtesController::class, 'importFromGmail'])
             ->name('dtes.import');
 
-        // DTEs guardados en BD
         Route::get('/dtes', [DtesController::class, 'index'])
             ->name('dtes.index');
 
@@ -106,8 +103,6 @@ Route::middleware(['auth', 'role:admin'])
 | GOOGLE OAUTH
 |--------------------------------------------------------------------------
 */
-
-
 Route::get('/google/oauth/token', function () {
     return Cache::get('gmail_token') ?? 'NO TOKEN';
 })->middleware('auth');
@@ -127,12 +122,12 @@ Route::get('/debug/env', function () {
         'app_env' => app()->environment(),
     ]);
 });
+
 Route::get('/google/oauth/redirect', [App\Http\Controllers\GoogleOAuthController::class, 'redirect'])
     ->name('google.oauth.redirect');
 
 Route::get('/google/oauth/callback', [App\Http\Controllers\GoogleOAuthController::class, 'callback'])
     ->name('google.oauth.callback');
-
 
 Route::get('/inventario/dte/leer', [App\Http\Controllers\Inventario\DteController::class, 'leer'])
     ->name('inventario.dte.leer');
@@ -140,6 +135,7 @@ Route::get('/inventario/dte/leer', [App\Http\Controllers\Inventario\DteControlle
 Route::get('/gmail/test', function () {
     return 'Laravel OK';
 });
+
 /*
 |--------------------------------------------------------------------------
 | USUARIOS / DASHBOARD (solo ADMIN)
@@ -147,14 +143,12 @@ Route::get('/gmail/test', function () {
 */
 Route::middleware(['auth', 'role:admin'])
     ->get('/dashboard', function () {
-
         $movimientos = DB::table('users')
             ->orderBy('id', 'desc')
             ->limit(20)
             ->get();
 
         return view('dashboard', compact('movimientos'));
-
     })->name('dashboard');
 
 /*
@@ -162,7 +156,6 @@ Route::middleware(['auth', 'role:admin'])
 | PERFIL (cualquier usuario autenticado)
 |--------------------------------------------------------------------------
 */
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -174,7 +167,6 @@ Route::middleware('auth')->group(function () {
 | CRUD USUARIOS (solo ADMIN)
 |--------------------------------------------------------------------------
 */
-
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -191,15 +183,70 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 */
 require __DIR__ . '/auth.php';
 
+/*
+|--------------------------------------------------------------------------
+| DOCUMENTOS — Vistas (todos los autenticados)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')->group(function () {
+
+    // PDF - solo lectura
+    Route::get('/pdf', [PdfImportController::class, 'index'])->name('pdf.index');
+    Route::get('/pdf/imports/{id}/archivo', [PdfImportController::class, 'ver'])
+        ->whereNumber('id')
+        ->name('pdf.import.archivo');
+    Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'show'])
+        ->whereNumber('id')
+        ->name('pdf.import.ver');
+    Route::get('/pdf/imports/{id}', [PdfImportController::class, 'showJson'])
+        ->whereNumber('id')
+        ->name('pdf.import.json');
+    Route::get('/pdf/imports/export.xlsx', [PdfImportController::class, 'exportXlsx'])
+        ->name('pdf.export.xlsx');
+
+    // Guías ODOO - solo lectura
+    Route::get('/excel-out-transfers', [ExcelOutTransferController::class, 'index'])
+        ->name('excel_out_transfers.index');
+    Route::get('/excel-out-transfers/export', [ExcelOutTransferController::class, 'export'])
+        ->name('excel_out_transfers.export');
+    Route::get('/excel-out-transfers/{transfer}', [ExcelOutTransferController::class, 'show'])
+        ->name('excel_out_transfers.show');
+
+});
 
 /*
 |--------------------------------------------------------------------------
-| DOCUMENTOS DE COMPRA (API)
+| DOCUMENTOS — Importaciones (solo ADMIN)
 |--------------------------------------------------------------------------
 */
+Route::middleware(['auth', 'role:admin'])->group(function () {
 
+    // PDF - importar
+    Route::get('/pdf/import', [PdfImportController::class, 'create'])->name('pdf.import.form');
+    Route::post('/pdf/import', [PdfImportController::class, 'store'])->name('pdf.import');
+    Route::post('/pdf/import/xml', [PdfImportController::class, 'storeXml'])
+        ->name('pdf.import.xml');
 
-Route::middleware(['auth', 'role:admin,operator'])
+    // Excel QC / RFP
+    Route::get('/excel/import', [PdfImportController::class, 'excelForm'])->name('excel.import.form');
+    Route::post('/excel/import', [PdfImportController::class, 'importExcelQc'])->name('excel.import.qc');
+    Route::post('/excel/import/rfp', [PdfImportController::class, 'importExcelRfp'])
+        ->name('excel.import.rfp');
+
+    // Guías ODOO - importar
+    Route::get('/excel-out-transfers/import', fn() => view('excel_out_transfers.import'))
+        ->name('excel_out_transfers.form');
+    Route::post('/excel-out-transfers/import', [ExcelOutTransferController::class, 'importExcelOutTransfers'])
+        ->name('excel_out_transfers.import');
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| COMPRAS (solo ADMIN)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])
     ->prefix('compras')
     ->group(function () {
 
@@ -219,92 +266,57 @@ Route::middleware(['auth', 'role:admin,operator'])
             ->name('compras.documentos.contabilizar');
     });
 
-
-
-/*|--------------------------------------------------------------------------
-| IMPORTAR PDF DE DOCUMENTOS DE COMPRA
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth', 'role:admin,operator'])->group(function () {
-
-    Route::get('/pdf', [PdfImportController::class, 'index'])->name('pdf.index');
-
-    Route::get('/pdf/import', [PdfImportController::class, 'create'])->name('pdf.import.form');
-    Route::post('/pdf/import', [PdfImportController::class, 'store'])->name('pdf.import');
-
-    Route::get('/pdf/imports/{id}/archivo', [PdfImportController::class, 'ver'])
-        ->whereNumber('id')
-        ->name('pdf.import.archivo');
-
-    Route::get('/pdf/imports/{id}/ver', [PdfImportController::class, 'show'])
-        ->whereNumber('id')
-        ->name('pdf.import.ver');
-
-    Route::get('/pdf/imports/{id}', [PdfImportController::class, 'showJson'])
-        ->whereNumber('id')
-        ->name('pdf.import.json');
-
-    Route::get('/pdf/imports/export.xlsx', [PdfImportController::class, 'exportXlsx'])
-        ->name('pdf.export.xlsx');
-
-    Route::get('/excel/import', [PdfImportController::class, 'excelForm'])->name('excel.import.form');
-
-    Route::post('/excel/import', [PdfImportController::class, 'importExcelQc'])->name('excel.import.qc');
-
-    Route::post('/excel/import/rfp', [PdfImportController::class, 'importExcelRfp'])
-        ->name('excel.import.rfp');
-
-    Route::post('/pdf/import/xml', [PdfImportController::class, 'storeXml'])
-        ->name('pdf.import.xml');
-
-    Route::get('/excel-out-transfers', [ExcelOutTransferController::class, 'index'])
-        ->name('excel_out_transfers.index');
-
-    Route::get('/excel-out-transfers/import', fn() => view('excel_out_transfers.import'))
-        ->name('excel_out_transfers.form');
-
-    Route::post('/excel-out-transfers/import', [ExcelOutTransferController::class, 'importExcelOutTransfers'])
-        ->name('excel_out_transfers.import');
-
-
-    Route::get('/excel-out-transfers/export', [ExcelOutTransferController::class, 'export'])
-        ->name('excel_out_transfers.export');
-
-    Route::get('/excel-out-transfers/{transfer}', [ExcelOutTransferController::class, 'show'])
-        ->name('excel_out_transfers.show');
-
-
-
-});
 /*
 |--------------------------------------------------------------------------
-| AGRAK REGISTROS IMPORT
+| AGRAK — Vistas (todos los autenticados)
 |--------------------------------------------------------------------------
 */
-
-Route::middleware(['auth', 'role:admin,operator'])
+Route::middleware('auth')
     ->prefix('agrak')
     ->name('agrak.')
     ->group(function () {
-
         Route::get('/', [AgrakController::class, 'index'])->name('index');
-
         Route::get('/{id}', [AgrakController::class, 'show'])
             ->whereNumber('id')
             ->name('show');
+    });
 
+Route::middleware('auth')->group(function () {
+    Route::get('/agrak/export', [AgrakExportController::class, 'exportAll'])
+        ->name('agrak.export');
+    Route::post('/agrak/kg-promedio', [InventarioDashboard::class, 'updateKgPromedio'])
+        ->name('agrak.kg-promedio');
+    Route::get('/centros/detalle', [CentroController::class, 'show'])
+        ->name('centros.detalle');
+});
+
+/*
+|--------------------------------------------------------------------------
+| AGRAK — Importaciones (solo ADMIN)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('agrak')
+    ->name('agrak.')
+    ->group(function () {
         Route::get('/import', fn() => view('agrak.import'))
             ->name('import.form');
-
         Route::post('/import', [PdfImportController::class, 'importExcelAgrak'])
             ->name('import');
     });
 
-/* ======================================================
- |  VISTA GUiAS COMFRUT REGISTROS (COMFRUT CONTROLLER)
- ======================================================*/
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/agrak/create', [CamionController::class, 'create'])
+        ->name('agrak.create');
+    Route::post('/agrak', [CamionController::class, 'store'])
+        ->name('agrak.store');
+});
 
+/*
+|--------------------------------------------------------------------------
+| GUÍAS COMFRUT — Vistas (todos los autenticados)
+|--------------------------------------------------------------------------
+*/
 Route::prefix('guias')->name('guias.')->middleware('auth')->group(function () {
 
     Route::prefix('comfrut')->name('comfrut.')->group(function () {
@@ -312,48 +324,36 @@ Route::prefix('guias')->name('guias.')->middleware('auth')->group(function () {
         Route::get('/', [ComfrutGuiaController::class, 'index'])
             ->name('index');
 
-        Route::get('/import', [ComfrutGuiaController::class, 'importForm'])
-            ->name('import.form');
+        Route::get('/export-php', [ComfrutGuiaController::class, 'exportExcelPhpSpreadsheet'])
+            ->name('export-php');
 
-        Route::post('/import', [ComfrutGuiaController::class, 'import'])
-            ->name('import');
-
-        Route::get('/export-php', [ComfrutGuiaController::class, 'exportExcelPhpSpreadsheet'])->name('export-php');
-
-        // ✅ SHOW CORRECTO
         Route::get('/{guia}', [ComfrutGuiaController::class, 'show'])
             ->name('show');
     });
 });
 
+/*
+|--------------------------------------------------------------------------
+| GUÍAS COMFRUT — Importaciones (solo ADMIN)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('guias')->name('guias.')->middleware(['auth', 'role:admin'])->group(function () {
 
+    Route::prefix('comfrut')->name('comfrut.')->group(function () {
 
+        Route::get('/import', [ComfrutGuiaController::class, 'importForm'])
+            ->name('import.form');
 
-Route::get('/agrak/create', [CamionController::class, 'create'])
-    ->name('agrak.create');
-
-Route::post('/agrak', [CamionController::class, 'store'])
-    ->name('agrak.store');
-
-Route::get('/agrak/export', [AgrakExportController::class, 'exportAll'])
-    ->name('agrak.export');
-
-
-Route::middleware('auth')->group(function () {
-
-    Route::post('/agrak/kg-promedio', [InventarioDashboard::class, 'updateKgPromedio'])
-        ->name('agrak.kg-promedio');
-
-    Route::get('/centros/detalle', [CentroController::class, 'show'])
-        ->name('centros.detalle');
-
+        Route::post('/import', [ComfrutGuiaController::class, 'import'])
+            ->name('import');
+    });
 });
 
-/*|--------------------------------------------------------------------------
-| FUEL CONTROL
-|--------------------------------------------------------------------------*/
-
-
+/*
+|--------------------------------------------------------------------------
+| FUEL CONTROL (todos los autenticados)
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth'])
     ->prefix('fuelcontrol')
     ->name('fuelcontrol.')
@@ -367,18 +367,16 @@ Route::middleware(['auth'])
         /* PRODUCTOS */
         Route::get('/productos', [ProductoController::class, 'index'])
             ->name('productos');
-
         Route::get('/productos/crear', [ProductoController::class, 'create'])
             ->name('productos.create');
-
         Route::post('/productos', [ProductoController::class, 'store'])
             ->name('productos.store');
-
         Route::get('/productos/{id}/editar', [ProductoController::class, 'edit'])
             ->name('productos.edit');
-
         Route::put('/productos/{id}', [ProductoController::class, 'update'])
             ->name('productos.update');
+        Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
+            ->name('productos.destroy');
 
         Route::post('/notificaciones/{id}/leer', function ($id) {
             DB::connection('fuelcontrol')
@@ -389,45 +387,25 @@ Route::middleware(['auth'])
                     'leido' => 1,
                     'updated_at' => now()
                 ]);
-
             return response()->json(['ok' => true]);
         })->name('notificaciones.leer');
 
-
-        /* =========================
-         * XML MODAL 🔥
-         * ========================= */
-
+        /* XML */
         Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
             ->name('xml.show');
-
         Route::post('/xml/{movimiento}/aprobar', [FuelDashboard::class, 'aprobar'])
             ->name('xml.aprobar');
-
         Route::post('/xml/{movimiento}/rechazar', [FuelDashboard::class, 'rechazar'])
             ->name('xml.rechazar');
 
-
-
-
-
-        Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
-            ->name('productos.destroy');
-
-
-
         /* VEHÍCULOS */
-
         Route::get('/vehiculos', [VehiculoController::class, 'index'])
             ->name('vehiculos.index');
-
         Route::post('/vehiculos', [VehiculoController::class, 'store'])
             ->name('vehiculos.store');
-
         Route::put('/vehiculos/{id}', [VehiculoController::class, 'update'])
             ->whereNumber('id')
             ->name('vehiculos.update');
-
         Route::delete('/vehiculos/{id}', [VehiculoController::class, 'destroy'])
             ->whereNumber('id')
             ->name('vehiculos.destroy');
@@ -439,30 +417,16 @@ Route::middleware(['auth'])
 
 /*
 |--------------------------------------------------------------------------
-| routes/web.php  —  añade estas rutas
+| GMAIL (todos los autenticados)
 |--------------------------------------------------------------------------
 */
-
-
 Route::middleware(['auth'])->prefix('gmail')->name('gmail.')->group(function () {
 
-    // Vista principal de estado
     Route::get('/', [GmailAuthController::class, 'index'])->name('index');
-
-    // Redirige a Google para autorizar
     Route::get('/connect', [GmailAuthController::class, 'redirect'])->name('redirect');
-
-    // Google redirige aquí con el código
     Route::get('/callback', [GmailAuthController::class, 'callback'])->name('callback');
-
-    // Desconectar (revoca token)
     Route::delete('/disconnect', [GmailAuthController::class, 'disconnect'])->name('disconnect');
-
-    // Ejecutar sync manual desde la UI (POST → JSON)
     Route::post('/run', [GmailAuthController::class, 'runNow'])->name('run');
-
-    // Polling de estado (GET → JSON)
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
 
 });
-

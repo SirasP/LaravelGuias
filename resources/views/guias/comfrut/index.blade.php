@@ -51,17 +51,19 @@
                 <span class="hidden sm:inline">Exportar</span>
             </a>
 
-            {{-- Importar XML --}}
-            <a href="{{ route('guias.comfrut.import.form') }}"
-               class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
-                      bg-indigo-600 hover:bg-indigo-700 active:scale-95
-                      text-white transition shadow-sm shadow-indigo-200 dark:shadow-indigo-900">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <span class="hidden sm:inline">Importar XML</span>
-            </a>
+            @if(auth()->user()->role === 'admin')
+                {{-- Importar XML --}}
+                <a href="{{ route('guias.comfrut.import.form') }}"
+                   class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
+                          bg-indigo-600 hover:bg-indigo-700 active:scale-95
+                          text-white transition shadow-sm shadow-indigo-200 dark:shadow-indigo-900">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <span class="hidden sm:inline">Importar XML</span>
+                </a>
+            @endif
         </div>
     </div>
 </x-slot>
@@ -326,15 +328,17 @@
             </div>
             <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">No hay guías COMFRUT importadas</p>
             <p class="text-xs text-gray-400 mt-1 mb-4">Sube el primer XML para empezar.</p>
-            <a href="{{ route('guias.comfrut.import.form') }}"
-               class="inline-flex items-center gap-2 px-4 py-2 rounded-xl
-                      bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                Importar primera guía
-            </a>
+            @if(auth()->user()->role === 'admin')
+                <a href="{{ route('guias.comfrut.import.form') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-xl
+                          bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    Importar primera guía
+                </a>
+            @endif
         </div>
         @endif
     </div>

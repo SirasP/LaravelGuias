@@ -16,9 +16,8 @@
 
 {{-- ── SIDEBAR ───────────────────────────────────────────── --}}
 <aside
-    :class="mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'"
-    @click.stop="if(!expanded && window.innerWidth >= 1024) { expanded = true; localStorage.setItem('sidebar_state','expanded'); }"
     :class="[mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0', !expanded ? 'lg:cursor-pointer' : '']"
+    @click.stop="if(!expanded && window.innerWidth >= 1024) { expanded = true; localStorage.setItem('sidebar_state','expanded'); }"
     class="fixed lg:sticky top-0.5 left-0 z-50 lg:z-30
            h-[calc(100vh-2px)] flex flex-col
            bg-white dark:bg-gray-950
@@ -62,7 +61,6 @@
 
     {{-- ── Navigation ─────────────────────────────────────── --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 sidebar-scroll" :class="expanded ? 'px-2.5' : 'px-1.5'">
-
         {{-- ─── SECCIÓN: DOCUMENTOS ─── --}}
         <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1">
             <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Documentos</p>
@@ -77,12 +75,12 @@
                 :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
                 :style="!expanded ? 'margin:0 auto; width:48px' : ''">
                 <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                    {{ $pdfActive ? 'bg-indigo-100 dark:bg-indigo-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                    <svg class="w-[18px] h-[18px] transition-colors {{ $pdfActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {{ ($pdfActive ?? false) ? 'bg-indigo-100 dark:bg-indigo-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                    <svg class="w-[18px] h-[18px] transition-colors {{ ($pdfActive ?? false) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </div>
-                <span x-show="expanded" class="flex-1 text-left truncate {{ $pdfActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400' }}">Guías PDF</span>
+                <span x-show="expanded" class="flex-1 text-left truncate {{ ($pdfActive ?? false) ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400' }}">Guías PDF</span>
                 <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'docs' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -91,9 +89,11 @@
                 <a href="{{ route('pdf.index') }}" @click="mobileOpen = false"
                     class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('pdf.index') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                     PDFs importados</a>
-                <a href="{{ route('pdf.import.form') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('pdf.import.form') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Importar PDF</a>
+                @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('pdf.import.form') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('pdf.import.form') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Importar PDF</a>
+                @endif
             </div>
         </div>
 
@@ -119,9 +119,11 @@
                 <a href="{{ route('excel_out_transfers.index') }}" @click="mobileOpen = false"
                     class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('excel_out_transfers.index') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                     Vista</a>
-                <a href="{{ route('excel_out_transfers.import') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('excel_out_transfers.import') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Importar</a>
+                @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('excel_out_transfers.form') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('excel_out_transfers.form') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Importar</a>
+                @endif
             </div>
         </div>
 
@@ -147,9 +149,11 @@
                 <a href="{{ route('agrak.index') }}" @click="mobileOpen = false"
                     class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('agrak.index') ? 'text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                     Vista</a>
-                <a href="{{ route('agrak.import.form') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('agrak.import.form') ? 'text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Importar</a>
+                @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('agrak.import.form') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('agrak.import.form') ? 'text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Importar</a>
+                @endif
             </div>
         </div>
 
@@ -175,9 +179,11 @@
                 <a href="{{ route('guias.comfrut.index') }}" @click="mobileOpen = false"
                     class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('guias.comfrut.index') ? 'text-sky-700 dark:text-sky-300 font-semibold bg-sky-50 dark:bg-sky-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                     Vista</a>
-                <a href="{{ route('guias.comfrut.import.form') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('guias.comfrut.import.form') ? 'text-sky-700 dark:text-sky-300 font-semibold bg-sky-50 dark:bg-sky-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Importar XML</a>
+                @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('guias.comfrut.import.form') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('guias.comfrut.import.form') ? 'text-sky-700 dark:text-sky-300 font-semibold bg-sky-50 dark:bg-sky-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Importar XML</a>
+                @endif
             </div>
         </div>
 
@@ -223,6 +229,41 @@
                     Gmail DTE</a>
             </div>
         </div>
+
+        {{-- ─── SECCIÓN: ADMINISTRACIÓN (solo admin) ─── --}}
+        @if(auth()->check() && auth()->user()->role === 'admin')
+            <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
+                <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Administración</p>
+            </div>
+            <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
+
+            @php $usersActive = request()->routeIs('dashboard') || request()->routeIs('users.*'); @endphp
+            <a href="{{ route('dashboard') }}" @click="mobileOpen = false" :title="!expanded ? 'Usuarios' : ''"
+                class="flex items-center rounded-xl transition-all duration-150 mb-0.5"
+                :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
+                :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                    {{ $usersActive ? 'bg-rose-100 dark:bg-rose-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                    <svg class="w-[18px] h-[18px] transition-colors {{ $usersActive ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <span x-show="expanded" class="text-sm font-medium truncate {{ $usersActive ? 'text-rose-700 dark:text-rose-300' : 'text-gray-600 dark:text-gray-400' }}">Usuarios</span>
+            </a>
+
+            <a href="{{ route('dashboard') }}#nuevo-usuario" @click="mobileOpen = false" :title="!expanded ? 'Agregar usuario' : ''"
+                class="flex items-center rounded-xl transition-all duration-150 mb-0.5"
+                :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
+                :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                    bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <svg class="w-[18px] h-[18px] text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </div>
+                <span x-show="expanded" class="text-sm font-medium truncate text-gray-600 dark:text-gray-400">Agregar usuario</span>
+            </a>
+        @endif
 
     </nav>
 
