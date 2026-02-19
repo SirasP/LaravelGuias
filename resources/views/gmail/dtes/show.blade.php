@@ -43,6 +43,16 @@
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
 
         $taxSummary = collect($document->tax_summary ?? []);
+
+        $ivaMonto = (float) ($document->monto_iva ?? 0);
+        $impuestosAdicionales = $taxSummary
+            ->filter(function ($tax) {
+                $label = strtoupper((string) ($tax['label'] ?? ''));
+                return !str_starts_with($label, 'IVA');
+            })
+            ->sum(function ($tax) {
+                return (float) ($tax['monto'] ?? 0);
+            });
     @endphp
 
     <style>
@@ -248,35 +258,17 @@
                         </div>
                         <div class="flex justify-between text-gray-600 dark:text-gray-300">
                             <span>IVA</span>
-                            <span class="font-semibold">$ {{ number_format((float) $document->monto_iva, 0, ',', '.') }}</span>
+                            <span class="font-semibold">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600 dark:text-gray-300">
+                            <span>Impuestos adicionales</span>
+                            <span class="font-semibold">{{ $impuestosAdicionales > 0 ? '$ ' . number_format($impuestosAdicionales, 0, ',', '.') : 'No aplica' }}</span>
                         </div>
                         <div class="flex justify-between text-base text-gray-900 dark:text-gray-100">
                             <span>Total</span>
                             <span class="font-bold">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-head">
-                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Resumen de impuestos</p>
-                </div>
-                <div class="p-4">
-                    @if($taxSummary->isNotEmpty())
-                        <div class="space-y-2">
-                            @foreach($taxSummary as $tax)
-                                <div class="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 px-3 py-2">
-                                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $tax['label'] }}</span>
-                                    <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                                        {{ $tax['informado'] ? '$ ' . number_format((float) $tax['monto'], 0, ',', '.') : 'Monto no informado en XML' }}
-                                    </span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-sm text-gray-400">No se detectaron impuestos adicionales en este XML.</p>
-                    @endif
                 </div>
             </div>
         </div>
