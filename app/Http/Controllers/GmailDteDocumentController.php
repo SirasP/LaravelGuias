@@ -59,6 +59,72 @@ class GmailDteDocumentController extends Controller
         return back()->with('success', 'Documento marcado como pagado.');
     }
 
+    public function markDraft(int $id)
+    {
+        DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->update([
+                'workflow_status' => 'borrador',
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('success', 'Documento marcado como borrador.');
+    }
+
+    public function updateLine(Request $request, int $id, int $lineId)
+    {
+        $validated = $request->validate([
+            'cantidad' => ['required', 'numeric', 'min:0'],
+            'precio_unitario' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $db = DB::connection('fuelcontrol');
+        $document = $db->table('gmail_dte_documents')->where('id', $id)->first();
+        if (!$document) {
+            return back()->with('warning', 'Documento no encontrado.');
+        }
+
+        if ((string) ($document->workflow_status ?? '') !== 'borrador') {
+            return back()->with('warning', 'Para editar líneas, primero deja el documento en estado borrador.');
+        }
+
+        $cantidad = round((float) $validated['cantidad'], 4);
+        $precioUnitario = round((float) $validated['precio_unitario'], 4);
+        $montoItem = round($cantidad * $precioUnitario, 2);
+
+        $updated = $db->table('gmail_dte_document_lines')
+            ->where('id', $lineId)
+            ->where('document_id', $id)
+            ->update([
+                'cantidad' => $cantidad,
+                'precio_unitario' => $precioUnitario,
+                'monto_item' => $montoItem,
+                'updated_at' => now(),
+            ]);
+
+        if (!$updated) {
+            return back()->with('warning', 'No se pudo actualizar la línea.');
+        }
+
+        $montoNetoNuevo = (float) $db->table('gmail_dte_document_lines')
+            ->where('document_id', $id)
+            ->sum('monto_item');
+
+        $otrosImpuestos = max(0.0, (float) ($document->monto_total ?? 0) - (float) ($document->monto_neto ?? 0));
+        $montoTotalNuevo = round($montoNetoNuevo + $otrosImpuestos, 2);
+
+        $db->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->update([
+                'monto_neto' => $montoNetoNuevo,
+                'monto_total' => $montoTotalNuevo,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('success', 'Línea actualizada correctamente.');
+    }
+
     public function markCreditNote(int $id)
     {
         DB::connection('fuelcontrol')

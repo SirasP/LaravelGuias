@@ -448,6 +448,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/pay', [GmailDteDocumentController::class, 'markPaid'])
         ->whereNumber('id')
         ->name('dtes.pay');
+    Route::post('/dtes/{id}/draft', [GmailDteDocumentController::class, 'markDraft'])
+        ->whereNumber('id')
+        ->name('dtes.draft');
     Route::post('/dtes/{id}/accept', [GmailDteDocumentController::class, 'markAccepted'])
         ->whereNumber('id')
         ->name('dtes.accept');
@@ -457,6 +460,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])
         ->whereNumber('id')
         ->name('dtes.add_stock');
+    Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])
+        ->whereNumber('id')
+        ->whereNumber('lineId')
+        ->name('dtes.lines.update');
     Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])
         ->whereNumber('id')
         ->name('dtes.show');

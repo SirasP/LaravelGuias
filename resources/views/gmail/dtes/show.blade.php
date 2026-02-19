@@ -28,6 +28,13 @@
                         <span class="hidden sm:inline">Aceptar</span>
                     </button>
                 </form>
+                <form method="POST" action="{{ route('gmail.dtes.draft', $document->id) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="hdr-btn hdr-gray">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h8m-8 7h8m-8 7h8M5 5h.01M5 12h.01M5 19h.01"/></svg>
+                        <span class="hidden sm:inline">Borrador</span>
+                    </button>
+                </form>
                 <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                     @csrf
                     <button type="submit" class="hdr-btn hdr-violet">
@@ -66,6 +73,7 @@
         $estadoPagoRaw   = data_get($document, 'payment_status');
         $estadoPago      = $estadoPagoRaw === 'pagado' ? 'Pagado' : 'Sin pagar';
         $workflowStatus  = data_get($document, 'workflow_status', 'borrador');
+        $isDraft         = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
         $montoPorPagar   = $estadoPagoRaw === 'pagado' ? 0.0 : (float) ($document->monto_total ?? 0);
         $fechaPago       = data_get($document, 'paid_at') ? \Carbon\Carbon::parse($document->paid_at)->format('d/m/Y') : null;
@@ -208,6 +216,8 @@
         .hdr-sky:hover     { background:#0369a1 }
         .hdr-violet  { background:#7c3aed; color:#fff }
         .hdr-violet:hover  { background:#6d28d9 }
+        .hdr-indigo  { background:#4f46e5; color:#fff }
+        .hdr-indigo:hover  { background:#4338ca }
         .hdr-rose    { background:#e11d48; color:#fff }
         .hdr-rose:hover    { background:#be123c }
         .hdr-gray    { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0 }
@@ -332,6 +342,9 @@
                                             <th class="text-right">Precio unit.</th>
                                             <th>Impuesto</th>
                                             <th class="text-right pr-5">Importe</th>
+                                            @if($isDraft)
+                                                <th class="text-right pr-5">Editar</th>
+                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -385,10 +398,24 @@
                                                 <td class="text-right tabular-nums amt-col pr-5 text-sm">
                                                     $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
                                                 </td>
+                                                @if($isDraft)
+                                                    <td class="text-right pr-5">
+                                                        <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="flex items-center justify-end gap-1.5">
+                                                            @csrf
+                                                            <input type="number" name="cantidad" step="0.0001" min="0" value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
+                                                                class="w-20 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
+                                                            <input type="number" name="precio_unitario" step="0.0001" min="0" value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
+                                                                class="w-24 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
+                                                            <button type="submit" class="hdr-btn hdr-indigo !py-1.5 !px-2.5">
+                                                                Guardar
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                @endif
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="text-center py-12 text-gray-400 text-sm">Sin líneas de detalle.</td>
+                                                <td colspan="{{ $isDraft ? 7 : 6 }}" class="text-center py-12 text-gray-400 text-sm">Sin líneas de detalle.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -446,6 +473,18 @@
                                                 <span class="tax-pill {{ $taxClass($label) }}">{{ $label }}</span>
                                             @endforeach
                                         </div>
+                                        @if($isDraft)
+                                            <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="grid grid-cols-2 gap-2 mt-3">
+                                                @csrf
+                                                <input type="number" name="cantidad" step="0.0001" min="0" value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
+                                                    class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
+                                                <input type="number" name="precio_unitario" step="0.0001" min="0" value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
+                                                    class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
+                                                <button type="submit" class="col-span-2 hdr-btn hdr-indigo justify-center">
+                                                    Guardar línea
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 @empty
                                     <p class="text-center text-sm text-gray-400 py-8">Sin líneas de detalle.</p>
