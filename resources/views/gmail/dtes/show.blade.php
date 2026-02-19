@@ -41,6 +41,47 @@
         $estadoPago = $estadoPagoRaw === 'pagado' ? 'Pagado' : 'Sin pagar';
         $workflowStatus = data_get($document, 'workflow_status', 'borrador');
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
+
+        $taxSummary = collect();
+
+        if ((float) $document->monto_iva > 0) {
+            $taxSummary->push([
+                'label' => 'IVA',
+                'monto' => (float) $document->monto_iva,
+                'informado' => true,
+            ]);
+        }
+
+        foreach ($lines as $line) {
+            foreach (($line->taxes ?? collect()) as $tax) {
+                $type = strtoupper((string) ($tax->tax_type ?? ''));
+                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
+                $monto = $tax->monto;
+                $key = $type . '|' . $label;
+
+                // Evita duplicar IVA cuando no tiene monto por línea y ya se muestra el IVA global.
+                if ($type === 'IVA' && is_null($monto)) {
+                    continue;
+                }
+
+                if (!$taxSummary->has($key)) {
+                    $taxSummary->put($key, [
+                        'label' => $label,
+                        'monto' => 0.0,
+                        'informado' => false,
+                    ]);
+                }
+
+                $row = $taxSummary->get($key);
+                if (!is_null($monto)) {
+                    $row['monto'] += (float) $monto;
+                    $row['informado'] = true;
+                }
+                $taxSummary->put($key, $row);
+            }
+        }
+
+        $taxSummary = $taxSummary->values();
     @endphp
 
     <style>
@@ -253,6 +294,28 @@
                             <span class="font-bold">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Resumen de impuestos</p>
+                </div>
+                <div class="p-4">
+                    @if($taxSummary->isNotEmpty())
+                        <div class="space-y-2">
+                            @foreach($taxSummary as $tax)
+                                <div class="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 px-3 py-2">
+                                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $tax['label'] }}</span>
+                                    <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                        {{ $tax['informado'] ? '$ ' . number_format((float) $tax['monto'], 0, ',', '.') : 'Monto no informado en XML' }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-sm text-gray-400">No se detectaron impuestos adicionales en este XML.</p>
+                    @endif
                 </div>
             </div>
         </div>
