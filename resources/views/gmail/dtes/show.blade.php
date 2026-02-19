@@ -21,27 +21,27 @@
                         <span class="hidden sm:inline">Registrar pago</span>
                     </button>
                 </form>
-                <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}" class="contents">
+                <form method="POST" action="{{ $isDraft ? route('gmail.dtes.accept', $document->id) : route('gmail.dtes.draft', $document->id) }}" class="contents">
                     @csrf
-                    <button type="submit" class="hdr-btn hdr-sky">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="hidden sm:inline">Aceptar</span>
+                    <button type="submit" class="hdr-btn {{ $isDraft ? 'hdr-sky' : 'hdr-gray' }}">
+                        @if($isDraft)
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span class="hidden sm:inline">Aceptar borrador</span>
+                        @else
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h8m-8 7h8m-8 7h8M5 5h.01M5 12h.01M5 19h.01"/></svg>
+                            <span class="hidden sm:inline">Borrador</span>
+                        @endif
                     </button>
                 </form>
-                <form method="POST" action="{{ route('gmail.dtes.draft', $document->id) }}" class="contents">
-                    @csrf
-                    <button type="submit" class="hdr-btn hdr-gray">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h8m-8 7h8m-8 7h8M5 5h.01M5 12h.01M5 19h.01"/></svg>
-                        <span class="hidden sm:inline">Borrador</span>
-                    </button>
-                </form>
-                <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
-                    @csrf
-                    <button type="submit" class="hdr-btn hdr-violet">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                        <span class="hidden sm:inline">Agregar stock</span>
-                    </button>
-                </form>
+                @if($inventoryStatus !== 'ingresado')
+                    <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
+                        @csrf
+                        <button type="submit" class="hdr-btn hdr-violet">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            <span class="hidden sm:inline">Agregar stock</span>
+                        </button>
+                    </form>
+                @endif
                 <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
                     @csrf
                     <button type="submit" class="hdr-btn hdr-rose">
