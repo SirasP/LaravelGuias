@@ -13,7 +13,7 @@
                 </div>
             </div>
 
-            <form method="GET" class="w-full lg:max-w-xl lg:justify-self-center">
+            <form method="GET" class="hidden lg:block w-full lg:max-w-xl lg:justify-self-center">
                 <div class="flex gap-2">
                     <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por producto, codigo o unidad...">
                     <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
@@ -48,6 +48,13 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            <form method="GET" class="lg:hidden">
+                <div class="flex gap-2">
+                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por producto, codigo o unidad...">
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
+                </div>
+            </form>
+
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q])) }}"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === '' && $stock === '' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">

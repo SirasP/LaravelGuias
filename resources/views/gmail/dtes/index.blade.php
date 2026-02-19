@@ -14,7 +14,7 @@
                 </div>
             </div>
 
-            <form method="GET" class="w-full lg:max-w-xl lg:justify-self-center">
+            <form method="GET" class="hidden lg:block w-full lg:max-w-xl lg:justify-self-center">
                 <div class="flex gap-2">
                     <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por folio, proveedor, referencia...">
                     <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition">Buscar</button>
@@ -123,6 +123,13 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            <form method="GET" class="lg:hidden">
+                <div class="flex gap-2">
+                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por folio, proveedor, referencia...">
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition">Buscar</button>
+                </div>
+            </form>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div class="stat">
                     <p class="text-[11px] uppercase tracking-wide text-gray-400">Registros</p>
