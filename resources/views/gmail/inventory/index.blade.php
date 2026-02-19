@@ -27,6 +27,18 @@
     </x-slot>
 
     <style>
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .au { animation: fadeUp .35s ease both; }
+        .d1 { animation-delay: .06s; }
+        .d2 { animation-delay: .12s; }
+        .d3 { animation-delay: .18s; }
+        .d4 { animation-delay: .24s; }
+        .d5 { animation-delay: .30s; }
+
         .page-bg { background:#f1f5f9; min-height:100% }
         .dark .page-bg { background:#0d1117 }
         .f-input { width:100%; border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:9px 12px; font-size:13px; color:#111827; outline:none }
@@ -55,7 +67,7 @@
                 </div>
             </form>
 
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2 au d1">
                 <a href="{{ route('gmail.inventory.index', array_filter(['q' => $q])) }}"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === '' && $stock === '' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
                     Todos ({{ $products->total() }})
@@ -79,7 +91,7 @@
             </div>
 
             @if($products->count() > 0)
-                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 au d2">
                     @foreach($products as $p)
                         <div class="card">
                             <div class="flex items-start justify-between gap-3">
@@ -110,8 +122,13 @@
                     @endforeach
                 </div>
             @else
-                <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center text-gray-400">
-                    Aun no hay productos en inventario.
+                <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center au d2">
+                    <svg class="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Aún no hay productos en inventario</p>
+                    <p class="text-xs text-gray-400 mt-1">Los productos aparecerán aquí al agregar stock desde un DTE.</p>
                 </div>
             @endif
 

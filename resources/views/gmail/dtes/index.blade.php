@@ -143,20 +143,20 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 au d1">
                 <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Registros</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $documents->total() }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Registros</p>
+                    <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">{{ $documents->total() }}</p>
                 </div>
                 <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Pagina</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $documents->currentPage() }} / {{ $documents->lastPage() }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Página</p>
+                    <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">{{ $documents->currentPage() }} / {{ $documents->lastPage() }}</p>
                 </div>
                 <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Total pagina</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-gray-100">$ {{ number_format((float) $documents->sum('monto_total'), 0, ',', '.') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total página</p>
+                    <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">$ {{ number_format((float) $documents->sum('monto_total'), 0, ',', '.') }}</p>
                 </div>
                 <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Filtro</p>
-                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">{{ $q !== '' ? $q : 'Sin filtro' }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Filtro activo</p>
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate mt-1">{{ $q !== '' ? $q : 'Sin filtro' }}</p>
                 </div>
             </div>
 
