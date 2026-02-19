@@ -194,7 +194,7 @@
         <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
         {{-- FuelControl --}}
-        @php $fuelActive = request()->routeIs('fuelcontrol.*') || request()->routeIs('gmail.*'); @endphp
+        @php $fuelActive = request()->routeIs('fuelcontrol.*') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*')); @endphp
         <div class="mb-0.5">
             <button @click="toggleSection('fuel')" :title="!expanded ? 'FuelControl' : ''"
                 class="w-full flex items-center rounded-xl transition-all duration-150"
@@ -228,12 +228,36 @@
                     <a href="{{ route('gmail.index') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.*') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Gmail DTE</a>
-                    <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.*') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        DTE XML</a>
                 @endif
             </div>
         </div>
+
+        @if(auth()->check() && auth()->user()->role === 'admin')
+            {{-- Dte XML (módulo nuevo) --}}
+            @php $dteProvActive = request()->routeIs('gmail.dtes.*'); @endphp
+            <div class="mb-0.5">
+                <button @click="toggleSection('dteprov')" :title="!expanded ? 'Dte XML' : ''"
+                    class="w-full flex items-center rounded-xl transition-all duration-150"
+                    :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
+                    :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                        {{ $dteProvActive ? 'bg-cyan-100 dark:bg-cyan-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        <svg class="w-[18px] h-[18px] transition-colors {{ $dteProvActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <span x-show="expanded" class="flex-1 text-left truncate {{ $dteProvActive ? 'text-cyan-700 dark:text-cyan-300' : 'text-gray-600 dark:text-gray-400' }}">Dte XML</span>
+                    <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'dteprov' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="expanded && openSection === 'dteprov'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-cyan-100 dark:border-cyan-900/40 space-y-0.5 pb-1">
+                    <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Vista DTE</a>
+                </div>
+            </div>
+        @endif
 
         {{-- ─── SECCIÓN: ADMINISTRACIÓN (solo admin) ─── --}}
         @if(auth()->check() && auth()->user()->role === 'admin')
@@ -332,6 +356,7 @@
                 else if (path.startsWith('/excel') || path.startsWith('/odoo')) this.openSection = 'odoo';
                 else if (path.startsWith('/agrak')) this.openSection = 'agrak';
                 else if (path.startsWith('/guias')) this.openSection = 'xml';
+                else if (path.startsWith('/gmail/dtes')) this.openSection = 'dteprov';
                 else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
 
                 // En mobile siempre expandido cuando se abre
