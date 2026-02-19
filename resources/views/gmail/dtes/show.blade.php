@@ -41,6 +41,8 @@
         $estadoPago = $estadoPagoRaw === 'pagado' ? 'Pagado' : 'Sin pagar';
         $workflowStatus = data_get($document, 'workflow_status', 'borrador');
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
+        $montoPorPagar = $estadoPagoRaw === 'pagado' ? 0.0 : (float) ($document->monto_total ?? 0);
+        $fechaPago = data_get($document, 'paid_at') ? \Carbon\Carbon::parse($document->paid_at)->format('d/m/Y') : null;
 
         $taxSummary = collect($document->tax_summary ?? []);
 
@@ -78,6 +80,17 @@
         .dt td { padding:12px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle }
         .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
         .dt tbody tr:last-child td { border-bottom:none }
+        .tabs { display:flex; gap:6px; padding:10px 12px 0; border-bottom:1px solid #edf2f7 }
+        .dark .tabs { border-bottom-color:#273244 }
+        .tab {
+            border:1px solid #e2e8f0; border-bottom:none; border-radius:10px 10px 0 0;
+            background:#f8fafc; color:#64748b; font-size:12px; font-weight:700; padding:8px 12px;
+        }
+        .dark .tab { border-color:#273244; background:#111827; color:#94a3b8 }
+        .tab.active { background:#fff; color:#111827 }
+        .dark .tab.active { background:#161c2c; color:#e2e8f0 }
+        .tax-pill { display:inline-flex; align-items:center; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:700; background:#eef2ff; color:#4f46e5 }
+        .dark .tax-pill { background:#312e81; color:#c7d2fe }
         .totals-zone { border-top:1px solid #e5e7eb }
         .dark .totals-zone { border-top-color:#273244 }
         .totals-grid { width:100%; max-width:520px; margin-left:auto }
@@ -204,18 +217,20 @@
             </div>
 
             <div class="panel">
-                <div class="panel-head">
-                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Lineas de factura</p>
-                    <p class="text-xs text-gray-400">IVA especifico por linea cuando venga informado en XML</p>
+                <div class="tabs">
+                    <button class="tab active">Líneas de factura</button>
+                    <button class="tab">Apuntes contables</button>
+                    <button class="tab">Otra información</button>
+                    <button class="tab">Referencias cruzadas</button>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="dt">
                         <thead>
                             <tr>
-                                <th>Linea</th>
-                                <th>Codigo</th>
                                 <th>Producto</th>
+                                <th>Cuenta</th>
+                                <th>Analítica</th>
                                 <th>Cantidad</th>
                                 <th>UdM</th>
                                 <th>Precio</th>
@@ -226,37 +241,55 @@
                         <tbody>
                             @forelse($lines as $l)
                                 @php
-                                    $taxLabels = collect($l->taxes ?? [])->pluck('descripcion')->filter()->values();
-                                    if ($taxLabels->isEmpty()) {
-                                        $fallback = $l->impuesto_label;
-                                        if (!$fallback) {
-                                            if ((int) ($l->es_exento ?? 0) === 1) {
-                                                $fallback = 'Exento';
-                                            } elseif (!is_null($l->impuesto_tasa)) {
-                                                $fallback = 'IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%';
-                                            } elseif ((float) $document->monto_iva > 0) {
-                                                $fallback = 'IVA incluido';
-                                            } else {
-                                                $fallback = 'Sin IVA';
+                                    $taxLabels = collect($l->taxes ?? [])->map(function ($tax) {
+                                        $type = strtoupper((string) ($tax->tax_type ?? ''));
+                                        $code = (string) ($tax->codigo ?? '');
+                                        $desc = trim((string) ($tax->descripcion ?? ''));
+                                        $rate = $tax->tasa;
+
+                                        if ($type === 'IVA') {
+                                            if (!is_null($rate)) {
+                                                return 'IVA ' . rtrim(rtrim((string) $rate, '0'), '.') . '%';
                                             }
+                                            return $desc !== '' ? $desc : 'IVA';
                                         }
-                                        $taxLabels = collect([$fallback]);
+
+                                        if ($type === 'IMP_ADIC') {
+                                            if ($code === '28') {
+                                                return 'IEC Diesel';
+                                            }
+                                            return $desc !== '' ? preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $desc) : 'Impuesto específico';
+                                        }
+
+                                        return $desc !== '' ? preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $desc) : 'Impuesto';
+                                    })->filter()->values();
+
+                                    if ($taxLabels->isEmpty()) {
+                                        if ((int) ($l->es_exento ?? 0) === 1) {
+                                            $taxLabels = collect(['Exento']);
+                                        } elseif (!is_null($l->impuesto_tasa)) {
+                                            $taxLabels = collect(['IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%']);
+                                        } elseif ((float) $document->monto_iva > 0) {
+                                            $taxLabels = collect(['IVA incluido']);
+                                        } else {
+                                            $taxLabels = collect(['Sin IVA']);
+                                        }
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $l->nro_linea ?? '—' }}</td>
-                                    <td>{{ $l->codigo ?? '—' }}</td>
-                                    <td>{{ $l->descripcion ?? '—' }}</td>
+                                    <td>
+                                        <div class="font-semibold">{{ $l->descripcion ?? '—' }}</div>
+                                        <div class="text-[11px] text-gray-400">{{ $l->codigo ?? '—' }}</div>
+                                    </td>
+                                    <td>332608 HERRAMIENTA...</td>
+                                    <td class="text-gray-400">—</td>
                                     <td>{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
                                     <td>{{ $l->unidad ?? '—' }}</td>
                                     <td>{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
                                     <td>
                                         <div class="flex flex-wrap gap-1">
                                             @foreach($taxLabels as $label)
-                                                @php
-                                                    $prettyLabel = preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', (string) $label);
-                                                @endphp
-                                                <span class="chip bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ $prettyLabel }}</span>
+                                                <span class="tax-pill">{{ $label }}</span>
                                             @endforeach
                                         </div>
                                     </td>
@@ -264,7 +297,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-10 text-gray-400">Sin lineas de detalle.</td>
+                                    <td colspan="8" class="text-center py-10 text-gray-400">Sin líneas de detalle.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -281,7 +314,7 @@
                             </div>
                             <div class="totals-row">
                                 <span class="totals-k">{{ $ivaLabel }}:</span>
-                                <span class="totals-v">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : 'No aplica' }}</span>
+                                <span class="totals-v">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : '$ 0' }}</span>
                             </div>
                             @if($impuestoEspecifico > 0)
                                 <div class="totals-row">
@@ -292,6 +325,15 @@
                             <div class="totals-row totals-row-total">
                                 <span class="totals-k">Total:</span>
                                 <span class="totals-v">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="totals-row mt-3">
+                                <span class="totals-k flex items-center gap-2">
+                                    <svg class="w-5 h-5 {{ $estadoPago === 'Pagado' ? 'text-teal-600' : 'text-amber-600' }}" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10A8 8 0 11.001 9.999 8 8 0 0118 10zm-8.75 3.75a.75.75 0 001.5 0v-4a.75.75 0 00-1.5 0v4zm.75-6.5a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                                    </svg>
+                                    {{ $estadoPago === 'Pagado' ? ('Pagado' . ($fechaPago ? ' el ' . $fechaPago : '')) : 'Pendiente de pago' }}
+                                </span>
+                                <span class="totals-v">$ {{ number_format((float) $montoPorPagar, 0, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>
