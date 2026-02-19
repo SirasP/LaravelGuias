@@ -156,68 +156,49 @@
             @endif
 
             <div class="panel p-3 au d1">
-                <div class="flex flex-wrap gap-2">
-                    <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}">
+                <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                    <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}" class="w-full sm:w-auto">
                         @csrf
-                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
                             Pagar
                         </button>
                     </form>
 
-                    <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}">
+                    <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="w-full sm:w-auto">
                         @csrf
-                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
                             Nota de credito
                         </button>
                     </form>
 
-                    <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}">
+                    <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}" class="w-full sm:w-auto">
                         @csrf
-                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition">
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition">
                             Aceptar documento
                         </button>
                     </form>
 
-                    <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}">
+                    <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="w-full sm:w-auto">
                         @csrf
-                        <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">
                             Agregar a stock
                         </button>
                     </form>
 
                     <a href="{{ route('gmail.inventory.index') }}"
-                        class="px-3 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                         Ver inventario DTE
                     </a>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 au d2">
-                <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Proveedor</p>
-                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{{ $document->proveedor_nombre ?? '—' }}</p>
-                </div>
-                <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Folio</p>
-                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1">{{ $tipo['sigla'] }} {{ $document->folio ?? '—' }}</p>
-                </div>
-                <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Estado</p>
-                    <p class="text-sm font-bold mt-1 {{ $estadoPago === 'Pagado' ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300' }}">{{ $estadoPago }}</p>
-                </div>
-                <div class="stat-card">
-                    <p class="text-[11px] uppercase tracking-wide text-gray-400">Total</p>
-                    <p class="text-sm font-extrabold text-gray-900 dark:text-gray-100 mt-1">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</p>
-                </div>
-            </div>
-
-            <div class="panel au d3">
-                <div class="panel-head">
+            <div class="panel au d2">
+                <div class="panel-head flex-col sm:flex-row sm:items-start">
                     <div>
                         <p class="text-xs text-gray-400">Factura de proveedor</p>
-                        <h1 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ $tipo['sigla'] }} {{ $document->folio ?? '—' }}</h1>
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ $tipo['sigla'] }} {{ $document->folio ?? '—' }}</h1>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span class="chip bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">{{ $tipo['nombre'] }}</span>
                         <span class="chip {{ $estadoPago === 'Pagado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">{{ $estadoPago }}</span>
                         <span class="chip bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{{ strtoupper((string) $workflowStatus) }}</span>
@@ -227,45 +208,45 @@
                     </div>
                 </div>
 
-                <div class="p-4 sm:p-5 grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div>
+                <div class="p-4 sm:p-5 grid grid-cols-1 xl:grid-cols-12 gap-4">
+                    <div class="xl:col-span-7 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="m-card">
                             <p class="text-xs text-gray-400 uppercase tracking-wide">Proveedor</p>
-                            <p class="text-base font-bold text-gray-900 dark:text-gray-100">{{ $document->proveedor_nombre ?? '—' }}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ $document->proveedor_rut ?? '—' }}</p>
+                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1 leading-tight">{{ $document->proveedor_nombre ?? '—' }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $document->proveedor_rut ?? '—' }}</p>
                         </div>
-
-                        <div>
+                        <div class="m-card">
                             <p class="text-xs text-gray-400 uppercase tracking-wide">Referencia</p>
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $document->referencia ?? '—' }}</p>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1 break-words">{{ $document->referencia ?? '—' }}</p>
                         </div>
-
-                        <div>
+                        <div class="m-card">
                             <p class="text-xs text-gray-400 uppercase tracking-wide">Archivo XML</p>
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 break-all">{{ $document->xml_filename ?? '—' }}</p>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1 break-all">{{ $document->xml_filename ?? '—' }}</p>
                         </div>
                     </div>
 
-                    <div class="kv">
-                        <div class="k">Fecha factura</div>
-                        <div class="v">{{ $document->fecha_factura ?? '—' }}</div>
+                    <div class="xl:col-span-5 m-card">
+                        <div class="kv">
+                            <div class="k">Fecha factura</div>
+                            <div class="v">{{ $document->fecha_factura ?? '—' }}</div>
 
-                        <div class="k">Fecha contable</div>
-                        <div class="v">{{ $document->fecha_contable ?? '—' }}</div>
+                            <div class="k">Fecha contable</div>
+                            <div class="v">{{ $document->fecha_contable ?? '—' }}</div>
 
-                        <div class="k">Fecha vencimiento</div>
-                        <div class="v">{{ $document->fecha_vencimiento ?? '—' }}</div>
+                            <div class="k">Fecha vencimiento</div>
+                            <div class="v">{{ $document->fecha_vencimiento ?? '—' }}</div>
 
-                        <div class="k">Tipo DTE</div>
-                        <div class="v">{{ $document->tipo_dte ?? '—' }}</div>
+                            <div class="k">Tipo DTE</div>
+                            <div class="v">{{ $document->tipo_dte ?? '—' }}</div>
 
-                        <div class="k">Numero documento</div>
-                        <div class="v">{{ $document->folio ?? '—' }}</div>
+                            <div class="k">Numero documento</div>
+                            <div class="v">{{ $document->folio ?? '—' }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel au d4">
+            <div class="panel au d3">
                 <div class="tabs">
                     <button class="tab active">Líneas de factura</button>
                     <button class="tab">Apuntes contables</button>
