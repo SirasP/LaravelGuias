@@ -167,29 +167,29 @@
         .total-val { font-size:13px; font-weight:700; color:#334155; font-variant-numeric:tabular-nums }
         .dark .total-val { color:#cbd5e1 }
 
-        .action-btn {
-            width:100%; display:flex; align-items:center; gap:8px;
-            padding:9px 13px; border-radius:12px; font-size:12px; font-weight:700;
-            border:none; cursor:pointer; transition:all .15s; text-decoration:none;
-        }
-        .action-btn svg { width:15px; height:15px; flex-shrink:0 }
-        .action-btn:active { transform:scale(.98) }
-        .ab-emerald { background:#059669; color:#fff }
-        .ab-emerald:hover { background:#047857 }
-        .ab-rose    { background:#e11d48; color:#fff }
-        .ab-rose:hover    { background:#be123c }
-        .ab-sky     { background:#0284c7; color:#fff }
-        .ab-sky:hover     { background:#0369a1 }
-        .ab-violet  { background:#7c3aed; color:#fff }
-        .ab-violet:hover  { background:#6d28d9 }
-        .ab-gray    { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0 }
-        .ab-gray:hover    { background:#e2e8f0 }
-        .dark .ab-gray    { background:#1e2a3b; color:#94a3b8; border-color:#273244 }
-        .dark .ab-gray:hover { background:#273244 }
-
         /* Mobile line card */
         .line-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px }
         .dark .line-card { background:#111827; border-color:#1e2a3b }
+
+        /* Header action buttons */
+        .hdr-btn {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:7px 11px; border-radius:10px; font-size:12px; font-weight:700;
+            border:none; cursor:pointer; transition:all .13s; text-decoration:none; white-space:nowrap;
+        }
+        .hdr-emerald { background:#059669; color:#fff }
+        .hdr-emerald:hover { background:#047857 }
+        .hdr-sky     { background:#0284c7; color:#fff }
+        .hdr-sky:hover     { background:#0369a1 }
+        .hdr-violet  { background:#7c3aed; color:#fff }
+        .hdr-violet:hover  { background:#6d28d9 }
+        .hdr-rose    { background:#e11d48; color:#fff }
+        .hdr-rose:hover    { background:#be123c }
+        .hdr-gray    { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0 }
+        .hdr-gray:hover    { background:#e2e8f0 }
+        .dark .hdr-gray    { background:#1e2a3b; color:#94a3b8; border-color:#273244 }
+        .dark .hdr-gray:hover { background:#273244 }
+        .hdr-btn:active { transform:scale(.97) }
     </style>
 
     <div class="page-bg">
@@ -556,47 +556,6 @@
                                     <p class="ml-auto text-sm font-bold text-amber-600 tabular-nums">$ {{ number_format($montoPorPagar, 0, ',', '.') }}</p>
                                 </div>
                             @endif
-                        </div>
-                    </div>
-
-                    {{-- Acciones --}}
-                    <div class="panel">
-                        <div class="sidebar-section">
-                            <p class="section-label">Acciones</p>
-                            <div class="space-y-2">
-                                <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}">
-                                    @csrf
-                                    <button type="submit" class="action-btn ab-emerald">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        Registrar pago
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}">
-                                    @csrf
-                                    <button type="submit" class="action-btn ab-sky">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                        Aceptar documento
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}">
-                                    @csrf
-                                    <button type="submit" class="action-btn ab-violet">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                                        Agregar a stock
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}">
-                                    @csrf
-                                    <button type="submit" class="action-btn ab-rose">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14H5a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                        Nota de crédito
-                                    </button>
-                                </form>
-                                <a href="{{ route('gmail.inventory.index') }}" class="action-btn ab-gray">
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                                    Ver inventario DTE
-                                </a>
-                            </div>
                         </div>
                     </div>
 
