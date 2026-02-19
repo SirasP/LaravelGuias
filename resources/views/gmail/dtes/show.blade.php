@@ -124,16 +124,41 @@
         }
 
         /* Tabla líneas */
-        .dt { width:100%; border-collapse:collapse; font-size:13px; min-width:900px }
-        .dt thead tr { background:#f8fafc; border-bottom:2px solid #f1f5f9 }
-        .dark .dt thead tr { background:#111827; border-bottom-color:#1e2a3b }
-        .dt th { padding:10px 14px; text-align:left; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#94a3b8; white-space:nowrap }
-        .dt td { padding:12px 14px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle }
+        .dt { width:100%; border-collapse:collapse; font-size:13px; min-width:820px }
+        .dt thead { position:sticky; top:0; z-index:1 }
+        .dt thead tr { background:#f8fafc }
+        .dark .dt thead tr { background:#0f1623 }
+        .dt th {
+            padding:9px 14px; text-align:left; font-size:10px; font-weight:700;
+            letter-spacing:.07em; text-transform:uppercase; color:#94a3b8; white-space:nowrap;
+            box-shadow:inset 0 -2px 0 #e2e8f0;
+        }
+        .dark .dt th { box-shadow:inset 0 -2px 0 #1e2a3b }
+        .dt td { padding:11px 14px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle }
         .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
         .dt tbody tr:last-child td { border-bottom:none }
+        .dt tbody tr:hover td { background:#f5f7ff }
+        .dark .dt tbody tr:hover td { background:rgba(255,255,255,.018) }
+        .amt-col { background:rgba(99,102,241,.04); border-left:1px solid #eef2ff; font-weight:800; color:#1e293b }
+        .dark .amt-col { background:rgba(99,102,241,.08); border-left-color:#1e2a3b; color:#e2e8f0 }
+        .dt tbody tr:hover .amt-col { background:rgba(99,102,241,.09) }
+        .dark .dt tbody tr:hover .amt-col { background:rgba(99,102,241,.14) }
+        .row-num {
+            display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center;
+            border-radius:999px; background:#f1f5f9; color:#94a3b8; font-size:10px; font-weight:700;
+        }
+        .dark .row-num { background:#1e2a3b; color:#64748b }
 
-        .tax-pill { display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-size:11px; font-weight:700; background:#eef2ff; color:#4f46e5 }
-        .dark .tax-pill { background:#312e81; color:#c7d2fe }
+        /* Tax pills */
+        .tax-pill { display:inline-flex; align-items:center; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700 }
+        .tp-iva    { background:#eef2ff; color:#4338ca }
+        .tp-exento { background:#ecfdf5; color:#059669 }
+        .tp-imp    { background:#fff7ed; color:#c2410c }
+        .tp-other  { background:#f1f5f9; color:#475569 }
+        .dark .tp-iva    { background:#1e1b4b; color:#a5b4fc }
+        .dark .tp-exento { background:#022c22; color:#6ee7b7 }
+        .dark .tp-imp    { background:#431407; color:#fdba74 }
+        .dark .tp-other  { background:#1e2a3b; color:#94a3b8 }
 
         /* Tabs */
         .tabs { display:flex; gap:4px; padding:10px 14px 0; border-bottom:1px solid #edf2f7; overflow-x:auto; white-space:nowrap }
@@ -288,22 +313,32 @@
 
                         {{-- Tab: Líneas --}}
                         <div x-show="tab === 'lineas'">
+                            @php
+                                $taxClass = fn(string $lbl): string =>
+                                    str_starts_with($lbl, 'IVA')                                        ? 'tp-iva'
+                                    : ($lbl === 'Exento'                                                ? 'tp-exento'
+                                    : (str_contains($lbl, 'Diesel') || str_contains($lbl, 'specí')     ? 'tp-imp'
+                                    :                                                                    'tp-other'));
+                            @endphp
+
                             {{-- Desktop --}}
                             <div class="hidden lg:block overflow-x-auto">
                                 <table class="dt">
                                     <thead>
                                         <tr>
+                                            <th class="text-center w-10">#</th>
                                             <th>Producto / Descripción</th>
-                                            <th class="text-right">Cant.</th>
-                                            <th>UdM</th>
+                                            <th class="text-right">Cantidad</th>
                                             <th class="text-right">Precio unit.</th>
-                                            <th>Impuestos</th>
-                                            <th class="text-right">Importe</th>
+                                            <th>Impuesto</th>
+                                            <th class="text-right pr-5">Importe</th>
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @php $rowNum = 0; @endphp
                                         @forelse($lines as $l)
                                             @php
+                                                $rowNum++;
                                                 $taxLabels = collect($l->taxes ?? [])->map(function ($tax) {
                                                     $type = strtoupper((string) ($tax->tax_type ?? ''));
                                                     $code = (string) ($tax->codigo ?? '');
@@ -314,7 +349,6 @@
                                                     if ($type === 'IMPTO_RETEN' && $code === '28') return 'IEC Diesel';
                                                     return preg_replace('/^Imp\\. adic\\./i', 'Imp. específico', $desc ?: 'Impuesto');
                                                 })->filter()->values();
-
                                                 if ($taxLabels->isEmpty()) {
                                                     if ((int) ($l->es_exento ?? 0) === 1) $taxLabels = collect(['Exento']);
                                                     elseif (!is_null($l->impuesto_tasa)) $taxLabels = collect(['IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%']);
@@ -323,21 +357,34 @@
                                                 }
                                             @endphp
                                             <tr>
+                                                <td class="text-center">
+                                                    <span class="row-num">{{ $rowNum }}</span>
+                                                </td>
                                                 <td>
                                                     <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $l->descripcion ?? '—' }}</p>
-                                                    @if($l->codigo)<p class="text-[11px] text-gray-400 font-mono mt-0.5">{{ $l->codigo }}</p>@endif
+                                                    @if($l->codigo)
+                                                        <span class="inline-flex mt-0.5 px-1.5 py-px text-[10px] font-mono rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">{{ $l->codigo }}</span>
+                                                    @endif
                                                 </td>
-                                                <td class="text-right font-semibold tabular-nums">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
-                                                <td class="text-gray-500">{{ $l->unidad ?? '—' }}</td>
-                                                <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">$ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
+                                                <td class="text-right whitespace-nowrap">
+                                                    <span class="font-semibold tabular-nums text-gray-800 dark:text-gray-200">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</span>
+                                                    @if($l->unidad)
+                                                        <span class="ml-1 text-[11px] font-semibold text-gray-400">{{ $l->unidad }}</span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
+                                                    $ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}
+                                                </td>
                                                 <td>
                                                     <div class="flex flex-wrap gap-1">
                                                         @foreach($taxLabels as $label)
-                                                            <span class="tax-pill">{{ $label }}</span>
+                                                            <span class="tax-pill {{ $taxClass($label) }}">{{ $label }}</span>
                                                         @endforeach
                                                     </div>
                                                 </td>
-                                                <td class="text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">$ {{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
+                                                <td class="text-right tabular-nums amt-col pr-5 text-sm">
+                                                    $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr>
@@ -349,7 +396,7 @@
                             </div>
 
                             {{-- Móvil --}}
-                            <div class="lg:hidden p-3 space-y-2.5">
+                            <div class="lg:hidden p-3 space-y-2">
                                 @forelse($lines as $l)
                                     @php
                                         $tlm = collect($l->taxes ?? [])->map(function ($tax) {
@@ -362,34 +409,43 @@
                                             if ($type === 'IMPTO_RETEN' && $code === '28') return 'IEC Diesel';
                                             return preg_replace('/^Imp\\. adic\\./i', 'Imp. específico', $desc ?: 'Impuesto');
                                         })->filter()->values();
+                                        if ($tlm->isEmpty()) {
+                                            if ((int) ($l->es_exento ?? 0) === 1) $tlm = collect(['Exento']);
+                                            elseif ($l->impuesto_tasa !== null) $tlm = collect(['IVA ' . rtrim(rtrim((string) $l->impuesto_tasa, '0'), '.') . '%']);
+                                            elseif ((float) $document->monto_iva > 0) $tlm = collect(['IVA incluido']);
+                                            else $tlm = collect(['Sin IVA']);
+                                        }
                                     @endphp
-                                    <div class="line-card">
-                                        <div class="flex items-start justify-between gap-2">
+                                    <div class="line-card border-l-[3px] border-l-indigo-400 dark:border-l-indigo-600">
+                                        <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
                                                 <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $l->descripcion ?? '—' }}</p>
-                                                @if($l->codigo)<p class="text-[11px] text-gray-400 font-mono mt-0.5">{{ $l->codigo }}</p>@endif
+                                                @if($l->codigo)
+                                                    <span class="inline-flex mt-0.5 px-1.5 py-px text-[10px] font-mono rounded bg-gray-100 dark:bg-gray-800 text-gray-500">{{ $l->codigo }}</span>
+                                                @endif
                                             </div>
-                                            <p class="text-base font-black text-gray-900 dark:text-gray-100 tabular-nums shrink-0">$ {{ number_format((float) $l->monto_item, 0, ',', '.') }}</p>
+                                            <p class="text-base font-black text-indigo-600 dark:text-indigo-400 tabular-nums shrink-0">
+                                                $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
+                                            </p>
                                         </div>
-                                        <div class="grid grid-cols-3 gap-2 mt-2.5 text-xs">
+                                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-xs border-t border-gray-100 dark:border-gray-800 pt-3">
                                             <div>
-                                                <p class="text-gray-400 uppercase tracking-wide text-[10px]">Cant.</p>
-                                                <p class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</p>
+                                                <p class="text-gray-400 uppercase tracking-wide text-[10px] mb-0.5">Cantidad</p>
+                                                <p class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
+                                                    {{ number_format((float) $l->cantidad, 2, ',', '.') }}
+                                                    <span class="text-gray-400 ml-0.5 font-normal">{{ $l->unidad ?? '' }}</span>
+                                                </p>
                                             </div>
                                             <div>
-                                                <p class="text-gray-400 uppercase tracking-wide text-[10px]">UdM</p>
-                                                <p class="font-semibold text-gray-700 dark:text-gray-300">{{ $l->unidad ?? '—' }}</p>
-                                            </div>
-                                            <div>
-                                                <p class="text-gray-400 uppercase tracking-wide text-[10px]">Precio</p>
+                                                <p class="text-gray-400 uppercase tracking-wide text-[10px] mb-0.5">Precio unit.</p>
                                                 <p class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">$ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</p>
                                             </div>
                                         </div>
-                                        @if($tlm->isNotEmpty())
-                                            <div class="flex flex-wrap gap-1 mt-2">
-                                                @foreach($tlm as $label)<span class="tax-pill">{{ $label }}</span>@endforeach
-                                            </div>
-                                        @endif
+                                        <div class="flex flex-wrap gap-1 mt-2.5">
+                                            @foreach($tlm as $label)
+                                                <span class="tax-pill {{ $taxClass($label) }}">{{ $label }}</span>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @empty
                                     <p class="text-center text-sm text-gray-400 py-8">Sin líneas de detalle.</p>
@@ -397,26 +453,26 @@
                             </div>
 
                             {{-- Totales --}}
-                            <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800">
-                                <div class="ml-auto max-w-xs space-y-1.5">
-                                    <div class="total-row">
-                                        <span class="total-label">Monto neto</span>
-                                        <span class="total-val">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span>
-                                    </div>
-                                    <div class="total-row">
-                                        <span class="total-label">{{ $ivaLabel }}</span>
-                                        <span class="total-val">$ {{ $ivaMonto > 0 ? number_format($ivaMonto, 0, ',', '.') : '0' }}</span>
-                                    </div>
-                                    @foreach($extraTaxRows as $taxRow)
-                                        <div class="total-row">
-                                            <span class="total-label">{{ $taxRow['label'] }}</span>
-                                            <span class="total-val">$ {{ number_format((float) $taxRow['monto'], 0, ',', '.') }}</span>
+                            <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20">
+                                <div class="flex justify-end">
+                                    <div class="space-y-1.5 min-w-[230px]">
+                                        <div class="flex justify-between items-center gap-10">
+                                            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Neto</span>
+                                            <span class="font-semibold tabular-nums text-gray-600 dark:text-gray-400 text-sm">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span>
                                         </div>
-                                    @endforeach
-                                    <div class="border-t border-gray-200 dark:border-gray-700 pt-2 mt-1">
-                                        <div class="flex justify-between items-baseline gap-3">
-                                            <span class="text-sm font-bold text-gray-700 dark:text-gray-300">Total</span>
-                                            <span class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
+                                        <div class="flex justify-between items-center gap-10">
+                                            <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ $ivaLabel }}</span>
+                                            <span class="font-semibold tabular-nums text-gray-600 dark:text-gray-400 text-sm">$ {{ $ivaMonto > 0 ? number_format($ivaMonto, 0, ',', '.') : '0' }}</span>
+                                        </div>
+                                        @foreach($extraTaxRows as $taxRow)
+                                            <div class="flex justify-between items-center gap-10">
+                                                <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ $taxRow['label'] }}</span>
+                                                <span class="font-semibold tabular-nums text-gray-600 dark:text-gray-400 text-sm">$ {{ number_format((float) $taxRow['monto'], 0, ',', '.') }}</span>
+                                            </div>
+                                        @endforeach
+                                        <div class="border-t border-gray-200 dark:border-gray-700 pt-2.5 mt-1 flex justify-between items-baseline gap-10">
+                                            <span class="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">Total</span>
+                                            <span class="text-2xl font-black tabular-nums text-indigo-600 dark:text-indigo-400">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
                                         </div>
                                     </div>
                                 </div>
