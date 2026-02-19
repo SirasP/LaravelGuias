@@ -384,6 +384,7 @@
                                                             step="0.0001"
                                                             min="0"
                                                             value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
+                                                            onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('line-form-{{ $l->id }}').requestSubmit();}"
                                                             class="w-24 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs text-right">
                                                         @if($l->unidad)
                                                             <span class="ml-1 text-[11px] font-semibold text-gray-400">{{ $l->unidad }}</span>
@@ -403,6 +404,7 @@
                                                             step="0.0001"
                                                             min="0"
                                                             value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
+                                                            onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('line-form-{{ $l->id }}').requestSubmit();}"
                                                             class="w-28 rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs text-right ml-auto">
                                                     @else
                                                         $ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}
@@ -418,11 +420,6 @@
                                                 <td class="text-right tabular-nums amt-col pr-5 text-sm">
                                                     $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
                                                     @if($isDraft)
-                                                        <div class="mt-1.5">
-                                                            <button type="submit" form="line-form-{{ $l->id }}" class="hdr-btn hdr-indigo !py-1.5 !px-2.5 ml-auto">
-                                                                Guardar
-                                                            </button>
-                                                        </div>
                                                         <form id="line-form-{{ $l->id }}" method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="hidden">
                                                             @csrf
                                                         </form>
@@ -493,12 +490,11 @@
                                             <form method="POST" action="{{ route('gmail.dtes.lines.update', ['id' => $document->id, 'lineId' => $l->id]) }}" class="grid grid-cols-2 gap-2 mt-3 border-t border-gray-100 dark:border-gray-800 pt-3">
                                                 @csrf
                                                 <input type="number" name="cantidad" step="0.0001" min="0" value="{{ number_format((float) $l->cantidad, 4, '.', '') }}"
+                                                    onkeydown="if(event.key==='Enter'){event.preventDefault(); this.form.requestSubmit();}"
                                                     class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
                                                 <input type="number" name="precio_unitario" step="0.0001" min="0" value="{{ number_format((float) $l->precio_unitario, 4, '.', '') }}"
+                                                    onkeydown="if(event.key==='Enter'){event.preventDefault(); this.form.requestSubmit();}"
                                                     class="rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 text-xs">
-                                                <button type="submit" class="col-span-2 hdr-btn hdr-indigo justify-center">
-                                                    Guardar
-                                                </button>
                                             </form>
                                         @endif
                                     </div>
