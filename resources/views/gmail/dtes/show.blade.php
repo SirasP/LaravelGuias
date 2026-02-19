@@ -644,12 +644,7 @@
                                 </div>
                             </div>
                         </div>
-                        @if($document->xml_filename)
-                            <div class="sidebar-section">
-                                <p class="section-label">Archivo</p>
-                                <p class="text-[11px] font-mono text-gray-400 break-all leading-relaxed">{{ $document->xml_filename }}</p>
-                            </div>
-                        @endif
+                       
                     </div>
 
                 </div>{{-- /sidebar --}}
