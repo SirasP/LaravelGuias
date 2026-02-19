@@ -32,10 +32,8 @@
     <div class="h-14 flex items-center gap-3 shrink-0 border-b border-gray-100 dark:border-gray-800"
         :class="expanded ? 'px-4' : 'px-0 justify-center'">
         <a href="{{ route('index') }}" class="shrink-0 group flex items-center gap-3" :class="!expanded && 'justify-center w-full'">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200 dark:shadow-indigo-900/50 transition-transform duration-200 group-hover:scale-105">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
+            <div class="w-9 h-9 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 overflow-hidden">
+                <x-application-logo class="w-8 h-8" />
             </div>
             <span x-show="expanded" x-transition:enter="transition ease-out duration-200 delay-100" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
                 class="text-sm font-extrabold text-gray-900 dark:text-gray-100 tracking-tight whitespace-nowrap">Agrícola EHE</span>
