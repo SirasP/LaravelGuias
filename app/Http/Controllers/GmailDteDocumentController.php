@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 
 class GmailDteDocumentController extends Controller
 {
-    private const FACTURA_TYPES = [33, 34, 56];
+    private const FACTURA_TYPES = [33, 34, 56, 61];
     private const BOLETA_TYPES = [39, 41];
     private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
 
