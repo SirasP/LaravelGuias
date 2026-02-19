@@ -385,7 +385,6 @@
             color: #fff;
             border: none;
             cursor: pointer;
-            display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 20px rgba(99, 102, 241, .4);
@@ -427,7 +426,7 @@
     </style>
 
     {{-- FAB móvil --}}
-    <button class="fab lg:hidden"
+    <button class="fab flex lg:hidden"
         @click="$store.ui.open = true; $store.ui.openView = false; $store.ui.selectedUser = null"
         aria-label="Nuevo usuario">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
