@@ -15,7 +15,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
-                <a href="{{ route('gmail.dtes.index') }}"
+                <a href="{{ route('gmail.dtes.list') }}"
                     class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium truncate">
                     Facturas proveedor
                 </a>

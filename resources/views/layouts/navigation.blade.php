@@ -258,8 +258,11 @@
                 </button>
                 <div x-show="expanded && openSection === 'dteprov'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-cyan-100 dark:border-cyan-900/40 space-y-0.5 pb-1">
                     <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.index') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Tablero</a>
+                    <a href="{{ route('gmail.dtes.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Listado</a>
                     <a href="{{ route('gmail.inventory.index') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Inventario DTE</a>
@@ -364,7 +367,7 @@
                 else if (path.startsWith('/excel') || path.startsWith('/odoo')) this.openSection = 'odoo';
                 else if (path.startsWith('/agrak')) this.openSection = 'agrak';
                 else if (path.startsWith('/guias')) this.openSection = 'xml';
-                else if (path.startsWith('/gmail/dtes') || path.startsWith('/gmail/inventory')) this.openSection = 'dteprov';
+                else if (path.startsWith('/gmail/dtes') || path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) this.openSection = 'dteprov';
                 else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
 
                 // En mobile siempre expandido cuando se abre

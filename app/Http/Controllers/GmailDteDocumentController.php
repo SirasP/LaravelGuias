@@ -8,7 +8,84 @@ use Illuminate\Support\Facades\DB;
 
 class GmailDteDocumentController extends Controller
 {
-    public function index(Request $request)
+    public function index()
+    {
+        $docs = DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->select(['payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
+            ->get();
+
+        $today = now()->startOfDay();
+
+        $summary = [
+            'total_docs' => 0,
+            'por_validar_count' => 0,
+            'por_validar_monto' => 0.0,
+            'por_pagar_count' => 0,
+            'por_pagar_monto' => 0.0,
+            'atrasado_count' => 0,
+            'atrasado_monto' => 0.0,
+        ];
+
+        $aging = [
+            'vencido' => 0,
+            'd1_7' => 0,
+            'd8_15' => 0,
+            'd16_30' => 0,
+            'd31_plus' => 0,
+            'no_adeudado' => 0,
+        ];
+
+        foreach ($docs as $doc) {
+            $monto = (float) ($doc->monto_total ?? 0);
+            $isPaid = (string) ($doc->payment_status ?? 'sin_pagar') === 'pagado';
+            $isDraft = (string) ($doc->workflow_status ?? 'aceptado') === 'borrador';
+
+            $summary['total_docs']++;
+
+            if ($isDraft) {
+                $summary['por_validar_count']++;
+                $summary['por_validar_monto'] += $monto;
+            }
+
+            if (!$isPaid) {
+                $summary['por_pagar_count']++;
+                $summary['por_pagar_monto'] += $monto;
+
+                $venc = $doc->fecha_vencimiento ? \Carbon\Carbon::parse($doc->fecha_vencimiento)->startOfDay() : null;
+                if (!$venc) {
+                    $aging['no_adeudado']++;
+                    continue;
+                }
+
+                $days = $venc->diffInDays($today, false);
+                if ($days > 30) {
+                    $aging['d31_plus']++;
+                } elseif ($days > 15) {
+                    $aging['d16_30']++;
+                } elseif ($days > 7) {
+                    $aging['d8_15']++;
+                } elseif ($days > 0) {
+                    $aging['d1_7']++;
+                } elseif ($days === 0) {
+                    $aging['vencido']++;
+                } else {
+                    $aging['no_adeudado']++;
+                }
+
+                if ($days > 0) {
+                    $summary['atrasado_count']++;
+                    $summary['atrasado_monto'] += $monto;
+                }
+            } else {
+                $aging['no_adeudado']++;
+            }
+        }
+
+        return view('gmail.dtes.index', compact('summary', 'aging'));
+    }
+
+    public function list(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
 
@@ -28,7 +105,7 @@ class GmailDteDocumentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('gmail.dtes.index', compact('documents', 'q'));
+        return view('gmail.dtes.list', compact('documents', 'q'));
     }
 
     public function show(int $id)
