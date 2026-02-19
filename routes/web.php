@@ -20,6 +20,7 @@ use App\Http\Controllers\FuelControl\ProductoController;
 use App\Http\Controllers\FuelControl\VehiculoController;
 use App\Http\Controllers\FuelControl\MovimientoController;
 use App\Http\Controllers\GmailAuthController;
+use App\Http\Controllers\GmailDteDocumentController;
 
 
 /*
@@ -438,5 +439,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::delete('/disconnect', [GmailAuthController::class, 'disconnect'])->name('disconnect');
     Route::post('/run', [GmailAuthController::class, 'runNow'])->name('run');
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
+
+    Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
+    Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])
+        ->whereNumber('id')
+        ->name('dtes.show');
 
 });

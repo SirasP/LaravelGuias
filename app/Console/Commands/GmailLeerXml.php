@@ -150,7 +150,10 @@ class GmailLeerXml extends Command
                 /* ─────────────────────────────────
                  | 8. PROCESAR DETALLES
                  ─────────────────────────────────  */
-                foreach ($xml->xpath('//sii:Detalle') as $detalle) {
+                $detalleRows = $xml->xpath('//sii:Detalle') ?? [];
+                $fuelDetails = [];
+
+                foreach ($detalleRows as $detalle) {
 
                     $nombre   = strtoupper((string) $detalle->NmbItem);
                     $cantidad = (float) $detalle->QtyItem;
@@ -161,12 +164,45 @@ class GmailLeerXml extends Command
                         default                            => null,
                     };
 
-                    if (!$productoNombre || $cantidad <= 0) continue;
+                    if (!$productoNombre || $cantidad <= 0) {
+                        continue;
+                    }
+
+                    $fuelDetails[] = [
+                        'producto' => $productoNombre,
+                        'cantidad' => $cantidad,
+                        'filename' => $part->getFilename(),
+                    ];
+                }
+
+                // ✅ Si NO hay Diesel/Gasolina, guardar en módulo DTE XML (no combustible)
+                if (count($fuelDetails) === 0) {
+                    $saved = $this->persistNonFuelDte(
+                        $db,
+                        $msg->getId(),
+                        (string) $part->getFilename(),
+                        $xml,
+                        $fechaEmision
+                    );
+
+                    if ($saved) {
+                        $this->info("🧾 DTE no combustible guardado: {$part->getFilename()}");
+                    } else {
+                        $this->line("⏭ DTE no combustible ya existía: {$part->getFilename()}");
+                    }
+                    continue;
+                }
+
+                foreach ($fuelDetails as $fuel) {
+
+                    $productoNombre = $fuel['producto'];
+                    $cantidad = (float) $fuel['cantidad'];
+                    $filename = $fuel['filename'];
 
                     $this->line("⛽ {$productoNombre} → {$cantidad} L");
 
                     $hash = hash('sha256', implode('|', [
-                        $msg->getId(), $part->getFilename(), $productoNombre, $cantidad
+                        $msg->getId(), $filename, $productoNombre, $cantidad
                     ]));
 
                     if ($db->table('movimientos')->where('hash_unico', $hash)->exists()) {
@@ -199,10 +235,10 @@ class GmailLeerXml extends Command
                         'cantidad'         => $cantidad,
                         'tipo'             => $usaVehiculo ? 'vehiculo' : 'entrada',
                         'origen'           => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
-                        'referencia'       => $part->getFilename(),
+                        'referencia'       => $filename,
                         'requiere_revision'=> $usaVehiculo ? 1 : 0,
                         'estado'           => $estado,
-                        'xml_path'         => $part->getFilename(),
+                        'xml_path'         => $filename,
                         'usuario'          => 'gmail',
                         'fecha_movimiento' => $fechaEmision,
                         'hash_unico'       => $hash,
@@ -219,7 +255,7 @@ class GmailLeerXml extends Command
                         'movimiento_id'=> $movimientoId,
                         'mensaje'      => $usaVehiculo
                             ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
-                            : "+{$cantidad} L desde XML ({$part->getFilename()})",
+                            : "+{$cantidad} L desde XML ({$filename})",
                         'created_at'   => now(),
                         'updated_at'   => now(),
                     ]);
@@ -242,7 +278,7 @@ class GmailLeerXml extends Command
                             'titulo'  => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
                             'mensaje' => $usaVehiculo
                                 ? "{$cantidad} L (Ley 18.502)"
-                                : "+{$cantidad} L desde XML ({$part->getFilename()})",
+                                : "+{$cantidad} L desde XML ({$filename})",
                             'producto' => $productoNombre,  // 🔥 Diesel o Gasolina
                             'cantidad' => $cantidad,
                             'movimiento_id' => $movimientoId,
@@ -278,6 +314,88 @@ class GmailLeerXml extends Command
 
         $this->info('✔ Proceso completo.');
         return Command::SUCCESS;
+    }
+
+    /**
+     * Guardar DTE no combustible para módulo administrativo.
+     */
+    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision): bool
+    {
+        $get = function (string $path) use ($xml): ?string {
+            $node = $xml->xpath($path)[0] ?? null;
+            if (!$node) {
+                return null;
+            }
+            $val = trim((string) $node);
+            return $val === '' ? null : $val;
+        };
+
+        $tipoDte = (int) ($get('//sii:Encabezado/sii:IdDoc/sii:TipoDTE') ?? 0);
+        $folio = $get('//sii:Encabezado/sii:IdDoc/sii:Folio');
+        $proveedorRut = $get('//sii:Encabezado/sii:Emisor/sii:RUTEmisor');
+        $proveedorNombre = $get('//sii:Encabezado/sii:Emisor/sii:RznSoc')
+            ?? $get('//sii:Encabezado/sii:Emisor/sii:RznSocEmisor');
+
+        $fechaFactura = $get('//sii:Encabezado/sii:IdDoc/sii:FchEmis');
+        $fechaContable = $fechaFactura;
+        $fechaVencimiento = $get('//sii:Encabezado/sii:IdDoc/sii:FchVenc');
+
+        $referencia = $get('//sii:Referencia/sii:NroRef') ?? $get('//sii:Referencia/sii:RazonRef');
+
+        $montoNeto = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntNeto') ?? 0);
+        $montoIva = (float) ($get('//sii:Encabezado/sii:Totales/sii:IVA') ?? 0);
+        $montoTotal = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntTotal') ?? 0);
+
+        $hash = hash('sha256', implode('|', [
+            $messageId,
+            $filename,
+            (string) $tipoDte,
+            (string) $folio,
+            (string) $proveedorRut,
+            (string) $montoTotal,
+        ]));
+
+        if ($db->table('gmail_dte_documents')->where('hash_unico', $hash)->exists()) {
+            return false;
+        }
+
+        $docId = $db->table('gmail_dte_documents')->insertGetId([
+            'gmail_message_id' => $messageId,
+            'xml_filename' => $filename,
+            'xml_path' => 'xml/' . $filename,
+            'hash_unico' => $hash,
+            'tipo_dte' => $tipoDte ?: null,
+            'folio' => $folio,
+            'proveedor_rut' => $proveedorRut,
+            'proveedor_nombre' => $proveedorNombre,
+            'fecha_factura' => $fechaFactura ? Carbon::parse($fechaFactura)->toDateString() : $fechaEmision->toDateString(),
+            'fecha_contable' => $fechaContable ? Carbon::parse($fechaContable)->toDateString() : $fechaEmision->toDateString(),
+            'fecha_vencimiento' => $fechaVencimiento ? Carbon::parse($fechaVencimiento)->toDateString() : null,
+            'referencia' => $referencia,
+            'monto_neto' => $montoNeto,
+            'monto_iva' => $montoIva,
+            'monto_total' => $montoTotal,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $lines = $xml->xpath('//sii:Detalle') ?? [];
+        foreach ($lines as $line) {
+            $db->table('gmail_dte_document_lines')->insert([
+                'document_id' => $docId,
+                'nro_linea' => (int) ((string) ($line->NroLinDet ?? 0)),
+                'codigo' => trim((string) ($line->CdgItem->VlrCodigo ?? '')) ?: null,
+                'descripcion' => trim((string) ($line->NmbItem ?? '')) ?: null,
+                'cantidad' => (float) ((string) ($line->QtyItem ?? 0)),
+                'unidad' => trim((string) ($line->UnmdItem ?? '')) ?: null,
+                'precio_unitario' => (float) ((string) ($line->PrcItem ?? 0)),
+                'monto_item' => (float) ((string) ($line->MontoItem ?? 0)),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return true;
     }
 
     /**
