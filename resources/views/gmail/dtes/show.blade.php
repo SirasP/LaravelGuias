@@ -42,46 +42,7 @@
         $workflowStatus = data_get($document, 'workflow_status', 'borrador');
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
 
-        $taxSummary = collect();
-
-        if ((float) $document->monto_iva > 0) {
-            $taxSummary->push([
-                'label' => 'IVA',
-                'monto' => (float) $document->monto_iva,
-                'informado' => true,
-            ]);
-        }
-
-        foreach ($lines as $line) {
-            foreach (($line->taxes ?? collect()) as $tax) {
-                $type = strtoupper((string) ($tax->tax_type ?? ''));
-                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
-                $monto = $tax->monto;
-                $key = $type . '|' . $label;
-
-                // Evita duplicar IVA cuando no tiene monto por línea y ya se muestra el IVA global.
-                if ($type === 'IVA' && is_null($monto)) {
-                    continue;
-                }
-
-                if (!$taxSummary->has($key)) {
-                    $taxSummary->put($key, [
-                        'label' => $label,
-                        'monto' => 0.0,
-                        'informado' => false,
-                    ]);
-                }
-
-                $row = $taxSummary->get($key);
-                if (!is_null($monto)) {
-                    $row['monto'] += (float) $monto;
-                    $row['informado'] = true;
-                }
-                $taxSummary->put($key, $row);
-            }
-        }
-
-        $taxSummary = $taxSummary->values();
+        $taxSummary = collect($document->tax_summary ?? []);
     @endphp
 
     <style>

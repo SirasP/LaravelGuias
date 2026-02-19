@@ -163,6 +163,109 @@ class GmailDteDocumentController extends Controller
             $line->taxes = $taxesByLine->get($line->id, collect());
         }
 
+        $document->tax_summary = $this->buildTaxSummary($document, $lines);
+
         return [$document, $lines];
+    }
+
+    private function buildTaxSummary($document, $lines): array
+    {
+        $summary = [];
+
+        $add = function (string $key, string $label, ?float $monto, bool $informado = true) use (&$summary): void {
+            if (!isset($summary[$key])) {
+                $summary[$key] = [
+                    'label' => $label,
+                    'monto' => 0.0,
+                    'informado' => false,
+                ];
+            }
+
+            if (!is_null($monto)) {
+                $summary[$key]['monto'] += (float) $monto;
+                $summary[$key]['informado'] = true;
+            } elseif ($informado) {
+                $summary[$key]['informado'] = $summary[$key]['informado'] || $informado;
+            }
+        };
+
+        if ((float) ($document->monto_iva ?? 0) > 0) {
+            $add('IVA', 'IVA', (float) $document->monto_iva, true);
+        }
+
+        // Montos provenientes de impuestos por línea (si vienen explícitos).
+        foreach ($lines as $line) {
+            foreach (($line->taxes ?? collect()) as $tax) {
+                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
+                $type = strtoupper((string) ($tax->tax_type ?? 'TAX'));
+                $monto = is_null($tax->monto) ? null : (float) $tax->monto;
+                $add($type . '|' . $label, $label, $monto, !is_null($monto));
+            }
+        }
+
+        // Busca montos en el XML crudo (Totales), p.ej. MntImp / ImptoReten.
+        $xmlRaw = (string) ($document->xml_raw ?? '');
+        if (trim($xmlRaw) !== '') {
+            libxml_use_internal_errors(true);
+            $xml = simplexml_load_string($xmlRaw);
+            if ($xml) {
+                $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
+                $tot = $xml->xpath('//sii:Encabezado/sii:Totales')[0] ?? null;
+
+                if ($tot) {
+                    $tasaIva = trim((string) ($tot->TasaIVA ?? ''));
+                    if ($tasaIva !== '' && isset($summary['IVA'])) {
+                        $summary['IVA']['label'] = 'IVA ' . rtrim(rtrim($tasaIva, '0'), '.') . '%';
+                    }
+
+                    $mntImp = (float) ((string) ($tot->MntImp ?? 0));
+                    if ($mntImp > 0) {
+                        $add('MntImp', 'Impuestos específicos', $mntImp, true);
+                    }
+
+                    if (isset($tot->ImptoReten)) {
+                        foreach ($tot->ImptoReten as $ret) {
+                            $tipo = trim((string) ($ret->TipoImp ?? ''));
+                            $tasa = trim((string) ($ret->TasaImp ?? ''));
+                            $monto = is_numeric((string) ($ret->MontoImp ?? null)) ? (float) $ret->MontoImp : null;
+
+                            $label = 'Impuesto retenido';
+                            if ($tipo !== '') {
+                                $label .= ' ' . $tipo;
+                            }
+                            if ($tasa !== '') {
+                                $label .= ' (' . rtrim(rtrim($tasa, '0'), '.') . '%)';
+                            }
+
+                            $add('RET|' . $label, $label, $monto, !is_null($monto));
+                        }
+                    }
+
+                    foreach ($tot->children() as $child) {
+                        $name = $child->getName();
+                        if (!str_starts_with($name, 'Mnt')) {
+                            continue;
+                        }
+                        if (in_array($name, ['MntNeto', 'MntTotal', 'MntImp'], true)) {
+                            continue;
+                        }
+
+                        $value = (float) ((string) $child);
+                        if ($value <= 0) {
+                            continue;
+                        }
+
+                        $label = match ($name) {
+                            'MntExe' => 'Monto exento',
+                            default => $name,
+                        };
+                        $add('TOT|' . $name, $label, $value, true);
+                    }
+                }
+            }
+            libxml_clear_errors();
+        }
+
+        return array_values($summary);
     }
 }
