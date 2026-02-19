@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between w-full gap-4">
+        <div class="flex items-center justify-between w-full gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
                 <a href="{{ route('gmail.dtes.index') }}"
                     class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium truncate">
@@ -13,13 +13,39 @@
                     {{ $tipo['sigla'] ?? 'DTE' }} {{ $document->folio ?? '—' }}
                 </span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <a href="{{ route('gmail.dtes.print', $document->id) }}?autoprint=1" target="_blank"
-                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
-                           bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition">
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+                <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="hdr-btn hdr-emerald">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span class="hidden sm:inline">Registrar pago</span>
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('gmail.dtes.accept', $document->id) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="hdr-btn hdr-sky">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="hidden sm:inline">Aceptar</span>
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="hdr-btn hdr-violet">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        <span class="hidden sm:inline">Agregar stock</span>
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="hdr-btn hdr-rose">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14H5a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span class="hidden sm:inline">Nota crédito</span>
+                    </button>
+                </form>
+                <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
+                <a href="{{ route('gmail.dtes.print', $document->id) }}?autoprint=1" target="_blank" class="hdr-btn hdr-gray">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                     </svg>
                     <span class="hidden sm:inline">Imprimir</span>
                 </a>
