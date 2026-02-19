@@ -275,33 +275,6 @@
         }
     </style>
 
-    {{-- Flash --}}
-    @if(session('success'))
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl
-                    bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium
-                    dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ session('success') }}
-            </div>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl
-                    bg-red-50 border border-red-200 text-red-700 text-sm font-medium
-                    dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                {{ session('error') }}
-            </div>
-        </div>
-    @endif
-
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5" x-data="gmailDashboard()">
 
