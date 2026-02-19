@@ -191,31 +191,7 @@ Condición: $store.ui.openView === true
                                            transition-colors focus:outline-none focus:ring-2
                                            focus:ring-indigo-500 focus:ring-offset-2" :class="$store.ui.selectedUser.is_active
                                         ? 'bg-emerald-500'
-                                        : 'bg-gray-200 dark:bg-gray-700'" @click="
-                                        const prev = $store.ui.selectedUser.is_active;
-                                        $store.ui.selectedUser.is_active = !prev;
-                                        const url = '{{ route('users.toggleActive', '__ID__') }}'.replace('__ID__', $store.ui.selectedUser.id);
-                                        fetch(url, {
-                                            method: 'PATCH',
-                                            credentials: 'same-origin',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                                                'Accept': 'application/json'
-                                            },
-                                            body: JSON.stringify({ is_active: $store.ui.selectedUser.is_active })
-                                        })
-                                        .then(async r => {
-                                            const data = await r.json();
-                                            if (!r.ok || !data.ok) throw data;
-                                            $store.ui.selectedUser.is_active = data.is_active;
-                                            Swal.fire({ icon:'success', title:'Estado actualizado', text:data.message, timer:1200, showConfirmButton:false });
-                                        })
-                                        .catch(() => {
-                                            $store.ui.selectedUser.is_active = prev;
-                                            Swal.fire({ icon:'error', title:'Error', text:'No se pudo actualizar el estado.' });
-                                        });
-                                    ">
+                                        : 'bg-gray-200 dark:bg-gray-700'" @click="toggleActive($store.ui.selectedUser)">
                                 <span
                                     class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
                                     :class="$store.ui.selectedUser.is_active ? 'translate-x-6' : 'translate-x-1'">
@@ -252,6 +228,18 @@ Condición: $store.ui.openView === true
                             <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Email</p>
                             <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 break-all"
                                 x-text="$store.ui.selectedUser.email"></p>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 dark:border-gray-800
+                                    bg-gray-50 dark:bg-gray-950 px-4 py-3">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Rol</p>
+                            <select class="w-full rounded-xl border border-gray-200 dark:border-gray-700
+                                           bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100
+                                           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                :value="$store.ui.selectedUser.role || 'viewer'"
+                                @change="updateRole($store.ui.selectedUser, $event.target.value)">
+                                <option value="viewer">viewer</option>
+                                <option value="admin">admin</option>
+                            </select>
                         </div>
                     </div>
 

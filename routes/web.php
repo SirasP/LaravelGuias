@@ -174,6 +174,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::patch('/users/{user}/toggle-active', [UserController::class, 'toggleActive'])
         ->name('users.toggleActive');
+    Route::patch('/users/{user}/role', [UserController::class, 'updateRole'])
+        ->name('users.updateRole');
 });
 
 /*
@@ -417,10 +419,10 @@ Route::middleware(['auth'])
 
 /*
 |--------------------------------------------------------------------------
-| GMAIL (todos los autenticados)
+| GMAIL (solo ADMIN)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->prefix('gmail')->name('gmail.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->group(function () {
 
     Route::get('/', [GmailAuthController::class, 'index'])->name('index');
     Route::get('/connect', [GmailAuthController::class, 'redirect'])->name('redirect');

@@ -53,4 +53,20 @@ class UserController extends Controller
             'message' => $user->is_active ? 'Usuario activado' : 'Usuario desactivado',
         ]);
     }
+
+    public function updateRole(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'role' => ['required', 'in:admin,viewer'],
+        ]);
+
+        $user->role = $validated['role'];
+        $user->save();
+
+        return response()->json([
+            'ok' => true,
+            'role' => $user->role,
+            'message' => 'Rol actualizado',
+        ]);
+    }
 }

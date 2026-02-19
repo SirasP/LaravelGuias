@@ -5,9 +5,21 @@
     ═══════════════════════════════════════════════════ --}}
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-4">
-            <div>
-                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Usuarios</h2>
-                <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Gestión de accesos al sistema</p>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Usuarios</h2>
+                    <p class="text-xs text-gray-400 mt-0.5 hidden sm:block">Gestión de accesos al sistema</p>
+                </div>
+            </div>
+            <div class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                En línea · {{ now()->format('d M Y, H:i') }}
             </div>
         </div>
     </x-slot>
@@ -93,7 +105,8 @@
             border-bottom: 1px solid #f1f5f9;
             display: flex;
             align-items: center;
-            gap: 10px
+            justify-content: space-between;
+            gap: 12px
         }
 
         .dark .panel-head {
@@ -408,6 +421,120 @@
             color: #94a3b8
         }
 
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .dark .stat-card {
+            background: #161c2c;
+            border-color: #1e2a3b
+        }
+
+        .section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: #94a3b8
+        }
+
+        .search-wrap {
+            position: relative
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            color: #9ca3af;
+            pointer-events: none
+        }
+
+        .search-input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            padding: 10px 12px 10px 35px;
+            font-size: 13px;
+            color: #111827;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s
+        }
+
+        .search-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .12)
+        }
+
+        .dark .search-input {
+            border-color: #1e2a3b;
+            background: #0d1117;
+            color: #f1f5f9
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase
+        }
+
+        .role-admin {
+            background: #fee2e2;
+            color: #b91c1c
+        }
+
+        .role-viewer {
+            background: #e0e7ff;
+            color: #4338ca
+        }
+
+        .dark .role-admin {
+            background: rgba(220, 38, 38, .15);
+            color: #f87171
+        }
+
+        .dark .role-viewer {
+            background: rgba(99, 102, 241, .15);
+            color: #a5b4fc
+        }
+
+        .switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            width: 42px;
+            height: 24px;
+            border-radius: 999px;
+            transition: background-color .15s
+        }
+
+        .switch-dot {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+            transition: transform .15s
+        }
+
         /* Empty state */
         .empty-icon {
             width: 44px;
@@ -434,11 +561,54 @@
         </svg>
     </button>
 
-    <div class="page-bg" x-data="{ users: @js($movimientos) }">
+    <div class="page-bg" x-data="usersDashboard(@js($movimientos))">
 
         {{-- Modales --}}
         @include('users.partials.modals')
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+            <p class="section-label mb-3 au d1">Resumen</p>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                <div class="stat-card au d1">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums" x-text="users.length"></p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="stat-card au d2">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Activos</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums" x-text="activeCount"></p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="stat-card au d3 col-span-2 sm:col-span-1">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Inactivos</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums" x-text="inactiveCount"></p>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-900/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
@@ -446,16 +616,33 @@
                 <div class="lg:col-span-8 xl:col-span-9">
                     <div class="hidden sm:block panel au d1">
                         <div class="panel-head">
-                            <div class="icon-dot bg-indigo-50 dark:bg-indigo-900/30">
-                                <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none"
-                                    stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
+                            <div class="flex items-center gap-2.5">
+                                <div class="icon-dot bg-indigo-50 dark:bg-indigo-900/30">
+                                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Usuarios registrados</p>
+                                    <p class="text-xs text-gray-400">
+                                        <span x-text="filteredUsers.length"></span> visibles
+                                        <span class="mx-1">/</span>
+                                        <span x-text="users.length"></span> en el sistema
+                                    </p>
+                                </div>
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Usuarios registrados</p>
-                                <p class="text-xs text-gray-400"><span x-text="users.length"></span> en el sistema</p>
+
+                            <div class="w-full max-w-sm hidden md:block">
+                                <div class="search-wrap">
+                                    <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                                    </svg>
+                                    <input x-model="q" type="text" class="search-input"
+                                        placeholder="Buscar por nombre, email o rol...">
+                                </div>
                             </div>
                         </div>
 
@@ -466,12 +653,13 @@
                                         <th class="w-12">ID</th>
                                         <th>Nombre</th>
                                         <th>Email</th>
+                                        <th>Rol</th>
                                         <th>Estado</th>
                                         <th class="r w-24">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="user in users" :key="user.id">
+                                    <template x-for="user in filteredUsers" :key="user.id">
                                         <tr>
                                             <td><span class="id-badge" x-text="'#' + user.id"></span></td>
 
@@ -489,14 +677,23 @@
                                             <td><span class="email-chip" x-text="user.email"></span></td>
 
                                             <td>
-                                                <span :class="user.is_active ? 'badge-active' : 'badge-inactive'">
-                                                    <template x-if="user.is_active">
-                                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8">
-                                                            <circle cx="4" cy="4" r="3" />
-                                                        </svg>
-                                                    </template>
-                                                    <span x-text="user.is_active ? 'Activo' : 'Inactivo'"></span>
-                                                </span>
+                                                <span class="role-badge"
+                                                    :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : 'role-viewer'"
+                                                    x-text="(user.role || 'viewer')"></span>
+                                            </td>
+
+                                            <td>
+                                                <div class="inline-flex items-center gap-2">
+                                                    <button type="button" role="switch" :aria-checked="user.is_active"
+                                                        class="switch focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        :class="user.is_active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'"
+                                                        @click="toggleActive(user)">
+                                                        <span class="switch-dot"
+                                                            :class="user.is_active ? 'translate-x-[18px]' : 'translate-x-0'"></span>
+                                                    </button>
+                                                    <span :class="user.is_active ? 'badge-active' : 'badge-inactive'"
+                                                        x-text="user.is_active ? 'Activo' : 'Inactivo'"></span>
+                                                </div>
                                             </td>
 
                                             <td class="text-right">
@@ -548,7 +745,7 @@
                                     </template>
 
                                     <tr x-show="users.length === 0">
-                                        <td colspan="5" class="py-14 text-center">
+                                        <td colspan="6" class="py-14 text-center">
                                             <div class="empty-icon">
                                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
@@ -562,6 +759,12 @@
                                             <p class="text-xs text-gray-400 mt-1">Crea el primero con el formulario.</p>
                                         </td>
                                     </tr>
+
+                                    <tr x-show="users.length > 0 && filteredUsers.length === 0">
+                                        <td colspan="6" class="py-14 text-center text-sm text-gray-400">
+                                            No se encontraron usuarios para "<span x-text="q"></span>".
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -569,11 +772,21 @@
 
                     {{-- ── CARDS MÓVIL ──────────────────────── --}}
                     <div class="sm:hidden space-y-2 au d1">
+                        <div class="mb-2">
+                            <div class="search-wrap">
+                                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                                </svg>
+                                <input x-model="q" type="text" class="search-input"
+                                    placeholder="Buscar por nombre, email o rol...">
+                            </div>
+                        </div>
                         <div class="flex items-center justify-between mb-1 px-1">
-                            <span class="s-label"><span x-text="users.length"></span> usuario(s)</span>
+                            <span class="s-label"><span x-text="filteredUsers.length"></span> usuario(s)</span>
                         </div>
 
-                        <template x-for="user in users" :key="user.id">
+                        <template x-for="user in filteredUsers" :key="user.id">
                             <div class="m-card">
                                 <div class="flex items-center gap-3 mb-2">
                                     <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/40
@@ -584,8 +797,18 @@
                                         <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate"
                                             x-text="user.name"></p>
                                         <p class="text-xs email-chip truncate" x-text="user.email"></p>
+                                        <span class="role-badge mt-1"
+                                            :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : 'role-viewer'"
+                                            x-text="(user.role || 'viewer')"></span>
                                     </div>
                                     <span :class="user.is_active ? 'badge-active' : 'badge-inactive'">
+                                        <button type="button" role="switch" :aria-checked="user.is_active"
+                                            class="switch mr-2 align-middle focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            :class="user.is_active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'"
+                                            @click="toggleActive(user)">
+                                            <span class="switch-dot"
+                                                :class="user.is_active ? 'translate-x-[18px]' : 'translate-x-0'"></span>
+                                        </button>
                                         <span x-text="user.is_active ? 'Activo' : 'Inactivo'"></span>
                                     </span>
                                 </div>
@@ -635,6 +858,10 @@
 
                         <div x-show="users.length === 0" class="m-card text-center text-sm text-gray-400 py-12">
                             No hay usuarios registrados.
+                        </div>
+                        <div x-show="users.length > 0 && filteredUsers.length === 0"
+                            class="m-card text-center text-sm text-gray-400 py-12">
+                            No hay resultados para "<span x-text="q"></span>".
                         </div>
                     </div>
                 </div>
@@ -708,5 +935,78 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function usersDashboard(initialUsers) {
+            return {
+                q: '',
+                users: Array.isArray(initialUsers) ? initialUsers : [],
+                get filteredUsers() {
+                    const term = (this.q || '').toLowerCase().trim();
+                    if (!term) return this.users;
+                    return this.users.filter((u) => {
+                        const name = (u.name || '').toLowerCase();
+                        const email = (u.email || '').toLowerCase();
+                        const role = (u.role || 'viewer').toLowerCase();
+                        return name.includes(term) || email.includes(term) || role.includes(term);
+                    });
+                },
+                get activeCount() {
+                    return this.users.filter((u) => Boolean(u.is_active)).length;
+                },
+                get inactiveCount() {
+                    return this.users.length - this.activeCount;
+                },
+                async toggleActive(user) {
+                    const prev = Boolean(user.is_active);
+                    user.is_active = !prev;
+                    const url = '{{ route('users.toggleActive', '__ID__') }}'.replace('__ID__', user.id);
+                    try {
+                        const res = await fetch(url, {
+                            method: 'PATCH',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ is_active: user.is_active })
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) throw new Error('update-failed');
+                        user.is_active = data.is_active;
+                        Swal.fire({ icon:'success', title:'Estado actualizado', text:data.message, timer:1200, showConfirmButton:false });
+                    } catch (e) {
+                        user.is_active = prev;
+                        Swal.fire({ icon:'error', title:'Error', text:'No se pudo actualizar el estado.' });
+                    }
+                },
+                async updateRole(user, role) {
+                    const prev = (user.role || 'viewer');
+                    user.role = role;
+                    const url = '{{ route('users.updateRole', '__ID__') }}'.replace('__ID__', user.id);
+                    try {
+                        const res = await fetch(url, {
+                            method: 'PATCH',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ role })
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) throw new Error('update-failed');
+                        user.role = data.role;
+                        Swal.fire({ icon:'success', title:'Rol actualizado', text:data.message, timer:1200, showConfirmButton:false });
+                    } catch (e) {
+                        user.role = prev;
+                        Swal.fire({ icon:'error', title:'Error', text:'No se pudo actualizar el rol.' });
+                    }
+                }
+            };
+        }
+    </script>
 
 </x-app-layout>
