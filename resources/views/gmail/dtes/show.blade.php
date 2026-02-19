@@ -318,7 +318,7 @@
 
                 <div class="p-4 totals-zone">
                     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                        <p class="text-3xl text-gray-400 dark:text-gray-500">Términos y condiciones</p>
+                       
                         <div class="totals-grid">
                             <table class="totals-table">
                                 <tbody>
