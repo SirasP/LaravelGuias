@@ -70,7 +70,7 @@ class GmailDteDocumentController extends Controller
                 'updated_at' => now(),
             ]);
 
-        return back()->with('success', 'Pago desregistrado.');
+        return back()->with('success', 'Pago cancelado.');
     }
 
     public function markDraft(int $id)
