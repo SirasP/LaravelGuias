@@ -66,7 +66,7 @@ class GmailDteDocumentController extends Controller
     {
         $docsQuery = DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
-            ->select(['tipo_dte', 'payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
+            ->select(['tipo_dte', 'payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_neto', 'monto_iva', 'monto_total'])
             ->whereIn('tipo_dte', $types)
             ->where(function ($query) {
                 $query->whereNull('workflow_status')
@@ -101,19 +101,24 @@ class GmailDteDocumentController extends Controller
 
         foreach ($docs as $doc) {
             $sign = ((int) ($doc->tipo_dte ?? 0) === 61) ? -1.0 : 1.0;
-            $montoTotal = (float) ($doc->monto_total ?? 0) * $sign;
+            // Tablero con IVA: usa monto_total; si viene vacío, cae a neto + IVA.
+            $grossWithIva = (float) ($doc->monto_total ?? 0);
+            if ($grossWithIva <= 0) {
+                $grossWithIva = (float) ($doc->monto_neto ?? 0) + (float) ($doc->monto_iva ?? 0);
+            }
+            $montoConIva = $grossWithIva * $sign;
             $isPaid = (string) ($doc->payment_status ?? 'sin_pagar') === 'pagado';
             $isDraft = (string) ($doc->workflow_status ?? 'aceptado') === 'borrador';
             $saldoPendienteRaw = property_exists($doc, 'saldo_pendiente')
                 ? (float) ($doc->saldo_pendiente ?? 0)
-                : ($isPaid ? 0.0 : (float) ($doc->monto_total ?? 0));
+                : ($isPaid ? 0.0 : $grossWithIva);
             $saldoPendiente = $saldoPendienteRaw * $sign;
 
             $summary['total_docs']++;
 
             if ($isDraft) {
                 $summary['por_validar_count']++;
-                $summary['por_validar_monto'] += $saldoPendiente;
+                $summary['por_validar_monto'] += $montoConIva;
             }
 
             if (!$isPaid) {
