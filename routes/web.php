@@ -142,14 +142,19 @@ Route::get('/gmail/test', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])
-    ->get('/dashboard', function () {
+    ->get('/usuarios', function () {
         $movimientos = DB::table('users')
             ->orderBy('id', 'desc')
             ->limit(20)
             ->get();
 
-        return view('dashboard', compact('movimientos'));
+        return view('usuarios.index', compact('movimientos'));
     })->name('dashboard');
+
+Route::middleware(['auth', 'role:admin'])
+    ->get('/dashboard', function () {
+        return redirect()->route('dashboard');
+    });
 
 /*
 |--------------------------------------------------------------------------
