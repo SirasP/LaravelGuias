@@ -1,4 +1,16 @@
 <x-app-layout>
+    @php
+        $workflowStatus = data_get($document, 'workflow_status', 'borrador');
+        $isDraft = $workflowStatus === 'borrador';
+        $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
+        $headerTipoSigla = match ((int) ($document->tipo_dte ?? 0)) {
+            33 => 'FAC',
+            34 => 'FEX',
+            56 => 'ND',
+            61 => 'NC',
+            default => 'DTE',
+        };
+    @endphp
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
@@ -10,7 +22,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                 </svg>
                 <span class="font-bold text-gray-700 dark:text-gray-300 truncate">
-                    {{ $tipo['sigla'] ?? 'DTE' }} {{ $document->folio ?? '—' }}
+                    {{ $headerTipoSigla }} {{ $document->folio ?? '—' }}
                 </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
