@@ -56,14 +56,8 @@
                 return !str_starts_with($label, 'IVA') && ((float) ($tax['monto'] ?? 0) > 0);
             })
             ->map(function ($tax) {
-                $label = trim((string) ($tax['label'] ?? 'Impuesto'));
-                $labelUpper = strtoupper($label);
-                if (str_contains($labelUpper, 'IMPUESTO ESPECIFICO') || str_contains($labelUpper, 'ILA')) {
-                    $label = 'Impuestos Específicos';
-                }
-
                 return [
-                    'label' => $label,
+                    'label' => trim((string) ($tax['label'] ?? 'Impuesto')),
                     'monto' => (float) ($tax['monto'] ?? 0),
                 ];
             })
@@ -103,24 +97,25 @@
         .dark .tax-pill { background:#312e81; color:#c7d2fe }
         .totals-zone { border-top:1px solid #e5e7eb }
         .dark .totals-zone { border-top-color:#273244 }
-        .totals-grid { width:100%; max-width:560px; margin-left:auto }
+        .totals-grid { width:100%; max-width:620px; margin-left:auto; padding-right:12px }
         .totals-table { width:100%; border-collapse:collapse }
         .totals-table td { padding:2px 0 }
-        .totals-k { color:#4b5563; font-size:20px; font-weight:500; text-align:right; padding-right:16px }
+        .totals-k { color:#4b5563; font-size:16px; font-weight:600; text-align:right; padding-right:16px; white-space:nowrap }
         .dark .totals-k { color:#9ca3af }
-        .totals-v { color:#374151; font-size:20px; font-weight:700; text-align:right; white-space:nowrap }
+        .totals-v { color:#374151; font-size:16px; font-weight:700; text-align:right; white-space:nowrap }
         .dark .totals-v { color:#cbd5e1 }
-        .totals-total .totals-k { color:#374151; font-size:42px; font-weight:700 }
-        .totals-total .totals-v { color:#1f2937; font-size:52px; font-weight:800; line-height:1 }
+        .totals-total .totals-k { color:#374151; font-size:20px; font-weight:800 }
+        .totals-total .totals-v { color:#1f2937; font-size:44px; font-weight:800; line-height:1 }
         .dark .totals-total .totals-k { color:#cbd5e1 }
         .dark .totals-total .totals-v { color:#f8fafc }
         .totals-pay { margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px }
 
         @media (max-width: 768px) {
             .kv { grid-template-columns:1fr; gap:4px 0 }
-            .totals-k, .totals-v { font-size:16px }
-            .totals-total .totals-k { font-size:24px }
-            .totals-total .totals-v { font-size:34px }
+            .totals-grid { padding-right:0 }
+            .totals-k, .totals-v { font-size:14px }
+            .totals-total .totals-k { font-size:18px }
+            .totals-total .totals-v { font-size:30px }
         }
     </style>
 
@@ -243,11 +238,11 @@
                                 <th>Producto</th>
                                 <th>Cuenta</th>
                                 <th>Analítica</th>
-                                <th>Cantidad</th>
+                                <th class="text-right">Cantidad</th>
                                 <th>UdM</th>
-                                <th>Precio</th>
+                                <th class="text-right">Precio</th>
                                 <th>Impuestos</th>
-                                <th>Importe</th>
+                                <th class="text-right">Importe</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -273,6 +268,10 @@
                                             return $desc !== '' ? preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $desc) : 'Impuesto específico';
                                         }
 
+                                        if ($type === 'IMPTO_RETEN' && $code === '28') {
+                                            return 'IEC Diesel';
+                                        }
+
                                         return $desc !== '' ? preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $desc) : 'Impuesto';
                                     })->filter()->values();
 
@@ -295,9 +294,9 @@
                                     </td>
                                     <td>332608 HERRAMIENTA...</td>
                                     <td class="text-gray-400">—</td>
-                                    <td>{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format((float) $l->cantidad, 2, ',', '.') }}</td>
                                     <td>{{ $l->unidad ?? '—' }}</td>
-                                    <td>{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</td>
                                     <td>
                                         <div class="flex flex-wrap gap-1">
                                             @foreach($taxLabels as $label)
@@ -305,7 +304,7 @@
                                             @endforeach
                                         </div>
                                     </td>
-                                    <td class="font-semibold">$ {{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
+                                    <td class="font-semibold text-right">$ {{ number_format((float) $l->monto_item, 0, ',', '.') }}</td>
                                 </tr>
                             @empty
                                 <tr>

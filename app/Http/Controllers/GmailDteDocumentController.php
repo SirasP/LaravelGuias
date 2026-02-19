@@ -171,6 +171,24 @@ class GmailDteDocumentController extends Controller
     private function buildTaxSummary($document, $lines): array
     {
         $summary = [];
+        $resolveImpAdicLabel = function (?string $code, ?string $fallback = null): string {
+            $code = trim((string) $code);
+            if ($code === '28') {
+                return 'IEC Diesel';
+            }
+            if ($code === '35') {
+                return 'IEC Gasolina 93';
+            }
+            if ($code === '52') {
+                return 'IEC Gasolina 97';
+            }
+
+            if ($fallback && trim($fallback) !== '') {
+                return trim(preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $fallback));
+            }
+
+            return $code !== '' ? ('Impuesto específico ' . $code) : 'Impuesto específico';
+        };
 
         $add = function (string $key, string $label, ?float $monto, bool $informado = true) use (&$summary): void {
             if (!isset($summary[$key])) {
@@ -199,7 +217,7 @@ class GmailDteDocumentController extends Controller
                 $type = strtoupper((string) ($tax->tax_type ?? 'TAX'));
                 $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
                 if ($type === 'IMP_ADIC') {
-                    $label = 'Impuesto específico';
+                    $label = $resolveImpAdicLabel((string) ($tax->codigo ?? ''), $label);
                 }
                 $monto = is_null($tax->monto) ? null : (float) $tax->monto;
                 $add($type . '|' . $label, $label, $monto, !is_null($monto));
@@ -223,7 +241,26 @@ class GmailDteDocumentController extends Controller
 
                     $mntImp = (float) ((string) ($tot->MntImp ?? 0));
                     if ($mntImp > 0) {
-                        $add('MntImp', 'Impuesto específico', $mntImp, true);
+                        $impAdicCodes = collect($lines)
+                            ->flatMap(function ($line) {
+                                return collect($line->taxes ?? [])->filter(function ($tax) {
+                                    return strtoupper((string) ($tax->tax_type ?? '')) === 'IMP_ADIC';
+                                });
+                            })
+                            ->pluck('codigo')
+                            ->filter(fn ($c) => trim((string) $c) !== '')
+                            ->map(fn ($c) => trim((string) $c))
+                            ->unique()
+                            ->values();
+
+                        $mntImpLabel = 'Impuesto específico';
+                        if ($impAdicCodes->count() === 1) {
+                            $mntImpLabel = $resolveImpAdicLabel((string) $impAdicCodes->first());
+                        } elseif ($impAdicCodes->contains('28')) {
+                            $mntImpLabel = 'Impuestos específicos (incluye IEC Diesel)';
+                        }
+
+                        $add('MntImp|' . $mntImpLabel, $mntImpLabel, $mntImp, true);
                     }
 
                     if (isset($tot->ImptoReten)) {
