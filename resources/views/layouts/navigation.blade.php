@@ -239,7 +239,7 @@
             </div>
             <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
-            @php $dteProvActive = request()->routeIs('gmail.dtes.*') || request()->routeIs('gmail.inventory.*'); @endphp
+            @php $dteProvActive = request()->routeIs('gmail.dtes.*'); @endphp
             <div class="mb-0.5">
                 <button @click="toggleSection('dteprov')" :title="!expanded ? 'Facturas Proveedor' : ''"
                     class="w-full flex items-center rounded-xl transition-all duration-150"
@@ -258,14 +258,46 @@
                 </button>
                 <div x-show="expanded && openSection === 'dteprov'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-cyan-100 dark:border-cyan-900/40 space-y-0.5 pb-1">
                     <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.index') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.index') || request()->routeIs('gmail.dtes.facturas.index') || request()->routeIs('gmail.dtes.boletas.index') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Tablero</a>
-                    <a href="{{ route('gmail.dtes.list') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Listado</a>
+                    <a href="{{ route('gmail.dtes.facturas.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.facturas.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Facturas</a>
+                    <a href="{{ route('gmail.dtes.boletas.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.boletas.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Boletas</a>
+                </div>
+            </div>
+
+            <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
+                <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Inventario</p>
+            </div>
+            <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
+
+            @php $dteInventoryActive = request()->routeIs('gmail.inventory.*'); @endphp
+            <div class="mb-0.5">
+                <button @click="toggleSection('dteinv')" :title="!expanded ? 'Inventario' : ''"
+                    class="w-full flex items-center rounded-xl transition-all duration-150"
+                    :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
+                    :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                        {{ $dteInventoryActive ? 'bg-violet-100 dark:bg-violet-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        <svg class="w-[18px] h-[18px] transition-colors {{ $dteInventoryActive ? 'text-violet-600 dark:text-violet-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </div>
+                    <span x-show="expanded" class="flex-1 text-left truncate {{ $dteInventoryActive ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400' }}">Inventario</span>
+                    <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'dteinv' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="expanded && openSection === 'dteinv'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-violet-100 dark:border-violet-900/40 space-y-0.5 pb-1">
                     <a href="{{ route('gmail.inventory.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.*') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Inventario DTE</a>
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.index') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Tablero</a>
+                    <a href="{{ route('gmail.inventory.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.list') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Listado</a>
                 </div>
             </div>
         @endif
@@ -367,7 +399,8 @@
                 else if (path.startsWith('/excel') || path.startsWith('/odoo')) this.openSection = 'odoo';
                 else if (path.startsWith('/agrak')) this.openSection = 'agrak';
                 else if (path.startsWith('/guias')) this.openSection = 'xml';
-                else if (path.startsWith('/gmail/dtes') || path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) this.openSection = 'dteprov';
+                else if (path.startsWith('/gmail/dtes')) this.openSection = 'dteprov';
+                else if (path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) this.openSection = 'dteinv';
                 else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
 
                 // En mobile siempre expandido cuando se abre

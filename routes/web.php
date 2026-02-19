@@ -442,7 +442,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
 
     Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
     Route::get('/dtes/listado', [GmailDteDocumentController::class, 'list'])->name('dtes.list');
+    Route::get('/dtes/facturas', [GmailDteDocumentController::class, 'facturasIndex'])->name('dtes.facturas.index');
+    Route::get('/dtes/facturas/listado', [GmailDteDocumentController::class, 'facturasList'])->name('dtes.facturas.list');
+    Route::get('/dtes/boletas', [GmailDteDocumentController::class, 'boletasIndex'])->name('dtes.boletas.index');
+    Route::get('/dtes/boletas/listado', [GmailDteDocumentController::class, 'boletasList'])->name('dtes.boletas.list');
     Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
+    Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])
         ->whereNumber('id')
         ->name('dtes.print');

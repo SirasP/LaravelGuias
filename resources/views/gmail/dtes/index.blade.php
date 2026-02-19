@@ -13,16 +13,7 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <a href="{{ route('gmail.dtes.list') }}"
-                    class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white transition">
-                    Ver listado
-                </a>
-                <a href="{{ route('gmail.inventory.index') }}"
-                    class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">
-                    Inventario DTE
-                </a>
-            </div>
+            <div></div>
         </div>
     </x-slot>
 
@@ -75,7 +66,9 @@
                     <div class="p-4 sm:p-5 space-y-4">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-2xl font-bold text-cyan-700 dark:text-cyan-300">Facturas de proveedores</p>
+                                <a href="{{ route('gmail.dtes.facturas.list') }}" class="text-2xl font-bold text-cyan-700 dark:text-cyan-300 hover:underline">
+                                    Facturas de proveedores
+                                </a>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 33, 34, 56 y 61</p>
                             </div>
                             <div class="text-right">
@@ -136,7 +129,9 @@
                     <div class="p-4 sm:p-5 space-y-3">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-2xl font-bold text-violet-700 dark:text-violet-300">Boletas proveedor</p>
+                                <a href="{{ route('gmail.dtes.boletas.list') }}" class="text-2xl font-bold text-violet-700 dark:text-violet-300 hover:underline">
+                                    Boletas proveedor
+                                </a>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Tipos 39 y 41</p>
                             </div>
                             <div class="text-right">
@@ -182,23 +177,6 @@
                             @endforeach
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <a href="{{ route('gmail.dtes.list', ['tipo' => 'facturas']) }}" class="card block hover:border-cyan-300 dark:hover:border-cyan-700 transition">
-                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado facturas</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Tabla filtrada por facturas</p>
-                    </a>
-                    <a href="{{ route('gmail.dtes.list', ['tipo' => 'boletas']) }}" class="card block hover:border-violet-300 dark:hover:border-violet-700 transition">
-                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Listado boletas</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Tabla filtrada por boletas</p>
-                    </a>
-                    <a href="{{ route('gmail.inventory.index') }}" class="card block hover:border-indigo-300 dark:hover:border-indigo-700 transition">
-                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Inventario DTE</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Revisar productos ingresados</p>
-                    </a>
                 </div>
             </div>
 

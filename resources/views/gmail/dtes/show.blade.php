@@ -4,20 +4,25 @@
         $workflowStatus = data_get($document, 'workflow_status', 'aceptado');
         $isDraft = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
+        $isBoletaType = in_array((int) ($document->tipo_dte ?? 0), [39, 41], true);
+        $backRoute = $isBoletaType ? route('gmail.dtes.boletas.list') : route('gmail.dtes.facturas.list');
+        $backLabel = $isBoletaType ? 'Boletas proveedor' : 'Facturas proveedor';
         $headerTipoSigla = match ((int) ($document->tipo_dte ?? 0)) {
             33 => 'FAC',
             34 => 'FEX',
             56 => 'ND',
             61 => 'NC',
+            39 => 'BOL',
+            41 => 'BEX',
             default => 'DTE',
         };
     @endphp
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
-                <a href="{{ route('gmail.dtes.list') }}"
+                <a href="{{ $backRoute }}"
                     class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium truncate">
-                    Facturas proveedor
+                    {{ $backLabel }}
                 </a>
                 <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />

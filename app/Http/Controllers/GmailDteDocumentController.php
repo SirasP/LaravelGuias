@@ -8,101 +8,140 @@ use Illuminate\Support\Facades\DB;
 
 class GmailDteDocumentController extends Controller
 {
+    private const FACTURA_TYPES = [33, 34, 56, 61];
+    private const BOLETA_TYPES = [39, 41];
+
     public function index()
     {
-        $docs = DB::connection('fuelcontrol')
-            ->table('gmail_dte_documents')
-            ->select(['tipo_dte', 'payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
-            ->get();
-
-        $today = now()->startOfDay();
-        $facturaTypes = [33, 34, 56, 61];
-        $boletaTypes = [39, 41];
-
-        $buildSummary = function ($rows) use ($today): array {
-            $summary = [
-                'total_docs' => 0,
-                'por_validar_count' => 0,
-                'por_validar_monto' => 0.0,
-                'por_pagar_count' => 0,
-                'por_pagar_monto' => 0.0,
-                'atrasado_count' => 0,
-                'atrasado_monto' => 0.0,
-            ];
-
-            $aging = [
-                'vencido' => 0,
-                'd1_7' => 0,
-                'd8_15' => 0,
-                'd16_30' => 0,
-                'd31_plus' => 0,
-                'no_adeudado' => 0,
-            ];
-
-            foreach ($rows as $doc) {
-                $monto = (float) ($doc->monto_total ?? 0);
-                $isPaid = (string) ($doc->payment_status ?? 'sin_pagar') === 'pagado';
-                $isDraft = (string) ($doc->workflow_status ?? 'aceptado') === 'borrador';
-
-                $summary['total_docs']++;
-
-                if ($isDraft) {
-                    $summary['por_validar_count']++;
-                    $summary['por_validar_monto'] += $monto;
-                }
-
-                if (!$isPaid) {
-                    $summary['por_pagar_count']++;
-                    $summary['por_pagar_monto'] += $monto;
-
-                    $venc = $doc->fecha_vencimiento ? \Carbon\Carbon::parse($doc->fecha_vencimiento)->startOfDay() : null;
-                    if (!$venc) {
-                        $aging['no_adeudado']++;
-                        continue;
-                    }
-
-                    $days = $venc->diffInDays($today, false);
-                    if ($days > 30) {
-                        $aging['d31_plus']++;
-                    } elseif ($days > 15) {
-                        $aging['d16_30']++;
-                    } elseif ($days > 7) {
-                        $aging['d8_15']++;
-                    } elseif ($days > 0) {
-                        $aging['d1_7']++;
-                    } elseif ($days === 0) {
-                        $aging['vencido']++;
-                    } else {
-                        $aging['no_adeudado']++;
-                    }
-
-                    if ($days > 0) {
-                        $summary['atrasado_count']++;
-                        $summary['atrasado_monto'] += $monto;
-                    }
-                } else {
-                    $aging['no_adeudado']++;
-                }
-            }
-
-            return [$summary, $aging];
-        };
-
-        [$summaryFacturas, $agingFacturas] = $buildSummary($docs->filter(fn ($d) => in_array((int) ($d->tipo_dte ?? 0), $facturaTypes, true)));
-        [$summaryBoletas, $agingBoletas] = $buildSummary($docs->filter(fn ($d) => in_array((int) ($d->tipo_dte ?? 0), $boletaTypes, true)));
+        [$summaryFacturas, $agingFacturas] = $this->buildSummaryByTypes(self::FACTURA_TYPES);
+        [$summaryBoletas, $agingBoletas] = $this->buildSummaryByTypes(self::BOLETA_TYPES);
 
         return view('gmail.dtes.index', compact('summaryFacturas', 'agingFacturas', 'summaryBoletas', 'agingBoletas'));
     }
 
     public function list(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
-        $tipo = trim((string) $request->query('tipo', 'facturas'));
+        return redirect()->route('gmail.dtes.facturas.list', $request->only('q'));
+    }
 
-        $documents = DB::connection('fuelcontrol')
+    public function facturasIndex()
+    {
+        return redirect()->route('gmail.dtes.index');
+    }
+
+    public function boletasIndex()
+    {
+        return redirect()->route('gmail.dtes.index');
+    }
+
+    public function facturasList(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $tipo = 'facturas';
+        $documents = $this->buildDocumentsListQuery($q, self::FACTURA_TYPES)
+            ->orderByDesc('fecha_factura')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('gmail.dtes.facturas.list', compact('documents', 'q', 'tipo'));
+    }
+
+    public function boletasList(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $tipo = 'boletas';
+        $documents = $this->buildDocumentsListQuery($q, self::BOLETA_TYPES)
+            ->orderByDesc('fecha_factura')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('gmail.dtes.boletas.list', compact('documents', 'q', 'tipo'));
+    }
+
+    private function buildSummaryByTypes(array $types): array
+    {
+        $docs = DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
-            ->when($tipo === 'boletas', fn ($query) => $query->whereIn('tipo_dte', [39, 41]))
-            ->when($tipo !== 'boletas', fn ($query) => $query->whereIn('tipo_dte', [33, 34, 56, 61]))
+            ->select(['payment_status', 'workflow_status', 'fecha_vencimiento', 'monto_total'])
+            ->whereIn('tipo_dte', $types)
+            ->get();
+
+        $today = now()->startOfDay();
+        $summary = [
+            'total_docs' => 0,
+            'por_validar_count' => 0,
+            'por_validar_monto' => 0.0,
+            'por_pagar_count' => 0,
+            'por_pagar_monto' => 0.0,
+            'atrasado_count' => 0,
+            'atrasado_monto' => 0.0,
+        ];
+
+        $aging = [
+            'vencido' => 0,
+            'd1_7' => 0,
+            'd8_15' => 0,
+            'd16_30' => 0,
+            'd31_plus' => 0,
+            'no_adeudado' => 0,
+        ];
+
+        foreach ($docs as $doc) {
+            $monto = (float) ($doc->monto_total ?? 0);
+            $isPaid = (string) ($doc->payment_status ?? 'sin_pagar') === 'pagado';
+            $isDraft = (string) ($doc->workflow_status ?? 'aceptado') === 'borrador';
+
+            $summary['total_docs']++;
+
+            if ($isDraft) {
+                $summary['por_validar_count']++;
+                $summary['por_validar_monto'] += $monto;
+            }
+
+            if (!$isPaid) {
+                $summary['por_pagar_count']++;
+                $summary['por_pagar_monto'] += $monto;
+
+                $venc = $doc->fecha_vencimiento ? \Carbon\Carbon::parse($doc->fecha_vencimiento)->startOfDay() : null;
+                if (!$venc) {
+                    $aging['no_adeudado']++;
+                    continue;
+                }
+
+                $days = $venc->diffInDays($today, false);
+                if ($days > 30) {
+                    $aging['d31_plus']++;
+                } elseif ($days > 15) {
+                    $aging['d16_30']++;
+                } elseif ($days > 7) {
+                    $aging['d8_15']++;
+                } elseif ($days > 0) {
+                    $aging['d1_7']++;
+                } elseif ($days === 0) {
+                    $aging['vencido']++;
+                } else {
+                    $aging['no_adeudado']++;
+                }
+
+                if ($days > 0) {
+                    $summary['atrasado_count']++;
+                    $summary['atrasado_monto'] += $monto;
+                }
+            } else {
+                $aging['no_adeudado']++;
+            }
+        }
+
+        return [$summary, $aging];
+    }
+
+    private function buildDocumentsListQuery(string $q, array $types)
+    {
+        return DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->whereIn('tipo_dte', $types)
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('folio', 'like', "%{$q}%")
@@ -111,13 +150,7 @@ class GmailDteDocumentController extends Controller
                         ->orWhere('referencia', 'like', "%{$q}%")
                         ->orWhere('xml_filename', 'like', "%{$q}%");
                 });
-            })
-            ->orderByDesc('fecha_factura')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('gmail.dtes.list', compact('documents', 'q', 'tipo'));
+            });
     }
 
     public function show(int $id)
@@ -267,6 +300,42 @@ class GmailDteDocumentController extends Controller
 
     public function inventoryIndex(Request $request)
     {
+        $products = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_products')
+            ->select(['is_active', 'stock_actual', 'costo_promedio', 'unidad'])
+            ->get();
+
+        $totalProducts = $products->count();
+        $totalActivos = $products->where('is_active', 1)->count();
+        $totalInactivos = $products->where('is_active', 0)->count();
+        $totalConStock = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) > 0)->count();
+        $totalSinStock = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) <= 0)->count();
+        $stockTotalUnidades = $products->sum(fn($p) => (float) ($p->stock_actual ?? 0));
+        $valorInventario = $products->sum(function ($p) {
+            return (float) ($p->stock_actual ?? 0) * (float) ($p->costo_promedio ?? 0);
+        });
+
+        $unidadResumen = $products
+            ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
+            ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
+            ->sortByDesc('cantidad')
+            ->take(6)
+            ->values();
+
+        return view('gmail.inventory.index', compact(
+            'totalProducts',
+            'totalActivos',
+            'totalInactivos',
+            'totalConStock',
+            'totalSinStock',
+            'stockTotalUnidades',
+            'valorInventario',
+            'unidadResumen'
+        ));
+    }
+
+    public function inventoryList(Request $request)
+    {
         $q = trim((string) $request->query('q', ''));
         $estado = trim((string) $request->query('estado', ''));
         $stock = trim((string) $request->query('stock', ''));
@@ -295,7 +364,7 @@ class GmailDteDocumentController extends Controller
         $totalConStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '>', 0)->count();
         $totalSinStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '<=', 0)->count();
 
-        return view('gmail.inventory.index', compact(
+        return view('gmail.inventory.list', compact(
             'products',
             'q',
             'estado',
