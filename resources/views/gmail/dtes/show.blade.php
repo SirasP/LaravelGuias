@@ -50,14 +50,24 @@
         $ivaLabel = (string) (collect($taxSummary)->first(function ($tax) {
             return str_starts_with(strtoupper((string) ($tax['label'] ?? '')), 'IVA');
         })['label'] ?? 'IVA');
-        $impuestoEspecifico = $taxSummary
+        $extraTaxRows = $taxSummary
             ->filter(function ($tax) {
                 $label = strtoupper((string) ($tax['label'] ?? ''));
-                return str_contains($label, 'IMPUESTO ESPECIFICO') || str_contains($label, 'ILA');
+                return !str_starts_with($label, 'IVA') && ((float) ($tax['monto'] ?? 0) > 0);
             })
-            ->sum(function ($tax) {
-                return (float) ($tax['monto'] ?? 0);
-            });
+            ->map(function ($tax) {
+                $label = trim((string) ($tax['label'] ?? 'Impuesto'));
+                $labelUpper = strtoupper($label);
+                if (str_contains($labelUpper, 'IMPUESTO ESPECIFICO') || str_contains($labelUpper, 'ILA')) {
+                    $label = 'Impuestos Específicos';
+                }
+
+                return [
+                    'label' => $label,
+                    'monto' => (float) ($tax['monto'] ?? 0),
+                ];
+            })
+            ->values();
     @endphp
 
     <style>
@@ -93,22 +103,24 @@
         .dark .tax-pill { background:#312e81; color:#c7d2fe }
         .totals-zone { border-top:1px solid #e5e7eb }
         .dark .totals-zone { border-top-color:#273244 }
-        .totals-grid { width:100%; max-width:520px; margin-left:auto }
-        .totals-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:2px 0 }
-        .totals-k { color:#4b5563; font-size:20px; font-weight:500 }
+        .totals-grid { width:100%; max-width:560px; margin-left:auto }
+        .totals-table { width:100%; border-collapse:collapse }
+        .totals-table td { padding:2px 0 }
+        .totals-k { color:#4b5563; font-size:20px; font-weight:500; text-align:right; padding-right:16px }
         .dark .totals-k { color:#9ca3af }
-        .totals-v { color:#374151; font-size:20px; font-weight:700 }
+        .totals-v { color:#374151; font-size:20px; font-weight:700; text-align:right; white-space:nowrap }
         .dark .totals-v { color:#cbd5e1 }
-        .totals-row-total .totals-k { color:#374151; font-size:42px; font-weight:700 }
-        .totals-row-total .totals-v { color:#1f2937; font-size:52px; font-weight:800; line-height:1 }
-        .dark .totals-row-total .totals-k { color:#cbd5e1 }
-        .dark .totals-row-total .totals-v { color:#f8fafc }
+        .totals-total .totals-k { color:#374151; font-size:42px; font-weight:700 }
+        .totals-total .totals-v { color:#1f2937; font-size:52px; font-weight:800; line-height:1 }
+        .dark .totals-total .totals-k { color:#cbd5e1 }
+        .dark .totals-total .totals-v { color:#f8fafc }
+        .totals-pay { margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px }
 
         @media (max-width: 768px) {
             .kv { grid-template-columns:1fr; gap:4px 0 }
             .totals-k, .totals-v { font-size:16px }
-            .totals-row-total .totals-k { font-size:24px }
-            .totals-row-total .totals-v { font-size:34px }
+            .totals-total .totals-k { font-size:24px }
+            .totals-total .totals-v { font-size:34px }
         }
     </style>
 
@@ -308,32 +320,36 @@
                     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                         <p class="text-3xl text-gray-400 dark:text-gray-500">Términos y condiciones</p>
                         <div class="totals-grid">
-                            <div class="totals-row">
-                                <span class="totals-k">Monto neto:</span>
-                                <span class="totals-v">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="totals-row">
-                                <span class="totals-k">{{ $ivaLabel }}:</span>
-                                <span class="totals-v">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : '$ 0' }}</span>
-                            </div>
-                            @if($impuestoEspecifico > 0)
-                                <div class="totals-row">
-                                    <span class="totals-k">Impuestos Específicos:</span>
-                                    <span class="totals-v">$ {{ number_format($impuestoEspecifico, 0, ',', '.') }}</span>
-                                </div>
-                            @endif
-                            <div class="totals-row totals-row-total">
-                                <span class="totals-k">Total:</span>
-                                <span class="totals-v">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="totals-row mt-3">
-                                <span class="totals-k flex items-center gap-2">
+                            <table class="totals-table">
+                                <tbody>
+                                    <tr>
+                                        <td class="totals-k">Monto neto:</td>
+                                        <td class="totals-v">$ {{ number_format((float) $document->monto_neto, 0, ',', '.') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="totals-k">{{ $ivaLabel }}:</td>
+                                        <td class="totals-v">{{ $ivaMonto > 0 ? '$ ' . number_format($ivaMonto, 0, ',', '.') : '$ 0' }}</td>
+                                    </tr>
+                                    @foreach($extraTaxRows as $taxRow)
+                                        <tr>
+                                            <td class="totals-k">{{ $taxRow['label'] }}:</td>
+                                            <td class="totals-v">$ {{ number_format((float) $taxRow['monto'], 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                    <tr class="totals-total">
+                                        <td class="totals-k">Total:</td>
+                                        <td class="totals-v">$ {{ number_format((float) $document->monto_total, 0, ',', '.') }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="totals-pay">
+                                <span class="totals-k flex items-center gap-2 !text-base !font-semibold">
                                     <svg class="w-5 h-5 {{ $estadoPago === 'Pagado' ? 'text-teal-600' : 'text-amber-600' }}" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10A8 8 0 11.001 9.999 8 8 0 0118 10zm-8.75 3.75a.75.75 0 001.5 0v-4a.75.75 0 00-1.5 0v4zm.75-6.5a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
                                     </svg>
                                     {{ $estadoPago === 'Pagado' ? ('Pagado' . ($fechaPago ? ' el ' . $fechaPago : '')) : 'Pendiente de pago' }}
                                 </span>
-                                <span class="totals-v">$ {{ number_format((float) $montoPorPagar, 0, ',', '.') }}</span>
+                                <span class="totals-v !text-4xl">$ {{ number_format((float) $montoPorPagar, 0, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>
