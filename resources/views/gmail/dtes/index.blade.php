@@ -190,7 +190,7 @@
                                         $estado = 'Sin pagar';
                                     } else {
                                         $vencHuman = '—';
-                                        $estado = 'Pagado';
+                                        $estado = 'Pendiente';
                                     }
                                 @endphp
                                 <tr class="cursor-pointer" tabindex="0"
@@ -211,7 +211,13 @@
                                     <td>{{ number_format((float) $d->monto_neto, 0, ',', '.') }}</td>
                                     <td class="font-bold">{{ number_format((float) $d->monto_total, 0, ',', '.') }}</td>
                                     <td>
-                                        <span class="chip {{ $estado === 'Pagado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">
+                                        <span class="chip {{
+                                            $estado === 'Pagado'
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                                : ($estado === 'Sin pagar'
+                                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300')
+                                        }}">
                                             {{ $estado }}
                                         </span>
                                     </td>
@@ -244,7 +250,7 @@
                             $estado = 'Sin pagar';
                         } else {
                             $vencHuman = '—';
-                            $estado = 'Pagado';
+                            $estado = 'Pendiente';
                         }
                     @endphp
 
@@ -254,7 +260,13 @@
                                 <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ $tipo['sigla'] }} {{ $d->folio ?? '—' }}</p>
                                 <p class="text-[11px] text-gray-400">{{ $tipo['nombre'] }}</p>
                             </div>
-                            <span class="chip {{ $estado === 'Pagado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' }}">
+                            <span class="chip {{
+                                $estado === 'Pagado'
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                    : ($estado === 'Sin pagar'
+                                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300')
+                            }}">
                                 {{ $estado }}
                             </span>
                         </div>
