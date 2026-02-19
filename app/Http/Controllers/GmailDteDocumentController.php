@@ -59,6 +59,20 @@ class GmailDteDocumentController extends Controller
         return back()->with('success', 'Documento marcado como pagado.');
     }
 
+    public function markUnpaid(int $id)
+    {
+        DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->update([
+                'payment_status' => 'sin_pagar',
+                'paid_at' => null,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('success', 'Pago desregistrado.');
+    }
+
     public function markDraft(int $id)
     {
         DB::connection('fuelcontrol')

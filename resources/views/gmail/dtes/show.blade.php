@@ -1,5 +1,6 @@
 <x-app-layout>
     @php
+        $estadoPagoRaw = data_get($document, 'payment_status', 'sin_pagar');
         $workflowStatus = data_get($document, 'workflow_status', 'borrador');
         $isDraft = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
@@ -26,11 +27,16 @@
                 </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-                <form method="POST" action="{{ route('gmail.dtes.pay', $document->id) }}" class="contents">
+                <form method="POST" action="{{ $estadoPagoRaw === 'pagado' ? route('gmail.dtes.unpay', $document->id) : route('gmail.dtes.pay', $document->id) }}" class="contents">
                     @csrf
-                    <button type="submit" class="hdr-btn hdr-emerald">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span class="hidden sm:inline">Registrar pago</span>
+                    <button type="submit" class="hdr-btn {{ $estadoPagoRaw === 'pagado' ? 'hdr-gray' : 'hdr-emerald' }}">
+                        @if($estadoPagoRaw === 'pagado')
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <span class="hidden sm:inline">Desregistrar pago</span>
+                        @else
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span class="hidden sm:inline">Registrar pago</span>
+                        @endif
                     </button>
                 </form>
                 <form method="POST" action="{{ $isDraft ? route('gmail.dtes.accept', $document->id) : route('gmail.dtes.draft', $document->id) }}" class="contents">

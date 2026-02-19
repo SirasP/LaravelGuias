@@ -448,6 +448,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/pay', [GmailDteDocumentController::class, 'markPaid'])
         ->whereNumber('id')
         ->name('dtes.pay');
+    Route::post('/dtes/{id}/unpay', [GmailDteDocumentController::class, 'markUnpaid'])
+        ->whereNumber('id')
+        ->name('dtes.unpay');
     Route::post('/dtes/{id}/draft', [GmailDteDocumentController::class, 'markDraft'])
         ->whereNumber('id')
         ->name('dtes.draft');
