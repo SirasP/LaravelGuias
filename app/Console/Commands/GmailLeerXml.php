@@ -511,6 +511,9 @@ class GmailLeerXml extends Command
             'monto_neto' => $montoNeto,
             'monto_iva' => $montoIva,
             'monto_total' => $montoTotal,
+            'payment_status' => 'sin_pagar',
+            'workflow_status' => 'aceptado',
+            'inventory_status' => 'pendiente',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

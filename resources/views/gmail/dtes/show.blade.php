@@ -1,7 +1,7 @@
 <x-app-layout>
     @php
         $estadoPagoRaw = data_get($document, 'payment_status', 'sin_pagar');
-        $workflowStatus = data_get($document, 'workflow_status', 'borrador');
+        $workflowStatus = data_get($document, 'workflow_status', 'aceptado');
         $isDraft = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
         $headerTipoSigla = match ((int) ($document->tipo_dte ?? 0)) {
@@ -90,7 +90,7 @@
 
         $estadoPagoRaw   = data_get($document, 'payment_status');
         $estadoPago      = $estadoPagoRaw === 'pagado' ? 'Pagado' : 'Sin pagar';
-        $workflowStatus  = data_get($document, 'workflow_status', 'borrador');
+        $workflowStatus  = data_get($document, 'workflow_status', 'aceptado');
         $isDraft         = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
         $montoPorPagar   = $estadoPagoRaw === 'pagado' ? 0.0 : (float) ($document->monto_total ?? 0);
