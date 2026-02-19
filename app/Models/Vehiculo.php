@@ -14,7 +14,12 @@ class Vehiculo extends Model
         'patente',
         'descripcion',
         'tipo',
+        'is_active',
         'fecha_registro',
         'usuario',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 }

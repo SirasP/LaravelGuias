@@ -73,6 +73,7 @@ class VehiculoController extends Controller
             'patente' => strtoupper($request->patente),
             'descripcion' => $request->descripcion,
             'tipo' => $request->tipo,
+            'is_active' => true,
             'fecha_registro' => now(),
             'usuario' => auth()->user()->name ?? 'sistema',
         ]);
@@ -102,6 +103,7 @@ class VehiculoController extends Controller
             'patente' => 'required|string|max:100',
             'descripcion' => 'nullable|string|max:255',
             'tipo' => 'required|string|max:50',
+            'is_active' => 'nullable|boolean',
         ]);
 
         try {
@@ -111,6 +113,7 @@ class VehiculoController extends Controller
                 'patente' => strtoupper($request->patente),
                 'descripcion' => $request->descripcion,
                 'tipo' => $request->tipo,
+                'is_active' => $request->has('is_active') ? (bool) $request->boolean('is_active') : (bool) ($vehiculo->is_active ?? true),
                 'usuario' => auth()->user()->name ?? 'sistema',
             ]);
 
@@ -124,6 +127,22 @@ class VehiculoController extends Controller
                 ->withInput()
                 ->with('error', 'No se pudo actualizar el vehículo');
         }
+    }
+
+    public function toggleActive(Request $request, $id)
+    {
+        $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $vehiculo = Vehiculo::on('fuelcontrol')->findOrFail($id);
+        $vehiculo->is_active = (bool) $request->boolean('is_active');
+        $vehiculo->usuario = auth()->user()->name ?? 'sistema';
+        $vehiculo->save();
+
+        return redirect()
+            ->route('fuelcontrol.vehiculos.index')
+            ->with('success', $vehiculo->is_active ? 'Vehículo activado correctamente' : 'Vehículo desactivado correctamente');
     }
 
 

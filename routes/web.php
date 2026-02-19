@@ -413,6 +413,9 @@ Route::middleware(['auth'])
         Route::put('/vehiculos/{id}', [VehiculoController::class, 'update'])
             ->whereNumber('id')
             ->name('vehiculos.update');
+        Route::patch('/vehiculos/{id}/toggle-active', [VehiculoController::class, 'toggleActive'])
+            ->whereNumber('id')
+            ->name('vehiculos.toggleActive');
         Route::delete('/vehiculos/{id}', [VehiculoController::class, 'destroy'])
             ->whereNumber('id')
             ->name('vehiculos.destroy');

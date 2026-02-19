@@ -72,6 +72,30 @@
             .badge-purple { background:#f3e8ff; color:#7c3aed } .dark .badge-purple { background:rgba(124,58,237,.15); color:#a78bfa }
             .badge-orange { background:#ffedd5; color:#c2410c } .dark .badge-orange { background:rgba(234,88,12,.15); color:#fb923c }
             .badge-gray { background:#f1f5f9; color:#475569 } .dark .badge-gray { background:rgba(100,116,139,.15); color:#94a3b8 }
+
+            .switch {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                width: 42px;
+                height: 24px;
+                border-radius: 999px;
+                transition: background-color .15s;
+                border: none;
+                cursor: pointer;
+            }
+
+            .switch-dot {
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 18px;
+                height: 18px;
+                border-radius: 999px;
+                background: #fff;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+                transition: transform .15s;
+            }
         </style>
 
         <div class="page-bg">
@@ -229,6 +253,7 @@
                                 <th>Descripción</th>
                                 <th>Registro</th>
                                 <th>Usuario</th>
+                                <th class="c">Estado</th>
                                 <th class="c">Acciones</th>
                             </tr>
                         </thead>
@@ -285,6 +310,21 @@
                                             <span class="text-sm">{{ $v->usuario }}</span>
                                         </div>
                                     </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{{ route('fuelcontrol.vehiculos.toggleActive', $v->id) }}"
+                                            class="inline-flex items-center gap-2">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="is_active" value="{{ $v->is_active ? 0 : 1 }}">
+                                            <button type="submit" class="switch {{ $v->is_active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700' }}"
+                                                title="{{ $v->is_active ? 'Desactivar' : 'Activar' }}">
+                                                <span class="switch-dot {{ $v->is_active ? 'translate-x-[18px]' : 'translate-x-0' }}"></span>
+                                            </button>
+                                            <span class="text-[11px] font-semibold {{ $v->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' }}">
+                                                {{ $v->is_active ? 'Activo' : 'Inactivo' }}
+                                            </span>
+                                        </form>
+                                    </td>
                                     <td>
                                         <div class="flex items-center justify-center gap-1">
                                             <button type="button" @click="
@@ -294,6 +334,7 @@
                                                     patente: @js($v->patente),
                                                     descripcion: @js($v->descripcion),
                                                     tipo: @js($v->tipo),
+                                                    is_active: {{ $v->is_active ? 'true' : 'false' }},
                                                     usuario: @js($v->usuario),
                                                     fecha: @js(\Carbon\Carbon::parse($v->fecha_registro)->format('d/m/Y')),
                                                 };
@@ -311,17 +352,11 @@
                                                     patente: @js($v->patente),
                                                     descripcion: @js($v->descripcion),
                                                     tipo: @js($v->tipo),
+                                                    is_active: {{ $v->is_active ? 'true' : 'false' }},
                                                 };
                                             " class="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition" title="Editar">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                            </button>
-
-                                            <button type="button" @click="openDelete = true; deleteId = {{ $v->id }}"
-                                                class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition" title="Eliminar">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                             </button>
                                         </div>
@@ -329,7 +364,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-12">
+                                    <td colspan="7" class="text-center py-12">
                                         <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                         </svg>
@@ -406,6 +441,21 @@
                                 </span>
                             </div>
 
+                            <div class="mt-3 flex items-center justify-between">
+                                <span class="text-[11px] font-semibold {{ $v->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' }}">
+                                    {{ $v->is_active ? 'Activo' : 'Inactivo' }}
+                                </span>
+                                <form method="POST" action="{{ route('fuelcontrol.vehiculos.toggleActive', $v->id) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="is_active" value="{{ $v->is_active ? 0 : 1 }}">
+                                    <button type="submit" class="switch {{ $v->is_active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700' }}"
+                                        title="{{ $v->is_active ? 'Desactivar' : 'Activar' }}">
+                                        <span class="switch-dot {{ $v->is_active ? 'translate-x-[18px]' : 'translate-x-0' }}"></span>
+                                    </button>
+                                </form>
+                            </div>
+
                             {{-- Actions --}}
                             <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-2">
                                 <button type="button" @click="
@@ -415,6 +465,7 @@
                                         patente: @js($v->patente),
                                         descripcion: @js($v->descripcion),
                                         tipo: @js($v->tipo),
+                                        is_active: {{ $v->is_active ? 'true' : 'false' }},
                                         usuario: @js($v->usuario),
                                         fecha: @js(\Carbon\Carbon::parse($v->fecha_registro)->format('d/m/Y')),
                                     };
@@ -429,14 +480,10 @@
                                         patente: @js($v->patente),
                                         descripcion: @js($v->descripcion),
                                         tipo: @js($v->tipo),
+                                        is_active: {{ $v->is_active ? 'true' : 'false' }},
                                     };
                                 " class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                                     Editar
-                                </button>
-
-                                <button type="button" @click="openDelete = true; deleteId = {{ $v->id }}"
-                                    class="flex-1 text-center py-2 text-xs font-semibold rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition">
-                                    Eliminar
                                 </button>
                             </div>
                         </div>
@@ -575,6 +622,15 @@
                             <option value="Prestado">Prestado</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Estado</label>
+                        <input type="hidden" name="is_active" value="0">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" name="is_active" value="1" x-model="editVehiculo.is_active"
+                                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Activo</span>
+                        </label>
+                    </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="openEdit = false"
                             class="px-4 py-2 text-sm font-medium rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition">
@@ -623,6 +679,12 @@
                         <div>
                             <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Fecha registro</span>
                             <div class="mt-1 text-gray-900 dark:text-white" x-text="showVehiculo.fecha"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Estado</span>
+                        <div class="mt-1">
+                            <span class="badge-pill" :class="showVehiculo.is_active ? 'badge-green' : 'badge-gray'" x-text="showVehiculo.is_active ? 'Activo' : 'Inactivo'"></span>
                         </div>
                     </div>
                     <div>
