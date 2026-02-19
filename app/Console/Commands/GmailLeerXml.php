@@ -19,7 +19,8 @@ class GmailLeerXml extends Command
     protected $signature   = 'gmail:leer-xml
                             {--all : Leer tambien correos ya leidos (has:attachment)}
                             {--reprocess : Reprocesar tambien mensajes ya registrados en gmail_imports}
-                            {--fuel-to-dte-only : Temporal: guardar tambien Diesel/Gasolina en DTE y NO tocar FuelControl}';
+                            {--fuel-to-dte-only : Temporal: guardar tambien Diesel/Gasolina en DTE y NO tocar FuelControl}
+                            {--only-messages= : Lista CSV de gmail_message_id para procesar solo esos mensajes}';
     protected $description = 'Lee correos Gmail, procesa XML DTE y controla inventario';
 
     public function handle(): int
@@ -72,6 +73,12 @@ class GmailLeerXml extends Command
         $gmailQuery = $this->option('all') ? 'has:attachment' : 'has:attachment is:unread';
         $reprocess = (bool) $this->option('reprocess');
         $fuelToDteOnly = (bool) $this->option('fuel-to-dte-only');
+        $onlyMessagesCsv = trim((string) $this->option('only-messages', ''));
+        $onlyMessages = collect(explode(',', $onlyMessagesCsv))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
+            ->values();
+        $onlyMessagesEnabled = $onlyMessages->isNotEmpty();
 
         $this->line($this->option('all')
             ? 'Modo forzado: leyendo correos leidos y no leidos con adjuntos.'
@@ -82,6 +89,9 @@ class GmailLeerXml extends Command
         $this->line($fuelToDteOnly
             ? 'Modo temporal fuel->DTE: Diesel/Gasolina se guardan en DTE y se omite FuelControl.'
             : 'Modo normal combustible: Diesel/Gasolina siguen flujo FuelControl.');
+        if ($onlyMessagesEnabled) {
+            $this->line('Filtro only-messages activo: ' . $onlyMessages->count() . ' mensaje(s).');
+        }
 
         $pageToken = null;
         $totalFound = 0;
@@ -101,6 +111,9 @@ class GmailLeerXml extends Command
             $totalFound += count($batchMessages);
 
             foreach ($batchMessages as $msg) {
+                if ($onlyMessagesEnabled && !$onlyMessages->contains((string) $msg->getId())) {
+                    continue;
+                }
 
                 /* ─────────────────────────────────────
                  | 4. EVITAR REPROCESAR
@@ -160,8 +173,8 @@ class GmailLeerXml extends Command
                         continue;
                     }
 
-                    // Limpia BOM UTF-8 y espacios iniciales para evitar fallos de parser.
-                    $contenidoXml = ltrim($contenidoXml, "\xEF\xBB\xBF \t\r\n");
+                    // Normaliza XML a UTF-8 para evitar truncamiento en DB (ej. XML ISO-8859-1 con Ñ).
+                    $contenidoXml = $this->normalizeXmlToUtf8($contenidoXml);
 
                     libxml_use_internal_errors(true);
                     $xml = simplexml_load_string($contenidoXml);
@@ -385,6 +398,44 @@ class GmailLeerXml extends Command
         }
         $this->info("✔ Proceso completo. Mensajes listados: {$totalFound}. Mensajes procesados: {$totalProcessed}.");
         return Command::SUCCESS;
+    }
+
+    private function normalizeXmlToUtf8(string $xmlContent): string
+    {
+        $xmlContent = ltrim($xmlContent, "\xEF\xBB\xBF \t\r\n");
+
+        $declaredEncoding = null;
+        if (preg_match('/<\?xml[^>]*encoding=["\']([^"\']+)["\']/i', $xmlContent, $m)) {
+            $declaredEncoding = strtoupper(trim((string) $m[1]));
+        }
+
+        $normalized = $xmlContent;
+
+        if ($declaredEncoding && $declaredEncoding !== 'UTF-8') {
+            $converted = @mb_convert_encoding($normalized, 'UTF-8', $declaredEncoding . ',ISO-8859-1,Windows-1252,UTF-8');
+            if (is_string($converted) && $converted !== '') {
+                $normalized = $converted;
+            }
+        } elseif (!mb_check_encoding($normalized, 'UTF-8')) {
+            $converted = @mb_convert_encoding($normalized, 'UTF-8', 'ISO-8859-1,Windows-1252,UTF-8');
+            if (is_string($converted) && $converted !== '') {
+                $normalized = $converted;
+            }
+        }
+
+        $normalized = preg_replace(
+            '/<\?xml\s+version=["\']1\.0["\']\s+encoding=["\'][^"\']+["\']\s*\?>/i',
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            $normalized,
+            1
+        ) ?? $normalized;
+
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $normalized);
+        if ($clean !== false && $clean !== '') {
+            $normalized = $clean;
+        }
+
+        return $normalized;
     }
 
     /**
