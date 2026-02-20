@@ -268,10 +268,13 @@
                         </div>
                         @if($recipients->count())
                             <div class="sidebar-section">
-                                <p class="section-label">Destinatarios guardados</p>
-                                <div class="space-y-1">
-                                    @foreach($recipients as $email)
-                                        <p class="text-[11px] font-mono text-gray-500 dark:text-gray-400 truncate">{{ $email }}</p>
+                                <p class="section-label">Destinatarios</p>
+                                <div class="space-y-2">
+                                    @foreach($recipients as $r)
+                                        <div>
+                                            <p class="text-[11px] font-bold text-gray-700 dark:text-gray-300">{{ $r->supplier_name }}</p>
+                                            <p class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 truncate">{{ $r->email }}</p>
+                                        </div>
                                     @endforeach
                                 </div>
                             </div>
@@ -286,18 +289,28 @@
                                 @csrf
                                 <div>
                                     <label class="f-label">Destinatarios</label>
-                                    <input name="emails" value="{{ old('emails', $recipients->join(', ')) }}"
+                                    <input name="emails"
+                                        value="{{ old('emails', $recipients->pluck('email')->join(', ')) }}"
                                         class="f-input" placeholder="correo@empresa.cl, otro@empresa.cl">
+                                    @if($recipients->count() > 1)
+                                        <p class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                                            Se enviará 1 correo independiente a cada destinatario.
+                                        </p>
+                                    @endif
                                 </div>
                                 <div>
                                     <label class="f-label">Asunto</label>
-                                    <input name="subject" value="{{ old('subject', 'Orden de compra ' . $order->order_number) }}"
+                                    <input name="subject"
+                                        value="{{ old('subject', 'Orden de compra ' . $order->order_number) }}"
                                         class="f-input">
                                 </div>
                                 <div>
                                     <label class="f-label">Mensaje</label>
-                                    <textarea name="message" rows="3" class="f-input" style="resize:vertical"
-                                        placeholder="Adjuntamos la orden de compra...">{{ old('message') }}</textarea>
+                                    <textarea name="message" rows="5" class="f-input" style="resize:vertical">{{ old('message', $order->notes) }}</textarea>
+                                    <p class="text-[11px] text-gray-400 mt-1">
+                                        Usa <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{PROVEEDOR}</code>
+                                        para personalizar el nombre por destinatario.
+                                    </p>
                                 </div>
                                 <button type="submit"
                                     class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
@@ -305,6 +318,9 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                     </svg>
                                     Enviar orden
+                                    @if($recipients->count() > 1)
+                                        ({{ $recipients->count() }} correos)
+                                    @endif
                                 </button>
                             </form>
                         </div>

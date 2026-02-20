@@ -844,6 +844,8 @@
                     }
                     this.savingSupplier = true;
                     try {
+                        // El servidor espera "supplier_id" para saber si actualizar o crear
+                        const payload = { ...this.supplierForm, supplier_id: this.supplierForm.id || null };
                         const res = await fetch('{{ route('purchase_orders.suppliers.upsert') }}', {
                             method: 'POST',
                             headers: {
@@ -851,7 +853,7 @@
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                                 'Accept': 'application/json'
                             },
-                            body: JSON.stringify(this.supplierForm)
+                            body: JSON.stringify(payload)
                         });
                         const data = await res.json();
                         if (!res.ok || !data.ok) throw new Error(data.message || 'No se pudo guardar.');

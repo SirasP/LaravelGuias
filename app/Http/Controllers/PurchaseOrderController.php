@@ -383,7 +383,19 @@ class PurchaseOrderController extends Controller
 
         $order = $db->table('purchase_orders')->where('id', $id)->firstOrFail();
         $items = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
-        $recipients = $db->table('purchase_order_recipients')->where('purchase_order_id', $id)->orderBy('id')->pluck('email');
+
+        // Recipients enriched with their supplier name (via join on supplier emails table)
+        $recipients = $db->table('purchase_order_recipients as por')
+            ->leftJoin('purchase_order_supplier_emails as pose', 'pose.email', '=', 'por.email')
+            ->leftJoin('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
+            ->where('por.purchase_order_id', $id)
+            ->select('por.email', 'pos.name as supplier_name')
+            ->orderBy('por.id')
+            ->get()
+            ->map(function ($r) use ($order) {
+                $r->supplier_name = $r->supplier_name ?? $order->supplier_name;
+                return $r;
+            });
 
         return view('purchase_orders.show', compact('order', 'items', 'recipients'));
     }
@@ -400,12 +412,37 @@ class PurchaseOrderController extends Controller
         $order = $db->table('purchase_orders')->where('id', $id)->firstOrFail();
         $items = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
 
-        $emails = $this->normalizeEmails((string) ($validated['emails'] ?? ''));
-        if (empty($emails)) {
-            $emails = $db->table('purchase_order_recipients')->where('purchase_order_id', $id)->pluck('email')->all();
+        // Build recipient list: [{email, supplier_name}]
+        $customEmails = $this->normalizeEmails((string) ($validated['emails'] ?? ''));
+
+        if (!empty($customEmails)) {
+            // Map typed emails → supplier name (join via supplier emails table)
+            $emailToSupplier = $db->table('purchase_order_supplier_emails as pose')
+                ->join('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
+                ->whereIn('pose.email', $customEmails)
+                ->pluck('pos.name', 'pose.email');
+
+            $recipientList = array_map(fn($email) => [
+                'email' => $email,
+                'supplier_name' => $emailToSupplier[$email] ?? $order->supplier_name,
+            ], $customEmails);
+        } else {
+            // Use saved recipients enriched with supplier names
+            $recipientList = $db->table('purchase_order_recipients as por')
+                ->leftJoin('purchase_order_supplier_emails as pose', 'pose.email', '=', 'por.email')
+                ->leftJoin('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
+                ->where('por.purchase_order_id', $id)
+                ->select('por.email', 'pos.name as supplier_name')
+                ->orderBy('por.id')
+                ->get()
+                ->map(fn($r) => [
+                    'email' => $r->email,
+                    'supplier_name' => $r->supplier_name ?? $order->supplier_name,
+                ])
+                ->all();
         }
 
-        if (empty($emails)) {
+        if (empty($recipientList)) {
             return back()->with('warning', 'Debes ingresar al menos un correo destinatario.');
         }
 
@@ -414,8 +451,9 @@ class PurchaseOrderController extends Controller
             $subject = 'Orden de compra ' . ($order->order_number ?? ('#' . $order->id));
         }
 
-        $messageText = trim((string) ($validated['message'] ?? ''));
+        $messageTemplate = trim((string) ($validated['message'] ?? ''));
 
+        // Build items table HTML (shared for all recipients)
         $rows = '';
         foreach ($items as $item) {
             $rows .= '<tr>'
@@ -426,12 +464,7 @@ class PurchaseOrderController extends Controller
                 . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->line_total, 2, ',', '.') . '</td>'
                 . '</tr>';
         }
-
-        $html = '<h2 style="margin:0 0 8px;">Orden de compra ' . e($order->order_number) . '</h2>'
-            . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($order->supplier_name) . '</p>'
-            . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
-            . ($messageText !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($messageText)) . '</p>') : '')
-            . '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
+        $tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
             . '<thead><tr>'
             . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">Producto</th>'
             . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Cantidad</th>'
@@ -442,9 +475,21 @@ class PurchaseOrderController extends Controller
             . '<p style="margin-top:12px;"><strong>Total:</strong> ' . e($order->currency) . ' ' . number_format((float) $order->total, 2, ',', '.') . '</p>';
 
         try {
-            Mail::send([], [], function ($message) use ($emails, $subject, $html) {
-                $message->to($emails)->subject($subject)->html($html);
-            });
+            foreach ($recipientList as $recipient) {
+                // Personalize: replace {PROVEEDOR} with this recipient's supplier name
+                $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
+
+                $html = '<h2 style="margin:0 0 8px;">Orden de compra ' . e($order->order_number) . '</h2>'
+                    . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($recipient['supplier_name']) . '</p>'
+                    . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
+                    . ($personalizedMsg !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($personalizedMsg)) . '</p>') : '')
+                    . $tableHtml;
+
+                $emailAddr = $recipient['email'];
+                Mail::send([], [], function ($message) use ($emailAddr, $subject, $html) {
+                    $message->to($emailAddr)->subject($subject)->html($html);
+                });
+            }
         } catch (\Throwable $e) {
             return back()->with('warning', 'No se pudo enviar el correo: ' . $e->getMessage());
         }
@@ -455,7 +500,7 @@ class PurchaseOrderController extends Controller
             'updated_at' => now(),
         ]);
 
-        return back()->with('success', 'Orden enviada por correo.');
+        return back()->with('success', 'Orden enviada a ' . count($recipientList) . ' destinatario(s).');
     }
 
     private function normalizeEmails(string $raw): array
