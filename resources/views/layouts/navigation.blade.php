@@ -268,6 +268,38 @@
             </div>
 
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
+                <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Órdenes de compra</p>
+            </div>
+            <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
+
+            @php $poActive = request()->routeIs('purchase_orders.*'); @endphp
+            <div class="mb-0.5">
+                <button @click="toggleSection('oc')" :title="!expanded ? 'Órdenes de compra' : ''"
+                    class="w-full flex items-center rounded-xl transition-all duration-150"
+                    :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
+                    :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                        {{ $poActive ? 'bg-emerald-100 dark:bg-emerald-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        <svg class="w-[18px] h-[18px] transition-colors {{ $poActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <span x-show="expanded" class="flex-1 text-left truncate {{ $poActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-600 dark:text-gray-400' }}">Órdenes de compra</span>
+                    <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'oc' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="expanded && openSection === 'oc'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-emerald-100 dark:border-emerald-900/40 space-y-0.5 pb-1">
+                    <a href="{{ route('purchase_orders.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('purchase_orders.index') || request()->routeIs('purchase_orders.show') ? 'text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Tablero</a>
+                    <a href="{{ route('purchase_orders.create') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('purchase_orders.create') ? 'text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Nueva orden</a>
+                </div>
+            </div>
+
+            <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Inventario</p>
             </div>
             <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
@@ -398,6 +430,7 @@
                 else if (path.startsWith('/agrak')) this.openSection = 'agrak';
                 else if (path.startsWith('/guias')) this.openSection = 'xml';
                 else if (path.startsWith('/gmail/dtes')) this.openSection = 'dteprov';
+                else if (path.startsWith('/ordenes-compra')) this.openSection = 'oc';
                 else if (path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) this.openSection = 'dteinv';
                 else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
 

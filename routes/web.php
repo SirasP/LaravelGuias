@@ -21,6 +21,7 @@ use App\Http\Controllers\FuelControl\VehiculoController;
 use App\Http\Controllers\FuelControl\MovimientoController;
 use App\Http\Controllers\GmailAuthController;
 use App\Http\Controllers\GmailDteDocumentController;
+use App\Http\Controllers\PurchaseOrderController;
 
 
 /*
@@ -478,3 +479,19 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
         ->name('dtes.show');
 
 });
+
+/*
+|--------------------------------------------------------------------------
+| ORDENES DE COMPRA (solo ADMIN)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('ordenes-compra')
+    ->name('purchase_orders.')
+    ->group(function () {
+        Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+        Route::get('/crear', [PurchaseOrderController::class, 'create'])->name('create');
+        Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+        Route::get('/{id}', [PurchaseOrderController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('/{id}/enviar-email', [PurchaseOrderController::class, 'sendEmail'])->whereNumber('id')->name('send_email');
+    });
