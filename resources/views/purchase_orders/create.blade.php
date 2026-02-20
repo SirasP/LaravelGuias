@@ -385,12 +385,7 @@
                             </div>
                         </div>
 
-                        {{-- Observaciones --}}
-                        <div>
-                            <label class="f-label">Observaciones</label>
-                            <textarea name="notes" rows="4" class="f-input" style="resize:vertical"
-                                x-model="notes" @input="notesTouched=true"></textarea>
-                        </div>
+                        {{-- Nota: las observaciones se editan en el modal de confirmación --}}
                     </div>
                 </div>
 
@@ -584,12 +579,18 @@
 
                     {{-- Mensaje / observaciones --}}
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                            Mensaje que se enviará
-                        </p>
-                        <p class="text-[11px] text-gray-400 mb-1.5">
-                            Puedes editar el mensaje antes de confirmar. El marcador <code class="bg-gray-100 px-1 rounded">{PROVEEDOR}</code> se reemplazará por el nombre de cada proveedor.
-                        </p>
+                        <div class="flex items-start gap-2 mb-2">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wider text-gray-400">
+                                    Cuerpo del correo
+                                </p>
+                                <p class="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                                    Este es el texto que recibirá cada proveedor. Puedes editarlo ahora.
+                                    El texto <span class="font-mono bg-gray-100 text-gray-600 px-1 rounded">{PROVEEDOR}</span>
+                                    se reemplaza automáticamente por el nombre de cada destinatario al momento del envío.
+                                </p>
+                            </div>
+                        </div>
                         <textarea x-model="notes" rows="8"
                             class="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700
                                    px-3 py-2 outline-none focus:border-emerald-400 focus:bg-white transition"
