@@ -200,6 +200,33 @@
         .dest-btn-edit { background:rgba(99,102,241,.1); color:#4338ca }
         .dest-btn-edit:hover { background:rgba(99,102,241,.2); color:#4338ca }
         .dark .dest-btn-edit { color:#818cf8 }
+
+        /* ── Combobox de producto por línea ──────────────────────────────── */
+        .prod-wrap { position:relative; }
+        .prod-input {
+            width:100%; background:transparent; border:none; outline:none;
+            font-size:13px; color:#111827; padding:4px 6px;
+            border-bottom:1.5px solid #e2e8f0; transition:border-color .15s;
+        }
+        .prod-input:focus { border-bottom-color:#10b981; }
+        .dark .prod-input { color:#f1f5f9; border-bottom-color:#374151; }
+        .dark .prod-input:focus { border-bottom-color:#10b981; }
+        .prod-input::placeholder { color:#9ca3af; }
+        .prod-drop {
+            position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:50;
+            background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+            box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:220px; overflow-y:auto;
+        }
+        .dark .prod-drop { background:#161c2c; border-color:#1e2a3b; }
+        .prod-item {
+            padding:8px 12px; cursor:pointer; font-size:12px; color:#334155;
+            display:flex; align-items:center; justify-content:space-between; gap:6px;
+        }
+        .prod-item:hover { background:#f0fdf4; }
+        .dark .prod-item { color:#cbd5e1; }
+        .dark .prod-item:hover { background:rgba(16,185,129,.06); }
+        .prod-item-sub { font-size:10px; color:#94a3b8; white-space:nowrap; }
+        .prod-item-empty { padding:8px 12px; font-size:11px; color:#94a3b8; font-style:italic; }
     </style>
 
     <div class="page-bg" x-data="purchaseOrderForm(@js($products), @js($suppliers), @js($defaultNotesTemplate))">
@@ -214,7 +241,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('purchase_orders.store') }}" @submit="beforeSubmit()">
+            <form method="POST" action="{{ route('purchase_orders.store') }}" x-ref="mainForm" @submit="beforeSubmit()">
                 @csrf
 
                 {{-- Hidden: supplier_id = primer destinatario agregado --}}
@@ -381,13 +408,12 @@
                         </button>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="dt">
+                    <div style="overflow:visible">
+                        <table class="dt" style="min-width:700px">
                             <thead>
                                 <tr>
                                     <th class="w-10 text-center">#</th>
-                                    <th>Producto de inventario</th>
-                                    <th>Descripción / nombre</th>
+                                    <th class="min-w-[280px]">Producto</th>
                                     <th>UdM</th>
                                     <th class="text-right">Cantidad</th>
                                     <th class="text-right" x-text="'Precio unit. (' + currencySymbol() + ')'"></th>
@@ -399,24 +425,60 @@
                                 <template x-for="(line, i) in lines" :key="line.uid">
                                     <tr>
                                         <td class="text-center"><span class="line-num" x-text="i + 1"></span></td>
-                                        <td class="min-w-[220px]">
-                                            <select :name="`items[${i}][inventory_product_id]`"
-                                                x-model="line.inventory_product_id"
-                                                @change="fillFromInventory(line)"
-                                                class="f-cell">
-                                                <option value="">— Manual —</option>
-                                                <template x-for="p in products" :key="p.id">
-                                                    <option :value="String(p.id)"
-                                                        x-text="`${p.nombre}${p.codigo ? ' (' + p.codigo + ')' : ''}`"></option>
-                                                </template>
-                                            </select>
-                                        </td>
-                                        <td class="min-w-[200px]">
-                                            <input :name="`items[${i}][product_name]`" x-model="line.product_name"
-                                                class="f-cell" placeholder="Nombre del producto">
+                                        {{-- Combobox de producto (reemplaza select + input nombre) --}}
+                                        <td class="min-w-[280px]" style="position:relative; overflow:visible">
+                                            {{-- Inputs ocultos para envío al servidor --}}
+                                            <input type="hidden" :name="`items[${i}][inventory_product_id]`" :value="line.inventory_product_id">
+                                            <input type="hidden" :name="`items[${i}][product_name]`" :value="line.product_name">
+                                            <input type="hidden" :name="`items[${i}][save_as_inventory]`" :value="line.saveAsInventory ? '1' : ''">
+
+                                            <div class="prod-wrap">
+                                                <input type="text"
+                                                    class="prod-input"
+                                                    placeholder="Buscar o escribir producto..."
+                                                    autocomplete="off"
+                                                    x-model="line.productSearch"
+                                                    @focus="line.productDropOpen = true"
+                                                    @input="line.productDropOpen = true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                                    @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
+                                                    @keydown.escape="line.productDropOpen = false"
+                                                    @keydown.enter.prevent="selectFirstProduct(line)">
+
+                                                {{-- Dropdown de coincidencias --}}
+                                                <div class="prod-drop" x-show="line.productDropOpen" x-cloak>
+                                                    <template x-if="filteredProducts(line).length === 0">
+                                                        <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
+                                                    </template>
+                                                    <template x-for="p in filteredProducts(line)" :key="p.id">
+                                                        <div class="prod-item"
+                                                            @mousedown.prevent="selectProduct(line, p)">
+                                                            <span x-text="p.nombre"></span>
+                                                            <span class="prod-item-sub"
+                                                                x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            {{-- Badge: producto seleccionado del inventario --}}
+                                            <div class="mt-1 flex items-center gap-1" x-show="line.inventory_product_id">
+                                                <span class="inline-flex items-center gap-1 text-[10px] font-semibold
+                                                             bg-emerald-50 text-emerald-700 border border-emerald-200
+                                                             rounded-full px-2 py-0.5">
+                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                    Inventario
+                                                </span>
+                                                <button type="button"
+                                                    class="text-[10px] text-gray-400 hover:text-rose-500 transition"
+                                                    @click="line.inventory_product_id=''; line.productSearch=line.product_name;"
+                                                    title="Desvincular del inventario">× desvincular</button>
+                                            </div>
+                                            {{-- Checkbox guardar en inventario (sólo si es manual) --}}
                                             <label class="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer"
                                                 x-show="!line.inventory_product_id">
-                                                <input type="checkbox" :name="`items[${i}][save_as_inventory]`" value="1"
+                                                <input type="checkbox" x-model="line.saveAsInventory"
                                                     class="rounded border-gray-300 dark:border-gray-700 w-3 h-3 text-emerald-600">
                                                 <span>Guardar en inventario</span>
                                             </label>
@@ -460,18 +522,128 @@
                                     <span x-text="currencySymbol()"></span>&nbsp;<span x-text="money(grandTotal())"></span>
                                 </p>
                             </div>
-                            <button type="submit"
+                            <button type="button" @click="openPreview()"
                                 class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
                                        bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                Crear cotización
+                                Revisar y enviar
                             </button>
                         </div>
                     </div>
                 </div>
             </form>
+        </div>
+
+        {{-- ── Modal Preview / Confirmación de envío ──────────────────────── --}}
+        <div x-show="previewOpen" x-cloak
+             class="fixed inset-0 flex items-center justify-center p-4"
+             style="z-index:250">
+            <div class="absolute inset-0 bg-black/60" @click="previewOpen=false"></div>
+            <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col"
+                 style="background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+
+                {{-- Header --}}
+                <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                        </span>
+                        <h3 class="text-sm font-bold text-gray-900">Confirmar envío de cotización</h3>
+                    </div>
+                    <button type="button" @click="previewOpen=false"
+                        class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100
+                               hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
+                </div>
+
+                <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+                    {{-- Destinatarios --}}
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                            Destinatarios
+                            <span class="ml-1 font-normal normal-case text-gray-300"
+                                x-text="'(' + recipientList.filter(r => r.email).length + ' con correo)'"></span>
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="r in recipientList" :key="r.supplierId + r.email">
+                                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                                     :class="r.email
+                                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                         : 'bg-amber-50 text-amber-700 border border-amber-200'">
+                                    <span x-text="r.name"></span>
+                                    <span class="font-normal opacity-70" x-show="r.email" x-text="'— ' + r.email"></span>
+                                    <span class="font-normal" x-show="!r.email">— sin correo (no se enviará)</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Mensaje / observaciones --}}
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                            Mensaje que se enviará
+                        </p>
+                        <p class="text-[11px] text-gray-400 mb-1.5">
+                            Puedes editar el mensaje antes de confirmar. El marcador <code class="bg-gray-100 px-1 rounded">{PROVEEDOR}</code> se reemplazará por el nombre de cada proveedor.
+                        </p>
+                        <textarea x-model="notes" rows="8"
+                            class="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700
+                                   px-3 py-2 outline-none focus:border-emerald-400 focus:bg-white transition"
+                            style="resize:vertical; font-family:inherit; line-height:1.6"></textarea>
+                    </div>
+
+                    {{-- Líneas de producto (resumen) --}}
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                            Productos (<span x-text="lines.filter(l => l.product_name).length"></span>)
+                        </p>
+                        <div class="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                            <template x-for="(l, i) in lines.filter(l => l.product_name)" :key="l.uid">
+                                <div class="px-3 py-2 flex items-center justify-between gap-3 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-5 h-5 rounded-md bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-[10px]"
+                                            x-text="i + 1"></span>
+                                        <span class="font-medium text-gray-800" x-text="l.product_name"></span>
+                                        <span class="text-gray-400" x-text="l.unit"></span>
+                                    </div>
+                                    <div class="flex items-center gap-3 shrink-0 text-gray-500">
+                                        <span x-text="l.quantity + ' × ' + currencySymbol() + money(l.unit_price)"></span>
+                                        <span class="font-bold text-gray-700"
+                                            x-text="currencySymbol() + ' ' + money(l.line_total)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            <div class="px-3 py-2 bg-emerald-50 flex justify-end">
+                                <span class="text-sm font-black text-emerald-700"
+                                    x-text="'Total: ' + currencySymbol() + ' ' + money(grandTotal())"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                {{-- Footer con acciones --}}
+                <div class="px-5 py-3.5 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
+                    <button type="button" @click="previewOpen=false"
+                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200
+                               text-gray-600 hover:bg-gray-50 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" @click="previewOpen=false; $nextTick(() => $refs.mainForm.submit())"
+                        class="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-xl
+                               bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Crear y enviar cotización
+                    </button>
+                </div>
+
+            </div>
         </div>
 
         {{-- ── Modal Proveedor ─────────────────────────────────────────────── --}}
@@ -697,9 +869,13 @@
 
                 lines: [{
                     uid: Date.now(),
-                    inventory_product_id: '', product_name: '', unit: 'UN',
-                    quantity: 1, unit_price: 0, line_total: 0
+                    inventory_product_id: '', product_name: '',
+                    productSearch: '', productDropOpen: false,
+                    saveAsInventory: false,
+                    unit: 'UN', quantity: 1, unit_price: 0, line_total: 0
                 }],
+
+                previewOpen: false,
 
                 init() {
                     // NO auto-selecciona ningún proveedor — empieza vacío
@@ -920,14 +1096,44 @@
                 addLine() {
                     this.lines.push({
                         uid: Date.now() + Math.random(),
-                        inventory_product_id: '', product_name: '', unit: 'UN',
-                        quantity: 1, unit_price: 0, line_total: 0
+                        inventory_product_id: '', product_name: '',
+                        productSearch: '', productDropOpen: false,
+                        saveAsInventory: false,
+                        unit: 'UN', quantity: 1, unit_price: 0, line_total: 0
                     });
                 },
 
                 removeLine(index) {
                     if (this.lines.length === 1) return;
                     this.lines.splice(index, 1);
+                },
+
+                // ── Combobox de producto ──────────────────────────────────────────
+                filteredProducts(line) {
+                    const q = (line.productSearch || '').toLowerCase().trim();
+                    if (!q) return this.products.slice(0, 25);
+                    return this.products.filter(p =>
+                        (p.nombre || '').toLowerCase().includes(q) ||
+                        (p.codigo || '').toLowerCase().includes(q)
+                    ).slice(0, 30);
+                },
+
+                selectProduct(line, product) {
+                    line.inventory_product_id = String(product.id);
+                    line.product_name  = product.nombre || '';
+                    line.productSearch = product.nombre || '';
+                    line.unit = product.unidad || line.unit || 'UN';
+                    if ((!line.unit_price || Number(line.unit_price) === 0) &&
+                        Number(product.costo_promedio || 0) > 0) {
+                        line.unit_price = Number(product.costo_promedio);
+                    }
+                    line.productDropOpen = false;
+                    this.recalc(line);
+                },
+
+                selectFirstProduct(line) {
+                    const list = this.filteredProducts(line);
+                    if (list.length > 0) this.selectProduct(line, list[0]);
                 },
 
                 fillFromInventory(line) {
@@ -940,6 +1146,22 @@
                         line.unit_price = Number(p.costo_promedio);
                     }
                     this.recalc(line);
+                },
+
+                // ── Preview / confirmación ────────────────────────────────────────
+                openPreview() {
+                    this.beforeSubmit();
+                    const hasRecipients = this.recipientList.some(r => r.email);
+                    if (!hasRecipients) {
+                        alert('Agrega al menos un destinatario con correo electrónico antes de continuar.');
+                        return;
+                    }
+                    const hasLines = this.lines.some(l => (l.product_name || '').trim());
+                    if (!hasLines) {
+                        alert('Agrega al menos una línea de producto.');
+                        return;
+                    }
+                    this.previewOpen = true;
                 },
 
                 recalc(line) {
