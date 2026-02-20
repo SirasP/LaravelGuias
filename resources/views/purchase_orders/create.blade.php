@@ -65,63 +65,80 @@
         .dt td { padding:8px 10px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle }
         .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
         .dt tbody tr:hover td { background:#f5fffb }
-
         .amt-cell {
             background:rgba(16,185,129,.04); border-left:1px solid #ecfdf5;
             font-weight:700; font-size:13px; color:#065f46;
             text-align:right; padding-right:14px; white-space:nowrap;
         }
         .dark .amt-cell { background:rgba(16,185,129,.03); border-left-color:rgba(16,185,129,.08); color:#34d399 }
-
         .line-num {
             display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center;
             border-radius:999px; background:#f1f5f9; color:#94a3b8; font-size:10px; font-weight:700;
         }
 
-        /* Combobox — z-index DEBE ser menor que el modal (z-50 = 50) */
+        /* ── Combobox ──────────────────────────────────────────────────────── */
+        /* SIN backdrop separado: usamos @click.outside en el wrapper.         */
+        /* z-index 20 es suficiente para superar el contenido normal.          */
         .combo-wrap { position:relative; }
         .combo-drop {
             position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20;
             background:#fff; border:1px solid #e2e8f0; border-radius:12px;
-            box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:260px; overflow-y:auto;
+            box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
         }
         .dark .combo-drop { background:#161c2c; border-color:#1e2a3b; box-shadow:0 8px 32px rgba(0,0,0,.4) }
         .combo-item {
             display:flex; align-items:center; justify-content:space-between;
-            padding:9px 12px; cursor:pointer; font-size:13px; color:#334155;
+            padding:9px 13px; cursor:pointer; font-size:13px; color:#334155;
+            gap:8px;
         }
         .combo-item:hover { background:#f5fffb }
         .dark .combo-item { color:#cbd5e1 }
         .dark .combo-item:hover { background:rgba(16,185,129,.05) }
-        .combo-empty { padding:9px 12px; font-size:12px; color:#94a3b8; font-style:italic }
+        .combo-item-sub { font-size:11px; color:#94a3b8; white-space:nowrap }
+        .combo-empty  { padding:9px 13px; font-size:12px; color:#94a3b8; font-style:italic }
         .combo-create {
-            display:flex; align-items:center; gap:6px;
-            padding:9px 12px; cursor:pointer; font-size:12px;
-            color:#10b981; font-weight:700; border-top:1px solid #f1f5f9;
+            display:flex; align-items:center; gap:7px;
+            padding:10px 13px; cursor:pointer; font-size:12px; font-weight:700;
+            color:#10b981; border-top:1px solid #f1f5f9;
         }
         .combo-create:hover { background:#f0fdf4 }
         .dark .combo-create { color:#34d399; border-top-color:#1a2232 }
         .dark .combo-create:hover { background:rgba(16,185,129,.08) }
 
-        /* Chips de destinatarios */
-        .dest-chip {
-            display:inline-flex; align-items:center; gap:6px;
-            padding:5px 10px; border-radius:999px; cursor:pointer;
-            font-size:11px; font-weight:700; border:1.5px solid;
-            transition:.15s; user-select:none;
+        /* ── Tarjetas de destinatario ──────────────────────────────────────── */
+        .dest-card {
+            display:flex; flex-direction:column; gap:3px;
+            padding:8px 11px; border-radius:12px;
+            background:#ecfdf5; border:1.5px solid #a7f3d0;
+            min-width:180px; max-width:260px;
         }
-        .dest-chip-on  { background:#ecfdf5; border-color:#6ee7b7; color:#065f46 }
-        .dest-chip-off { background:#f8fafc; border-color:#e2e8f0; color:#94a3b8; text-decoration:line-through; opacity:.6 }
-        .dark .dest-chip-on  { background:rgba(16,185,129,.12); border-color:rgba(16,185,129,.3); color:#34d399 }
-        .dark .dest-chip-off { background:#0f1623; border-color:#1e2a3b; color:#475569 }
+        .dark .dest-card { background:rgba(16,185,129,.07); border-color:rgba(16,185,129,.2) }
+        .dest-card-head {
+            display:flex; align-items:center; justify-content:space-between; gap:6px;
+        }
+        .dest-name {
+            font-size:10px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.05em; color:#065f46; truncate:true;
+        }
+        .dark .dest-name { color:#34d399 }
+        .dest-email { font-size:12px; font-weight:600; color:#047857 }
+        .dark .dest-email { color:#6ee7b7 }
+        .dest-no-email { font-size:11px; color:#94a3b8; font-style:italic }
+        .dest-actions { display:flex; gap:3px; shrink:0 }
+        .dest-btn {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:18px; height:18px; border-radius:6px; cursor:pointer;
+            background:rgba(16,185,129,.15); color:#065f46; font-size:12px;
+            transition:.12s;
+        }
+        .dest-btn:hover { background:rgba(239,68,68,.15); color:#dc2626 }
+        .dark .dest-btn { background:rgba(16,185,129,.15); color:#34d399 }
+        .dest-btn-edit { background:rgba(99,102,241,.1); color:#4338ca }
+        .dest-btn-edit:hover { background:rgba(99,102,241,.2); color:#4338ca }
+        .dark .dest-btn-edit { color:#818cf8 }
     </style>
 
     <div class="page-bg" x-data="purchaseOrderForm(@js($products), @js($suppliers), @js($defaultNotesTemplate))">
-
-        {{-- Backdrop liviano para cerrar combobox (z-10, MUY por debajo del modal) --}}
-        <div x-show="supplierDropOpen" x-cloak @click="supplierDropOpen=false"
-             class="fixed inset-0" style="z-index:10; background:transparent;"></div>
-
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
             @if($errors->any())
@@ -136,68 +153,56 @@
             <form method="POST" action="{{ route('purchase_orders.store') }}" @submit="beforeSubmit()">
                 @csrf
 
-                {{-- ── Panel 1: Proveedor ─────────────────────────────────────────── --}}
-                {{-- overflow:visible para que el dropdown del combobox no quede recortado --}}
+                {{-- Hidden: supplier_id = primer destinatario agregado --}}
+                <input type="hidden" name="supplier_id" :value="primarySupplierId()">
+
+                {{-- ── Panel 1: Proveedores y destinatarios ────────────────────── --}}
+                {{-- overflow:visible permite que el combo-drop se extienda fuera --}}
                 <div class="panel au d1" style="overflow:visible">
                     <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Proveedor y envío</h3>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Proveedores y destinatarios</h3>
                     </div>
 
                     <div class="px-5 py-4 space-y-4">
-                        <input type="hidden" name="supplier_mode" value="existing">
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                            {{-- ── Combobox proveedor ── --}}
+                            {{-- ── Combobox: buscar y agregar proveedor ── --}}
+                            {{-- @click.outside sobre combo-wrap — SIN backdrop, evita conflictos de z-index --}}
                             <div>
-                                <label class="f-label">Proveedor</label>
-                                <div class="flex gap-2">
-                                    {{-- Input + dropdown (z-index 20 en combo-drop, por debajo del modal) --}}
-                                    <div class="combo-wrap flex-1">
-                                        <input type="text"
-                                            class="f-input"
-                                            x-model="supplierSearch"
-                                            @focus="supplierDropOpen=true"
-                                            @input="supplierDropOpen=true; onSupplierSearchChange()"
-                                            @keydown.escape="supplierDropOpen=false"
-                                            @keydown.enter.prevent="supplierDropEnter()"
-                                            placeholder="Buscar o crear proveedor..."
-                                            autocomplete="off">
-                                        <input type="hidden" name="supplier_id" :value="selectedSupplierId">
+                                <label class="f-label">Buscar y agregar proveedor</label>
+                                <div class="combo-wrap" @click.outside="supplierDropOpen=false">
+                                    <input type="text"
+                                        class="f-input"
+                                        x-model="supplierSearch"
+                                        @focus="supplierDropOpen=true"
+                                        @input="supplierDropOpen=true"
+                                        @keydown.escape="supplierDropOpen=false"
+                                        @keydown.enter.prevent="comboEnter()"
+                                        placeholder="Escribe para buscar..."
+                                        autocomplete="off">
 
-                                        <div x-show="supplierDropOpen" x-cloak class="combo-drop">
-                                            <template x-for="sp in filteredSuppliers()" :key="sp.id">
-                                                <div class="combo-item" @click="selectSupplier(sp)">
-                                                    <span class="font-semibold truncate" x-text="sp.name"></span>
-                                                    <span class="text-[11px] text-gray-400 shrink-0 ml-2" x-text="sp.rut || ''"></span>
-                                                </div>
-                                            </template>
-                                            <div class="combo-empty"
-                                                x-show="filteredSuppliers().length === 0 && supplierSearch.trim()">
-                                                Sin resultados &mdash; crea uno nuevo.
+                                    {{-- Dropdown: click.outside cierra, click en item funciona correctamente --}}
+                                    <div x-show="supplierDropOpen" x-cloak class="combo-drop">
+                                        <template x-for="sp in filteredSuppliers()" :key="sp.id">
+                                            <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
+                                                <span class="font-semibold truncate" x-text="sp.name"></span>
+                                                <span class="combo-item-sub" x-text="sp.rut || ''"></span>
                                             </div>
-                                            <div class="combo-create" @click="openSupplierModal(); supplierDropOpen=false">
-                                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                                                </svg>
-                                                Crear nuevo proveedor
-                                            </div>
+                                        </template>
+                                        <div class="combo-empty"
+                                            x-show="filteredSuppliers().length === 0 && (supplierSearch || '').trim()">
+                                            Sin resultados — crea uno nuevo.
+                                        </div>
+                                        <div class="combo-create" @mousedown.prevent="openSupplierModal(null)">
+                                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                            Crear nuevo proveedor
                                         </div>
                                     </div>
-
-                                    {{-- Botón Editar (solo cuando hay proveedor seleccionado) --}}
-                                    <button type="button" @click="openSupplierModal()"
-                                        x-show="selectedSupplierId" x-cloak
-                                        class="shrink-0 px-3 py-2 rounded-xl text-xs font-bold
-                                               bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
-                                               text-gray-700 dark:text-gray-300 transition whitespace-nowrap">
-                                        Editar
-                                    </button>
                                 </div>
-                                <p class="text-[11px] text-gray-400 mt-1" x-show="selectedSupplierId" x-cloak>
-                                    Proveedor seleccionado &middot;
-                                    <button type="button" class="text-rose-400 hover:text-rose-600 hover:underline"
-                                        @click="clearSupplier()">Limpiar</button>
+                                <p class="text-[11px] text-gray-400 mt-1">
+                                    Puedes agregar múltiples proveedores como destinatarios.
                                 </p>
                             </div>
 
@@ -211,42 +216,54 @@
                                 </select>
                             </div>
 
-                            {{-- ── Destinatarios ── --}}
+                            {{-- ── Destinatarios del envío ── --}}
                             <div class="md:col-span-2">
                                 <label class="f-label">Destinatarios del envío</label>
 
-                                {{-- Chips de correos del proveedor --}}
-                                <div x-show="selectedSupplierEmails.length" class="flex flex-wrap gap-2">
-                                    <template x-for="em in selectedSupplierEmails" :key="em.email">
-                                        <label
-                                            class="dest-chip"
-                                            :class="em.checked ? 'dest-chip-on' : 'dest-chip-off'">
-                                            <input type="checkbox"
-                                                name="recipient_emails[]"
-                                                :value="em.email"
-                                                x-model="em.checked"
-                                                @change="updateNotesBySupplier()"
-                                                class="sr-only">
-                                            {{-- Icono check/uncheck --}}
-                                            <svg x-show="em.checked" class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                            </svg>
-                                            <svg x-show="!em.checked" class="w-3 h-3 shrink-0 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                            <span x-text="em.email"></span>
-                                        </label>
+                                {{-- Tarjetas de destinatarios --}}
+                                <div x-show="recipientList.length" class="flex flex-wrap gap-2">
+                                    <template x-for="(r, idx) in recipientList" :key="r.supplierId + '-' + r.email + '-' + idx">
+                                        {{-- Hidden input para cada email --}}
+                                        <template x-if="r.email">
+                                            <input type="hidden" name="recipient_emails[]" :value="r.email">
+                                        </template>
+
+                                        <div class="dest-card">
+                                            <div class="dest-card-head">
+                                                <span class="dest-name truncate" x-text="r.name"></span>
+                                                <div class="dest-actions">
+                                                    {{-- Editar proveedor --}}
+                                                    <button type="button"
+                                                        class="dest-btn dest-btn-edit"
+                                                        @click="openSupplierModal(r.supplierId)"
+                                                        title="Editar proveedor">
+                                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                        </svg>
+                                                    </button>
+                                                    {{-- Quitar --}}
+                                                    <button type="button"
+                                                        class="dest-btn"
+                                                        @click="removeRecipient(idx)"
+                                                        title="Quitar destinatario">
+                                                        &times;
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <span class="dest-email" x-show="r.email" x-text="r.email"></span>
+                                            <span class="dest-no-email" x-show="!r.email">
+                                                Sin correo &mdash;
+                                                <button type="button" @click="openSupplierModal(r.supplierId)"
+                                                    class="text-emerald-600 hover:underline font-semibold not-italic">Agregar</button>
+                                            </span>
+                                        </div>
                                     </template>
                                 </div>
 
-                                {{-- Estado cuando no hay correos --}}
-                                <p class="text-xs text-gray-400" x-show="!selectedSupplierEmails.length">
-                                    <span x-show="selectedSupplierId" x-cloak>
-                                        Este proveedor no tiene correos guardados &mdash;
-                                        <button type="button" @click="openSupplierModal()"
-                                            class="text-emerald-600 hover:underline font-semibold">agrégalos en Editar</button>.
-                                    </span>
-                                    <span x-show="!selectedSupplierId">Selecciona un proveedor para ver sus destinatarios.</span>
+                                {{-- Estado vacío --}}
+                                <p class="text-xs text-gray-400 mt-1" x-show="!recipientList.length">
+                                    Busca y selecciona proveedores arriba para agregarlos como destinatarios.
                                 </p>
                             </div>
                         </div>
@@ -260,12 +277,13 @@
                     </div>
                 </div>
 
-                {{-- ── Panel 2: Líneas ──────────────────────────────────────────────── --}}
+                {{-- ── Panel 2: Líneas ──────────────────────────────────────── --}}
                 <div class="panel au d2 mt-4">
                     <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Líneas de productos</h3>
                         <button type="button" @click="addLine()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl
+                                   bg-emerald-600 hover:bg-emerald-700 text-white transition">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
@@ -327,7 +345,8 @@
                                         <td class="amt-cell min-w-[120px]" x-text="money(line.line_total)"></td>
                                         <td class="text-center px-2">
                                             <button type="button" @click="removeLine(i)" x-show="lines.length > 1"
-                                                class="w-7 h-7 inline-flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 transition">
+                                                class="w-7 h-7 inline-flex items-center justify-center rounded-lg
+                                                       bg-rose-50 hover:bg-rose-100 text-rose-500 transition">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                                 </svg>
@@ -339,8 +358,11 @@
                         </table>
                     </div>
 
-                    <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20 flex items-center justify-between gap-4 flex-wrap">
-                        <p class="text-xs text-gray-400"><span x-text="lines.length"></span> línea<span x-show="lines.length !== 1">s</span></p>
+                    <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4
+                                bg-gray-50/60 dark:bg-gray-900/20 flex items-center justify-between gap-4 flex-wrap">
+                        <p class="text-xs text-gray-400">
+                            <span x-text="lines.length"></span> línea<span x-show="lines.length !== 1">s</span>
+                        </p>
                         <div class="flex items-center gap-6">
                             <div class="text-right">
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Total</p>
@@ -349,7 +371,8 @@
                                 </p>
                             </div>
                             <button type="submit"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
+                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
+                                       bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                 </svg>
@@ -361,25 +384,26 @@
             </form>
         </div>
 
-        {{-- ── Modal Proveedor (z-50 > backdrop z-10 > combo-drop z-20) ─────── --}}
+        {{-- ── Modal Proveedor ─────────────────────────────────────────────── --}}
+        {{-- z-index 200 supera cualquier elemento del formulario               --}}
         <div x-show="supplierModalOpen" x-cloak
              class="fixed inset-0 flex items-center justify-center p-4"
              style="z-index:200">
             <div class="absolute inset-0 bg-black/50" @click="supplierModalOpen=false"></div>
-            <div class="relative panel w-full max-w-5xl max-h-[90vh] overflow-y-auto" style="overflow-x:hidden; overflow-y:auto">
+            <div class="relative w-full max-w-5xl max-h-[90vh]"
+                 style="background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow-y:auto;">
+                {{-- dark-mode inline style no disponible, usar clase condicional --}}
 
                 <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                     <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100"
                         x-text="supplierForm.id ? 'Actualizar proveedor' : 'Crear proveedor'"></h3>
                     <button type="button" @click="supplierModalOpen=false"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200
-                               dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 text-lg leading-none transition">
-                        &times;
-                    </button>
+                        class="w-7 h-7 flex items-center justify-center rounded-lg
+                               bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
+                               text-gray-500 text-xl leading-none transition">&times;</button>
                 </div>
 
                 <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-
                     <div class="xl:col-span-2">
                         <label class="f-label">Nombre proveedor *</label>
                         <input class="f-input" x-model="supplierForm.name"
@@ -444,10 +468,8 @@
                             <option value="Perú">Perú</option>
                             <option value="Colombia">Colombia</option>
                             <option value="Ecuador">Ecuador</option>
-                            <option value="Venezuela">Venezuela</option>
                             <option value="Brasil">Brasil</option>
                             <option value="Uruguay">Uruguay</option>
-                            <option value="Paraguay">Paraguay</option>
                             <option value="México">México</option>
                             <option value="Estados Unidos">Estados Unidos</option>
                             <option value="Canadá">Canadá</option>
@@ -456,10 +478,8 @@
                             <option value="Francia">Francia</option>
                             <option value="Italia">Italia</option>
                             <option value="Reino Unido">Reino Unido</option>
-                            <option value="Portugal">Portugal</option>
                             <option value="China">China</option>
                             <option value="Japón">Japón</option>
-                            <option value="Corea del Sur">Corea del Sur</option>
                             <option value="Australia">Australia</option>
                         </select>
                     </div>
@@ -501,8 +521,8 @@
                         Cancelar
                     </button>
                     <button type="button" @click="saveSupplierFromModal()" :disabled="savingSupplier"
-                        class="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700
-                               transition disabled:opacity-60"
+                        class="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white
+                               hover:bg-emerald-700 transition disabled:opacity-60"
                         x-text="savingSupplier ? 'Guardando...' : (supplierForm.id ? 'Actualizar proveedor' : 'Crear proveedor')">
                     </button>
                 </div>
@@ -510,58 +530,52 @@
         </div>
     </div>
 
-    {{-- ── Datalists ─────────────────────────────────────────────────────────── --}}
+    {{-- ── Datalists ─────────────────────────────────────────────────────── --}}
     <datalist id="taxpayer-types-list">
         <option value="IVA afecto 1ª categoría">
         <option value="IVA exento 1ª categoría">
         <option value="2ª categoría (honorarios)">
         <option value="Persona Natural con Giro">
-        <option value="Empresa Individual (EI)">
         <option value="EIRL">
         <option value="Sociedad de Responsabilidad Limitada (LTDA)">
         <option value="Sociedad Anónima Cerrada (S.A.C.)">
         <option value="Sociedad Anónima Abierta (S.A.A.)">
         <option value="SpA (Sociedad por Acciones)">
-        <option value="Sociedad Colectiva">
         <option value="Cooperativa">
         <option value="Corporación / Fundación">
         <option value="Microempresa (Pro Pyme Transparente)">
         <option value="Pequeña empresa (Pro Pyme General)">
         <option value="Gran empresa (Semi Integrado)">
         <option value="Exportador">
-        <option value="Importador">
-        <option value="Organización sin fines de lucro">
         <option value="Entidad pública">
     </datalist>
 
     <datalist id="comunas-list">
         <option value="Arica"><option value="Iquique"><option value="Alto Hospicio">
-        <option value="Antofagasta"><option value="Calama"><option value="Tocopilla"><option value="San Pedro de Atacama">
+        <option value="Antofagasta"><option value="Calama"><option value="San Pedro de Atacama">
         <option value="Copiapó"><option value="Vallenar"><option value="Caldera">
         <option value="La Serena"><option value="Coquimbo"><option value="Ovalle"><option value="Illapel"><option value="Los Vilos">
         <option value="Valparaíso"><option value="Viña del Mar"><option value="Quilpué"><option value="Villa Alemana">
         <option value="Concón"><option value="San Antonio"><option value="Los Andes"><option value="San Felipe">
-        <option value="Quillota"><option value="La Calera"><option value="Limache"><option value="Olmué">
+        <option value="Quillota"><option value="La Calera"><option value="Limache">
         <option value="Santiago"><option value="Las Condes"><option value="Providencia"><option value="Ñuñoa">
         <option value="La Florida"><option value="Maipú"><option value="Puente Alto"><option value="San Bernardo">
         <option value="Lo Barnechea"><option value="Vitacura"><option value="La Reina"><option value="San Miguel">
         <option value="Peñalolén"><option value="Conchalí"><option value="Recoleta"><option value="Quilicura">
-        <option value="Independencia"><option value="El Bosque"><option value="La Cisterna"><option value="La Granja">
-        <option value="Lo Espejo"><option value="Lo Prado"><option value="Macul"><option value="Padre Hurtado">
+        <option value="Independencia"><option value="El Bosque"><option value="La Cisterna">
         <option value="Pudahuel"><option value="Quinta Normal"><option value="Renca"><option value="Huechuraba">
         <option value="Estación Central"><option value="Colina"><option value="Lampa"><option value="Melipilla">
-        <option value="Talagante"><option value="Buin"><option value="Paine"><option value="El Monte">
-        <option value="Rancagua"><option value="San Fernando"><option value="Pichilemu"><option value="Santa Cruz"><option value="Machalí">
-        <option value="Talca"><option value="Curicó"><option value="Linares"><option value="Cauquenes"><option value="Constitución">
-        <option value="Chillán"><option value="San Carlos"><option value="Chillán Viejo">
+        <option value="Talagante"><option value="Buin"><option value="Paine">
+        <option value="Rancagua"><option value="San Fernando"><option value="Pichilemu"><option value="Santa Cruz">
+        <option value="Talca"><option value="Curicó"><option value="Linares"><option value="Cauquenes">
+        <option value="Chillán"><option value="San Carlos">
         <option value="Concepción"><option value="Talcahuano"><option value="San Pedro de la Paz"><option value="Coronel">
-        <option value="Lota"><option value="Tomé"><option value="Hualpén"><option value="Los Ángeles"><option value="Lebu">
-        <option value="Temuco"><option value="Villarrica"><option value="Pucón"><option value="Angol"><option value="Lautaro">
-        <option value="Valdivia"><option value="La Unión"><option value="Panguipulli"><option value="Río Bueno">
+        <option value="Lota"><option value="Tomé"><option value="Hualpén"><option value="Los Ángeles">
+        <option value="Temuco"><option value="Villarrica"><option value="Pucón"><option value="Angol">
+        <option value="Valdivia"><option value="La Unión"><option value="Panguipulli">
         <option value="Puerto Montt"><option value="Osorno"><option value="Castro"><option value="Puerto Varas"><option value="Ancud">
-        <option value="Calbuco"><option value="Frutillar"><option value="Llanquihue">
         <option value="Coyhaique"><option value="Puerto Aysén">
-        <option value="Punta Arenas"><option value="Puerto Natales"><option value="Porvenir">
+        <option value="Punta Arenas"><option value="Puerto Natales">
     </datalist>
 
     <script>
@@ -569,8 +583,10 @@
             return {
                 products,
                 suppliers,
-                selectedSupplierId: '',
-                selectedSupplierEmails: [],   // [{email, is_primary, name?, checked}]
+
+                // Lista de destinatarios: [{supplierId, name, email}]
+                // Puede tener múltiples entradas del mismo proveedor (un por email)
+                recipientList: [],
 
                 // Combobox
                 supplierSearch: '',
@@ -580,6 +596,7 @@
                 notesTemplate,
                 notesTouched: false,
                 notes: '',
+
                 supplierModalOpen: false,
                 savingSupplier: false,
                 supplierForm: {
@@ -587,18 +604,23 @@
                     address_line_1: '', address_line_2: '', comuna: '', region: '', postal_code: '',
                     country: 'Chile', phone: '', mobile: '', website: '', language: 'es_CL', emails: ''
                 },
-                lines: [{ uid: Date.now(), inventory_product_id: '', product_name: '', unit: 'UN', quantity: 1, unit_price: 0, line_total: 0 }],
+
+                lines: [{
+                    uid: Date.now(),
+                    inventory_product_id: '', product_name: '', unit: 'UN',
+                    quantity: 1, unit_price: 0, line_total: 0
+                }],
 
                 init() {
-                    if (this.suppliers.length > 0) {
-                        this.selectSupplier(this.suppliers[0]);
-                    } else {
-                        this.openSupplierModal();
-                        this.updateNotesBySupplier();
+                    // NO auto-selecciona ningún proveedor — empieza vacío
+                    // Si no hay ningún proveedor registrado, abre el modal para crear el primero
+                    if (this.suppliers.length === 0) {
+                        this.openSupplierModal(null);
                     }
+                    this.updateNotesBySupplier();
                 },
 
-                // ── Combobox ──────────────────────────────────────────────────────
+                // ── Combobox ─────────────────────────────────────────────────────
                 filteredSuppliers() {
                     const q = (this.supplierSearch || '').toLowerCase().trim();
                     if (!q) return this.suppliers;
@@ -608,35 +630,51 @@
                     );
                 },
 
-                selectSupplier(sp) {
-                    this.selectedSupplierId = String(sp.id);
-                    this.supplierSearch     = sp.name + (sp.rut ? ' (' + sp.rut + ')' : '');
-                    this.supplierDropOpen   = false;
-                    // Cargar correos con checked=true por defecto
-                    const emails = Array.isArray(sp.emails) ? sp.emails : [];
-                    this.selectedSupplierEmails = emails.map(e => ({
-                        email: e.email || e,
-                        name:  e.name  || '',
-                        is_primary: e.is_primary || false,
-                        checked: true   // todos marcados por defecto
-                    }));
-                    this.updateNotesBySupplier();
-                },
-
-                clearSupplier() {
-                    this.selectedSupplierId     = '';
-                    this.supplierSearch         = '';
-                    this.selectedSupplierEmails = [];
-                    this.updateNotesBySupplier();
-                },
-
-                onSupplierSearchChange() {
-                    if (!(this.supplierSearch || '').trim()) this.clearSupplier();
-                },
-
-                supplierDropEnter() {
+                comboEnter() {
                     const list = this.filteredSuppliers();
-                    if (list.length === 1) this.selectSupplier(list[0]);
+                    if (list.length === 1) this.addSupplierToRecipients(list[0]);
+                },
+
+                // ── Gestión de destinatarios ──────────────────────────────────────
+                addSupplierToRecipients(sp) {
+                    const emails = Array.isArray(sp.emails) ? sp.emails : [];
+
+                    if (emails.length === 0) {
+                        // Sin correos: agregar igual (para poder editar después)
+                        const already = this.recipientList.find(
+                            r => r.supplierId === String(sp.id) && !r.email
+                        );
+                        if (!already) {
+                            this.recipientList.push({ supplierId: String(sp.id), name: sp.name, email: '' });
+                        }
+                    } else {
+                        emails.forEach(em => {
+                            const addr = em.email || em;
+                            if (!addr) return;
+                            const already = this.recipientList.find(
+                                r => r.supplierId === String(sp.id) && r.email === addr
+                            );
+                            if (!already) {
+                                this.recipientList.push({ supplierId: String(sp.id), name: sp.name, email: addr });
+                            }
+                        });
+                    }
+
+                    this.supplierSearch   = '';
+                    this.supplierDropOpen = false;
+                    this.updateNotesBySupplier();
+                },
+
+                removeRecipient(idx) {
+                    this.recipientList.splice(idx, 1);
+                    this.updateNotesBySupplier();
+                },
+
+                // Primer supplier_id de la lista (para el campo hidden del formulario)
+                primarySupplierId() {
+                    return this.recipientList.length > 0
+                        ? (this.recipientList[0].supplierId || '')
+                        : '';
                 },
 
                 // ── Moneda ────────────────────────────────────────────────────────
@@ -645,58 +683,57 @@
                 },
 
                 // ── Notas ─────────────────────────────────────────────────────────
-                currentSupplierName() {
-                    const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
-                    return sp ? (sp.name || '').trim() : '';
-                },
-
                 updateNotesBySupplier() {
                     if (this.notesTouched) return;
-                    const name = this.currentSupplierName() || this.supplierForm.name || 'Proveedor';
+                    // Nombres únicos de todos los proveedores en la lista
+                    const names = [...new Set(
+                        this.recipientList.map(r => r.name).filter(Boolean)
+                    )];
+                    const mainName = names[0] || this.supplierForm.name || 'Proveedor';
+                    const destStr  = names.length > 0 ? names.join(', ') : mainName;
 
-                    // Construir cadena de destinatarios activos
-                    const checkedEmails = this.selectedSupplierEmails
-                        .filter(e => e.checked)
-                        .map(e => e.name || e.email)
-                        .filter(Boolean);
-                    const destStr = checkedEmails.length ? checkedEmails.join(', ') : name;
-
-                    let text = this.notesTemplate.replaceAll('{PROVEEDOR}', name);
+                    let text = this.notesTemplate.replaceAll('{PROVEEDOR}', mainName);
                     text     = text.replaceAll('{DESTINATARIOS}', destStr);
                     this.notes = text;
                 },
 
                 // ── Modal proveedor ───────────────────────────────────────────────
-                openSupplierModal() {
-                    const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
+                openSupplierModal(supplierId) {
+                    const sp = supplierId
+                        ? this.suppliers.find(s => String(s.id) === String(supplierId))
+                        : null;
+
                     if (sp) {
                         this.supplierForm = {
                             id: sp.id,
                             name: sp.name || '',
-                            rut: sp.rut || '',
-                            taxpayer_type: sp.taxpayer_type || '',
+                            rut:  sp.rut  || '',
+                            taxpayer_type:        sp.taxpayer_type        || '',
                             activity_description: sp.activity_description || '',
                             address_line_1: sp.address_line_1 || '',
                             address_line_2: sp.address_line_2 || '',
-                            comuna: sp.comuna || '',
-                            region: sp.region || '',
+                            comuna:      sp.comuna      || '',
+                            region:      sp.region      || '',
                             postal_code: sp.postal_code || '',
-                            country: sp.country || 'Chile',
-                            phone: sp.phone || '',
-                            mobile: sp.mobile || '',
-                            website: sp.website || '',
+                            country:  sp.country  || 'Chile',
+                            phone:    sp.phone    || '',
+                            mobile:   sp.mobile   || '',
+                            website:  sp.website  || '',
                             language: sp.language || 'es_CL',
                             emails: (sp.emails || []).map(e => e.email || e).join('; ')
                         };
                     } else {
+                        // Nuevo proveedor: usar lo que el usuario escribió en el combobox
                         this.supplierForm = {
                             id: null,
                             name: (this.supplierSearch || '').split('(')[0].trim(),
                             rut: '', taxpayer_type: '', activity_description: '',
-                            address_line_1: '', address_line_2: '', comuna: '', region: '', postal_code: '',
-                            country: 'Chile', phone: '', mobile: '', website: '', language: 'es_CL', emails: ''
+                            address_line_1: '', address_line_2: '', comuna: '', region: '',
+                            postal_code: '', country: 'Chile', phone: '', mobile: '',
+                            website: '', language: 'es_CL', emails: ''
                         };
                     }
+                    this.supplierDropOpen  = false;
                     this.supplierModalOpen = true;
                 },
 
@@ -717,17 +754,27 @@
                             body: JSON.stringify(this.supplierForm)
                         });
                         const data = await res.json();
-                        if (!res.ok || !data.ok) throw new Error(data.message || 'No se pudo guardar el proveedor.');
+                        if (!res.ok || !data.ok) throw new Error(data.message || 'No se pudo guardar.');
 
                         const saved = data.supplier;
                         const idx   = this.suppliers.findIndex(s => String(s.id) === String(saved.id));
+
                         if (idx >= 0) {
+                            // Actualizar proveedor existente
                             this.suppliers[idx] = saved;
+                            // Actualizar nombre en la lista de destinatarios
+                            this.recipientList.forEach(r => {
+                                if (r.supplierId === String(saved.id)) r.name = saved.name;
+                            });
+                            this.updateNotesBySupplier();
                         } else {
+                            // Nuevo proveedor: agregar al array y a destinatarios
                             this.suppliers.push(saved);
                             this.suppliers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                            this.addSupplierToRecipients(saved);
                         }
-                        this.selectSupplier(saved);
+
+                        this.supplierSearch   = '';
                         this.supplierModalOpen = false;
                     } catch (err) {
                         alert(err.message || 'Error guardando proveedor.');
@@ -738,7 +785,11 @@
 
                 // ── Líneas ────────────────────────────────────────────────────────
                 addLine() {
-                    this.lines.push({ uid: Date.now() + Math.random(), inventory_product_id: '', product_name: '', unit: 'UN', quantity: 1, unit_price: 0, line_total: 0 });
+                    this.lines.push({
+                        uid: Date.now() + Math.random(),
+                        inventory_product_id: '', product_name: '', unit: 'UN',
+                        quantity: 1, unit_price: 0, line_total: 0
+                    });
                 },
 
                 removeLine(index) {
@@ -767,7 +818,9 @@
                 },
 
                 money(v) {
-                    return new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v || 0));
+                    return new Intl.NumberFormat('es-CL', {
+                        minimumFractionDigits: 2, maximumFractionDigits: 2
+                    }).format(Number(v || 0));
                 },
 
                 beforeSubmit() {
