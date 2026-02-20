@@ -95,11 +95,27 @@
         /* Chip individual de proveedor seleccionado */
         .sp-tag {
             display:inline-flex; align-items:center; gap:3px;
-            padding:2px 8px; border-radius:999px;
+            padding:2px 4px 2px 8px; border-radius:999px;
             background:#ecfdf5; border:1.5px solid #a7f3d0;
             font-size:12px; font-weight:700; color:#065f46; white-space:nowrap;
         }
         .dark .sp-tag { background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.3); color:#34d399; }
+
+        /* Chip sin correo — naranja para llamar la atención */
+        .sp-tag-warn {
+            background:#fefce8; border-color:#fde047; color:#854d0e;
+        }
+        .dark .sp-tag-warn { background:rgba(234,179,8,.08); border-color:rgba(234,179,8,.4); color:#fbbf24; }
+
+        /* Nombre del chip: botón clicable que abre el modal de edición */
+        .sp-tag-name {
+            background:none; border:none; padding:0; margin:0;
+            font:inherit; color:inherit; font-weight:700; cursor:pointer;
+            text-decoration:underline; text-underline-offset:2px;
+            text-decoration-color:transparent; transition:.1s;
+        }
+        .sp-tag-name:hover { text-decoration-color:currentColor; }
+
         .sp-tag-x {
             display:inline-flex; align-items:center; justify-content:center;
             width:15px; height:15px; border-radius:999px; cursor:pointer;
@@ -213,8 +229,12 @@
 
                                         {{-- Un chip por cada proveedor único en la lista --}}
                                         <template x-for="r in uniqueSelectedSuppliers()" :key="r.supplierId">
-                                            <span class="sp-tag">
-                                                <span x-text="r.name"></span>
+                                            <span class="sp-tag" :class="!r.hasEmail && 'sp-tag-warn'">
+                                                {{-- Nombre clicable → abre modal de edición --}}
+                                                <button type="button" class="sp-tag-name"
+                                                    @mousedown.prevent="openSupplierModal(r.supplierId)"
+                                                    :title="r.hasEmail ? 'Editar proveedor' : '⚠ Sin correo — clic para agregar'"
+                                                    x-text="r.name"></button>
                                                 <button type="button" class="sp-tag-x"
                                                     @mousedown.prevent="removeSupplierFromRecipients(r.supplierId)"
                                                     title="Quitar proveedor">&times;</button>
@@ -726,13 +746,17 @@
                 },
 
                 // Proveedores únicos seleccionados (para los chips del tag-input)
+                // Incluye hasEmail para mostrar chip naranja cuando falta correo
                 uniqueSelectedSuppliers() {
                     const seen = new Set();
                     const result = [];
                     this.recipientList.forEach(r => {
                         if (!seen.has(r.supplierId)) {
                             seen.add(r.supplierId);
-                            result.push({ supplierId: r.supplierId, name: r.name });
+                            const hasEmail = this.recipientList.some(
+                                x => x.supplierId === r.supplierId && x.email
+                            );
+                            result.push({ supplierId: r.supplierId, name: r.name, hasEmail });
                         }
                     });
                     return result;
@@ -836,12 +860,21 @@
                         const idx   = this.suppliers.findIndex(s => String(s.id) === String(saved.id));
 
                         if (idx >= 0) {
-                            // Actualizar proveedor existente
+                            // Actualizar proveedor existente en el array de suppliers
                             this.suppliers[idx] = saved;
-                            // Actualizar nombre en la lista de destinatarios
-                            this.recipientList.forEach(r => {
-                                if (r.supplierId === String(saved.id)) r.name = saved.name;
-                            });
+
+                            // Reconstruir entradas de recipientList para este proveedor
+                            // (puede haber cambiado nombre y/o correos)
+                            const wasInList = this.recipientList.some(
+                                r => r.supplierId === String(saved.id)
+                            );
+                            if (wasInList) {
+                                // Quitar entradas viejas y volver a agregar con datos frescos
+                                this.recipientList = this.recipientList.filter(
+                                    r => r.supplierId !== String(saved.id)
+                                );
+                                this.addSupplierToRecipients(saved);
+                            }
                             this.updateNotesBySupplier();
                         } else {
                             // Nuevo proveedor: agregar al array y a destinatarios
