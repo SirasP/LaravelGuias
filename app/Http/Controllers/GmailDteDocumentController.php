@@ -13,17 +13,12 @@ class GmailDteDocumentController extends Controller
     private const BOLETA_TYPES = [39, 41];
     private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
 
-    public function index(Request $request)
+    public function index()
     {
-        $period = (string) $request->query('period', 'month');
-        if (!in_array($period, ['month', 'all'], true)) {
-            $period = 'month';
-        }
+        [$summaryFacturas, $agingFacturas] = $this->buildSummaryByTypes(self::FACTURA_TYPES);
+        [$summaryBoletas, $agingBoletas] = $this->buildSummaryByTypes(self::BOLETA_TYPES);
 
-        [$summaryFacturas, $agingFacturas] = $this->buildSummaryByTypes(self::FACTURA_TYPES, $period);
-        [$summaryBoletas, $agingBoletas] = $this->buildSummaryByTypes(self::BOLETA_TYPES, $period);
-
-        return view('gmail.dtes.index', compact('summaryFacturas', 'agingFacturas', 'summaryBoletas', 'agingBoletas', 'period'));
+        return view('gmail.dtes.index', compact('summaryFacturas', 'agingFacturas', 'summaryBoletas', 'agingBoletas'));
     }
 
     public function list(Request $request)
@@ -67,7 +62,7 @@ class GmailDteDocumentController extends Controller
         return view('gmail.dtes.boletas.list', compact('documents', 'q', 'tipo'));
     }
 
-    private function buildSummaryByTypes(array $types, string $period = 'month'): array
+    private function buildSummaryByTypes(array $types): array
     {
         $docsQuery = DB::connection('fuelcontrol')
             ->table('gmail_dte_documents')
@@ -77,11 +72,6 @@ class GmailDteDocumentController extends Controller
                 $query->whereNull('workflow_status')
                     ->orWhereNotIn(DB::raw('LOWER(workflow_status)'), self::EXCLUDED_WORKFLOW_STATUSES);
             });
-
-        if ($period === 'month') {
-            $docsQuery->whereYear('fecha_factura', now()->year)
-                ->whereMonth('fecha_factura', now()->month);
-        }
 
         if (Schema::connection('fuelcontrol')->hasColumn('gmail_dte_documents', 'saldo_pendiente')) {
             $docsQuery->addSelect('saldo_pendiente');
