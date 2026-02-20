@@ -108,7 +108,6 @@ class PurchaseOrderController extends Controller
             'items.*.unit' => ['nullable', 'string', 'max:30'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price' => ['required', 'numeric', 'gte:0'],
-            'items.*.save_as_inventory' => ['nullable', 'boolean'],
         ]);
 
         $db = DB::connection('fuelcontrol');
@@ -170,6 +169,9 @@ class PurchaseOrderController extends Controller
             ->select('id', 'nombre', 'unidad', 'costo_promedio')
             ->get()
             ->keyBy('id');
+        $productsByName = $products->mapWithKeys(function ($product) {
+            return [mb_strtolower(trim((string) $product->nombre)) => $product];
+        });
 
         $cleanItems = [];
         $subtotal = 0.0;
@@ -203,6 +205,16 @@ class PurchaseOrderController extends Controller
                 if ($unitPrice === 0.0 && (float) ($p->costo_promedio ?? 0) > 0) {
                     $unitPrice = (float) $p->costo_promedio;
                 }
+            } else {
+                $nameKey = mb_strtolower(trim($productName));
+                $existingByName = $productsByName->get($nameKey);
+                if ($existingByName) {
+                    $inventoryId = (int) $existingByName->id;
+                    $unit = $unit !== '' ? $unit : (string) ($existingByName->unidad ?? 'UN');
+                    if ($unitPrice === 0.0 && (float) ($existingByName->costo_promedio ?? 0) > 0) {
+                        $unitPrice = (float) $existingByName->costo_promedio;
+                    }
+                }
             }
 
             if ($productName === '') {
@@ -224,7 +236,6 @@ class PurchaseOrderController extends Controller
                 'unit_price' => $unitPrice,
                 'line_total' => $lineTotal,
                 'is_custom' => $inventoryId ? 0 : 1,
-                'save_as_inventory' => (bool) ($item['save_as_inventory'] ?? false),
             ];
         }
 
@@ -305,7 +316,8 @@ class PurchaseOrderController extends Controller
                     'updated_at' => $now,
                 ]);
 
-                if ($line['is_custom'] === 1 && $line['save_as_inventory'] === true) {
+                // Product typed manually: persist it automatically for future autocomplete.
+                if ($line['is_custom'] === 1) {
                     $exists = $db->table('gmail_inventory_products')
                         ->whereRaw('LOWER(nombre) = ?', [mb_strtolower($line['product_name'])])
                         ->exists();
