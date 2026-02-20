@@ -491,6 +491,7 @@ Route::middleware(['auth', 'role:admin'])
     ->group(function () {
         Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
         Route::get('/crear', [PurchaseOrderController::class, 'create'])->name('create');
+        Route::post('/proveedores/upsert', [PurchaseOrderController::class, 'upsertSupplier'])->name('suppliers.upsert');
         Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
         Route::get('/{id}', [PurchaseOrderController::class, 'show'])->whereNumber('id')->name('show');
         Route::post('/{id}/enviar-email', [PurchaseOrderController::class, 'sendEmail'])->whereNumber('id')->name('send_email');

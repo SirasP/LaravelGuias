@@ -15,6 +15,7 @@
     </x-slot>
 
     <style>
+        [x-cloak] { display:none !important; }
         @keyframes fadeUp {
             from { opacity:0; transform:translateY(8px) }
             to   { opacity:1; transform:translateY(0) }
@@ -104,29 +105,23 @@
                     </div>
 
                     <div class="px-5 py-4 space-y-4">
-                        <div class="flex items-center gap-2">
-                            <button type="button" @click="supplierMode='existing'"
-                                :class="supplierMode==='existing' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition">
-                                Seleccionar proveedor
-                            </button>
-                            <button type="button" @click="supplierMode='new'"
-                                :class="supplierMode==='new' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition">
-                                Crear proveedor
-                            </button>
-                            <input type="hidden" name="supplier_mode" :value="supplierMode">
-                        </div>
+                        <input type="hidden" name="supplier_mode" value="existing">
 
-                        <div x-show="supplierMode==='existing'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="f-label">Proveedor</label>
-                                <select class="f-input" name="supplier_id" x-model="selectedSupplierId" @change="onSupplierChange()">
-                                    <option value="">Selecciona un proveedor</option>
-                                    <template x-for="sp in suppliers" :key="sp.id">
-                                        <option :value="String(sp.id)" x-text="sp.name + (sp.rut ? ' (' + sp.rut + ')' : '')"></option>
-                                    </template>
-                                </select>
+                                <div class="flex items-center gap-2">
+                                    <select class="f-input" name="supplier_id" x-model="selectedSupplierId" @change="onSupplierChange()" required>
+                                        <option value="">Selecciona un proveedor</option>
+                                        <template x-for="sp in suppliers" :key="sp.id">
+                                            <option :value="String(sp.id)" x-text="sp.name + (sp.rut ? ' (' + sp.rut + ')' : '')"></option>
+                                        </template>
+                                    </select>
+                                    <button type="button" @click="openSupplierModal()"
+                                        class="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition whitespace-nowrap"
+                                        x-text="selectedSupplierId ? 'Actualizar' : 'Crear'"></button>
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1">Puedes crear o editar proveedor desde el modal.</p>
                             </div>
                             <div>
                                 <label class="f-label">Moneda</label>
@@ -136,6 +131,7 @@
                                     @endforeach
                                 </select>
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="f-label">Destinatarios del proveedor</label>
                                 <div class="flex flex-wrap gap-2" x-show="selectedSupplierEmails.length">
@@ -148,84 +144,6 @@
                                     </template>
                                 </div>
                                 <p class="text-xs text-gray-400" x-show="!selectedSupplierEmails.length">Este proveedor no tiene correos guardados.</p>
-                            </div>
-                        </div>
-
-                        <div x-show="supplierMode==='new'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                            <div class="xl:col-span-2">
-                                <label class="f-label">Nombre proveedor *</label>
-                                <input class="f-input" name="supplier_new_name" x-model="newSupplier.name" @input="onSupplierNameInput()" placeholder="Comercial Harcha SPA">
-                            </div>
-                            <div>
-                                <label class="f-label">RUT</label>
-                                <input class="f-input" name="supplier_new_rut" x-model="newSupplier.rut" placeholder="77071100-2">
-                            </div>
-                            <div>
-                                <label class="f-label">Tipo contribuyente</label>
-                                <input class="f-input" name="supplier_new_taxpayer_type" x-model="newSupplier.taxpayer_type" placeholder="IVA afecto 1ª categoría">
-                            </div>
-
-                            <div class="xl:col-span-2">
-                                <label class="f-label">Dirección</label>
-                                <input class="f-input" name="supplier_new_address_line_1" x-model="newSupplier.address_line_1" placeholder="Calle y número">
-                            </div>
-                            <div class="xl:col-span-2">
-                                <label class="f-label">Datos adicionales dirección</label>
-                                <input class="f-input" name="supplier_new_address_line_2" x-model="newSupplier.address_line_2" placeholder="Oficina, referencia">
-                            </div>
-
-                            <div>
-                                <label class="f-label">Comuna</label>
-                                <input class="f-input" name="supplier_new_comuna" x-model="newSupplier.comuna">
-                            </div>
-                            <div>
-                                <label class="f-label">Región</label>
-                                <input class="f-input" name="supplier_new_region" x-model="newSupplier.region">
-                            </div>
-                            <div>
-                                <label class="f-label">Código postal</label>
-                                <input class="f-input" name="supplier_new_postal_code" x-model="newSupplier.postal_code">
-                            </div>
-                            <div>
-                                <label class="f-label">País</label>
-                                <input class="f-input" name="supplier_new_country" x-model="newSupplier.country" placeholder="Chile">
-                            </div>
-
-                            <div>
-                                <label class="f-label">Teléfono</label>
-                                <input class="f-input" name="supplier_new_phone" x-model="newSupplier.phone">
-                            </div>
-                            <div>
-                                <label class="f-label">Celular</label>
-                                <input class="f-input" name="supplier_new_mobile" x-model="newSupplier.mobile">
-                            </div>
-                            <div>
-                                <label class="f-label">Sitio web</label>
-                                <input class="f-input" name="supplier_new_website" x-model="newSupplier.website" placeholder="https://...">
-                            </div>
-                            <div>
-                                <label class="f-label">Idioma</label>
-                                <input class="f-input" name="supplier_new_language" x-model="newSupplier.language" placeholder="es_CL">
-                            </div>
-
-                            <div class="xl:col-span-4">
-                                <label class="f-label">Descripción de actividad</label>
-                                <input class="f-input" name="supplier_new_activity_description" x-model="newSupplier.activity_description">
-                            </div>
-
-                            <div class="xl:col-span-4">
-                                <label class="f-label">Correos del proveedor</label>
-                                <input class="f-input" name="supplier_new_emails" x-model="newSupplier.emails"
-                                    placeholder="compras@proveedor.cl; facturacion@proveedor.cl">
-                            </div>
-
-                            <div>
-                                <label class="f-label">Moneda</label>
-                                <select name="currency" class="f-input" x-model="currency">
-                                    @foreach(['CLP', 'USD', 'EUR'] as $cur)
-                                        <option value="{{ $cur }}">{{ $cur }}</option>
-                                    @endforeach
-                                </select>
                             </div>
                         </div>
 
@@ -338,6 +256,91 @@
                 </div>
             </form>
         </div>
+
+        <div x-show="supplierModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50" @click="supplierModalOpen=false"></div>
+            <div class="relative panel w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+                <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100" x-text="supplierForm.id ? 'Actualizar proveedor' : 'Crear proveedor'"></h3>
+                    <button type="button" @click="supplierModalOpen=false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                </div>
+
+                <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="xl:col-span-2">
+                        <label class="f-label">Nombre proveedor *</label>
+                        <input class="f-input" x-model="supplierForm.name" @input="updateNotesBySupplier()" placeholder="Comercial Harcha SPA">
+                    </div>
+                    <div>
+                        <label class="f-label">RUT</label>
+                        <input class="f-input" x-model="supplierForm.rut" placeholder="77071100-2">
+                    </div>
+                    <div>
+                        <label class="f-label">Tipo contribuyente</label>
+                        <input class="f-input" x-model="supplierForm.taxpayer_type" placeholder="IVA afecto 1ª categoría">
+                    </div>
+
+                    <div class="xl:col-span-2">
+                        <label class="f-label">Dirección</label>
+                        <input class="f-input" x-model="supplierForm.address_line_1" placeholder="Calle y número">
+                    </div>
+                    <div class="xl:col-span-2">
+                        <label class="f-label">Datos adicionales dirección</label>
+                        <input class="f-input" x-model="supplierForm.address_line_2" placeholder="Oficina, referencia">
+                    </div>
+
+                    <div>
+                        <label class="f-label">Comuna</label>
+                        <input class="f-input" x-model="supplierForm.comuna">
+                    </div>
+                    <div>
+                        <label class="f-label">Región</label>
+                        <input class="f-input" x-model="supplierForm.region">
+                    </div>
+                    <div>
+                        <label class="f-label">Código postal</label>
+                        <input class="f-input" x-model="supplierForm.postal_code">
+                    </div>
+                    <div>
+                        <label class="f-label">País</label>
+                        <input class="f-input" x-model="supplierForm.country" placeholder="Chile">
+                    </div>
+
+                    <div>
+                        <label class="f-label">Teléfono</label>
+                        <input class="f-input" x-model="supplierForm.phone">
+                    </div>
+                    <div>
+                        <label class="f-label">Celular</label>
+                        <input class="f-input" x-model="supplierForm.mobile">
+                    </div>
+                    <div>
+                        <label class="f-label">Sitio web</label>
+                        <input class="f-input" x-model="supplierForm.website" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label class="f-label">Idioma</label>
+                        <input class="f-input" x-model="supplierForm.language" placeholder="es_CL">
+                    </div>
+
+                    <div class="xl:col-span-4">
+                        <label class="f-label">Descripción de actividad</label>
+                        <input class="f-input" x-model="supplierForm.activity_description">
+                    </div>
+
+                    <div class="xl:col-span-4">
+                        <label class="f-label">Correos del proveedor</label>
+                        <input class="f-input" x-model="supplierForm.emails" placeholder="compras@proveedor.cl; facturacion@proveedor.cl">
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                    <button type="button" @click="supplierModalOpen=false" class="px-3 py-2 text-xs font-bold rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">Cancelar</button>
+                    <button type="button" @click="saveSupplierFromModal()" :disabled="savingSupplier"
+                        class="px-3 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-60"
+                        x-text="savingSupplier ? 'Guardando...' : (supplierForm.id ? 'Actualizar proveedor' : 'Crear proveedor')"></button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -345,7 +348,6 @@
             return {
                 products,
                 suppliers,
-                supplierMode: 'existing',
                 selectedSupplierId: '',
                 selectedSupplierEmails: [],
                 currency: 'CLP',
@@ -353,8 +355,10 @@
                 notesTemplate,
                 notesTouched: false,
                 notes: '',
-                newSupplier: {
-                    name: '', rut: '', taxpayer_type: '', activity_description: '',
+                supplierModalOpen: false,
+                savingSupplier: false,
+                supplierForm: {
+                    id: null, name: '', rut: '', taxpayer_type: '', activity_description: '',
                     address_line_1: '', address_line_2: '', comuna: '', region: '', postal_code: '',
                     country: 'Chile', phone: '', mobile: '', website: '', language: 'es_CL', emails: ''
                 },
@@ -364,29 +368,94 @@
                         this.selectedSupplierId = String(this.suppliers[0].id);
                         this.onSupplierChange();
                     } else {
-                        this.supplierMode = 'new';
+                        this.openSupplierModal();
                         this.updateNotesBySupplier();
                     }
                 },
                 currentSupplierName() {
-                    if (this.supplierMode === 'new') {
-                        return (this.newSupplier.name || '').trim();
-                    }
                     const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
                     return sp ? (sp.name || '').trim() : '';
                 },
                 updateNotesBySupplier() {
                     if (this.notesTouched) return;
-                    const name = this.currentSupplierName() || 'Proveedor';
+                    const name = this.currentSupplierName() || this.supplierForm.name || 'Proveedor';
                     this.notes = this.notesTemplate.replaceAll('{PROVEEDOR}', name);
-                },
-                onSupplierNameInput() {
-                    this.updateNotesBySupplier();
                 },
                 onSupplierChange() {
                     const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
                     this.selectedSupplierEmails = sp && Array.isArray(sp.emails) ? sp.emails : [];
                     this.updateNotesBySupplier();
+                },
+                openSupplierModal() {
+                    const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
+                    if (sp) {
+                        this.supplierForm = {
+                            id: sp.id,
+                            name: sp.name || '',
+                            rut: sp.rut || '',
+                            taxpayer_type: sp.taxpayer_type || '',
+                            activity_description: sp.activity_description || '',
+                            address_line_1: sp.address_line_1 || '',
+                            address_line_2: sp.address_line_2 || '',
+                            comuna: sp.comuna || '',
+                            region: sp.region || '',
+                            postal_code: sp.postal_code || '',
+                            country: sp.country || 'Chile',
+                            phone: sp.phone || '',
+                            mobile: sp.mobile || '',
+                            website: sp.website || '',
+                            language: sp.language || 'es_CL',
+                            emails: (sp.emails || []).map(e => e.email).join('; ')
+                        };
+                    } else {
+                        this.supplierForm = {
+                            id: null, name: '', rut: '', taxpayer_type: '', activity_description: '',
+                            address_line_1: '', address_line_2: '', comuna: '', region: '', postal_code: '',
+                            country: 'Chile', phone: '', mobile: '', website: '', language: 'es_CL', emails: ''
+                        };
+                    }
+                    this.supplierModalOpen = true;
+                },
+                async saveSupplierFromModal() {
+                    if (!this.supplierForm.name || !this.supplierForm.name.trim()) {
+                        alert('Debes ingresar nombre de proveedor.');
+                        return;
+                    }
+                    this.savingSupplier = true;
+                    try {
+                        const res = await fetch('{{ route('purchase_orders.suppliers.upsert') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(this.supplierForm)
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) {
+                            const msg = data.message || 'No se pudo guardar el proveedor.';
+                            throw new Error(msg);
+                        }
+
+                        const saved = data.supplier;
+                        const idx = this.suppliers.findIndex(s => String(s.id) === String(saved.id));
+                        if (idx >= 0) {
+                            this.suppliers[idx] = saved;
+                        } else {
+                            this.suppliers.push(saved);
+                            this.suppliers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                        }
+
+                        this.selectedSupplierId = String(saved.id);
+                        this.onSupplierChange();
+                        this.supplierModalOpen = false;
+                    } catch (error) {
+                        alert(error.message || 'Error guardando proveedor.');
+                    } finally {
+                        this.savingSupplier = false;
+                    }
                 },
                 addLine() {
                     this.lines.push({ uid: Date.now() + Math.random(), inventory_product_id: '', product_name: '', unit: 'UN', quantity: 1, unit_price: 0, line_total: 0 });

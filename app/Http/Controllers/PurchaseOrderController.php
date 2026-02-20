@@ -331,6 +331,111 @@ class PurchaseOrderController extends Controller
         return redirect()->route('purchase_orders.show', $orderId)->with('success', 'Orden de compra creada.');
     }
 
+    public function upsertSupplier(Request $request)
+    {
+        $payload = $request->validate([
+            'supplier_id' => ['nullable', 'integer'],
+            'name' => ['required', 'string', 'max:255'],
+            'rut' => ['nullable', 'string', 'max:25'],
+            'taxpayer_type' => ['nullable', 'string', 'max:255'],
+            'activity_description' => ['nullable', 'string', 'max:255'],
+            'address_line_1' => ['nullable', 'string', 'max:255'],
+            'address_line_2' => ['nullable', 'string', 'max:255'],
+            'comuna' => ['nullable', 'string', 'max:120'],
+            'region' => ['nullable', 'string', 'max:120'],
+            'postal_code' => ['nullable', 'string', 'max:30'],
+            'country' => ['nullable', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:60'],
+            'mobile' => ['nullable', 'string', 'max:60'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'language' => ['nullable', 'string', 'max:30'],
+            'emails' => ['nullable', 'string'],
+        ]);
+
+        $db = DB::connection('fuelcontrol');
+        $emails = $this->normalizeEmails((string) ($payload['emails'] ?? ''));
+        $now = now();
+
+        $supplierId = $db->transaction(function () use ($db, $payload, $emails, $now) {
+            $supplierId = isset($payload['supplier_id']) && $payload['supplier_id'] !== ''
+                ? (int) $payload['supplier_id']
+                : null;
+
+            $data = [
+                'name' => trim((string) $payload['name']),
+                'rut' => $this->nullableString($payload['rut'] ?? null),
+                'taxpayer_type' => $this->nullableString($payload['taxpayer_type'] ?? null),
+                'activity_description' => $this->nullableString($payload['activity_description'] ?? null),
+                'address_line_1' => $this->nullableString($payload['address_line_1'] ?? null),
+                'address_line_2' => $this->nullableString($payload['address_line_2'] ?? null),
+                'comuna' => $this->nullableString($payload['comuna'] ?? null),
+                'region' => $this->nullableString($payload['region'] ?? null),
+                'postal_code' => $this->nullableString($payload['postal_code'] ?? null),
+                'country' => $this->nullableString($payload['country'] ?? null) ?? 'Chile',
+                'phone' => $this->nullableString($payload['phone'] ?? null),
+                'mobile' => $this->nullableString($payload['mobile'] ?? null),
+                'website' => $this->nullableString($payload['website'] ?? null),
+                'language' => $this->nullableString($payload['language'] ?? null) ?? 'es_CL',
+                'is_active' => 1,
+                'updated_at' => $now,
+            ];
+
+            if ($supplierId) {
+                $exists = $db->table('purchase_order_suppliers')->where('id', $supplierId)->exists();
+                if (!$exists) {
+                    abort(404, 'Proveedor no encontrado.');
+                }
+                $db->table('purchase_order_suppliers')->where('id', $supplierId)->update($data);
+            } else {
+                $data['created_at'] = $now;
+                $supplierId = $db->table('purchase_order_suppliers')->insertGetId($data);
+            }
+
+            $db->table('purchase_order_supplier_emails')->where('supplier_id', $supplierId)->delete();
+            foreach ($emails as $index => $email) {
+                $db->table('purchase_order_supplier_emails')->insert([
+                    'supplier_id' => $supplierId,
+                    'email' => $email,
+                    'is_primary' => $index === 0 ? 1 : 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            return $supplierId;
+        });
+
+        $supplier = $db->table('purchase_order_suppliers')
+            ->select([
+                'id', 'name', 'rut', 'taxpayer_type', 'activity_description',
+                'address_line_1', 'address_line_2', 'comuna', 'region',
+                'postal_code', 'country', 'phone', 'mobile', 'website', 'language',
+            ])
+            ->where('id', $supplierId)
+            ->first();
+
+        $supplierEmails = $db->table('purchase_order_supplier_emails')
+            ->select('email', 'is_primary')
+            ->where('supplier_id', $supplierId)
+            ->orderByDesc('is_primary')
+            ->orderBy('email')
+            ->get()
+            ->map(fn($row) => [
+                'email' => (string) $row->email,
+                'is_primary' => (int) $row->is_primary === 1,
+            ])
+            ->values()
+            ->all();
+
+        $supplier->emails = $supplierEmails;
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Proveedor guardado correctamente.',
+            'supplier' => $supplier,
+        ]);
+    }
+
     public function show(int $id)
     {
         $db = DB::connection('fuelcontrol');
