@@ -167,24 +167,28 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                             {{-- ── Combobox: buscar y agregar proveedor ── --}}
-                            {{-- @click.outside sobre combo-wrap — SIN backdrop, evita conflictos de z-index --}}
+                            {{-- Patrón blur+timeout: el blur cierra el dropdown con 200ms de delay,   --}}
+                            {{-- dando tiempo al click del item para registrarse antes de que cierre.  --}}
                             <div>
                                 <label class="f-label">Buscar y agregar proveedor</label>
-                                <div class="combo-wrap" @click.outside="supplierDropOpen=false">
+                                <div class="combo-wrap">
                                     <input type="text"
                                         class="f-input"
                                         x-model="supplierSearch"
                                         @focus="supplierDropOpen=true"
+                                        @click="supplierDropOpen=true"
                                         @input="supplierDropOpen=true"
+                                        @blur="setTimeout(() => { supplierDropOpen=false }, 200)"
                                         @keydown.escape="supplierDropOpen=false"
                                         @keydown.enter.prevent="comboEnter()"
                                         placeholder="Escribe para buscar..."
                                         autocomplete="off">
 
-                                    {{-- Dropdown: click.outside cierra, click en item funciona correctamente --}}
+                                    {{-- Items usan @click (no @mousedown) — el blur delay garantiza --}}
+                                    {{-- que el click se registra antes de que el dropdown se cierre --}}
                                     <div x-show="supplierDropOpen" x-cloak class="combo-drop">
                                         <template x-for="sp in filteredSuppliers()" :key="sp.id">
-                                            <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
+                                            <div class="combo-item" @click="addSupplierToRecipients(sp)">
                                                 <span class="font-semibold truncate" x-text="sp.name"></span>
                                                 <span class="combo-item-sub" x-text="sp.rut || ''"></span>
                                             </div>
@@ -193,7 +197,7 @@
                                             x-show="filteredSuppliers().length === 0 && (supplierSearch || '').trim()">
                                             Sin resultados — crea uno nuevo.
                                         </div>
-                                        <div class="combo-create" @mousedown.prevent="openSupplierModal(null)">
+                                        <div class="combo-create" @click="openSupplierModal(null)">
                                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                                             </svg>
