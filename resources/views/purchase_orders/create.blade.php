@@ -77,9 +77,46 @@
         }
 
         /* ── Combobox ──────────────────────────────────────────────────────── */
-        /* SIN backdrop separado: usamos @click.outside en el wrapper.         */
-        /* z-index 20 es suficiente para superar el contenido normal.          */
         .combo-wrap { position:relative; }
+
+        /* Tag-input: contenedor que muestra chips + campo de búsqueda inline  */
+        .combo-tags-wrap {
+            display:flex; flex-wrap:wrap; gap:5px; align-items:center;
+            padding:4px 8px; border:1px solid #e2e8f0; border-radius:10px;
+            background:#fff; min-height:38px; cursor:text;
+            transition:border-color .15s, box-shadow .15s;
+        }
+        .combo-tags-wrap:focus-within {
+            border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.12);
+        }
+        .dark .combo-tags-wrap { border-color:#1e2a3b; background:#0d1117; }
+        .dark .combo-tags-wrap:focus-within { border-color:#10b981; }
+
+        /* Chip individual de proveedor seleccionado */
+        .sp-tag {
+            display:inline-flex; align-items:center; gap:3px;
+            padding:2px 8px; border-radius:999px;
+            background:#ecfdf5; border:1.5px solid #a7f3d0;
+            font-size:12px; font-weight:700; color:#065f46; white-space:nowrap;
+        }
+        .dark .sp-tag { background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.3); color:#34d399; }
+        .sp-tag-x {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:15px; height:15px; border-radius:999px; cursor:pointer;
+            font-size:14px; line-height:1; color:#047857; background:none;
+            border:none; padding:0; transition:.1s;
+        }
+        .sp-tag-x:hover { background:rgba(239,68,68,.15); color:#dc2626; }
+        .dark .sp-tag-x { color:#6ee7b7; }
+
+        /* Input desnudo dentro del tag-wrap */
+        .tag-bare-input {
+            flex:1; min-width:100px; border:none; outline:none;
+            background:transparent; font-size:13px; color:#111827; padding:2px 4px;
+        }
+        .dark .tag-bare-input { color:#f1f5f9; }
+        .tag-bare-input::placeholder { color:#9ca3af; }
+
         .combo-drop {
             position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20;
             background:#fff; border:1px solid #e2e8f0; border-radius:12px;
@@ -166,26 +203,40 @@
                     <div class="px-5 py-4 space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                            {{-- ── Combobox: buscar y agregar proveedor ── --}}
-                            {{-- Patrón blur+timeout: el blur cierra el dropdown con 200ms de delay,   --}}
-                            {{-- dando tiempo al click del item para registrarse antes de que cierre.  --}}
+                            {{-- ── Combobox tag-input: chips de proveedores + búsqueda inline ── --}}
                             <div>
-                                <label class="f-label">Buscar y agregar proveedor</label>
+                                <label class="f-label">Proveedores</label>
                                 <div class="combo-wrap">
-                                    <input type="text"
-                                        class="f-input"
-                                        x-model="supplierSearch"
-                                        @focus="supplierDropOpen=true"
-                                        @click="supplierDropOpen=true"
-                                        @input="supplierDropOpen=true"
-                                        @blur="setTimeout(() => { supplierDropOpen=false }, 200)"
-                                        @keydown.escape="supplierDropOpen=false"
-                                        @keydown.enter.prevent="comboEnter()"
-                                        placeholder="Escribe para buscar..."
-                                        autocomplete="off">
 
-                                    {{-- Items usan @mousedown.prevent: previene que el input pierda foco  --}}
-                                    {{-- (y por tanto no dispara blur) justo cuando el usuario hace click  --}}
+                                    {{-- Tag-wrap: chips de proveedores seleccionados + input de búsqueda --}}
+                                    <div class="combo-tags-wrap" @mousedown="$event.target === $el && $refs.tagInput.focus()">
+
+                                        {{-- Un chip por cada proveedor único en la lista --}}
+                                        <template x-for="r in uniqueSelectedSuppliers()" :key="r.supplierId">
+                                            <span class="sp-tag">
+                                                <span x-text="r.name"></span>
+                                                <button type="button" class="sp-tag-x"
+                                                    @mousedown.prevent="removeSupplierFromRecipients(r.supplierId)"
+                                                    title="Quitar proveedor">&times;</button>
+                                            </span>
+                                        </template>
+
+                                        {{-- Input de búsqueda inline --}}
+                                        <input type="text"
+                                            x-ref="tagInput"
+                                            class="tag-bare-input"
+                                            x-model="supplierSearch"
+                                            @focus="supplierDropOpen=true"
+                                            @click="supplierDropOpen=true"
+                                            @input="supplierDropOpen=true"
+                                            @blur="setTimeout(() => { supplierDropOpen=false }, 200)"
+                                            @keydown.escape="supplierDropOpen=false"
+                                            @keydown.enter.prevent="comboEnter()"
+                                            :placeholder="uniqueSelectedSuppliers().length ? 'Agregar otro...' : 'Escribe para buscar...'"
+                                            autocomplete="off">
+                                    </div>
+
+                                    {{-- Items usan @mousedown.prevent: previene que el input pierda foco --}}
                                     <div x-show="supplierDropOpen" x-cloak class="combo-drop">
                                         <template x-for="sp in filteredSuppliers()" :key="sp.id">
                                             <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
@@ -671,6 +722,27 @@
 
                 removeRecipient(idx) {
                     this.recipientList.splice(idx, 1);
+                    this.updateNotesBySupplier();
+                },
+
+                // Proveedores únicos seleccionados (para los chips del tag-input)
+                uniqueSelectedSuppliers() {
+                    const seen = new Set();
+                    const result = [];
+                    this.recipientList.forEach(r => {
+                        if (!seen.has(r.supplierId)) {
+                            seen.add(r.supplierId);
+                            result.push({ supplierId: r.supplierId, name: r.name });
+                        }
+                    });
+                    return result;
+                },
+
+                // Quita TODOS los emails de un proveedor de la lista (al clickar × en el chip)
+                removeSupplierFromRecipients(supplierId) {
+                    this.recipientList = this.recipientList.filter(
+                        r => r.supplierId !== String(supplierId)
+                    );
                     this.updateNotesBySupplier();
                 },
 
