@@ -478,8 +478,40 @@
                                                 <span>Guardar en inventario</span>
                                             </label>
                                         </td>
-                                        <td class="min-w-[80px]">
-                                            <input :name="`items[${i}][unit]`" x-model="line.unit" class="f-cell" placeholder="UN">
+                                        <td class="min-w-[90px]">
+                                            {{-- Si viene del inventario: badge verde (editable al clic) --}}
+                                            <template x-if="line.inventory_product_id && !line.editingUnit">
+                                                <div class="flex flex-col items-start gap-0.5">
+                                                    <input type="hidden" :name="`items[${i}][unit]`" :value="line.unit">
+                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold
+                                                                 bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer
+                                                                 hover:bg-emerald-100 transition"
+                                                          :title="'Unidad: ' + line.unit + ' — clic para editar'"
+                                                          @click="line.editingUnit = true"
+                                                          x-text="line.unit || 'UN'">
+                                                    </span>
+                                                    <span class="text-[9px] text-gray-400 leading-none">del inventario</span>
+                                                </div>
+                                            </template>
+                                            {{-- Edición manual de UdM (inventario con edición activa o producto manual) --}}
+                                            <template x-if="!line.inventory_product_id || line.editingUnit">
+                                                <div class="flex flex-col gap-0.5">
+                                                    <input :name="`items[${i}][unit]`"
+                                                        x-model="line.unit"
+                                                        list="udm-list"
+                                                        autocomplete="off"
+                                                        @blur="if (line.editingUnit && line.unit) line.editingUnit = false"
+                                                        class="f-cell text-center font-semibold"
+                                                        :class="!line.unit
+                                                            ? 'border-amber-400 bg-amber-50 text-amber-700 placeholder-amber-400 animate-pulse'
+                                                            : 'border-emerald-300 bg-emerald-50 text-emerald-700'"
+                                                        placeholder="¿UdM?">
+                                                    <span class="text-[9px] leading-none"
+                                                          :class="!line.unit ? 'text-amber-500 font-semibold' : 'text-gray-400'"
+                                                          x-text="!line.unit ? '⚠ Requerido' : 'editable'">
+                                                    </span>
+                                                </div>
+                                            </template>
                                         </td>
                                         <td class="min-w-[100px]">
                                             <input type="number" step="0.0001" min="0" :name="`items[${i}][quantity]`"
@@ -841,6 +873,14 @@
         <option value="Punta Arenas"><option value="Puerto Natales">
     </datalist>
 
+    <datalist id="udm-list">
+        <option value="UN"><option value="KG"><option value="GR"><option value="LT"><option value="ML">
+        <option value="MT"><option value="CM"><option value="M2"><option value="M3">
+        <option value="CAJA"><option value="BOLSA"><option value="SACO"><option value="PALLET">
+        <option value="ROLLO"><option value="PLIEGO"><option value="JUEGO"><option value="PAR">
+        <option value="HORA"><option value="DÍA"><option value="SERVICIO">
+    </datalist>
+
     <script>
         function purchaseOrderForm(products, suppliers, notesTemplate) {
             return {
@@ -872,8 +912,8 @@
                     uid: Date.now(),
                     inventory_product_id: '', product_name: '',
                     productSearch: '', productDropOpen: false,
-                    saveAsInventory: false,
-                    unit: 'UN', quantity: 1, unit_price: 0, line_total: 0
+                    saveAsInventory: false, editingUnit: false,
+                    unit: '', quantity: 1, unit_price: 0, line_total: 0
                 }],
 
                 previewOpen: false,
@@ -1099,8 +1139,8 @@
                         uid: Date.now() + Math.random(),
                         inventory_product_id: '', product_name: '',
                         productSearch: '', productDropOpen: false,
-                        saveAsInventory: false,
-                        unit: 'UN', quantity: 1, unit_price: 0, line_total: 0
+                        saveAsInventory: false, editingUnit: false,
+                        unit: '', quantity: 1, unit_price: 0, line_total: 0
                     });
                 },
 
@@ -1157,9 +1197,14 @@
                         alert('Agrega al menos un destinatario con correo electrónico antes de continuar.');
                         return;
                     }
-                    const hasLines = this.lines.some(l => (l.product_name || '').trim());
-                    if (!hasLines) {
+                    const activeLines = this.lines.filter(l => (l.product_name || '').trim());
+                    if (!activeLines.length) {
                         alert('Agrega al menos una línea de producto.');
+                        return;
+                    }
+                    const missingUnit = activeLines.find(l => !(l.unit || '').trim());
+                    if (missingUnit) {
+                        alert(`El producto "${missingUnit.product_name}" no tiene unidad de medida. Complétala antes de continuar.`);
                         return;
                     }
                     this.previewOpen = true;
