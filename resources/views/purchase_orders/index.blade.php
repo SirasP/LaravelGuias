@@ -8,8 +8,8 @@
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Órdenes de compra</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $orders->total() }} órdenes</p>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Cotizaciones</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ $orders->total() }} cotizaciones</p>
                 </div>
             </div>
             <a href="{{ route('purchase_orders.create') }}"
@@ -17,7 +17,7 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Nueva orden
+                Nueva cotización
             </a>
         </div>
     </x-slot>
@@ -150,14 +150,14 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                             </svg>
                         </div>
-                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Aún no hay órdenes de compra</p>
-                        <p class="text-xs text-gray-400">Las órdenes aparecerán aquí una vez creadas.</p>
+                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Aún no hay cotizaciones</p>
+                        <p class="text-xs text-gray-400">Las cotizaciones aparecerán aquí una vez creadas.</p>
                         <a href="{{ route('purchase_orders.create') }}"
                             class="mt-1 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            Crear primera orden
+                            Crear primera cotización
                         </a>
                     </div>
                 @endif

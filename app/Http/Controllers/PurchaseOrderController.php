@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Mail;
 
 class PurchaseOrderController extends Controller
 {
-    private const DEFAULT_NOTES_TEMPLATE = "Estimado/a {PROVEEDOR},\n\nJunto con saludar, enviamos orden de compra para su revisión y confirmación.\n\nPor favor indicar plazo de entrega y condiciones.\n\nSaludos cordiales.";
+    private const DEFAULT_NOTES_TEMPLATE = "Estimado/a {PROVEEDOR},\n\nJunto con saludar, enviamos cotización para su revisión y confirmación.\n\nPor favor indicar plazo de entrega y condiciones.\n\nSaludos cordiales.";
 
     public function index()
     {
@@ -269,7 +269,7 @@ class PurchaseOrderController extends Controller
             return $orderId;
         });
 
-        return redirect()->route('purchase_orders.show', $orderId)->with('success', 'Orden de compra creada.');
+        return redirect()->route('purchase_orders.show', $orderId)->with('success', 'Cotización creada.');
     }
 
     public function upsertSupplier(Request $request)
@@ -448,7 +448,7 @@ class PurchaseOrderController extends Controller
 
         $subject = trim((string) ($validated['subject'] ?? ''));
         if ($subject === '') {
-            $subject = 'Orden de compra ' . ($order->order_number ?? ('#' . $order->id));
+            $subject = 'Cotización ' . ($order->order_number ?? ('#' . $order->id));
         }
 
         $messageTemplate = trim((string) ($validated['message'] ?? ''));
@@ -479,7 +479,7 @@ class PurchaseOrderController extends Controller
                 // Personalize: replace {PROVEEDOR} with this recipient's supplier name
                 $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
 
-                $html = '<h2 style="margin:0 0 8px;">Orden de compra ' . e($order->order_number) . '</h2>'
+                $html = '<h2 style="margin:0 0 8px;">Cotización ' . e($order->order_number) . '</h2>'
                     . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($recipient['supplier_name']) . '</p>'
                     . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
                     . ($personalizedMsg !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($personalizedMsg)) . '</p>') : '')

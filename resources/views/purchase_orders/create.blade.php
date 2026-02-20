@@ -4,12 +4,12 @@
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
                 <a href="{{ route('purchase_orders.index') }}"
                     class="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition font-medium truncate">
-                    Órdenes de compra
+                    Cotizaciones
                 </a>
                 <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                 </svg>
-                <span class="font-bold text-gray-700 dark:text-gray-300">Nueva orden</span>
+                <span class="font-bold text-gray-700 dark:text-gray-300">Nueva cotización</span>
             </div>
         </div>
     </x-slot>
@@ -176,7 +176,18 @@
         .dark .dest-name { color:#34d399 }
         .dest-email { font-size:12px; font-weight:600; color:#047857 }
         .dark .dest-email { color:#6ee7b7 }
-        .dest-no-email { font-size:11px; color:#94a3b8; font-style:italic }
+        .dest-no-email { font-size:11px; color:#94a3b8 }
+
+        /* Input inline para escribir el correo directamente en la tarjeta */
+        .dest-inline-email {
+            width:100%; background:transparent; border:none;
+            border-bottom:1.5px dashed #6ee7b7; outline:none;
+            font-size:12px; font-style:italic; color:#047857;
+            padding:1px 0; transition:border-color .15s;
+        }
+        .dest-inline-email:focus { border-bottom-color:#10b981; font-style:normal; }
+        .dest-inline-email::placeholder { color:#94a3b8; }
+        .dark .dest-inline-email { border-bottom-color:rgba(16,185,129,.3); color:#6ee7b7; }
         .dest-actions { display:flex; gap:3px; shrink:0 }
         .dest-btn {
             display:inline-flex; align-items:center; justify-content:center;
@@ -298,12 +309,13 @@
                                 {{-- Tarjetas de destinatarios --}}
                                 <div x-show="recipientList.length" class="flex flex-wrap gap-2">
                                     <template x-for="(r, idx) in recipientList" :key="r.supplierId + '-' + r.email + '-' + idx">
-                                        {{-- Hidden input para cada email --}}
-                                        <template x-if="r.email">
-                                            <input type="hidden" name="recipient_emails[]" :value="r.email">
-                                        </template>
-
+                                        {{-- Un solo elemento raíz (Alpine v3 requiere exactamente uno en x-for) --}}
                                         <div class="dest-card">
+                                            {{-- Hidden input DENTRO de la card para respetar el único root --}}
+                                            <template x-if="r.email">
+                                                <input type="hidden" name="recipient_emails[]" :value="r.email">
+                                            </template>
+
                                             <div class="dest-card-head">
                                                 <span class="dest-name truncate" x-text="r.name"></span>
                                                 <div class="dest-actions">
@@ -327,11 +339,14 @@
                                                 </div>
                                             </div>
                                             <span class="dest-email" x-show="r.email" x-text="r.email"></span>
-                                            <span class="dest-no-email" x-show="!r.email">
-                                                Sin correo &mdash;
-                                                <button type="button" @click="openSupplierModal(r.supplierId)"
-                                                    class="text-emerald-600 hover:underline font-semibold not-italic">Agregar</button>
-                                            </span>
+                                            <div class="dest-no-email" x-show="!r.email">
+                                                <input
+                                                    type="email"
+                                                    class="dest-inline-email"
+                                                    placeholder="Sin correo — escribe aquí..."
+                                                    @blur="setRecipientEmail(idx, $event.target.value)"
+                                                    @keydown.enter.prevent="setRecipientEmail(idx, $event.target.value); $event.target.blur()">
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
@@ -451,7 +466,7 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                 </svg>
-                                Crear orden
+                                Crear cotización
                             </button>
                         </div>
                     </div>
@@ -768,6 +783,13 @@
                         r => r.supplierId !== String(supplierId)
                     );
                     this.updateNotesBySupplier();
+                },
+
+                // Asigna el correo a un destinatario sin email (edición inline en la tarjeta)
+                setRecipientEmail(idx, email) {
+                    const trimmed = (email || '').trim().toLowerCase();
+                    if (!trimmed) return;
+                    this.recipientList[idx] = { ...this.recipientList[idx], email: trimmed };
                 },
 
                 // Primer supplier_id de la lista (para el campo hidden del formulario)

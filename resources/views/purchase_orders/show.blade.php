@@ -4,7 +4,7 @@
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
                 <a href="{{ route('purchase_orders.index') }}"
                     class="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition font-medium truncate">
-                    Órdenes de compra
+                    Cotizaciones
                 </a>
                 <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
@@ -16,7 +16,7 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    <span class="hidden sm:inline">Nueva orden</span>
+                    <span class="hidden sm:inline">Nueva cotización</span>
                 </a>
             </div>
         </div>
@@ -147,7 +147,7 @@
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 mb-1.5">
                                         <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{{ $order->currency }}</span>
-                                        <span class="text-xs text-gray-400 font-medium">Orden de compra</span>
+                                        <span class="text-xs text-gray-400 font-medium">Cotización</span>
                                     </div>
                                     <h1 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight font-mono leading-none">
                                         {{ $order->order_number }}
@@ -301,7 +301,7 @@
                                 <div>
                                     <label class="f-label">Asunto</label>
                                     <input name="subject"
-                                        value="{{ old('subject', 'Orden de compra ' . $order->order_number) }}"
+                                        value="{{ old('subject', 'Cotización ' . $order->order_number) }}"
                                         class="f-input">
                                 </div>
                                 <div>
