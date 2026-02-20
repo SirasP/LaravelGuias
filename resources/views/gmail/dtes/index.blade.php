@@ -13,7 +13,16 @@
                 </div>
             </div>
 
-            <div></div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('gmail.dtes.index', ['period' => 'month']) }}"
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ ($period ?? 'month') === 'month' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Este mes
+                </a>
+                <a href="{{ route('gmail.dtes.index', ['period' => 'all']) }}"
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ ($period ?? 'month') === 'all' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+                    Todo
+                </a>
+            </div>
         </div>
     </x-slot>
 
