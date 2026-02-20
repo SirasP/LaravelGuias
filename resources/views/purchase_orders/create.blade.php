@@ -22,7 +22,6 @@
         .au { animation:fadeUp .35s ease both }
         .d1 { animation-delay:.06s }
         .d2 { animation-delay:.12s }
-        .d3 { animation-delay:.18s }
 
         .page-bg { background:#f1f5f9; min-height:100% }
         .dark .page-bg { background:#0d1117 }
@@ -30,7 +29,6 @@
         .panel { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
         .dark .panel { background:#161c2c; border-color:#1e2a3b }
 
-        /* Form labels & inputs */
         .f-label {
             display:block; font-size:11px; font-weight:700;
             text-transform:uppercase; letter-spacing:.05em;
@@ -46,7 +44,6 @@
         .dark .f-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
         .dark .f-input:focus { border-color:#10b981 }
 
-        /* Compact input for table cells */
         .f-cell {
             width:100%; border-radius:8px; border:1px solid #e2e8f0; background:#fff;
             padding:6px 9px; font-size:12px; color:#111827; outline:none;
@@ -55,9 +52,7 @@
         .f-cell:focus { border-color:#10b981; box-shadow:0 0 0 2px rgba(16,185,129,.1) }
         .dark .f-cell { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
 
-        /* Line items table */
         .dt { width:100%; border-collapse:collapse; font-size:13px; min-width:960px }
-        .dt thead { position:sticky; top:0; z-index:1 }
         .dt thead tr { background:#f8fafc }
         .dark .dt thead tr { background:#0f1623 }
         .dt th {
@@ -68,26 +63,27 @@
         .dark .dt th { box-shadow:inset 0 -2px 0 #1e2a3b }
         .dt td { padding:8px 10px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle }
         .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
-        .dt tbody tr:last-child td { border-bottom:none }
         .dt tbody tr:hover td { background:#f5fffb }
-        .dark .dt tbody tr:hover td { background:rgba(16,185,129,.02) }
 
         .amt-cell {
             background:rgba(16,185,129,.04); border-left:1px solid #ecfdf5;
             font-weight:700; font-size:13px; color:#065f46;
             text-align:right; padding-right:14px; white-space:nowrap;
         }
-        .dark .amt-cell { background:rgba(16,185,129,.07); border-left-color:#1e2a3b; color:#6ee7b7 }
-        .dt tbody tr:hover .amt-cell { background:rgba(16,185,129,.09) }
 
         .line-num {
             display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center;
             border-radius:999px; background:#f1f5f9; color:#94a3b8; font-size:10px; font-weight:700;
         }
-        .dark .line-num { background:#1e2a3b; color:#64748b }
+
+        .chip-email {
+            display:inline-flex; align-items:center; gap:6px;
+            padding:4px 8px; border-radius:999px;
+            background:#ecfdf5; color:#065f46; font-size:11px; font-weight:700;
+        }
     </style>
 
-    <div class="page-bg" x-data="purchaseOrderForm(@js($products))">
+    <div class="page-bg" x-data="purchaseOrderForm(@js($products), @js($suppliers), @js($defaultNotesTemplate))">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
             @if($errors->any())
@@ -102,44 +98,150 @@
             <form method="POST" action="{{ route('purchase_orders.store') }}" @submit="beforeSubmit()">
                 @csrf
 
-                {{-- Información de la orden --}}
                 <div class="panel au d1">
                     <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Información de la orden</h3>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Proveedor y envío</h3>
                     </div>
-                    <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                    <div class="px-5 py-4 space-y-4">
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="supplierMode='existing'"
+                                :class="supplierMode==='existing' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                                Seleccionar proveedor
+                            </button>
+                            <button type="button" @click="supplierMode='new'"
+                                :class="supplierMode==='new' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                                Crear proveedor
+                            </button>
+                            <input type="hidden" name="supplier_mode" :value="supplierMode">
+                        </div>
+
+                        <div x-show="supplierMode==='existing'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="f-label">Proveedor</label>
+                                <select class="f-input" name="supplier_id" x-model="selectedSupplierId" @change="onSupplierChange()">
+                                    <option value="">Selecciona un proveedor</option>
+                                    <template x-for="sp in suppliers" :key="sp.id">
+                                        <option :value="String(sp.id)" x-text="sp.name + (sp.rut ? ' (' + sp.rut + ')' : '')"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="f-label">Moneda</label>
+                                <select name="currency" class="f-input" x-model="currency">
+                                    @foreach(['CLP', 'USD', 'EUR'] as $cur)
+                                        <option value="{{ $cur }}">{{ $cur }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="f-label">Destinatarios del proveedor</label>
+                                <div class="flex flex-wrap gap-2" x-show="selectedSupplierEmails.length">
+                                    <template x-for="email in selectedSupplierEmails" :key="email.email">
+                                        <label class="chip-email">
+                                            <input type="checkbox" name="recipient_emails[]" :value="email.email"
+                                                :checked="email.is_primary" class="rounded border-gray-300 text-emerald-600 w-3.5 h-3.5">
+                                            <span x-text="email.email"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                                <p class="text-xs text-gray-400" x-show="!selectedSupplierEmails.length">Este proveedor no tiene correos guardados.</p>
+                            </div>
+                        </div>
+
+                        <div x-show="supplierMode==='new'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                            <div class="xl:col-span-2">
+                                <label class="f-label">Nombre proveedor *</label>
+                                <input class="f-input" name="supplier_new_name" x-model="newSupplier.name" @input="onSupplierNameInput()" placeholder="Comercial Harcha SPA">
+                            </div>
+                            <div>
+                                <label class="f-label">RUT</label>
+                                <input class="f-input" name="supplier_new_rut" x-model="newSupplier.rut" placeholder="77071100-2">
+                            </div>
+                            <div>
+                                <label class="f-label">Tipo contribuyente</label>
+                                <input class="f-input" name="supplier_new_taxpayer_type" x-model="newSupplier.taxpayer_type" placeholder="IVA afecto 1ª categoría">
+                            </div>
+
+                            <div class="xl:col-span-2">
+                                <label class="f-label">Dirección</label>
+                                <input class="f-input" name="supplier_new_address_line_1" x-model="newSupplier.address_line_1" placeholder="Calle y número">
+                            </div>
+                            <div class="xl:col-span-2">
+                                <label class="f-label">Datos adicionales dirección</label>
+                                <input class="f-input" name="supplier_new_address_line_2" x-model="newSupplier.address_line_2" placeholder="Oficina, referencia">
+                            </div>
+
+                            <div>
+                                <label class="f-label">Comuna</label>
+                                <input class="f-input" name="supplier_new_comuna" x-model="newSupplier.comuna">
+                            </div>
+                            <div>
+                                <label class="f-label">Región</label>
+                                <input class="f-input" name="supplier_new_region" x-model="newSupplier.region">
+                            </div>
+                            <div>
+                                <label class="f-label">Código postal</label>
+                                <input class="f-input" name="supplier_new_postal_code" x-model="newSupplier.postal_code">
+                            </div>
+                            <div>
+                                <label class="f-label">País</label>
+                                <input class="f-input" name="supplier_new_country" x-model="newSupplier.country" placeholder="Chile">
+                            </div>
+
+                            <div>
+                                <label class="f-label">Teléfono</label>
+                                <input class="f-input" name="supplier_new_phone" x-model="newSupplier.phone">
+                            </div>
+                            <div>
+                                <label class="f-label">Celular</label>
+                                <input class="f-input" name="supplier_new_mobile" x-model="newSupplier.mobile">
+                            </div>
+                            <div>
+                                <label class="f-label">Sitio web</label>
+                                <input class="f-input" name="supplier_new_website" x-model="newSupplier.website" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="f-label">Idioma</label>
+                                <input class="f-input" name="supplier_new_language" x-model="newSupplier.language" placeholder="es_CL">
+                            </div>
+
+                            <div class="xl:col-span-4">
+                                <label class="f-label">Descripción de actividad</label>
+                                <input class="f-input" name="supplier_new_activity_description" x-model="newSupplier.activity_description">
+                            </div>
+
+                            <div class="xl:col-span-4">
+                                <label class="f-label">Correos del proveedor</label>
+                                <input class="f-input" name="supplier_new_emails" x-model="newSupplier.emails"
+                                    placeholder="compras@proveedor.cl; facturacion@proveedor.cl">
+                            </div>
+
+                            <div>
+                                <label class="f-label">Moneda</label>
+                                <select name="currency" class="f-input" x-model="currency">
+                                    @foreach(['CLP', 'USD', 'EUR'] as $cur)
+                                        <option value="{{ $cur }}">{{ $cur }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="f-label">
-                                Proveedor <span class="text-rose-500 font-bold">*</span>
-                            </label>
-                            <input name="supplier_name" value="{{ old('supplier_name') }}" required
-                                class="f-input" placeholder="Nombre del proveedor">
+                            <label class="f-label">Correos adicionales (opcionales)</label>
+                            <input name="extra_emails" class="f-input" x-model="extraEmails" placeholder="gerencia@empresa.cl, compras2@empresa.cl">
                         </div>
+
                         <div>
-                            <label class="f-label">Moneda</label>
-                            <select name="currency" class="f-input">
-                                @foreach(['CLP', 'USD', 'EUR'] as $cur)
-                                    <option value="{{ $cur }}" @selected(old('currency', 'CLP') === $cur)>{{ $cur }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="f-label">
-                                Correos destinatarios
-                                <span class="text-gray-400 font-normal normal-case tracking-normal">(separar con coma)</span>
-                            </label>
-                            <input name="emails" value="{{ old('emails') }}"
-                                class="f-input" placeholder="compras@empresa.cl, gerente@empresa.cl">
-                        </div>
-                        <div class="xl:col-span-4">
-                            <label class="f-label">Notas / observaciones</label>
-                            <textarea name="notes" rows="2" class="f-input" style="resize:vertical"
-                                placeholder="Condiciones de entrega, plazos de pago, observaciones...">{{ old('notes') }}</textarea>
+                            <label class="f-label">Observaciones</label>
+                            <textarea name="notes" rows="4" class="f-input" style="resize:vertical"
+                                x-model="notes" @input="notesTouched=true"></textarea>
                         </div>
                     </div>
                 </div>
 
-                {{-- Líneas de productos --}}
                 <div class="panel au d2 mt-4">
                     <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Líneas de productos</h3>
@@ -169,9 +271,7 @@
                             <tbody>
                                 <template x-for="(line, i) in lines" :key="line.uid">
                                     <tr>
-                                        <td class="text-center">
-                                            <span class="line-num" x-text="i + 1"></span>
-                                        </td>
+                                        <td class="text-center"><span class="line-num" x-text="i + 1"></span></td>
                                         <td class="min-w-[220px]">
                                             <select :name="`items[${i}][inventory_product_id]`"
                                                 x-model="line.inventory_product_id"
@@ -180,49 +280,35 @@
                                                 <option value="">— Manual —</option>
                                                 <template x-for="p in products" :key="p.id">
                                                     <option :value="String(p.id)"
-                                                        x-text="`${p.nombre}${p.codigo ? ' (' + p.codigo + ')' : ''}`">
-                                                    </option>
+                                                        x-text="`${p.nombre}${p.codigo ? ' (' + p.codigo + ')' : ''}`"></option>
                                                 </template>
                                             </select>
                                         </td>
                                         <td class="min-w-[200px]">
-                                            <input :name="`items[${i}][product_name]`"
-                                                x-model="line.product_name"
+                                            <input :name="`items[${i}][product_name]`" x-model="line.product_name"
                                                 class="f-cell" placeholder="Nombre del producto">
                                             <label class="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer"
                                                 x-show="!line.inventory_product_id">
-                                                <input type="checkbox"
-                                                    :name="`items[${i}][save_as_inventory]`"
-                                                    value="1"
+                                                <input type="checkbox" :name="`items[${i}][save_as_inventory]`" value="1"
                                                     class="rounded border-gray-300 dark:border-gray-700 w-3 h-3 text-emerald-600">
                                                 <span>Guardar en inventario</span>
                                             </label>
                                         </td>
                                         <td class="min-w-[80px]">
-                                            <input :name="`items[${i}][unit]`"
-                                                x-model="line.unit"
-                                                class="f-cell" placeholder="UN">
+                                            <input :name="`items[${i}][unit]`" x-model="line.unit" class="f-cell" placeholder="UN">
                                         </td>
                                         <td class="min-w-[100px]">
-                                            <input type="number" step="0.0001" min="0"
-                                                :name="`items[${i}][quantity]`"
-                                                x-model.number="line.quantity"
-                                                @input="recalc(line)"
-                                                class="f-cell text-right">
+                                            <input type="number" step="0.0001" min="0" :name="`items[${i}][quantity]`"
+                                                x-model.number="line.quantity" @input="recalc(line)" class="f-cell text-right">
                                         </td>
                                         <td class="min-w-[120px]">
-                                            <input type="number" step="0.0001" min="0"
-                                                :name="`items[${i}][unit_price]`"
-                                                x-model.number="line.unit_price"
-                                                @input="recalc(line)"
-                                                class="f-cell text-right">
+                                            <input type="number" step="0.0001" min="0" :name="`items[${i}][unit_price]`"
+                                                x-model.number="line.unit_price" @input="recalc(line)" class="f-cell text-right">
                                         </td>
                                         <td class="amt-cell min-w-[120px]" x-text="money(line.line_total)"></td>
                                         <td class="text-center px-2">
-                                            <button type="button" @click="removeLine(i)"
-                                                x-show="lines.length > 1"
-                                                class="w-7 h-7 inline-flex items-center justify-center rounded-lg
-                                                       bg-rose-50 hover:bg-rose-100 text-rose-500 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 dark:text-rose-400 transition">
+                                            <button type="button" @click="removeLine(i)" x-show="lines.length > 1"
+                                                class="w-7 h-7 inline-flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 transition">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                                 </svg>
@@ -234,20 +320,14 @@
                         </table>
                     </div>
 
-                    {{-- Footer: total + submit --}}
                     <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20 flex items-center justify-between gap-4 flex-wrap">
-                        <p class="text-xs text-gray-400">
-                            <span x-text="lines.length"></span> línea<span x-show="lines.length !== 1">s</span>
-                        </p>
+                        <p class="text-xs text-gray-400"><span x-text="lines.length"></span> línea<span x-show="lines.length !== 1">s</span></p>
                         <div class="flex items-center gap-6">
                             <div class="text-right">
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Total</p>
-                                <p class="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400"
-                                    x-text="money(grandTotal())"></p>
+                                <p class="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400" x-text="money(grandTotal())"></p>
                             </div>
-                            <button type="submit"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
-                                       bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
+                            <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                 </svg>
@@ -256,16 +336,58 @@
                         </div>
                     </div>
                 </div>
-
             </form>
         </div>
     </div>
 
     <script>
-        function purchaseOrderForm(products) {
+        function purchaseOrderForm(products, suppliers, notesTemplate) {
             return {
                 products,
+                suppliers,
+                supplierMode: 'existing',
+                selectedSupplierId: '',
+                selectedSupplierEmails: [],
+                currency: 'CLP',
+                extraEmails: '',
+                notesTemplate,
+                notesTouched: false,
+                notes: '',
+                newSupplier: {
+                    name: '', rut: '', taxpayer_type: '', activity_description: '',
+                    address_line_1: '', address_line_2: '', comuna: '', region: '', postal_code: '',
+                    country: 'Chile', phone: '', mobile: '', website: '', language: 'es_CL', emails: ''
+                },
                 lines: [{ uid: Date.now(), inventory_product_id: '', product_name: '', unit: 'UN', quantity: 1, unit_price: 0, line_total: 0 }],
+                init() {
+                    if (this.suppliers.length > 0) {
+                        this.selectedSupplierId = String(this.suppliers[0].id);
+                        this.onSupplierChange();
+                    } else {
+                        this.supplierMode = 'new';
+                        this.updateNotesBySupplier();
+                    }
+                },
+                currentSupplierName() {
+                    if (this.supplierMode === 'new') {
+                        return (this.newSupplier.name || '').trim();
+                    }
+                    const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
+                    return sp ? (sp.name || '').trim() : '';
+                },
+                updateNotesBySupplier() {
+                    if (this.notesTouched) return;
+                    const name = this.currentSupplierName() || 'Proveedor';
+                    this.notes = this.notesTemplate.replaceAll('{PROVEEDOR}', name);
+                },
+                onSupplierNameInput() {
+                    this.updateNotesBySupplier();
+                },
+                onSupplierChange() {
+                    const sp = this.suppliers.find(s => String(s.id) === String(this.selectedSupplierId));
+                    this.selectedSupplierEmails = sp && Array.isArray(sp.emails) ? sp.emails : [];
+                    this.updateNotesBySupplier();
+                },
                 addLine() {
                     this.lines.push({ uid: Date.now() + Math.random(), inventory_product_id: '', product_name: '', unit: 'UN', quantity: 1, unit_price: 0, line_total: 0 });
                 },
@@ -297,6 +419,7 @@
                 },
                 beforeSubmit() {
                     this.lines.forEach(l => this.recalc(l));
+                    this.updateNotesBySupplier();
                 }
             }
         }
