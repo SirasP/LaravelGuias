@@ -153,19 +153,30 @@
                                         {{ $order->order_number }}
                                     </h1>
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
-                                        {{ $order->supplier_name }}
+                                        @php
+                                            $headerSuppliers = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                                        @endphp
+                                        {{ $headerSuppliers->count() > 0 ? $headerSuppliers->join(' · ') : $order->supplier_name }}
                                     </p>
                                 </div>
                                 <div class="hidden sm:flex flex-col items-end gap-1.5 shrink-0">
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total orden</p>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total</p>
                                     <p class="text-2xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                         {{ number_format((float) $order->total, 2, ',', '.') }}
                                     </p>
-                                    <span class="chip {{ $order->status === 'sent'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
-                                        {{ $order->status === 'sent' ? 'Enviada' : 'Borrador' }}
-                                    </span>
+                                    @php
+                                        $statusClass = match($order->status) {
+                                            'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                            'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                                            default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                        };
+                                        $statusLabel = match($order->status) {
+                                            'sent'  => 'Cotización enviada',
+                                            'order' => 'Orden de compra',
+                                            default => 'Pendiente',
+                                        };
+                                    @endphp
+                                    <span class="chip {{ $statusClass }}">{{ $statusLabel }}</span>
                                 </div>
                             </div>
                             @if($order->notes)
@@ -232,8 +243,19 @@
                     {{-- Info de la orden --}}
                     <div class="panel">
                         <div class="sidebar-section">
-                            <p class="section-label">Proveedor</p>
-                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $order->supplier_name }}</p>
+                            @php
+                                $allSupplierNames = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                            @endphp
+                            <p class="section-label">{{ $allSupplierNames->count() > 1 ? 'Proveedores' : 'Proveedor' }}</p>
+                            @if($allSupplierNames->count() > 0)
+                                <div class="space-y-1">
+                                    @foreach($allSupplierNames as $sn)
+                                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $sn }}</p>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $order->supplier_name }}</p>
+                            @endif
                         </div>
                         <div class="sidebar-section">
                             <p class="section-label">Detalles</p>
@@ -248,11 +270,7 @@
                                 </div>
                                 <div class="info-row">
                                     <span class="info-k">Estado</span>
-                                    <span class="chip {{ $order->status === 'sent'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
-                                        {{ $order->status === 'sent' ? 'Enviada' : 'Borrador' }}
-                                    </span>
+                                    <span class="chip {{ $statusClass }}">{{ $statusLabel }}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-k">Creación</span>
@@ -281,50 +299,82 @@
                         @endif
                     </div>
 
-                    {{-- Enviar por correo --}}
+                    {{-- Crear orden de compra --}}
+                    @if($order->status === 'sent')
                     <div class="panel">
                         <div class="sidebar-section">
-                            <p class="section-label">Enviar por correo</p>
-                            <form method="POST" action="{{ route('purchase_orders.send_email', $order->id) }}" class="space-y-3">
+                            <p class="section-label">Crear orden de compra</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+                                Selecciona el proveedor con quien decidiste comprar:
+                            </p>
+
+                            @php
+                                $uniqueSuppliers = $recipients
+                                    ->filter(fn($r) => $r->supplier_name)
+                                    ->unique('supplier_name')
+                                    ->values();
+                            @endphp
+
+                            <form method="POST" action="{{ route('purchase_orders.confirm_order', $order->id) }}" class="space-y-3">
                                 @csrf
-                                <div>
-                                    <label class="f-label">Destinatarios</label>
-                                    <input name="emails"
-                                        value="{{ old('emails', $recipients->pluck('email')->join(', ')) }}"
-                                        class="f-input" placeholder="correo@empresa.cl, otro@empresa.cl">
-                                    @if($recipients->count() > 1)
-                                        <p class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                                            Se enviará 1 correo independiente a cada destinatario.
-                                        </p>
-                                    @endif
-                                </div>
-                                <div>
-                                    <label class="f-label">Asunto</label>
-                                    <input name="subject"
-                                        value="{{ old('subject', 'Cotización ' . $order->order_number) }}"
-                                        class="f-input">
-                                </div>
-                                <div>
-                                    <label class="f-label">Mensaje</label>
-                                    <textarea name="message" rows="5" class="f-input" style="resize:vertical">{{ old('message', $order->notes) }}</textarea>
-                                    <p class="text-[11px] text-gray-400 mt-1">
-                                        Usa <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">{PROVEEDOR}</code>
-                                        para personalizar el nombre por destinatario.
-                                    </p>
-                                </div>
-                                <button type="submit"
-                                    class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                    </svg>
-                                    Enviar orden
-                                    @if($recipients->count() > 1)
-                                        ({{ $recipients->count() }} correos)
-                                    @endif
-                                </button>
+
+                                @if($uniqueSuppliers->count() > 0)
+                                    {{-- Tarjetas de selección --}}
+                                    <div class="space-y-1.5" x-data="{ chosen: {{ $uniqueSuppliers->count() === 1 ? $uniqueSuppliers->first()->supplier_id ?? 0 : 'null' }} }">
+                                        @foreach($uniqueSuppliers as $rs)
+                                        @php
+                                            $spId = DB::connection('fuelcontrol')
+                                                ->table('purchase_order_supplier_emails')
+                                                ->where('email', $rs->email)
+                                                ->value('supplier_id') ?? $order->supplier_id;
+                                        @endphp
+                                        <label class="flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition
+                                            hover:border-blue-300 dark:hover:border-blue-700"
+                                            :class="{{ $spId }} === chosen
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30'">
+                                            <input type="radio" name="chosen_supplier_id"
+                                                value="{{ $spId }}"
+                                                x-model="chosen"
+                                                class="mt-0.5 accent-blue-600 shrink-0"
+                                                {{ $uniqueSuppliers->count() === 1 ? 'checked' : '' }}>
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 leading-tight">{{ $rs->supplier_name }}</p>
+                                                <p class="text-[11px] text-gray-400 font-mono truncate">{{ $rs->email }}</p>
+                                            </div>
+                                        </label>
+                                        @endforeach
+
+                                        <input type="hidden" name="chosen_supplier_id" :value="chosen" x-show="false">
+
+                                        <button type="submit"
+                                            class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition mt-1"
+                                            :disabled="!chosen"
+                                            :class="!chosen ? 'opacity-50 cursor-not-allowed' : ''"
+                                            onclick="return confirm('¿Confirmas la orden de compra con el proveedor seleccionado?')">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            Crear orden de compra
+                                        </button>
+                                    </div>
+                                @else
+                                    {{-- Sin destinatarios guardados: usar el proveedor principal --}}
+                                    <input type="hidden" name="chosen_supplier_id" value="{{ $order->supplier_id }}">
+                                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-2">{{ $order->supplier_name }}</p>
+                                    <button type="submit"
+                                        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition"
+                                        onclick="return confirm('¿Confirmas la orden de compra con {{ addslashes($order->supplier_name) }}?')">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        Crear orden de compra
+                                    </button>
+                                @endif
                             </form>
                         </div>
                     </div>
+                    @endif
 
                 </div>{{-- /sidebar --}}
 

@@ -80,19 +80,19 @@
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
                             Todas
                         </button>
-                        <button @click="filter = 'draft'"
-                            class="px-3 py-1.5 text-xs font-semibold rounded-xl transition"
-                            :class="filter === 'draft'
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
-                            Borrador
-                        </button>
                         <button @click="filter = 'sent'"
                             class="px-3 py-1.5 text-xs font-semibold rounded-xl transition"
                             :class="filter === 'sent'
                                 ? 'bg-emerald-600 text-white'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
-                            Enviadas
+                            Cotizaciones enviadas
+                        </button>
+                        <button @click="filter = 'order'"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-xl transition"
+                            :class="filter === 'order'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
+                            Órdenes de compra
                         </button>
                     </div>
                     <span class="text-xs text-gray-400">{{ $orders->total() }} en total</span>
@@ -103,7 +103,7 @@
                         <table class="dt">
                             <thead>
                                 <tr>
-                                    <th>Orden</th>
+                                    <th>Número</th>
                                     <th>Proveedor</th>
                                     <th>Moneda</th>
                                     <th class="text-right">Total</th>
@@ -119,7 +119,18 @@
                                             <span class="font-black text-gray-900 dark:text-gray-100 font-mono tracking-tight">{{ $o->order_number }}</span>
                                         </td>
                                         <td>
-                                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $o->supplier_name }}</span>
+                                            @php
+                                                $names = $suppliersByOrder->get($o->id, collect());
+                                            @endphp
+                                            @if($names->count() > 0)
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach($names as $sn)
+                                                        <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{{ $sn }}</span>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <span class="font-semibold text-gray-800 dark:text-gray-200">{{ $o->supplier_name }}</span>
+                                            @endif
                                         </td>
                                         <td>
                                             <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{{ $o->currency }}</span>
@@ -128,11 +139,20 @@
                                             <span class="font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ number_format((float) $o->total, 2, ',', '.') }}</span>
                                         </td>
                                         <td>
-                                            <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold
-                                                {{ $o->status === 'sent'
-                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
-                                                {{ $o->status === 'sent' ? 'Enviada' : 'Borrador' }}
+                                            @php
+                                                $badgeClass = match($o->status) {
+                                                    'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                                    'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                                                    default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                                };
+                                                $badgeLabel = match($o->status) {
+                                                    'sent'  => 'Cotización enviada',
+                                                    'order' => 'Orden de compra',
+                                                    default => 'Pendiente',
+                                                };
+                                            @endphp
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold {{ $badgeClass }}">
+                                                {{ $badgeLabel }}
                                             </span>
                                         </td>
                                         <td class="text-xs text-gray-500 dark:text-gray-400">

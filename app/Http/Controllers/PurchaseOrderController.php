@@ -12,12 +12,23 @@ class PurchaseOrderController extends Controller
 
     public function index()
     {
-        $orders = DB::connection('fuelcontrol')
-            ->table('purchase_orders')
+        $db = DB::connection('fuelcontrol');
+
+        $orders = $db->table('purchase_orders')
             ->orderByDesc('id')
             ->paginate(20);
 
-        return view('purchase_orders.index', compact('orders'));
+        // Nombres de todos los proveedores destinatarios por orden
+        $suppliersByOrder = $db->table('purchase_order_recipients as por')
+            ->leftJoin('purchase_order_supplier_emails as pose', 'pose.email', '=', 'por.email')
+            ->leftJoin('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
+            ->whereIn('por.purchase_order_id', $orders->pluck('id'))
+            ->select('por.purchase_order_id', 'pos.name as supplier_name')
+            ->get()
+            ->groupBy('purchase_order_id')
+            ->map(fn($rows) => $rows->pluck('supplier_name')->filter()->unique()->values());
+
+        return view('purchase_orders.index', compact('orders', 'suppliersByOrder'));
     }
 
     public function create()
@@ -206,7 +217,7 @@ class PurchaseOrderController extends Controller
         $orderId = $db->transaction(function () use ($db, $data, $supplierId, $supplierName, $cleanItems, $emails, $subtotal, $now) {
             $year = now()->format('Y');
             $lastId = (int) ($db->table('purchase_orders')->max('id') ?? 0) + 1;
-            $orderNumber = 'OC-' . $year . '-' . str_pad((string) $lastId, 5, '0', STR_PAD_LEFT);
+            $orderNumber = 'COT-' . $year . '-' . str_pad((string) $lastId, 5, '0', STR_PAD_LEFT);
 
             $orderId = $db->table('purchase_orders')->insertGetId([
                 'order_number' => $orderNumber,
@@ -269,7 +280,112 @@ class PurchaseOrderController extends Controller
             return $orderId;
         });
 
-        return redirect()->route('purchase_orders.show', $orderId)->with('success', 'Cotización creada.');
+        // ── Auto-envío de correo al crear ─────────────────────────────────
+        $sentCount = 0;
+        if (!empty($emails)) {
+            try {
+                $order = $db->table('purchase_orders')->where('id', $orderId)->first();
+                $items = $db->table('purchase_order_items')
+                    ->where('purchase_order_id', $orderId)->orderBy('id')->get();
+
+                $recipientList = $db->table('purchase_order_recipients as por')
+                    ->leftJoin('purchase_order_supplier_emails as pose', 'pose.email', '=', 'por.email')
+                    ->leftJoin('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
+                    ->where('por.purchase_order_id', $orderId)
+                    ->select('por.email', 'pos.name as supplier_name')
+                    ->get()
+                    ->map(fn($r) => [
+                        'email'         => $r->email,
+                        'supplier_name' => $r->supplier_name ?? $supplierName,
+                    ])
+                    ->all();
+
+                $subject         = 'Cotización ' . $order->order_number;
+                $messageTemplate = trim((string) ($data['notes'] ?? ''));
+
+                $rows = '';
+                foreach ($items as $item) {
+                    $rows .= '<tr>'
+                        . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->product_name) . '</td>'
+                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->quantity, 4, ',', '.') . '</td>'
+                        . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->unit) . '</td>'
+                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->unit_price, 2, ',', '.') . '</td>'
+                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->line_total, 2, ',', '.') . '</td>'
+                        . '</tr>';
+                }
+                $tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
+                    . '<thead><tr>'
+                    . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">Producto</th>'
+                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Cantidad</th>'
+                    . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">UdM</th>'
+                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Precio</th>'
+                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Importe</th>'
+                    . '</tr></thead><tbody>' . $rows . '</tbody></table>'
+                    . '<p style="margin-top:12px;"><strong>Total:</strong> ' . e($order->currency) . ' '
+                    . number_format((float) $order->total, 2, ',', '.') . '</p>';
+
+                foreach ($recipientList as $recipient) {
+                    $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
+
+                    $html = '<h2 style="margin:0 0 8px;">Cotización ' . e($order->order_number) . '</h2>'
+                        . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($recipient['supplier_name']) . '</p>'
+                        . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
+                        . ($personalizedMsg !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($personalizedMsg)) . '</p>') : '')
+                        . $tableHtml;
+
+                    $emailAddr = $recipient['email'];
+                    Mail::send([], [], function ($msg) use ($emailAddr, $subject, $html) {
+                        $msg->to($emailAddr)->subject($subject)->html($html);
+                    });
+                }
+
+                $sentCount = count($recipientList);
+                $db->table('purchase_orders')->where('id', $orderId)->update([
+                    'status'     => 'sent',
+                    'sent_at'    => now(),
+                    'updated_at' => now(),
+                ]);
+            } catch (\Throwable $ex) {
+                // Cotización guardada aunque el correo haya fallado
+            }
+        }
+
+        $successMsg = $sentCount > 0
+            ? 'Cotización creada y enviada a ' . $sentCount . ' destinatario(s).'
+            : 'Cotización creada.';
+
+        return redirect()->route('purchase_orders.show', $orderId)->with('success', $successMsg);
+    }
+
+    public function confirmAsOrder(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'chosen_supplier_id' => ['required', 'integer'],
+        ]);
+
+        $db = DB::connection('fuelcontrol');
+
+        $supplier = $db->table('purchase_order_suppliers')
+            ->where('id', $validated['chosen_supplier_id'])
+            ->where('is_active', 1)
+            ->first();
+
+        if (!$supplier) {
+            return back()->with('warning', 'Proveedor no válido.');
+        }
+
+        $db->table('purchase_orders')
+            ->where('id', $id)
+            ->where('status', 'sent')
+            ->update([
+                'status'        => 'order',
+                'supplier_id'   => $supplier->id,
+                'supplier_name' => $supplier->name,
+                'updated_at'    => now(),
+            ]);
+
+        return redirect()->route('purchase_orders.show', $id)
+            ->with('success', 'Orden de compra creada con ' . $supplier->name . '.');
     }
 
     public function upsertSupplier(Request $request)
