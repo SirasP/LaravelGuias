@@ -80,27 +80,10 @@ class PurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'supplier_mode' => ['required', 'in:existing,new'],
             'supplier_id' => ['nullable', 'integer'],
-            'supplier_new_name' => ['nullable', 'string', 'max:255'],
-            'supplier_new_rut' => ['nullable', 'string', 'max:25'],
-            'supplier_new_taxpayer_type' => ['nullable', 'string', 'max:255'],
-            'supplier_new_activity_description' => ['nullable', 'string', 'max:255'],
-            'supplier_new_address_line_1' => ['nullable', 'string', 'max:255'],
-            'supplier_new_address_line_2' => ['nullable', 'string', 'max:255'],
-            'supplier_new_comuna' => ['nullable', 'string', 'max:120'],
-            'supplier_new_region' => ['nullable', 'string', 'max:120'],
-            'supplier_new_postal_code' => ['nullable', 'string', 'max:30'],
-            'supplier_new_country' => ['nullable', 'string', 'max:120'],
-            'supplier_new_phone' => ['nullable', 'string', 'max:60'],
-            'supplier_new_mobile' => ['nullable', 'string', 'max:60'],
-            'supplier_new_website' => ['nullable', 'string', 'max:255'],
-            'supplier_new_language' => ['nullable', 'string', 'max:30'],
-            'supplier_new_emails' => ['nullable', 'string'],
             'currency' => ['required', 'in:CLP,USD,EUR'],
             'recipient_emails' => ['nullable', 'array'],
             'recipient_emails.*' => ['email'],
-            'extra_emails' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.inventory_product_id' => ['nullable', 'integer'],
@@ -112,57 +95,36 @@ class PurchaseOrderController extends Controller
 
         $db = DB::connection('fuelcontrol');
 
-        $supplierMode = (string) ($data['supplier_mode'] ?? 'existing');
-        $supplierId = null;
-        $supplierName = '';
-        $supplierEmails = [];
-
-        if ($supplierMode === 'existing') {
-            $supplierId = isset($data['supplier_id']) && $data['supplier_id'] !== '' ? (int) $data['supplier_id'] : null;
-            if (!$supplierId) {
-                return back()->withInput()->with('warning', 'Debes seleccionar un proveedor existente.');
-            }
-
-            $supplier = $db->table('purchase_order_suppliers')
-                ->select('id', 'name')
-                ->where('id', $supplierId)
-                ->where('is_active', 1)
-                ->first();
-
-            if (!$supplier) {
-                return back()->withInput()->with('warning', 'Proveedor no válido.');
-            }
-
-            $supplierName = (string) $supplier->name;
-            $supplierEmails = $db->table('purchase_order_supplier_emails')
-                ->where('supplier_id', $supplierId)
-                ->pluck('email')
-                ->all();
-        } else {
-            $supplierName = trim((string) ($data['supplier_new_name'] ?? ''));
-            if ($supplierName === '') {
-                return back()->withInput()->with('warning', 'Debes ingresar el nombre del proveedor.');
-            }
+        $supplierId = isset($data['supplier_id']) && $data['supplier_id'] !== '' ? (int) $data['supplier_id'] : null;
+        if (!$supplierId) {
+            return back()->withInput()->with('warning', 'Debes seleccionar al menos un proveedor.');
         }
 
-        $selectedRecipientEmails = array_values(array_unique(array_filter(
+        $supplier = $db->table('purchase_order_suppliers')
+            ->select('id', 'name')
+            ->where('id', $supplierId)
+            ->where('is_active', 1)
+            ->first();
+
+        if (!$supplier) {
+            return back()->withInput()->with('warning', 'Proveedor no válido.');
+        }
+
+        $supplierName = (string) $supplier->name;
+
+        // Emails de los destinatarios seleccionados en el formulario
+        $emails = array_values(array_unique(array_filter(
             array_map('mb_strtolower', (array) ($data['recipient_emails'] ?? [])),
             fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL)
         )));
 
-        $extraEmails = $this->normalizeEmails((string) ($data['extra_emails'] ?? ''));
-        $emails = array_values(array_unique(array_merge($selectedRecipientEmails, $extraEmails)));
-
-        if ($supplierMode === 'new') {
-            $newSupplierEmails = $this->normalizeEmails((string) ($data['supplier_new_emails'] ?? ''));
-            if (empty($emails)) {
-                $emails = $newSupplierEmails;
-            }
-            $supplierEmails = $newSupplierEmails;
-        }
-
-        if ($supplierMode === 'existing' && empty($emails)) {
-            $emails = array_values(array_unique($supplierEmails));
+        // Si no se enviaron emails, usar los del proveedor principal
+        if (empty($emails)) {
+            $emails = $db->table('purchase_order_supplier_emails')
+                ->where('supplier_id', $supplierId)
+                ->pluck('email')
+                ->map(fn($e) => mb_strtolower((string) $e))
+                ->all();
         }
 
         $products = $db->table('gmail_inventory_products')
@@ -241,47 +203,14 @@ class PurchaseOrderController extends Controller
 
         $now = now();
 
-        $orderId = $db->transaction(function () use ($db, $data, $supplierMode, $supplierId, $supplierName, $supplierEmails, $cleanItems, $emails, $subtotal, $now) {
+        $orderId = $db->transaction(function () use ($db, $data, $supplierId, $supplierName, $cleanItems, $emails, $subtotal, $now) {
             $year = now()->format('Y');
             $lastId = (int) ($db->table('purchase_orders')->max('id') ?? 0) + 1;
             $orderNumber = 'OC-' . $year . '-' . str_pad((string) $lastId, 5, '0', STR_PAD_LEFT);
 
-            $resolvedSupplierId = $supplierId;
-            if ($supplierMode === 'new') {
-                $resolvedSupplierId = $db->table('purchase_order_suppliers')->insertGetId([
-                    'name' => $supplierName,
-                    'rut' => $this->nullableString($data['supplier_new_rut'] ?? null),
-                    'taxpayer_type' => $this->nullableString($data['supplier_new_taxpayer_type'] ?? null),
-                    'activity_description' => $this->nullableString($data['supplier_new_activity_description'] ?? null),
-                    'address_line_1' => $this->nullableString($data['supplier_new_address_line_1'] ?? null),
-                    'address_line_2' => $this->nullableString($data['supplier_new_address_line_2'] ?? null),
-                    'comuna' => $this->nullableString($data['supplier_new_comuna'] ?? null),
-                    'region' => $this->nullableString($data['supplier_new_region'] ?? null),
-                    'postal_code' => $this->nullableString($data['supplier_new_postal_code'] ?? null),
-                    'country' => $this->nullableString($data['supplier_new_country'] ?? null) ?? 'Chile',
-                    'phone' => $this->nullableString($data['supplier_new_phone'] ?? null),
-                    'mobile' => $this->nullableString($data['supplier_new_mobile'] ?? null),
-                    'website' => $this->nullableString($data['supplier_new_website'] ?? null),
-                    'language' => $this->nullableString($data['supplier_new_language'] ?? null) ?? 'es_CL',
-                    'is_active' => 1,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-
-                foreach (array_values(array_unique($supplierEmails)) as $index => $email) {
-                    $db->table('purchase_order_supplier_emails')->insert([
-                        'supplier_id' => $resolvedSupplierId,
-                        'email' => $email,
-                        'is_primary' => $index === 0 ? 1 : 0,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]);
-                }
-            }
-
             $orderId = $db->table('purchase_orders')->insertGetId([
                 'order_number' => $orderNumber,
-                'supplier_id' => $resolvedSupplierId,
+                'supplier_id' => $supplierId,
                 'supplier_name' => $supplierName,
                 'currency' => $data['currency'],
                 'status' => 'draft',

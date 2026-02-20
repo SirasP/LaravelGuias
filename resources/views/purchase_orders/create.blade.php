@@ -184,11 +184,11 @@
                                         placeholder="Escribe para buscar..."
                                         autocomplete="off">
 
-                                    {{-- Items usan @click (no @mousedown) — el blur delay garantiza --}}
-                                    {{-- que el click se registra antes de que el dropdown se cierre --}}
+                                    {{-- Items usan @mousedown.prevent: previene que el input pierda foco  --}}
+                                    {{-- (y por tanto no dispara blur) justo cuando el usuario hace click  --}}
                                     <div x-show="supplierDropOpen" x-cloak class="combo-drop">
                                         <template x-for="sp in filteredSuppliers()" :key="sp.id">
-                                            <div class="combo-item" @click="addSupplierToRecipients(sp)">
+                                            <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
                                                 <span class="font-semibold truncate" x-text="sp.name"></span>
                                                 <span class="combo-item-sub" x-text="sp.rut || ''"></span>
                                             </div>
@@ -197,7 +197,7 @@
                                             x-show="filteredSuppliers().length === 0 && (supplierSearch || '').trim()">
                                             Sin resultados — crea uno nuevo.
                                         </div>
-                                        <div class="combo-create" @click="openSupplierModal(null)">
+                                        <div class="combo-create" @mousedown.prevent="openSupplierModal(null)">
                                             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                                             </svg>
