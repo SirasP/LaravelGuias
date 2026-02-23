@@ -49,10 +49,32 @@
             border:1px solid #e2e8f0;
             border-radius:16px;
             padding:14px;
+            position:relative;
+            overflow:hidden;
             transition:transform .15s ease, box-shadow .15s ease;
         }
         .card:hover { transform:translateY(-2px); box-shadow:0 10px 25px rgba(15,23,42,.08) }
         .dark .card { background:#161c2c; border-color:#1e2a3b }
+
+        /* Etiqueta transversal sin stock */
+        .ribbon-sinstock {
+            position:absolute;
+            top:14px;
+            left:-30px;
+            width:110px;
+            text-align:center;
+            transform:rotate(-45deg);
+            font-size:9px;
+            font-weight:800;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            padding:3px 0;
+            background:#ef4444;
+            color:#fff;
+            z-index:2;
+            pointer-events:none;
+            box-shadow:0 1px 4px rgba(0,0,0,.18);
+        }
         .kv { font-size:12px; color:#94a3b8 }
         .vv { font-size:14px; font-weight:700; color:#334155 }
         .dark .vv { color:#e2e8f0 }
@@ -117,6 +139,9 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 au d2">
                     @foreach($products as $p)
                         <div class="card">
+                            @if((float)$p->stock_actual <= 0)
+                                <div class="ribbon-sinstock">Sin stock</div>
+                            @endif
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $p->nombre }}</p>
@@ -134,7 +159,9 @@
                                 </div>
                                 <div>
                                     <p class="kv">Stock actual</p>
-                                    <p class="vv">{{ number_format((float) $p->stock_actual, 4, ',', '.') }}</p>
+                                    <p class="vv {{ (float)$p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">
+                                        {{ number_format((float) $p->stock_actual, 4, ',', '.') }}
+                                    </p>
                                 </div>
                                 <div class="col-span-2">
                                     <p class="kv">Costo promedio</p>
