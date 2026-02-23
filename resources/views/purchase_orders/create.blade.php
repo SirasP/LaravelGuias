@@ -29,6 +29,9 @@
 
         .panel { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
         .dark .panel { background:#161c2c; border-color:#1e2a3b }
+        /* Para paneles con overflow:visible, redondear manualmente cabecera y pie */
+        .panel-ov > .panel-head { border-radius:17px 17px 0 0; overflow:hidden }
+        .panel-ov > .panel-foot { border-radius:0 0 17px 17px; overflow:hidden }
 
         .f-label {
             display:block; font-size:11px; font-weight:700;
@@ -390,8 +393,10 @@
                 </div>
 
                 {{-- ── Panel 2: Líneas ──────────────────────────────────────── --}}
-                <div class="panel au d2 mt-4">
-                    <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div class="panel panel-ov au d2 mt-4" style="overflow:visible">
+
+                    {{-- Header --}}
+                    <div class="panel-head px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Líneas de productos</h3>
                         <button type="button" @click="addLine()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl
@@ -399,12 +404,127 @@
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            Agregar línea
+                            Agregar
                         </button>
                     </div>
 
-                    <div style="overflow:visible">
-                        <table class="dt" style="min-width:700px">
+                    {{-- ── Inputs ocultos (form submission — independientes del layout visual) ── --}}
+                    <div class="hidden" aria-hidden="true">
+                        <template x-for="(line, i) in lines" :key="'sub-' + line.uid">
+                            <span>
+                                <input type="hidden" :name="`items[${i}][inventory_product_id]`" :value="line.inventory_product_id">
+                                <input type="hidden" :name="`items[${i}][product_name]`"       :value="line.product_name">
+                                <input type="hidden" :name="`items[${i}][save_as_inventory]`"  :value="line.saveAsInventory ? '1' : ''">
+                                <input type="hidden" :name="`items[${i}][unit]`"               :value="line.unit">
+                                <input type="hidden" :name="`items[${i}][quantity]`"           :value="line.quantity">
+                                <input type="hidden" :name="`items[${i}][unit_price]`"         :value="line.unit_price">
+                            </span>
+                        </template>
+                    </div>
+
+                    {{-- ══ MÓVIL: tarjetas (< sm) ═══════════════════════════════════ --}}
+                    <div class="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                        <template x-for="(line, i) in lines" :key="'mob-' + line.uid">
+                            <div class="px-4 py-4 space-y-3">
+
+                                {{-- Cabecera tarjeta: número + eliminar --}}
+                                <div class="flex items-center justify-between">
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400">
+                                        <span class="line-num" x-text="i + 1"></span>
+                                        Producto
+                                    </span>
+                                    <button type="button" @click="removeLine(i)" x-show="lines.length > 1"
+                                        class="w-7 h-7 inline-flex items-center justify-center rounded-lg
+                                               bg-rose-50 hover:bg-rose-100 text-rose-500 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {{-- Combobox producto --}}
+                                <div>
+                                    <label class="f-label">Producto</label>
+                                    <div class="prod-wrap">
+                                        <input type="text" class="prod-input"
+                                            placeholder="Buscar o escribir producto..."
+                                            autocomplete="off"
+                                            x-model="line.productSearch"
+                                            @focus="line.productDropOpen = true"
+                                            @input="line.productDropOpen = true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                            @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
+                                            @keydown.escape="line.productDropOpen = false"
+                                            @keydown.enter.prevent="selectFirstProduct(line)">
+                                        <div class="prod-drop" x-show="line.productDropOpen" x-cloak>
+                                            <template x-if="filteredProducts(line).length === 0">
+                                                <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
+                                            </template>
+                                            <template x-for="p in filteredProducts(line)" :key="p.id">
+                                                <div class="prod-item" @mousedown.prevent="selectProduct(line, p)">
+                                                    <span x-text="p.nombre"></span>
+                                                    <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="mt-1 flex items-center gap-1" x-show="line.inventory_product_id">
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                            Inventario
+                                        </span>
+                                        <button type="button" class="text-[10px] text-gray-400 hover:text-rose-500 transition"
+                                            @click="line.inventory_product_id=''; line.productSearch=line.product_name;">× desvincular</button>
+                                    </div>
+                                    <label class="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer" x-show="!line.inventory_product_id">
+                                        <input type="checkbox" x-model="line.saveAsInventory" class="rounded border-gray-300 w-3 h-3 text-emerald-600">
+                                        <span>Guardar en inventario</span>
+                                    </label>
+                                </div>
+
+                                {{-- UdM · Cantidad · Precio --}}
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="f-label">UdM</label>
+                                        <input x-model="line.unit" list="udm-list" autocomplete="off"
+                                            class="f-input text-center font-semibold"
+                                            :class="!line.unit
+                                                ? 'border-amber-400 bg-amber-50 text-amber-700 placeholder-amber-400'
+                                                : (line.inventory_product_id ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : '')"
+                                            placeholder="¿UdM?">
+                                        <p class="text-[9px] mt-0.5 leading-none"
+                                           :class="!line.unit ? 'text-amber-500 font-semibold' : 'text-gray-400'"
+                                           x-text="!line.unit ? '⚠ Requerido' : (line.inventory_product_id ? 'del inventario' : 'editable')"></p>
+                                    </div>
+                                    <div>
+                                        <label class="f-label">Cantidad</label>
+                                        <input type="number" step="0.0001" min="0"
+                                            x-model.number="line.quantity" @input="recalc(line)"
+                                            class="f-input text-right">
+                                    </div>
+                                    <div>
+                                        <label class="f-label" x-text="'Precio (' + currencySymbol() + ')'"></label>
+                                        <input type="number" step="0.0001" min="0"
+                                            x-model.number="line.unit_price" @input="recalc(line)"
+                                            class="f-input text-right">
+                                    </div>
+                                </div>
+
+                                {{-- Total línea --}}
+                                <div class="flex justify-end pt-1 border-t border-gray-100 dark:border-gray-800">
+                                    <div class="text-right">
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Importe</p>
+                                        <p class="text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums"
+                                           x-text="currencySymbol() + ' ' + money(line.line_total)"></p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- ══ DESKTOP: tabla (≥ sm) ════════════════════════════════════ --}}
+                    <div class="hidden sm:block overflow-x-auto">
+                        <table class="dt" style="min-width:780px">
                             <thead>
                                 <tr>
                                     <th class="w-10 text-center">#</th>
@@ -417,19 +537,14 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <template x-for="(line, i) in lines" :key="line.uid">
+                                <template x-for="(line, i) in lines" :key="'dt-' + line.uid">
                                     <tr>
                                         <td class="text-center"><span class="line-num" x-text="i + 1"></span></td>
-                                        {{-- Combobox de producto (reemplaza select + input nombre) --}}
-                                        <td class="min-w-[280px]" style="position:relative; overflow:visible">
-                                            {{-- Inputs ocultos para envío al servidor --}}
-                                            <input type="hidden" :name="`items[${i}][inventory_product_id]`" :value="line.inventory_product_id">
-                                            <input type="hidden" :name="`items[${i}][product_name]`" :value="line.product_name">
-                                            <input type="hidden" :name="`items[${i}][save_as_inventory]`" :value="line.saveAsInventory ? '1' : ''">
 
+                                        {{-- Combobox producto --}}
+                                        <td class="min-w-[280px]" style="position:relative; overflow:visible">
                                             <div class="prod-wrap">
-                                                <input type="text"
-                                                    class="prod-input"
+                                                <input type="text" class="prod-input"
                                                     placeholder="Buscar o escribir producto..."
                                                     autocomplete="off"
                                                     x-model="line.productSearch"
@@ -438,68 +553,49 @@
                                                     @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
                                                     @keydown.escape="line.productDropOpen = false"
                                                     @keydown.enter.prevent="selectFirstProduct(line)">
-
-                                                {{-- Dropdown de coincidencias --}}
                                                 <div class="prod-drop" x-show="line.productDropOpen" x-cloak>
                                                     <template x-if="filteredProducts(line).length === 0">
                                                         <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
                                                     </template>
                                                     <template x-for="p in filteredProducts(line)" :key="p.id">
-                                                        <div class="prod-item"
-                                                            @mousedown.prevent="selectProduct(line, p)">
+                                                        <div class="prod-item" @mousedown.prevent="selectProduct(line, p)">
                                                             <span x-text="p.nombre"></span>
-                                                            <span class="prod-item-sub"
-                                                                x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
+                                                            <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
                                                         </div>
                                                     </template>
                                                 </div>
                                             </div>
-
-                                            {{-- Badge: producto seleccionado del inventario --}}
                                             <div class="mt-1 flex items-center gap-1" x-show="line.inventory_product_id">
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-semibold
-                                                             bg-emerald-50 text-emerald-700 border border-emerald-200
-                                                             rounded-full px-2 py-0.5">
-                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                                    </svg>
+                                                <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">
+                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                                                     Inventario
                                                 </span>
-                                                <button type="button"
-                                                    class="text-[10px] text-gray-400 hover:text-rose-500 transition"
+                                                <button type="button" class="text-[10px] text-gray-400 hover:text-rose-500 transition"
                                                     @click="line.inventory_product_id=''; line.productSearch=line.product_name;"
                                                     title="Desvincular del inventario">× desvincular</button>
                                             </div>
-                                            {{-- Checkbox guardar en inventario (sólo si es manual) --}}
-                                            <label class="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer"
-                                                x-show="!line.inventory_product_id">
+                                            <label class="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer" x-show="!line.inventory_product_id">
                                                 <input type="checkbox" x-model="line.saveAsInventory"
                                                     class="rounded border-gray-300 dark:border-gray-700 w-3 h-3 text-emerald-600">
                                                 <span>Guardar en inventario</span>
                                             </label>
                                         </td>
+
+                                        {{-- UdM --}}
                                         <td class="min-w-[90px]">
-                                            {{-- Si viene del inventario: badge verde (editable al clic) --}}
                                             <template x-if="line.inventory_product_id && !line.editingUnit">
                                                 <div class="flex flex-col items-start gap-0.5">
-                                                    <input type="hidden" :name="`items[${i}][unit]`" :value="line.unit">
                                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold
-                                                                 bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer
-                                                                 hover:bg-emerald-100 transition"
+                                                                 bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition"
                                                           :title="'Unidad: ' + line.unit + ' — clic para editar'"
                                                           @click="line.editingUnit = true"
-                                                          x-text="line.unit || 'UN'">
-                                                    </span>
+                                                          x-text="line.unit || 'UN'"></span>
                                                     <span class="text-[9px] text-gray-400 leading-none">del inventario</span>
                                                 </div>
                                             </template>
-                                            {{-- Edición manual de UdM (inventario con edición activa o producto manual) --}}
                                             <template x-if="!line.inventory_product_id || line.editingUnit">
                                                 <div class="flex flex-col gap-0.5">
-                                                    <input :name="`items[${i}][unit]`"
-                                                        x-model="line.unit"
-                                                        list="udm-list"
-                                                        autocomplete="off"
+                                                    <input x-model="line.unit" list="udm-list" autocomplete="off"
                                                         @blur="if (line.editingUnit && line.unit) line.editingUnit = false"
                                                         class="f-cell text-center font-semibold"
                                                         :class="!line.unit
@@ -508,17 +604,17 @@
                                                         placeholder="¿UdM?">
                                                     <span class="text-[9px] leading-none"
                                                           :class="!line.unit ? 'text-amber-500 font-semibold' : 'text-gray-400'"
-                                                          x-text="!line.unit ? '⚠ Requerido' : 'editable'">
-                                                    </span>
+                                                          x-text="!line.unit ? '⚠ Requerido' : 'editable'"></span>
                                                 </div>
                                             </template>
                                         </td>
+
                                         <td class="min-w-[100px]">
-                                            <input type="number" step="0.0001" min="0" :name="`items[${i}][quantity]`"
+                                            <input type="number" step="0.0001" min="0"
                                                 x-model.number="line.quantity" @input="recalc(line)" class="f-cell text-right">
                                         </td>
                                         <td class="min-w-[120px]">
-                                            <input type="number" step="0.0001" min="0" :name="`items[${i}][unit_price]`"
+                                            <input type="number" step="0.0001" min="0"
                                                 x-model.number="line.unit_price" @input="recalc(line)" class="f-cell text-right">
                                         </td>
                                         <td class="amt-cell min-w-[120px]" x-text="money(line.line_total)"></td>
@@ -537,22 +633,24 @@
                         </table>
                     </div>
 
-                    <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4
-                                bg-gray-50/60 dark:bg-gray-900/20 flex items-center justify-between gap-4 flex-wrap">
+                    {{-- Footer: total + acción --}}
+                    <div class="panel-foot border-t-2 border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4
+                                bg-gray-50/60 dark:bg-gray-900/20
+                                flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <p class="text-xs text-gray-400">
                             <span x-text="lines.length"></span> línea<span x-show="lines.length !== 1">s</span>
                         </p>
-                        <div class="flex items-center gap-6">
+                        <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
                             <div class="text-right">
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Total</p>
-                                <p class="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400">
+                                <p class="text-xl sm:text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400">
                                     <span x-text="currencySymbol()"></span>&nbsp;<span x-text="money(grandTotal())"></span>
                                 </p>
                             </div>
                             <button type="button" @click="openPreview()"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
-                                       bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                class="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-bold rounded-xl
+                                       bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm whitespace-nowrap">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                                 Revisar y enviar
@@ -565,11 +663,14 @@
 
         {{-- ── Modal Preview / Confirmación de envío ──────────────────────── --}}
         <div x-show="previewOpen" x-cloak
-             class="fixed inset-0 flex items-center justify-center p-4"
+             class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4"
              style="z-index:250">
             <div class="absolute inset-0 bg-black/60" @click="previewOpen=false"></div>
-            <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col"
-                 style="background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+            <div class="relative w-full sm:max-w-2xl flex flex-col"
+                 style="background:#fff; border:1px solid #e2e8f0;
+                        border-radius:20px 20px 0 0; max-height:92dvh;
+                        overflow:hidden;"
+                 :style="window.innerWidth >= 640 ? 'border-radius:18px; max-height:90vh' : ''">
 
                 {{-- Header --}}
                 <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0">
