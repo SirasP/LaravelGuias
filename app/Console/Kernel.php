@@ -34,6 +34,12 @@ class Kernel extends ConsoleKernel
                 // opcional: Log::error('gmail:leer-xml falló');
             });
 
+        // Leer respuestas de proveedores a cotizaciones
+        $schedule->command('cotizaciones:check-replies')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
 
         /*
         |--------------------------------------------------------------------------

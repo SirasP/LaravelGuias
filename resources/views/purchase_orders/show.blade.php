@@ -333,11 +333,22 @@
                                                         rounded-2xl rounded-tl-sm p-3 shadow-sm">
                                                 {{-- Cabecera de la respuesta --}}
                                                 <div class="flex items-start justify-between gap-2 mb-2">
-                                                    <div>
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
                                                         <span class="text-xs font-black text-blue-800 dark:text-blue-300">{{ $reply->supplier_name }}</span>
-                                                        <span class="text-[10px] text-gray-400 ml-2">
+                                                        <span class="text-[10px] text-gray-400">
                                                             {{ \Carbon\Carbon::parse($reply->created_at)->format('d/m/Y H:i') }}
                                                         </span>
+                                                        @if(($reply->source ?? 'manual') === 'email')
+                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                                                                         bg-sky-50 text-sky-600 border border-sky-200
+                                                                         dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-800
+                                                                         text-[9px] font-bold">
+                                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                                                </svg>
+                                                                Del correo
+                                                            </span>
+                                                        @endif
                                                     </div>
                                                     <div class="flex items-center gap-2 shrink-0">
                                                         @if($reply->total_quoted)

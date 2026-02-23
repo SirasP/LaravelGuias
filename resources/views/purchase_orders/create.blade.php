@@ -234,11 +234,13 @@
         .dark .prod-input:focus { border-bottom-color:#10b981; }
         .prod-input::placeholder { color:#9ca3af; }
         .prod-drop {
-            position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:50;
+            position:fixed; z-index:9999;
             background:#fff; border:1px solid #e2e8f0; border-radius:10px;
             box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:220px; overflow-y:auto;
         }
         .dark .prod-drop { background:#161c2c; border-color:#1e2a3b; }
+        .prod-item-extra { padding:6px 12px; font-size:10px; color:#94a3b8; font-style:italic; border-top:1px solid #f1f5f9; text-align:center; }
+        .dark .prod-item-extra { border-top-color:#1a2232; }
         .prod-item {
             padding:8px 12px; cursor:pointer; font-size:12px; color:#334155;
             display:flex; align-items:center; justify-content:space-between; gap:6px;
@@ -468,12 +470,13 @@
                                             placeholder="Buscar o escribir producto..."
                                             autocomplete="off"
                                             x-model="line.productSearch"
-                                            @focus="line.productDropOpen = true"
-                                            @input="line.productDropOpen = true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                            @focus="const r=$el.getBoundingClientRect(); line.dropTop=r.bottom+4; line.dropLeft=r.left; line.dropWidth=r.width; line.productDropOpen=true;"
+                                            @input="line.productDropOpen=true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
                                             @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
                                             @keydown.escape="line.productDropOpen = false"
                                             @keydown.enter.prevent="selectFirstProduct(line)">
-                                        <div class="prod-drop" x-show="line.productDropOpen" x-cloak>
+                                        <div class="prod-drop" x-show="line.productDropOpen" x-cloak
+                                             :style="`top:${line.dropTop}px; left:${line.dropLeft}px; width:${line.dropWidth}px`">
                                             <template x-if="filteredProducts(line).length === 0">
                                                 <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
                                             </template>
@@ -482,6 +485,9 @@
                                                     <span x-text="p.nombre"></span>
                                                     <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
                                                 </div>
+                                            </template>
+                                            <template x-if="filteredProductsTotal(line) > 5">
+                                                <div class="prod-item-extra" x-text="`+ ${filteredProductsTotal(line) - 5} más — escribe para filtrar`"></div>
                                             </template>
                                         </div>
                                     </div>
@@ -566,12 +572,13 @@
                                                     placeholder="Buscar o escribir producto..."
                                                     autocomplete="off"
                                                     x-model="line.productSearch"
-                                                    @focus="line.productDropOpen = true"
-                                                    @input="line.productDropOpen = true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                                    @focus="const r=$el.getBoundingClientRect(); line.dropTop=r.bottom+4; line.dropLeft=r.left; line.dropWidth=r.width; line.productDropOpen=true;"
+                                                    @input="line.productDropOpen=true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
                                                     @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
                                                     @keydown.escape="line.productDropOpen = false"
                                                     @keydown.enter.prevent="selectFirstProduct(line)">
-                                                <div class="prod-drop" x-show="line.productDropOpen" x-cloak>
+                                                <div class="prod-drop" x-show="line.productDropOpen" x-cloak
+                                                     :style="`top:${line.dropTop}px; left:${line.dropLeft}px; width:${line.dropWidth}px`">
                                                     <template x-if="filteredProducts(line).length === 0">
                                                         <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
                                                     </template>
@@ -580,6 +587,9 @@
                                                             <span x-text="p.nombre"></span>
                                                             <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
                                                         </div>
+                                                    </template>
+                                                    <template x-if="filteredProductsTotal(line) > 5">
+                                                        <div class="prod-item-extra" x-text="`+ ${filteredProductsTotal(line) - 5} más — escribe para filtrar`"></div>
                                                     </template>
                                                 </div>
                                             </div>
@@ -1032,6 +1042,7 @@
                     uid: Date.now(),
                     inventory_product_id: '', product_name: '',
                     productSearch: '', productDropOpen: false,
+                    dropTop: 0, dropLeft: 0, dropWidth: 200,
                     saveAsInventory: false, editingUnit: false,
                     unit: '', quantity: 1, unit_price: 0, line_total: 0
                 }],
@@ -1039,8 +1050,9 @@
                 previewOpen: false,
 
                 init() {
-                    // NO auto-selecciona ningún proveedor — empieza vacío
-                    // Si no hay ningún proveedor registrado, abre el modal para crear el primero
+                    window.addEventListener('scroll', () => {
+                        this.lines.forEach(l => l.productDropOpen = false);
+                    }, { passive: true });
                     if (this.suppliers.length === 0) {
                         this.openSupplierModal(null);
                     }
@@ -1259,6 +1271,7 @@
                         uid: Date.now() + Math.random(),
                         inventory_product_id: '', product_name: '',
                         productSearch: '', productDropOpen: false,
+                        dropTop: 0, dropLeft: 0, dropWidth: 200,
                         saveAsInventory: false, editingUnit: false,
                         unit: '', quantity: 1, unit_price: 0, line_total: 0
                     });
@@ -1272,11 +1285,21 @@
                 // ── Combobox de producto ──────────────────────────────────────────
                 filteredProducts(line) {
                     const q = (line.productSearch || '').toLowerCase().trim();
-                    if (!q) return this.products.slice(0, 25);
+                    const all = q
+                        ? this.products.filter(p =>
+                            (p.nombre || '').toLowerCase().includes(q) ||
+                            (p.codigo || '').toLowerCase().includes(q))
+                        : this.products;
+                    return all.slice(0, 5);
+                },
+
+                filteredProductsTotal(line) {
+                    const q = (line.productSearch || '').toLowerCase().trim();
+                    if (!q) return this.products.length;
                     return this.products.filter(p =>
                         (p.nombre || '').toLowerCase().includes(q) ||
                         (p.codigo || '').toLowerCase().includes(q)
-                    ).slice(0, 30);
+                    ).length;
                 },
 
                 selectProduct(line, product) {
