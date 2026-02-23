@@ -33,6 +33,24 @@
         .panel-ov > .panel-head { border-radius:17px 17px 0 0; overflow:hidden }
         .panel-ov > .panel-foot { border-radius:0 0 17px 17px; overflow:hidden }
 
+        /* ── Modal de confirmación ─────────────────────────────────────────── */
+        .preview-modal-box {
+            position:relative; width:100%; display:flex; flex-direction:column;
+            background:#fff; border:1px solid #e2e8f0;
+            overflow:hidden;
+            /* Móvil: sheet desde abajo */
+            border-radius:20px 20px 0 0;
+            max-height:92dvh;
+        }
+        @media (min-width:640px) {
+            .preview-modal-box {
+                max-width:42rem;   /* ~2xl */
+                border-radius:18px;
+                max-height:90vh;
+            }
+        }
+        .dark .preview-modal-box { background:#161c2c; border-color:#1e2a3b; }
+
         .f-label {
             display:block; font-size:11px; font-weight:700;
             text-transform:uppercase; letter-spacing:.05em;
@@ -666,28 +684,24 @@
              class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4"
              style="z-index:250">
             <div class="absolute inset-0 bg-black/60" @click="previewOpen=false"></div>
-            <div class="relative w-full sm:max-w-2xl flex flex-col"
-                 style="background:#fff; border:1px solid #e2e8f0;
-                        border-radius:20px 20px 0 0; max-height:92dvh;
-                        overflow:hidden;"
-                 :style="window.innerWidth >= 640 ? 'border-radius:18px; max-height:90vh' : ''">
+            <div class="preview-modal-box">
 
                 {{-- Header --}}
-                <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0">
+                <div class="px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-2">
                         <span class="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
                             <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                             </svg>
                         </span>
-                        <h3 class="text-sm font-bold text-gray-900">Confirmar envío de cotización</h3>
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Confirmar envío de cotización</h3>
                     </div>
                     <button type="button" @click="previewOpen=false"
                         class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100
                                hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
                 </div>
 
-                <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+                <div class="overflow-y-auto flex-1 px-4 sm:px-5 py-4 space-y-4">
 
                     {{-- Destinatarios --}}
                     <div>
@@ -761,16 +775,21 @@
                 </div>
 
                 {{-- Footer con acciones --}}
-                <div class="px-5 py-3.5 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
+                <div class="px-4 sm:px-5 py-4 border-t border-gray-100 dark:border-gray-800
+                            flex flex-col-reverse sm:flex-row items-stretch sm:items-center
+                            justify-end gap-2 sm:gap-3 shrink-0">
                     <button type="button" @click="previewOpen=false"
-                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200
-                               text-gray-600 hover:bg-gray-50 transition">
+                        class="w-full sm:w-auto text-center px-4 py-2.5 text-sm font-semibold rounded-xl
+                               border border-gray-200 dark:border-gray-700
+                               text-gray-600 dark:text-gray-300
+                               hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                         Cancelar
                     </button>
                     <button type="button" @click="previewOpen=false; $nextTick(() => $refs.mainForm.submit())"
-                        class="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-xl
+                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2
+                               px-5 py-2.5 text-sm font-bold rounded-xl
                                bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                         </svg>
                         Crear y enviar cotización
