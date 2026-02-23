@@ -283,7 +283,9 @@ class PurchaseOrderController extends Controller
         });
 
         // ── Auto-envío de correo al crear ─────────────────────────────────
-        $sentCount = 0;
+        $sentCount  = 0;
+        $emailError = null;
+
         if (!empty($emails)) {
             try {
                 $order      = $db->table('purchase_orders')->where('id', $orderId)->first();
@@ -354,8 +356,14 @@ class PurchaseOrderController extends Controller
                     'updated_at' => now(),
                 ]);
             } catch (\Throwable $ex) {
-                // Cotización guardada aunque el correo haya fallado
+                $emailError = $ex->getMessage();
             }
+        }
+
+        if ($emailError) {
+            return redirect()->route('purchase_orders.show', $orderId)
+                ->with('success', 'Cotización creada.')
+                ->with('warning', 'No se pudo enviar el correo: ' . $emailError);
         }
 
         $successMsg = $sentCount > 0
