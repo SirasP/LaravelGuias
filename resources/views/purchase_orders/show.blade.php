@@ -326,7 +326,7 @@
                                         $ext     = $reply->pdf_path ? strtolower(pathinfo($reply->pdf_path, PATHINFO_EXTENSION)) : null;
                                         $isImage = in_array($ext, ['png','jpg','jpeg','webp','gif']);
                                         $isPdf   = $ext === 'pdf';
-                                        $fileUrl = $reply->pdf_path ? Storage::url($reply->pdf_path) : null;
+                                        $fileUrl = $reply->pdf_path ? route('purchase_orders.attachment', $reply->id) : null;
                                         $notesLen = mb_strlen($reply->notes ?? '');
                                     @endphp
                                     <div class="flex gap-3 mb-4" x-data="{ expanded: false, editing: false }">
