@@ -197,21 +197,63 @@
                             @php $rowNum = 0; @endphp
                             @foreach($items as $i)
                                 @php $rowNum++ @endphp
-                                <div class="px-4 py-3 flex items-start justify-between gap-3">
-                                    <div class="flex items-start gap-2.5 min-w-0">
-                                        <span class="row-num shrink-0 mt-0.5">{{ $rowNum }}</span>
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $i->product_name }}</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">
-                                                <span class="inline-flex px-1.5 py-px rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500">{{ $i->unit }}</span>
-                                                &nbsp;{{ number_format((float) $i->quantity, 2, ',', '.') }}
-                                                &nbsp;×&nbsp;{{ number_format((float) $i->unit_price, 2, ',', '.') }}
+                                <div x-data="{ editRow: false }">
+                                    <div class="px-4 py-3 flex items-start justify-between gap-3">
+                                        <div class="flex items-start gap-2.5 min-w-0">
+                                            <span class="row-num shrink-0 mt-0.5">{{ $rowNum }}</span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $i->product_name }}</p>
+                                                <p class="text-xs text-gray-400 mt-0.5">
+                                                    <span class="inline-flex px-1.5 py-px rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500">{{ $i->unit }}</span>
+                                                    &nbsp;{{ number_format((float) $i->quantity, 2, ',', '.') }}
+                                                    &nbsp;×&nbsp;{{ number_format((float) $i->unit_price, 2, ',', '.') }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <p class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                {{ number_format((float) $i->line_total, 2, ',', '.') }}
                                             </p>
+                                            <button type="button" @click="editRow = !editRow"
+                                                class="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                                                title="Editar ítem">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                </svg>
+                                            </button>
                                         </div>
                                     </div>
-                                    <p class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400 shrink-0">
-                                        {{ number_format((float) $i->line_total, 2, ',', '.') }}
-                                    </p>
+                                    {{-- Edit form (mobile) --}}
+                                    <div x-show="editRow" x-cloak class="px-4 pb-3 bg-blue-50/60 dark:bg-blue-900/10">
+                                        <form method="POST" action="{{ route('purchase_orders.update_item', [$order->id, $i->id]) }}" class="space-y-2">
+                                            @csrf @method('PATCH')
+                                            <div>
+                                                <label class="f-label">Producto</label>
+                                                <input type="text" name="product_name" value="{{ $i->product_name }}" class="f-input py-1.5 text-xs" required>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <div class="w-20">
+                                                    <label class="f-label">UdM</label>
+                                                    <input type="text" name="unit" value="{{ $i->unit }}" class="f-input py-1.5 text-xs text-center" maxlength="10">
+                                                </div>
+                                                <div class="flex-1">
+                                                    <label class="f-label">Cantidad</label>
+                                                    <input type="number" name="quantity" value="{{ $i->quantity }}" step="0.0001" min="0.0001" class="f-input py-1.5 text-xs text-right" required>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <label class="f-label">Precio unit.</label>
+                                                    <input type="number" name="unit_price" value="{{ $i->unit_price }}" step="1" min="0" class="f-input py-1.5 text-xs text-right" required>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-2 pt-1">
+                                                <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                    Guardar
+                                                </button>
+                                                <button type="button" @click="editRow = false" class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition">Cancelar</button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -229,10 +271,11 @@
                                         <th class="text-right pr-5">Importe</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    @php $rowNum = 0; @endphp
-                                    @foreach($items as $i)
-                                        @php $rowNum++ @endphp
+                                @php $rowNum = 0; @endphp
+                                @foreach($items as $i)
+                                    @php $rowNum++ @endphp
+                                    <tbody x-data="{ editRow: false }">
+                                        {{-- Display row --}}
                                         <tr>
                                             <td class="text-center"><span class="row-num">{{ $rowNum }}</span></td>
                                             <td class="font-semibold text-gray-800 dark:text-gray-200">{{ $i->product_name }}</td>
@@ -241,10 +284,64 @@
                                             </td>
                                             <td class="text-right tabular-nums font-semibold">{{ number_format((float) $i->quantity, 4, ',', '.') }}</td>
                                             <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">{{ number_format((float) $i->unit_price, 2, ',', '.') }}</td>
-                                            <td class="text-right tabular-nums amt-col pr-5 text-sm">{{ number_format((float) $i->line_total, 2, ',', '.') }}</td>
+                                            <td class="text-right tabular-nums amt-col pr-5 text-sm">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <span>{{ number_format((float) $i->line_total, 2, ',', '.') }}</span>
+                                                    <button type="button" @click="editRow = true" x-show="!editRow"
+                                                        class="w-5 h-5 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-500 hover:bg-white dark:hover:bg-blue-900/20 transition"
+                                                        title="Editar ítem">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
-                                    @endforeach
-                                </tbody>
+                                        {{-- Edit row --}}
+                                        <tr x-show="editRow" x-cloak class="bg-blue-50/70 dark:bg-blue-900/10">
+                                            <td colspan="6" class="px-3 py-3">
+                                                <form method="POST"
+                                                      action="{{ route('purchase_orders.update_item', [$order->id, $i->id]) }}"
+                                                      class="flex flex-wrap gap-2 items-end">
+                                                    @csrf @method('PATCH')
+                                                    <div class="flex-1 min-w-40">
+                                                        <label class="f-label">Producto</label>
+                                                        <input type="text" name="product_name" value="{{ $i->product_name }}"
+                                                               class="f-input py-1.5 text-xs" required>
+                                                    </div>
+                                                    <div class="w-20">
+                                                        <label class="f-label">UdM</label>
+                                                        <input type="text" name="unit" value="{{ $i->unit }}"
+                                                               class="f-input py-1.5 text-xs text-center" maxlength="10">
+                                                    </div>
+                                                    <div class="w-32">
+                                                        <label class="f-label">Cantidad</label>
+                                                        <input type="number" name="quantity" value="{{ $i->quantity }}"
+                                                               step="0.0001" min="0.0001"
+                                                               class="f-input py-1.5 text-xs text-right" required>
+                                                    </div>
+                                                    <div class="w-36">
+                                                        <label class="f-label">Precio unit.</label>
+                                                        <input type="number" name="unit_price" value="{{ $i->unit_price }}"
+                                                               step="1" min="0"
+                                                               class="f-input py-1.5 text-xs text-right" required>
+                                                    </div>
+                                                    <div class="flex gap-1.5 pb-0.5">
+                                                        <button type="submit"
+                                                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                            Guardar
+                                                        </button>
+                                                        <button type="button" @click="editRow = false"
+                                                            class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                @endforeach
                             </table>
                         </div>
 
@@ -418,6 +515,34 @@
                                                           action="{{ route('purchase_orders.update_reply', [$order->id, $reply->id]) }}">
                                                         @csrf @method('PATCH')
                                                         <div class="space-y-2">
+
+                                                            {{-- PDF viewer inline (solo cuando hay adjunto PDF) --}}
+                                                            @if($fileUrl && $isPdf)
+                                                            <div>
+                                                                <p class="f-label flex items-center gap-1">
+                                                                    <svg class="w-3 h-3 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                                                    </svg>
+                                                                    Cotización del proveedor
+                                                                </p>
+                                                                <iframe src="{{ $fileUrl }}"
+                                                                        class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white"
+                                                                        style="height:460px;"
+                                                                        title="{{ $reply->pdf_original_name ?? 'PDF cotización' }}">
+                                                                    <p class="text-xs text-gray-500 p-2">
+                                                                        Tu navegador no puede mostrar el PDF.
+                                                                        <a href="{{ $fileUrl }}" target="_blank" class="text-blue-600 underline">Abrir en nueva pestaña</a>
+                                                                    </p>
+                                                                </iframe>
+                                                            </div>
+                                                            @elseif($fileUrl && $isImage)
+                                                            <div>
+                                                                <p class="f-label">Cotización del proveedor</p>
+                                                                <img src="{{ $fileUrl }}" alt="{{ $reply->pdf_original_name }}"
+                                                                     class="w-full max-h-72 object-contain rounded-xl border border-gray-200 dark:border-gray-700 bg-white">
+                                                            </div>
+                                                            @endif
+
                                                             <div class="flex gap-2">
                                                                 <div class="w-20 shrink-0">
                                                                     <label class="f-label">Moneda</label>

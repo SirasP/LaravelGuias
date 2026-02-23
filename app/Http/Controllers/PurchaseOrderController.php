@@ -851,6 +851,55 @@ class PurchaseOrderController extends Controller
         return back()->with('success', 'Respuesta actualizada.');
     }
 
+    public function updateItem(Request $request, int $id, int $itemId)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $validated = $request->validate([
+            'product_name' => ['required', 'string', 'max:255'],
+            'unit'         => ['nullable', 'string', 'max:30'],
+            'quantity'     => ['required', 'numeric', 'gt:0'],
+            'unit_price'   => ['required', 'numeric', 'gte:0'],
+        ]);
+
+        $item = $db->table('purchase_order_items')
+            ->where('id', $itemId)
+            ->where('purchase_order_id', $id)
+            ->first();
+
+        if (!$item) {
+            abort(404);
+        }
+
+        $quantity  = (float) $validated['quantity'];
+        $unitPrice = (float) $validated['unit_price'];
+        $lineTotal = round($quantity * $unitPrice, 2);
+
+        $db->table('purchase_order_items')
+            ->where('id', $itemId)
+            ->where('purchase_order_id', $id)
+            ->update([
+                'product_name' => trim($validated['product_name']),
+                'unit'         => trim($validated['unit'] ?? '') ?: 'UN',
+                'quantity'     => $quantity,
+                'unit_price'   => $unitPrice,
+                'line_total'   => $lineTotal,
+                'updated_at'   => now(),
+            ]);
+
+        // Recalculate order total from all items
+        $newTotal = $db->table('purchase_order_items')
+            ->where('purchase_order_id', $id)
+            ->sum('line_total');
+
+        $db->table('purchase_orders')->where('id', $id)->update([
+            'total'      => round((float) $newTotal, 2),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'Ítem actualizado.');
+    }
+
     public function deleteReply(int $id, int $replyId)
     {
         $db = DB::connection('fuelcontrol');

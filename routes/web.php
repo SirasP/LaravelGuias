@@ -499,5 +499,6 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('/{id}/respuesta', [PurchaseOrderController::class, 'storeReply'])->whereNumber('id')->name('store_reply');
         Route::patch('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'updateReply'])->whereNumber('id')->whereNumber('rid')->name('update_reply');
         Route::delete('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'deleteReply'])->whereNumber('id')->whereNumber('rid')->name('delete_reply');
+        Route::patch('/{id}/item/{itemId}', [PurchaseOrderController::class, 'updateItem'])->whereNumber('id')->whereNumber('itemId')->name('update_item');
         Route::get('/adjunto/{rid}', [PurchaseOrderController::class, 'serveAttachment'])->whereNumber('rid')->name('attachment');
     });
