@@ -286,8 +286,8 @@ class PurchaseOrderController extends Controller
         $sentCount = 0;
         if (!empty($emails)) {
             try {
-                $order = $db->table('purchase_orders')->where('id', $orderId)->first();
-                $items = $db->table('purchase_order_items')
+                $order      = $db->table('purchase_orders')->where('id', $orderId)->first();
+                $orderItems = $db->table('purchase_order_items')
                     ->where('purchase_order_id', $orderId)->orderBy('id')->get();
 
                 $recipientList = $db->table('purchase_order_recipients as por')
@@ -305,39 +305,45 @@ class PurchaseOrderController extends Controller
                 $subject         = 'Cotización ' . $order->order_number;
                 $messageTemplate = trim((string) ($data['notes'] ?? ''));
 
-                $rows = '';
-                foreach ($items as $item) {
-                    $rows .= '<tr>'
-                        . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->product_name) . '</td>'
-                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->quantity, 4, ',', '.') . '</td>'
-                        . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->unit) . '</td>'
-                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->unit_price, 2, ',', '.') . '</td>'
-                        . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->line_total, 2, ',', '.') . '</td>'
-                        . '</tr>';
-                }
-                $tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
-                    . '<thead><tr>'
-                    . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">Producto</th>'
-                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Cantidad</th>'
-                    . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">UdM</th>'
-                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Precio</th>'
-                    . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Importe</th>'
-                    . '</tr></thead><tbody>' . $rows . '</tbody></table>'
-                    . '<p style="margin-top:12px;"><strong>Total:</strong> ' . e($order->currency) . ' '
-                    . number_format((float) $order->total, 2, ',', '.') . '</p>';
-
                 foreach ($recipientList as $recipient) {
                     $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
 
-                    $html = '<h2 style="margin:0 0 8px;">Cotización ' . e($order->order_number) . '</h2>'
-                        . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($recipient['supplier_name']) . '</p>'
-                        . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
-                        . ($personalizedMsg !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($personalizedMsg)) . '</p>') : '')
-                        . $tableHtml;
+                    $pdf = Pdf::loadView('purchase_orders.pdf', [
+                        'order'         => $order,
+                        'items'         => $orderItems,
+                        'supplierName'  => $recipient['supplier_name'],
+                        'supplierEmail' => $recipient['email'],
+                        'message'       => $personalizedMsg,
+                    ])->setPaper('a4', 'portrait');
+
+                    $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
+                    $pdfContent  = $pdf->output();
+
+                    $bodyHtml = '
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+  <div style="background:#0f766e;padding:20px 24px;border-radius:8px 8px 0 0;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización ' . e($order->order_number) . '</h1>
+    <p style="margin:4px 0 0;color:#ccfbf1;font-size:13px;">Solicitud de cotización de precios</p>
+  </div>
+  <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
+    <p style="margin:0 0 10px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($recipient['supplier_name']) . '</p>'
+    . ($personalizedMsg !== '' ? '<p style="margin:10px 0;font-size:13px;line-height:1.6;white-space:pre-line;">' . e($personalizedMsg) . '</p>' : '') . '
+    <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
+      Adjunto encontrará el detalle completo de los productos solicitados en formato PDF.<br>
+      Por favor responda indicando sus precios unitarios por ítem.
+    </p>
+  </div>
+  <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
+    ' . config('app.name', 'Sistema') . ' &mdash; Cotización N° ' . e($order->order_number) . '
+  </div>
+</div>';
 
                     $emailAddr = $recipient['email'];
-                    Mail::send([], [], function ($msg) use ($emailAddr, $subject, $html) {
-                        $msg->to($emailAddr)->subject($subject)->html($html);
+                    Mail::send([], [], function ($msg) use ($emailAddr, $subject, $bodyHtml, $pdfContent, $pdfFilename) {
+                        $msg->to($emailAddr)
+                            ->subject($subject)
+                            ->html($bodyHtml)
+                            ->attachData($pdfContent, $pdfFilename, ['mime' => 'application/pdf']);
                     });
                 }
 
@@ -415,8 +421,69 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        return redirect()->route('purchase_orders.show', $id)
-            ->with('success', 'Orden de compra creada con ' . $supplier->name . '. Precios actualizados.');
+        // ── Enviar correo de confirmación de OC al proveedor ──────────────
+        $emailSent = false;
+        try {
+            $freshOrder = $db->table('purchase_orders')->where('id', $id)->first();
+            $freshItems = $db->table('purchase_order_items')
+                ->where('purchase_order_id', $id)->orderBy('id')->get();
+
+            $supplierEmail = $db->table('purchase_order_supplier_emails')
+                ->where('supplier_id', $supplier->id)
+                ->orderByDesc('is_primary')
+                ->value('email');
+
+            if ($supplierEmail) {
+                $pdf = Pdf::loadView('purchase_orders.order_pdf', [
+                    'order'         => $freshOrder,
+                    'items'         => $freshItems,
+                    'supplierName'  => $supplier->name,
+                    'supplierEmail' => $supplierEmail,
+                ])->setPaper('a4', 'portrait');
+
+                $pdfFilename = 'OrdenCompra_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $freshOrder->order_number) . '.pdf';
+                $pdfContent  = $pdf->output();
+                $subject     = 'Orden de Compra ' . $freshOrder->order_number;
+
+                $bodyHtml = '
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+  <div style="background:#1d4ed8;padding:20px 24px;border-radius:8px 8px 0 0;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">Orden de Compra ' . e($freshOrder->order_number) . '</h1>
+    <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">Confirmación de pedido</p>
+  </div>
+  <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
+    <p style="margin:0 0 12px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($supplier->name) . '</p>
+    <p style="margin:0 0 12px;font-size:13px;line-height:1.6;">
+      Nos complace confirmar la <strong>Orden de Compra N° ' . e($freshOrder->order_number) . '</strong>.<br>
+      Adjunto encontrará el detalle completo de los productos solicitados.<br>
+      Por favor proceda con el despacho y confirme la fecha estimada de entrega.
+    </p>
+    <p style="margin:0;font-size:12px;color:#64748b;">Total: <strong>' . e($freshOrder->currency) . ' ' . number_format((float) $freshOrder->total, 2, ',', '.') . '</strong></p>
+  </div>
+  <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
+    ' . config('app.name', 'Sistema') . ' &mdash; Orden de Compra N° ' . e($freshOrder->order_number) . '
+  </div>
+</div>';
+
+                Mail::send([], [], function ($message) use ($supplierEmail, $subject, $bodyHtml, $pdfContent, $pdfFilename) {
+                    $message->to($supplierEmail)
+                        ->subject($subject)
+                        ->html($bodyHtml)
+                        ->attachData($pdfContent, $pdfFilename, ['mime' => 'application/pdf']);
+                });
+
+                $emailSent = true;
+            }
+        } catch (\Throwable $e) {
+            // OC ya confirmada, el correo es no-crítico
+        }
+
+        $msg = 'Orden de compra creada con ' . $supplier->name . '.';
+        if ($emailSent) {
+            $msg .= ' Se envió confirmación por correo al proveedor.';
+        }
+
+        return redirect()->route('purchase_orders.show', $id)->with('success', $msg);
     }
 
     public function upsertSupplier(Request $request)
