@@ -18,7 +18,7 @@
         [x-cloak] { display:none !important; }
         @keyframes fadeUp {
             from { opacity:0; transform:translateY(8px) }
-            to   { opacity:1; transform:translateY(0) }
+            to   { opacity:1; transform:none }
         }
         .au { animation:fadeUp .35s ease both }
         .d1 { animation-delay:.06s }
@@ -155,7 +155,7 @@
         .tag-bare-input::placeholder { color:#9ca3af; }
 
         .combo-drop {
-            position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20;
+            position:fixed; z-index:9999;
             background:#fff; border:1px solid #e2e8f0; border-radius:12px;
             box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
         }
@@ -286,7 +286,7 @@
                                 <div class="combo-wrap">
 
                                     {{-- Tag-wrap: chips de proveedores seleccionados + input de búsqueda --}}
-                                    <div class="combo-tags-wrap" @mousedown="$event.target === $el && $refs.tagInput.focus()">
+                                    <div class="combo-tags-wrap" x-ref="tagsWrap" @mousedown="$event.target === $el && $refs.tagInput.focus()">
 
                                         {{-- Un chip por cada proveedor único en la lista --}}
                                         <template x-for="r in uniqueSelectedSuppliers()" :key="r.supplierId">
@@ -307,9 +307,9 @@
                                             x-ref="tagInput"
                                             class="tag-bare-input"
                                             x-model="supplierSearch"
-                                            @focus="supplierDropOpen=true"
-                                            @click="supplierDropOpen=true"
-                                            @input="supplierDropOpen=true"
+                                            @focus="openSupplierDrop()"
+                                            @click="openSupplierDrop()"
+                                            @input="openSupplierDrop()"
                                             @blur="setTimeout(() => { supplierDropOpen=false }, 200)"
                                             @keydown.escape="supplierDropOpen=false"
                                             @keydown.enter.prevent="comboEnter()"
@@ -317,25 +317,6 @@
                                             autocomplete="off">
                                     </div>
 
-                                    {{-- Items usan @mousedown.prevent: previene que el input pierda foco --}}
-                                    <div x-show="supplierDropOpen" x-cloak class="combo-drop">
-                                        <template x-for="sp in filteredSuppliers()" :key="sp.id">
-                                            <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
-                                                <span class="font-semibold truncate" x-text="sp.name"></span>
-                                                <span class="combo-item-sub" x-text="sp.rut || ''"></span>
-                                            </div>
-                                        </template>
-                                        <div class="combo-empty"
-                                            x-show="filteredSuppliers().length === 0 && (supplierSearch || '').trim()">
-                                            Sin resultados — crea uno nuevo.
-                                        </div>
-                                        <div class="combo-create" @mousedown.prevent="openSupplierModal(null)">
-                                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                                            </svg>
-                                            Crear nuevo proveedor
-                                        </div>
-                                    </div>
                                 </div>
                                 <p class="text-[11px] text-gray-400 mt-1">
                                     Puedes agregar múltiples proveedores como destinatarios.
@@ -470,26 +451,11 @@
                                             placeholder="Buscar o escribir producto..."
                                             autocomplete="off"
                                             x-model="line.productSearch"
-                                            @focus="const r=$el.getBoundingClientRect(); line.dropTop=r.bottom+4; line.dropLeft=r.left; line.dropWidth=r.width; line.productDropOpen=true;"
-                                            @input="line.productDropOpen=true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
-                                            @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
-                                            @keydown.escape="line.productDropOpen = false"
+                                            @focus="openProdDrop(line, $el)"
+                                            @input="prodDropOpen=true; activeLine=line; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                            @blur="setTimeout(() => { prodDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
+                                            @keydown.escape="prodDropOpen = false"
                                             @keydown.enter.prevent="selectFirstProduct(line)">
-                                        <div class="prod-drop" x-show="line.productDropOpen" x-cloak
-                                             :style="`top:${line.dropTop}px; left:${line.dropLeft}px; width:${line.dropWidth}px`">
-                                            <template x-if="filteredProducts(line).length === 0">
-                                                <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
-                                            </template>
-                                            <template x-for="p in filteredProducts(line)" :key="p.id">
-                                                <div class="prod-item" @mousedown.prevent="selectProduct(line, p)">
-                                                    <span x-text="p.nombre"></span>
-                                                    <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
-                                                </div>
-                                            </template>
-                                            <template x-if="filteredProductsTotal(line) > 5">
-                                                <div class="prod-item-extra" x-text="`+ ${filteredProductsTotal(line) - 5} más — escribe para filtrar`"></div>
-                                            </template>
-                                        </div>
                                     </div>
                                     <div class="mt-1 flex items-center gap-1" x-show="line.inventory_product_id">
                                         <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">
@@ -566,32 +532,17 @@
                                         <td class="text-center"><span class="line-num" x-text="i + 1"></span></td>
 
                                         {{-- Combobox producto --}}
-                                        <td class="min-w-[280px]" style="position:relative; overflow:visible">
+                                        <td class="min-w-[280px]">
                                             <div class="prod-wrap">
                                                 <input type="text" class="prod-input"
                                                     placeholder="Buscar o escribir producto..."
                                                     autocomplete="off"
                                                     x-model="line.productSearch"
-                                                    @focus="const r=$el.getBoundingClientRect(); line.dropTop=r.bottom+4; line.dropLeft=r.left; line.dropWidth=r.width; line.productDropOpen=true;"
-                                                    @input="line.productDropOpen=true; if (!line.inventory_product_id) line.product_name = line.productSearch;"
-                                                    @blur="setTimeout(() => { line.productDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
-                                                    @keydown.escape="line.productDropOpen = false"
+                                                    @focus="openProdDrop(line, $el)"
+                                                    @input="prodDropOpen=true; activeLine=line; if (!line.inventory_product_id) line.product_name = line.productSearch;"
+                                                    @blur="setTimeout(() => { prodDropOpen = false; if (!line.inventory_product_id) line.product_name = line.productSearch; }, 160)"
+                                                    @keydown.escape="prodDropOpen = false"
                                                     @keydown.enter.prevent="selectFirstProduct(line)">
-                                                <div class="prod-drop" x-show="line.productDropOpen" x-cloak
-                                                     :style="`top:${line.dropTop}px; left:${line.dropLeft}px; width:${line.dropWidth}px`">
-                                                    <template x-if="filteredProducts(line).length === 0">
-                                                        <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
-                                                    </template>
-                                                    <template x-for="p in filteredProducts(line)" :key="p.id">
-                                                        <div class="prod-item" @mousedown.prevent="selectProduct(line, p)">
-                                                            <span x-text="p.nombre"></span>
-                                                            <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="filteredProductsTotal(line) > 5">
-                                                        <div class="prod-item-extra" x-text="`+ ${filteredProductsTotal(line) - 5} más — escribe para filtrar`"></div>
-                                                    </template>
-                                                </div>
                                             </div>
                                             <div class="mt-1 flex items-center gap-1" x-show="line.inventory_product_id">
                                                 <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5">
@@ -687,6 +638,47 @@
                     </div>
                 </div>
             </form>
+
+            {{-- ── Overlay: supplier combo-drop (fuera de los paneles para evitar stacking context) ── --}}
+            <div x-show="supplierDropOpen" x-cloak class="combo-drop"
+                 :style="`top:${supplierDropTop}px; left:${supplierDropLeft}px; width:${supplierDropWidth}px`">
+                <template x-for="sp in filteredSuppliers()" :key="sp.id">
+                    <div class="combo-item" @mousedown.prevent="addSupplierToRecipients(sp)">
+                        <span class="font-semibold truncate" x-text="sp.name"></span>
+                        <span class="combo-item-sub" x-text="sp.rut || ''"></span>
+                    </div>
+                </template>
+                <div class="combo-empty"
+                    x-show="filteredSuppliers().length === 0 && (supplierSearch || '').trim()">
+                    Sin resultados — crea uno nuevo.
+                </div>
+                <div class="combo-create" @mousedown.prevent="openSupplierModal(null)">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Crear nuevo proveedor
+                </div>
+            </div>
+
+            {{-- ── Overlay: product prod-drop compartido (fuera de los paneles) ── --}}
+            <div x-show="prodDropOpen && activeLine" x-cloak class="prod-drop"
+                 :style="`top:${prodDropTop}px; left:${prodDropLeft}px; width:${prodDropWidth}px`">
+                <template x-if="activeLine && filteredProducts(activeLine).length === 0">
+                    <div class="prod-item-empty">Sin coincidencias — se guardará como manual</div>
+                </template>
+                <template x-if="activeLine">
+                    <template x-for="p in filteredProducts(activeLine)" :key="p.id">
+                        <div class="prod-item" @mousedown.prevent="selectProduct(activeLine, p)">
+                            <span x-text="p.nombre"></span>
+                            <span class="prod-item-sub" x-text="`${p.codigo ? p.codigo + ' · ' : ''}${p.unidad || ''}`"></span>
+                        </div>
+                    </template>
+                </template>
+                <template x-if="activeLine && filteredProductsTotal(activeLine) > 5">
+                    <div class="prod-item-extra" x-text="`+ ${filteredProductsTotal(activeLine) - 5} más — escribe para filtrar`"></div>
+                </template>
+            </div>
+
         </div>
 
         {{-- ── Modal Preview / Confirmación de envío ──────────────────────── --}}
@@ -1024,6 +1016,7 @@
                 // Combobox
                 supplierSearch: '',
                 supplierDropOpen: false,
+                supplierDropTop: 0, supplierDropLeft: 0, supplierDropWidth: 300,
 
                 currency: 'CLP',
                 notesTemplate,
@@ -1041,17 +1034,22 @@
                 lines: [{
                     uid: Date.now(),
                     inventory_product_id: '', product_name: '',
-                    productSearch: '', productDropOpen: false,
-                    dropTop: 0, dropLeft: 0, dropWidth: 200,
+                    productSearch: '',
                     saveAsInventory: false, editingUnit: false,
                     unit: '', quantity: 1, unit_price: 0, line_total: 0
                 }],
 
                 previewOpen: false,
 
+                // Shared overlay for product dropdown
+                activeLine: null,
+                prodDropOpen: false,
+                prodDropTop: 0, prodDropLeft: 0, prodDropWidth: 200,
+
                 init() {
                     window.addEventListener('scroll', () => {
-                        this.lines.forEach(l => l.productDropOpen = false);
+                        this.prodDropOpen    = false;
+                        this.supplierDropOpen = false;
                     }, { passive: true });
                     if (this.suppliers.length === 0) {
                         this.openSupplierModal(null);
@@ -1072,6 +1070,14 @@
                 comboEnter() {
                     const list = this.filteredSuppliers();
                     if (list.length === 1) this.addSupplierToRecipients(list[0]);
+                },
+
+                openSupplierDrop() {
+                    const r = this.$refs.tagsWrap.getBoundingClientRect();
+                    this.supplierDropTop   = r.bottom + 4;
+                    this.supplierDropLeft  = r.left;
+                    this.supplierDropWidth = r.width;
+                    this.supplierDropOpen  = true;
                 },
 
                 // ── Gestión de destinatarios ──────────────────────────────────────
@@ -1270,8 +1276,7 @@
                     this.lines.push({
                         uid: Date.now() + Math.random(),
                         inventory_product_id: '', product_name: '',
-                        productSearch: '', productDropOpen: false,
-                        dropTop: 0, dropLeft: 0, dropWidth: 200,
+                        productSearch: '',
                         saveAsInventory: false, editingUnit: false,
                         unit: '', quantity: 1, unit_price: 0, line_total: 0
                     });
@@ -1302,6 +1307,15 @@
                     ).length;
                 },
 
+                openProdDrop(line, el) {
+                    const r = el.getBoundingClientRect();
+                    this.activeLine    = line;
+                    this.prodDropTop   = r.bottom + 4;
+                    this.prodDropLeft  = r.left;
+                    this.prodDropWidth = Math.max(r.width, 220);
+                    this.prodDropOpen  = true;
+                },
+
                 selectProduct(line, product) {
                     line.inventory_product_id = String(product.id);
                     line.product_name  = product.nombre || '';
@@ -1311,7 +1325,7 @@
                         Number(product.costo_promedio || 0) > 0) {
                         line.unit_price = Number(product.costo_promedio);
                     }
-                    line.productDropOpen = false;
+                    this.prodDropOpen = false;
                     this.recalc(line);
                 },
 
