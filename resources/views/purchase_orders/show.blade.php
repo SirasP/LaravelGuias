@@ -143,40 +143,38 @@
                     {{-- Cabecera de la orden --}}
                     <div class="panel au d1">
                         <div class="px-5 py-4">
-                            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                <div class="min-w-0">
-                                    <div class="flex items-center gap-2 mb-1.5">
+                            @php
+                                $headerSuppliers = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                                $statusClass = match($order->status) {
+                                    'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                    'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                                    default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                };
+                                $statusLabel = match($order->status) {
+                                    'sent'  => 'Cotización enviada',
+                                    'order' => 'Orden de compra',
+                                    default => 'Pendiente',
+                                };
+                            @endphp
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 mb-1.5 flex-wrap">
                                         <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{{ $order->currency }}</span>
-                                        <span class="text-xs text-gray-400 font-medium">Cotización</span>
+                                        <span class="chip {{ $statusClass }}">{{ $statusLabel }}</span>
                                     </div>
-                                    <h1 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight font-mono leading-none">
+                                    <h1 class="text-2xl sm:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight font-mono leading-none">
                                         {{ $order->order_number }}
                                     </h1>
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
-                                        @php
-                                            $headerSuppliers = $recipients->pluck('supplier_name')->filter()->unique()->values();
-                                        @endphp
                                         {{ $headerSuppliers->count() > 0 ? $headerSuppliers->join(' · ') : $order->supplier_name }}
                                     </p>
                                 </div>
-                                <div class="hidden sm:flex flex-col items-end gap-1.5 shrink-0">
+                                {{-- Total: siempre visible --}}
+                                <div class="flex flex-col items-end gap-1 shrink-0">
                                     <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total</p>
-                                    <p class="text-2xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
+                                    <p class="text-xl sm:text-2xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                         {{ number_format((float) $order->total, 2, ',', '.') }}
                                     </p>
-                                    @php
-                                        $statusClass = match($order->status) {
-                                            'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-                                            'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                                            default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-                                        };
-                                        $statusLabel = match($order->status) {
-                                            'sent'  => 'Cotización enviada',
-                                            'order' => 'Orden de compra',
-                                            default => 'Pendiente',
-                                        };
-                                    @endphp
-                                    <span class="chip {{ $statusClass }}">{{ $statusLabel }}</span>
                                 </div>
                             </div>
                             @if($order->notes)
@@ -189,11 +187,37 @@
 
                     {{-- Tabla de productos --}}
                     <div class="panel au d2">
-                        <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                        <div class="px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                             <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Líneas de productos</h3>
                             <span class="text-xs text-gray-400">{{ count($items) }} ítem{{ count($items) !== 1 ? 's' : '' }}</span>
                         </div>
-                        <div class="overflow-x-auto">
+
+                        {{-- ══ MÓVIL: cards (< sm) ══════════════════════════════ --}}
+                        <div class="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                            @php $rowNum = 0; @endphp
+                            @foreach($items as $i)
+                                @php $rowNum++ @endphp
+                                <div class="px-4 py-3 flex items-start justify-between gap-3">
+                                    <div class="flex items-start gap-2.5 min-w-0">
+                                        <span class="row-num shrink-0 mt-0.5">{{ $rowNum }}</span>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $i->product_name }}</p>
+                                            <p class="text-xs text-gray-400 mt-0.5">
+                                                <span class="inline-flex px-1.5 py-px rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500">{{ $i->unit }}</span>
+                                                &nbsp;{{ number_format((float) $i->quantity, 2, ',', '.') }}
+                                                &nbsp;×&nbsp;{{ number_format((float) $i->unit_price, 2, ',', '.') }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400 shrink-0">
+                                        {{ number_format((float) $i->line_total, 2, ',', '.') }}
+                                    </p>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- ══ DESKTOP: tabla (≥ sm) ══════════════════════════════ --}}
+                        <div class="hidden sm:block overflow-x-auto">
                             <table class="dt">
                                 <thead>
                                     <tr>
@@ -223,11 +247,12 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20">
+
+                        <div class="border-t-2 border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20">
                             <div class="flex justify-end">
-                                <div class="flex justify-between items-baseline gap-10 min-w-[220px]">
+                                <div class="flex justify-between items-baseline gap-6 sm:gap-10">
                                     <span class="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">Total {{ $order->currency }}</span>
-                                    <span class="text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400">
+                                    <span class="text-xl sm:text-2xl font-black tabular-nums text-emerald-600 dark:text-emerald-400">
                                         {{ number_format((float) $order->total, 2, ',', '.') }}
                                     </span>
                                 </div>

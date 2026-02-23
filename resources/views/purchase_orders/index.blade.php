@@ -71,8 +71,8 @@
 
             <div class="panel au d1">
                 {{-- Toolbar --}}
-                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-wrap gap-3">
-                    <div class="flex items-center gap-1.5">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <button @click="filter = 'all'"
                             class="px-3 py-1.5 text-xs font-semibold rounded-xl transition"
                             :class="filter === 'all'
@@ -85,21 +85,67 @@
                             :class="filter === 'sent'
                                 ? 'bg-emerald-600 text-white'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
-                            Cotizaciones enviadas
+                            Enviadas
                         </button>
                         <button @click="filter = 'order'"
                             class="px-3 py-1.5 text-xs font-semibold rounded-xl transition"
                             :class="filter === 'order'
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
-                            Órdenes de compra
+                            Órdenes
                         </button>
                     </div>
                     <span class="text-xs text-gray-400">{{ $orders->total() }} en total</span>
                 </div>
 
                 @if($orders->count() > 0)
-                    <div class="overflow-x-auto">
+
+                    {{-- ══ MÓVIL: lista de tarjetas (< sm) ════════════════════════ --}}
+                    <div class="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                        @foreach($orders as $o)
+                            @php
+                                $names = $suppliersByOrder->get($o->id, collect());
+                                $badgeClass = match($o->status) {
+                                    'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                    'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                                    default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                };
+                                $badgeLabel = match($o->status) {
+                                    'sent'  => 'Enviada',
+                                    'order' => 'Orden de compra',
+                                    default => 'Pendiente',
+                                };
+                            @endphp
+                            <a href="{{ route('purchase_orders.show', $o->id) }}"
+                               x-show="filter === 'all' || filter === '{{ $o->status }}'"
+                               class="flex items-start justify-between gap-3 px-4 py-3.5
+                                      hover:bg-gray-50 dark:hover:bg-white/[.02] transition active:bg-gray-100">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="font-black font-mono text-sm text-gray-900 dark:text-gray-100 tracking-tight">{{ $o->order_number }}</span>
+                                        <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
+                                    </div>
+                                    @if($names->count() > 0)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            {{ $names->join(' · ') }}
+                                        </p>
+                                    @elseif($o->supplier_name)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $o->supplier_name }}</p>
+                                    @endif
+                                    <p class="text-[11px] text-gray-400 mt-0.5">{{ \Carbon\Carbon::parse($o->created_at)->format('d/m/Y') }}</p>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{{ $o->currency }}</p>
+                                    <p class="text-sm font-black tabular-nums text-gray-900 dark:text-gray-100">
+                                        {{ number_format((float) $o->total, 0, ',', '.') }}
+                                    </p>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
+
+                    {{-- ══ DESKTOP: tabla (≥ sm) ══════════════════════════════════ --}}
+                    <div class="hidden sm:block overflow-x-auto">
                         <table class="dt">
                             <thead>
                                 <tr>
@@ -113,15 +159,25 @@
                             </thead>
                             <tbody>
                                 @foreach($orders as $o)
+                                    @php
+                                        $names = $suppliersByOrder->get($o->id, collect());
+                                        $badgeClass = match($o->status) {
+                                            'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                            'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                                            default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                        };
+                                        $badgeLabel = match($o->status) {
+                                            'sent'  => 'Cotización enviada',
+                                            'order' => 'Orden de compra',
+                                            default => 'Pendiente',
+                                        };
+                                    @endphp
                                     <tr x-show="filter === 'all' || filter === '{{ $o->status }}'"
                                         onclick="window.location='{{ route('purchase_orders.show', $o->id) }}'">
                                         <td>
                                             <span class="font-black text-gray-900 dark:text-gray-100 font-mono tracking-tight">{{ $o->order_number }}</span>
                                         </td>
                                         <td>
-                                            @php
-                                                $names = $suppliersByOrder->get($o->id, collect());
-                                            @endphp
                                             @if($names->count() > 0)
                                                 <div class="flex flex-wrap gap-1">
                                                     @foreach($names as $sn)
@@ -139,21 +195,7 @@
                                             <span class="font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ number_format((float) $o->total, 2, ',', '.') }}</span>
                                         </td>
                                         <td>
-                                            @php
-                                                $badgeClass = match($o->status) {
-                                                    'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-                                                    'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                                                    default => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-                                                };
-                                                $badgeLabel = match($o->status) {
-                                                    'sent'  => 'Cotización enviada',
-                                                    'order' => 'Orden de compra',
-                                                    default => 'Pendiente',
-                                                };
-                                            @endphp
-                                            <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold {{ $badgeClass }}">
-                                                {{ $badgeLabel }}
-                                            </span>
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                                         </td>
                                         <td class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ \Carbon\Carbon::parse($o->created_at)->format('d/m/Y H:i') }}
@@ -163,6 +205,7 @@
                             </tbody>
                         </table>
                     </div>
+
                 @else
                     <div class="flex flex-col items-center justify-center py-16 gap-3 text-center">
                         <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
