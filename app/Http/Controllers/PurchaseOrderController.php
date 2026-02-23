@@ -692,6 +692,31 @@ class PurchaseOrderController extends Controller
         return back()->with('success', 'Respuesta de ' . $request->input('supplier_name') . ' registrada.');
     }
 
+    public function updateReply(Request $request, int $id, int $replyId)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $data = ['updated_at' => now()];
+
+        if ($request->has('total_quoted')) {
+            $val = $request->input('total_quoted');
+            $data['total_quoted'] = ($val === '' || $val === null) ? null : (float) str_replace(['.', ','], ['', '.'], $val);
+        }
+        if ($request->has('notes')) {
+            $data['notes'] = $request->input('notes') ?: null;
+        }
+        if ($request->has('currency')) {
+            $data['currency'] = $request->input('currency');
+        }
+
+        $db->table('purchase_order_replies')
+            ->where('id', $replyId)
+            ->where('purchase_order_id', $id)
+            ->update($data);
+
+        return back()->with('success', 'Precio actualizado.');
+    }
+
     public function deleteReply(int $id, int $replyId)
     {
         $db = DB::connection('fuelcontrol');
@@ -710,5 +735,27 @@ class PurchaseOrderController extends Controller
             ->delete();
 
         return back()->with('success', 'Respuesta eliminada.');
+    }
+
+    public function serveAttachment(int $replyId)
+    {
+        $db    = DB::connection('fuelcontrol');
+        $reply = $db->table('purchase_order_replies')->where('id', $replyId)->first();
+
+        if (!$reply || !$reply->pdf_path) {
+            abort(404);
+        }
+        if (!Storage::disk('public')->exists($reply->pdf_path)) {
+            abort(404, 'Archivo no encontrado en el servidor.');
+        }
+
+        $path = Storage::disk('public')->path($reply->pdf_path);
+        $name = $reply->pdf_original_name ?? basename($reply->pdf_path);
+        $mime = Storage::disk('public')->mimeType($reply->pdf_path) ?: 'application/octet-stream';
+
+        return response()->file($path, [
+            'Content-Type'        => $mime,
+            'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+        ]);
     }
 }

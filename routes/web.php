@@ -497,5 +497,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('/{id}/enviar-email', [PurchaseOrderController::class, 'sendEmail'])->whereNumber('id')->name('send_email');
         Route::post('/{id}/confirmar-oc', [PurchaseOrderController::class, 'confirmAsOrder'])->whereNumber('id')->name('confirm_order');
         Route::post('/{id}/respuesta', [PurchaseOrderController::class, 'storeReply'])->whereNumber('id')->name('store_reply');
+        Route::patch('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'updateReply'])->whereNumber('id')->whereNumber('rid')->name('update_reply');
         Route::delete('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'deleteReply'])->whereNumber('id')->whereNumber('rid')->name('delete_reply');
+        Route::get('/adjunto/{rid}', [PurchaseOrderController::class, 'serveAttachment'])->whereNumber('rid')->name('attachment');
     });

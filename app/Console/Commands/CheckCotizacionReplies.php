@@ -132,6 +132,10 @@ class CheckCotizacionReplies extends Command
              ───────────────────────────────────── */
             $bodyText = $this->extractBody($payload);
             $bodyText = strip_tags($bodyText ?? '');
+            // Eliminar líneas con marcadores de cita (>) de correos reenviados/respondidos
+            $bodyText = preg_replace('/^>+\s?/m', '', $bodyText);
+            // Eliminar líneas separadoras típicas de reenvíos ("-- ", "___", "---")
+            $bodyText = preg_replace('/^(-{3,}|_{3,}|={3,})\s*$/m', '', $bodyText);
             $bodyText = trim(preg_replace('/\n{3,}/', "\n\n", $bodyText));
             if (mb_strlen($bodyText) > 5000) {
                 $bodyText = mb_substr($bodyText, 0, 5000) . '…';
