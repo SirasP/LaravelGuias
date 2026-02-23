@@ -329,7 +329,7 @@
                                         $fileUrl = $reply->pdf_path ? Storage::url($reply->pdf_path) : null;
                                         $notesLen = mb_strlen($reply->notes ?? '');
                                     @endphp
-                                    <div class="flex gap-3 mb-4" x-data="{ expanded: false }">
+                                    <div class="flex gap-3 mb-4" x-data="{ expanded: false, editing: false }">
                                         {{-- Avatar --}}
                                         <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center z-10
                                                     {{ $isEmail ? 'bg-sky-100 dark:bg-sky-900/40' : 'bg-blue-100 dark:bg-blue-900/40' }}">
@@ -379,16 +379,28 @@
                                                             </p>
                                                         @endif
                                                     </div>
-                                                    <div class="flex items-center gap-2 shrink-0">
+                                                    <div class="flex items-center gap-1.5 shrink-0">
                                                         @if($reply->total_quoted)
-                                                            <span class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                            <span x-show="!editing"
+                                                                  class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">
                                                                 {{ $reply->currency }} {{ number_format((float)$reply->total_quoted, 0, ',', '.') }}
                                                             </span>
                                                         @endif
+                                                        {{-- Botón editar --}}
+                                                        <button type="button" @click="editing = true" x-show="!editing"
+                                                            class="w-5 h-5 flex items-center justify-center rounded-md
+                                                                   text-gray-400 hover:text-blue-500 hover:bg-blue-50
+                                                                   dark:hover:bg-blue-900/20 transition"
+                                                            title="Editar precio / notas">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                            </svg>
+                                                        </button>
+                                                        {{-- Botón eliminar --}}
                                                         <form method="POST"
                                                             action="{{ route('purchase_orders.delete_reply', [$order->id, $reply->id]) }}"
                                                             onsubmit="return confirm('¿Eliminar esta respuesta?')"
-                                                            class="inline">
+                                                            class="inline" x-show="!editing">
                                                             @csrf @method('DELETE')
                                                             <button type="submit"
                                                                 class="w-5 h-5 flex items-center justify-center rounded-md
@@ -396,6 +408,51 @@
                                                                        dark:hover:bg-rose-900/20 transition text-xs">×</button>
                                                         </form>
                                                     </div>
+                                                </div>
+
+                                                {{-- Formulario edición inline --}}
+                                                <div x-show="editing" x-cloak
+                                                     class="mt-2 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+                                                    <form method="POST"
+                                                          action="{{ route('purchase_orders.update_reply', [$order->id, $reply->id]) }}">
+                                                        @csrf @method('PATCH')
+                                                        <div class="space-y-2">
+                                                            <div class="flex gap-2">
+                                                                <div class="w-20 shrink-0">
+                                                                    <label class="f-label">Moneda</label>
+                                                                    <input type="text" name="currency"
+                                                                           value="{{ $reply->currency }}"
+                                                                           class="f-input text-center text-xs" maxlength="5">
+                                                                </div>
+                                                                <div class="flex-1 min-w-0">
+                                                                    <label class="f-label">Total cotizado</label>
+                                                                    <input type="number" name="total_quoted" step="1" min="0"
+                                                                           value="{{ $reply->total_quoted }}"
+                                                                           class="f-input" placeholder="Precio">
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label class="f-label">Notas</label>
+                                                                <textarea name="notes" rows="4" class="f-input" style="resize:vertical">{{ $reply->notes }}</textarea>
+                                                            </div>
+                                                            <div class="flex gap-2">
+                                                                <button type="submit"
+                                                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg
+                                                                           bg-blue-600 hover:bg-blue-700 text-white transition">
+                                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                                                    </svg>
+                                                                    Guardar
+                                                                </button>
+                                                                <button type="button" @click="editing = false"
+                                                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200
+                                                                           dark:border-gray-700 text-gray-500 hover:bg-gray-100
+                                                                           dark:hover:bg-gray-800 transition">
+                                                                    Cancelar
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
                                                 </div>
 
                                                 {{-- Cuerpo del correo (colapsable si es largo) --}}
