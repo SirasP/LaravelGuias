@@ -118,9 +118,9 @@ class CheckCotizacionReplies extends Command
 
             $supplier = null;
             if ($senderEmail) {
-                $spEmail = $db->table('supplier_emails')->where('email', $senderEmail)->first();
+                $spEmail = $db->table('purchase_order_supplier_emails')->where('email', $senderEmail)->first();
                 if ($spEmail) {
-                    $supplier = $db->table('suppliers')->where('id', $spEmail->supplier_id)->first();
+                    $supplier = $db->table('purchase_order_suppliers')->where('id', $spEmail->supplier_id)->first();
                 }
             }
 
