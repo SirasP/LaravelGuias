@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class PurchaseOrderController extends Controller
 {
@@ -505,7 +506,7 @@ class PurchaseOrderController extends Controller
             ->leftJoin('purchase_order_supplier_emails as pose', 'pose.email', '=', 'por.email')
             ->leftJoin('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
             ->where('por.purchase_order_id', $id)
-            ->select('por.email', 'pos.name as supplier_name')
+            ->select('por.email', 'pos.name as supplier_name', 'pose.supplier_id')
             ->orderBy('por.id')
             ->get()
             ->map(function ($r) use ($order) {
@@ -513,7 +514,12 @@ class PurchaseOrderController extends Controller
                 return $r;
             });
 
-        return view('purchase_orders.show', compact('order', 'items', 'recipients'));
+        $replies = $db->table('purchase_order_replies')
+            ->where('purchase_order_id', $id)
+            ->orderBy('created_at')
+            ->get();
+
+        return view('purchase_orders.show', compact('order', 'items', 'recipients', 'replies'));
     }
 
     public function sendEmail(Request $request, int $id)
@@ -646,5 +652,63 @@ class PurchaseOrderController extends Controller
 
         $trimmed = trim($value);
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    // ── Respuestas de proveedores (chat/timeline) ─────────────────────────────
+
+    public function storeReply(Request $request, int $id)
+    {
+        $db = DB::connection('fuelcontrol');
+        $order = $db->table('purchase_orders')->where('id', $id)->first();
+        if (!$order) abort(404);
+
+        $request->validate([
+            'supplier_name' => ['required', 'string', 'max:255'],
+            'notes'         => ['nullable', 'string', 'max:8000'],
+            'total_quoted'  => ['nullable', 'numeric', 'min:0'],
+            'pdf'           => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'],
+        ]);
+
+        $pdfPath = null;
+        $pdfOriginalName = null;
+        if ($request->hasFile('pdf')) {
+            $file = $request->file('pdf');
+            $pdfOriginalName = $file->getClientOriginalName();
+            $pdfPath = $file->store('cotizacion-pdfs', 'public');
+        }
+
+        $db->table('purchase_order_replies')->insert([
+            'purchase_order_id' => $id,
+            'supplier_name'     => $request->input('supplier_name'),
+            'notes'             => $request->input('notes') ?: null,
+            'total_quoted'      => $request->input('total_quoted') ?: null,
+            'currency'          => $order->currency ?? 'CLP',
+            'pdf_path'          => $pdfPath,
+            'pdf_original_name' => $pdfOriginalName,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+
+        return back()->with('success', 'Respuesta de ' . $request->input('supplier_name') . ' registrada.');
+    }
+
+    public function deleteReply(int $id, int $replyId)
+    {
+        $db = DB::connection('fuelcontrol');
+        $reply = $db->table('purchase_order_replies')
+            ->where('id', $replyId)
+            ->where('purchase_order_id', $id)
+            ->first();
+
+        if ($reply && $reply->pdf_path) {
+            Storage::disk('public')->delete($reply->pdf_path);
+        }
+
+        $db->table('purchase_order_replies')
+            ->where('id', $replyId)
+            ->where('purchase_order_id', $id)
+            ->delete();
+
+        return back()->with('success', 'Respuesta eliminada.');
     }
 }

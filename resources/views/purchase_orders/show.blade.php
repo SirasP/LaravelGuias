@@ -260,6 +260,272 @@
                         </div>
                     </div>
 
+                    {{-- ── Timeline de respuestas ── --}}
+                    <div class="panel au d3" x-data="{ addOpen: {{ $errors->any() ? 'true' : 'false' }} }">
+
+                        {{-- Header --}}
+                        <div class="px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Respuestas de proveedores</h3>
+                                @if($replies->count() > 0)
+                                    <span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-black
+                                                 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                        {{ $replies->count() }}
+                                    </span>
+                                @endif
+                            </div>
+                            <button type="button" @click="addOpen = !addOpen"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition"
+                                :class="addOpen
+                                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                     x-show="!addOpen">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                <span x-text="addOpen ? '✕ Cerrar' : 'Registrar respuesta'"></span>
+                            </button>
+                        </div>
+
+                        {{-- Timeline --}}
+                        <div class="px-4 sm:px-5 py-4">
+                            <div class="relative">
+
+                                {{-- Línea vertical de conexión --}}
+                                @if($replies->count() > 0)
+                                    <div class="absolute left-[15px] top-8 bottom-8 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                                @endif
+
+                                {{-- Evento: cotización enviada --}}
+                                <div class="flex gap-3 mb-4">
+                                    <div class="shrink-0 w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40
+                                                flex items-center justify-center z-10">
+                                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0 pt-1">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Cotización enviada</span>
+                                            @if($order->sent_at)
+                                                <span class="text-[11px] text-gray-400">{{ \Carbon\Carbon::parse($order->sent_at)->format('d/m/Y H:i') }}</span>
+                                            @endif
+                                        </div>
+                                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Para:
+                                            @php $destNames = $recipients->pluck('supplier_name')->filter()->unique(); @endphp
+                                            {{ $destNames->count() > 0 ? $destNames->join(', ') : $order->supplier_name }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {{-- Respuestas --}}
+                                @forelse($replies as $reply)
+                                    <div class="flex gap-3 mb-4">
+                                        <div class="shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40
+                                                    flex items-center justify-center z-10">
+                                            <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800
+                                                        rounded-2xl rounded-tl-sm p-3 shadow-sm">
+                                                {{-- Cabecera de la respuesta --}}
+                                                <div class="flex items-start justify-between gap-2 mb-2">
+                                                    <div>
+                                                        <span class="text-xs font-black text-blue-800 dark:text-blue-300">{{ $reply->supplier_name }}</span>
+                                                        <span class="text-[10px] text-gray-400 ml-2">
+                                                            {{ \Carbon\Carbon::parse($reply->created_at)->format('d/m/Y H:i') }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 shrink-0">
+                                                        @if($reply->total_quoted)
+                                                            <span class="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                                {{ $reply->currency }} {{ number_format((float)$reply->total_quoted, 0, ',', '.') }}
+                                                            </span>
+                                                        @endif
+                                                        {{-- Botón eliminar --}}
+                                                        <form method="POST"
+                                                            action="{{ route('purchase_orders.delete_reply', [$order->id, $reply->id]) }}"
+                                                            onsubmit="return confirm('¿Eliminar esta respuesta?')"
+                                                            class="inline">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit"
+                                                                class="w-5 h-5 flex items-center justify-center rounded-md
+                                                                       text-gray-400 hover:text-rose-500 hover:bg-rose-50
+                                                                       dark:hover:bg-rose-900/20 transition text-xs">×</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Notas --}}
+                                                @if($reply->notes)
+                                                    <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">{{ $reply->notes }}</p>
+                                                @endif
+
+                                                {{-- PDF adjunto --}}
+                                                @if($reply->pdf_path)
+                                                    <a href="{{ Storage::url($reply->pdf_path) }}" target="_blank"
+                                                        class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg
+                                                               bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                                                               text-[11px] font-semibold text-gray-700 dark:text-gray-300
+                                                               hover:border-blue-400 hover:text-blue-600 transition">
+                                                        <svg class="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                                        </svg>
+                                                        {{ $reply->pdf_original_name ?? 'Ver adjunto' }}
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="ml-11 text-xs text-gray-400 italic py-2">
+                                        Aún no hay respuestas registradas. Cuando un proveedor te envíe su cotización, regístrala aquí.
+                                    </div>
+                                @endforelse
+
+                            </div>
+                        </div>
+
+                        {{-- Tabla comparativa (≥ 2 respuestas con precio) --}}
+                        @php $repliesWithPrice = $replies->whereNotNull('total_quoted')->sortBy('total_quoted'); @endphp
+                        @if($repliesWithPrice->count() >= 2)
+                            @php $minPrice = $repliesWithPrice->min('total_quoted'); @endphp
+                            <div class="mx-4 sm:mx-5 mb-4 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Comparación de precios</p>
+                                </div>
+                                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                                    @foreach($repliesWithPrice as $r)
+                                        @php $isMin = (float)$r->total_quoted === (float)$minPrice; @endphp
+                                        <div class="px-3 py-2.5 flex items-center justify-between gap-3
+                                                    {{ $isMin ? 'bg-emerald-50 dark:bg-emerald-900/10' : '' }}">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                @if($isMin)
+                                                    <span class="shrink-0 text-emerald-500" title="Más económico">
+                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                                    </span>
+                                                @endif
+                                                <span class="text-xs font-bold {{ $isMin ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300' }} truncate">
+                                                    {{ $r->supplier_name }}
+                                                </span>
+                                            </div>
+                                            <div class="text-right shrink-0">
+                                                <p class="text-sm font-black tabular-nums {{ $isMin ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300' }}">
+                                                    {{ $r->currency }} {{ number_format((float)$r->total_quoted, 0, ',', '.') }}
+                                                </p>
+                                                @if(!$isMin)
+                                                    <p class="text-[10px] text-rose-500 font-semibold">
+                                                        +{{ number_format((float)$r->total_quoted - (float)$minPrice, 0, ',', '.') }} más
+                                                    </p>
+                                                @else
+                                                    <p class="text-[10px] text-emerald-600 font-semibold">Más económico</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Formulario: Registrar respuesta --}}
+                        <div x-show="addOpen" x-cloak
+                             class="border-t border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0">
+
+                            <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Nueva respuesta</p>
+
+                            @if($errors->any())
+                                <div class="mb-3 text-xs text-rose-600 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl px-3 py-2">
+                                    {{ $errors->first() }}
+                                </div>
+                            @endif
+
+                            <form method="POST"
+                                  action="{{ route('purchase_orders.store_reply', $order->id) }}"
+                                  enctype="multipart/form-data"
+                                  class="space-y-3">
+                                @csrf
+
+                                {{-- Proveedor --}}
+                                <div>
+                                    <label class="f-label">Proveedor *</label>
+                                    @php
+                                        $replySupplierNames = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                                    @endphp
+                                    @if($replySupplierNames->count() > 0)
+                                        <select name="supplier_name" class="f-input" required>
+                                            <option value="">— Selecciona proveedor —</option>
+                                            @foreach($replySupplierNames as $sn)
+                                                <option value="{{ $sn }}" {{ old('supplier_name') === $sn ? 'selected' : '' }}>{{ $sn }}</option>
+                                            @endforeach
+                                            <option value="__otro__">Otro (escribir manualmente)</option>
+                                        </select>
+                                    @else
+                                        <input type="text" name="supplier_name" class="f-input"
+                                               placeholder="Nombre del proveedor" value="{{ old('supplier_name') }}" required>
+                                    @endif
+                                </div>
+
+                                {{-- Total cotizado --}}
+                                <div>
+                                    <label class="f-label">Total cotizado ({{ $order->currency }})</label>
+                                    <input type="number" name="total_quoted" step="1" min="0"
+                                           class="f-input" placeholder="Ej: 1250000"
+                                           value="{{ old('total_quoted') }}">
+                                    <p class="text-[10px] text-gray-400 mt-0.5">Opcional — se usa para comparar ofertas</p>
+                                </div>
+
+                                {{-- Notas --}}
+                                <div>
+                                    <label class="f-label">Mensaje / notas</label>
+                                    <textarea name="notes" rows="3" class="f-input" style="resize:vertical"
+                                              placeholder="Copia el texto que te envió el proveedor, o escribe un resumen...">{{ old('notes') }}</textarea>
+                                </div>
+
+                                {{-- PDF --}}
+                                <div>
+                                    <label class="f-label">Adjunto (PDF / imagen)</label>
+                                    <label class="flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700
+                                                  hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition group">
+                                        <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                        </svg>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-semibold text-gray-600 dark:text-gray-400 group-hover:text-blue-600 transition">
+                                                Subir cotización del proveedor
+                                            </p>
+                                            <p class="text-[10px] text-gray-400">PDF, JPG o PNG — máx. 20 MB</p>
+                                        </div>
+                                        <input type="file" name="pdf" accept=".pdf,.jpg,.jpeg,.png" class="sr-only"
+                                               onchange="this.closest('label').querySelector('p').textContent = this.files[0]?.name ?? 'Subir cotización del proveedor'">
+                                    </label>
+                                </div>
+
+                                <div class="flex gap-2 pt-1">
+                                    <button type="submit"
+                                        class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl
+                                               bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                        Guardar respuesta
+                                    </button>
+                                    <button type="button" @click="addOpen = false"
+                                        class="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700
+                                               text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                    </div>
+
                 </div>{{-- /left --}}
 
                 {{-- ── SIDEBAR ── --}}
