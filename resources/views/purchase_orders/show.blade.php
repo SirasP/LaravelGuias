@@ -939,6 +939,72 @@
                         @endif
                     </div>
 
+                    {{-- Enviar / reenviar cotización --}}
+                    @if(in_array($order->status, ['draft', 'sent']))
+                    <div class="panel" x-data="{ open: {{ $order->status === 'draft' ? 'true' : 'false' }} }">
+                        <div class="sidebar-section" style="border-bottom:none">
+                            <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between gap-2 group">
+                                <span class="section-label mb-0">Enviar cotización por correo</span>
+                                <svg class="w-3.5 h-3.5 text-gray-400 transition-transform"
+                                     :class="open ? 'rotate-180' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+
+                            <div x-show="open" x-cloak x-transition class="mt-3">
+                                @php
+                                    $savedEmails = $recipients->pluck('email')->join(', ');
+                                @endphp
+                                <form method="POST"
+                                      action="{{ route('purchase_orders.send_email', $order->id) }}"
+                                      class="space-y-2.5">
+                                    @csrf
+
+                                    <div>
+                                        <label class="f-label">Destinatarios</label>
+                                        <input type="text" name="emails"
+                                               class="f-input text-xs py-1.5"
+                                               placeholder="{{ $savedEmails ?: 'correo@ejemplo.com' }}"
+                                               value="{{ old('emails') }}">
+                                        @if($savedEmails)
+                                            <p class="text-[10px] text-gray-400 mt-0.5">
+                                                Dejar vacío para usar: <span class="font-mono">{{ $savedEmails }}</span>
+                                            </p>
+                                        @endif
+                                    </div>
+
+                                    <div>
+                                        <label class="f-label">Asunto</label>
+                                        <input type="text" name="subject"
+                                               class="f-input text-xs py-1.5"
+                                               placeholder="Cotización {{ $order->order_number }}"
+                                               value="{{ old('subject') }}">
+                                    </div>
+
+                                    <div>
+                                        <label class="f-label">Mensaje (opcional)</label>
+                                        <textarea name="message" rows="3"
+                                                  class="f-input text-xs py-1.5" style="resize:vertical"
+                                                  placeholder="Estimado proveedor...">{{ old('message') }}</textarea>
+                                    </div>
+
+                                    <button type="submit"
+                                        class="w-full flex items-center justify-center gap-2 py-2.5 px-4
+                                               text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700
+                                               text-white transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                        Enviar PDF por correo
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- Crear orden de compra --}}
                     @if($order->status === 'sent')
                     <div class="panel">
