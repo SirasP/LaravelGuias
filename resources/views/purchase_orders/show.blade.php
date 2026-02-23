@@ -413,6 +413,7 @@
                                                 {{-- Formulario edición inline --}}
                                                 <div x-show="editing" x-cloak
                                                      class="mt-2 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+                                                    @php $rItems = $replyItemsAll->get($reply->id, collect()); @endphp
                                                     <form method="POST"
                                                           action="{{ route('purchase_orders.update_reply', [$order->id, $reply->id]) }}">
                                                         @csrf @method('PATCH')
@@ -424,16 +425,57 @@
                                                                            value="{{ $reply->currency }}"
                                                                            class="f-input text-center text-xs" maxlength="5">
                                                                 </div>
-                                                                <div class="flex-1 min-w-0">
-                                                                    <label class="f-label">Total cotizado</label>
-                                                                    <input type="number" name="total_quoted" step="1" min="0"
-                                                                           value="{{ $reply->total_quoted }}"
-                                                                           class="f-input" placeholder="Precio">
+                                                            </div>
+                                                            {{-- Precios por ítem --}}
+                                                            <div>
+                                                                <label class="f-label">Precios por producto</label>
+                                                                <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                                                                    <table class="w-full text-xs">
+                                                                        <thead class="bg-gray-50 dark:bg-gray-800/60">
+                                                                            <tr>
+                                                                                <th class="text-left px-2 py-1.5 font-semibold text-gray-400">Producto</th>
+                                                                                <th class="text-right px-2 py-1.5 font-semibold text-gray-400 w-20">Cant.</th>
+                                                                                <th class="text-right px-2 py-1.5 font-semibold text-gray-400 w-28">Precio unit.</th>
+                                                                                <th class="text-right px-2 py-1.5 font-semibold text-gray-400 w-24">Subtotal</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                                                            @foreach($items as $item)
+                                                                            @php $ri = $rItems->firstWhere('purchase_order_item_id', $item->id); @endphp
+                                                                            <tr>
+                                                                                <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 font-medium">{{ $item->product_name }}</td>
+                                                                                <td class="px-2 py-1.5 text-right text-gray-400 tabular-nums">{{ number_format((float)$item->quantity, 2, ',', '.') }}</td>
+                                                                                <td class="px-2 py-1.5 text-right">
+                                                                                    <input type="number" name="item_prices[{{ $item->id }}]"
+                                                                                           step="1" min="0"
+                                                                                           class="f-input text-right tabular-nums py-1 px-2 text-xs"
+                                                                                           placeholder="0"
+                                                                                           oninput="calcReplyTotal('{{ $reply->id }}')"
+                                                                                           data-qty="{{ (float)$item->quantity }}"
+                                                                                           value="{{ $ri ? $ri->unit_price_quoted : '' }}">
+                                                                                </td>
+                                                                                <td class="px-2 py-1.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-bold"
+                                                                                    id="sub-{{ $reply->id }}-{{ $item->id }}">
+                                                                                    {{ $ri ? number_format((float)$ri->line_total_quoted, 0, ',', '.') : '—' }}
+                                                                                </td>
+                                                                            </tr>
+                                                                            @endforeach
+                                                                        </tbody>
+                                                                        <tfoot>
+                                                                            <tr class="bg-emerald-50 dark:bg-emerald-900/10">
+                                                                                <td colspan="3" class="px-2 py-1.5 font-black text-gray-700 dark:text-gray-200 uppercase tracking-wide text-[10px]">Total</td>
+                                                                                <td class="px-2 py-1.5 text-right tabular-nums font-black text-emerald-700 dark:text-emerald-400 text-sm"
+                                                                                    id="total-{{ $reply->id }}">
+                                                                                    {{ $reply->total_quoted ? number_format((float)$reply->total_quoted, 0, ',', '.') : '—' }}
+                                                                                </td>
+                                                                            </tr>
+                                                                        </tfoot>
+                                                                    </table>
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <label class="f-label">Notas</label>
-                                                                <textarea name="notes" rows="4" class="f-input" style="resize:vertical">{{ $reply->notes }}</textarea>
+                                                                <textarea name="notes" rows="3" class="f-input" style="resize:vertical">{{ $reply->notes }}</textarea>
                                                             </div>
                                                             <div class="flex gap-2">
                                                                 <button type="submit"
@@ -605,13 +647,55 @@
                                     @endif
                                 </div>
 
-                                {{-- Total cotizado --}}
+                                {{-- Precios por ítem --}}
                                 <div>
-                                    <label class="f-label">Total cotizado ({{ $order->currency }})</label>
+                                    <label class="f-label">Precios cotizados por producto</label>
+                                    <p class="text-[10px] text-gray-400 mb-1.5">Ingresa el precio unitario que te ofreció el proveedor para cada ítem. El total se calcula automáticamente.</p>
+                                    <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                                        <table class="w-full text-xs">
+                                            <thead class="bg-gray-50 dark:bg-gray-800/60">
+                                                <tr>
+                                                    <th class="text-left px-3 py-2 font-semibold text-gray-500 dark:text-gray-400">Producto</th>
+                                                    <th class="text-right px-3 py-2 font-semibold text-gray-500 dark:text-gray-400 w-20">Cant.</th>
+                                                    <th class="text-right px-3 py-2 font-semibold text-gray-500 dark:text-gray-400 w-32">Precio unit.</th>
+                                                    <th class="text-right px-3 py-2 font-semibold text-gray-500 dark:text-gray-400 w-28">Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="reply-items-body-new">
+                                                @foreach($items as $item)
+                                                <tr>
+                                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200 font-medium">{{ $item->product_name }}</td>
+                                                    <td class="px-3 py-2 text-right text-gray-500 tabular-nums">{{ number_format((float)$item->quantity, 2, ',', '.') }} {{ $item->unit }}</td>
+                                                    <td class="px-3 py-2 text-right">
+                                                        <input type="number" name="item_prices[{{ $item->id }}]"
+                                                               step="1" min="0"
+                                                               class="f-input text-right tabular-nums py-1 px-2 text-xs"
+                                                               placeholder="0"
+                                                               oninput="calcReplyTotal('new')"
+                                                               data-qty="{{ (float)$item->quantity }}"
+                                                               value="{{ old('item_prices.'.$item->id) }}">
+                                                    </td>
+                                                    <td class="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-bold" id="sub-new-{{ $item->id }}">—</td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="bg-emerald-50 dark:bg-emerald-900/10">
+                                                    <td colspan="3" class="px-3 py-2 text-xs font-black text-gray-700 dark:text-gray-200 uppercase tracking-wide">Total {{ $order->currency }}</td>
+                                                    <td class="px-3 py-2 text-right tabular-nums font-black text-emerald-700 dark:text-emerald-400 text-sm" id="total-new">—</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {{-- Total manual (oculto si se usan ítems) --}}
+                                <div id="total-manual-wrap-new">
+                                    <label class="f-label">Total cotizado manual ({{ $order->currency }})</label>
                                     <input type="number" name="total_quoted" step="1" min="0"
-                                           class="f-input" placeholder="Ej: 1250000"
-                                           value="{{ old('total_quoted') }}">
-                                    <p class="text-[10px] text-gray-400 mt-0.5">Opcional — se usa para comparar ofertas</p>
+                                           class="f-input" placeholder="Se calcula automático desde los ítems"
+                                           value="{{ old('total_quoted') }}" id="total-quoted-input-new">
+                                    <p class="text-[10px] text-gray-400 mt-0.5">Solo si no ingresas precios por ítem</p>
                                 </div>
 
                                 {{-- Notas --}}
@@ -740,6 +824,12 @@
                                     ->values();
                             @endphp
 
+                            @php
+                                $repliesWithItems = $replies->filter(fn($r) =>
+                                    $replyItemsAll->has($r->id) && $replyItemsAll->get($r->id)->isNotEmpty()
+                                );
+                            @endphp
+
                             <form method="POST" action="{{ route('purchase_orders.confirm_order', $order->id) }}" class="space-y-3">
                                 @csrf
 
@@ -771,6 +861,30 @@
                                         @endforeach
 
                                         <input type="hidden" name="chosen_supplier_id" :value="chosen" x-show="false">
+
+                                        {{-- Selector: aplicar precios de la respuesta --}}
+                                        @if($repliesWithItems->count() > 0)
+                                        <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                                                Aplicar precios cotizados a la OC
+                                            </p>
+                                            <select name="apply_reply_id"
+                                                class="f-input text-xs py-1.5">
+                                                <option value="">— No aplicar precios —</option>
+                                                @foreach($repliesWithItems as $rr)
+                                                <option value="{{ $rr->id }}">
+                                                    {{ $rr->supplier_name }}
+                                                    @if($rr->total_quoted)
+                                                        — {{ $rr->currency }} {{ number_format((float)$rr->total_quoted, 0, ',', '.') }}
+                                                    @endif
+                                                </option>
+                                                @endforeach
+                                            </select>
+                                            <p class="text-[10px] text-blue-600 dark:text-blue-400 mt-1">
+                                                Los precios unitarios de la OC se actualizarán con los del proveedor elegido.
+                                            </p>
+                                        </div>
+                                        @endif
 
                                         <button type="submit"
                                             class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition mt-1"
@@ -807,4 +921,45 @@
 
         </div>
     </div>
+<script>
+function calcReplyTotal(replyKey) {
+    // replyKey = 'new' para el form de nueva respuesta, o el reply.id para edición
+    const prefix = replyKey === 'new' ? 'new' : replyKey;
+    const inputs = document.querySelectorAll(
+        `input[oninput="calcReplyTotal('${replyKey}')"]`
+    );
+    let total = 0;
+    inputs.forEach(function(input) {
+        const qty = parseFloat(input.getAttribute('data-qty') || 0);
+        const price = parseFloat(input.value) || 0;
+        const sub   = qty * price;
+        total += sub;
+        // Extraer item id del name: item_prices[{id}]
+        const match = input.name.match(/\[(\d+)\]/);
+        if (match) {
+            const itemId = match[1];
+            const subCell = document.getElementById('sub-' + prefix + '-' + itemId);
+            if (subCell) {
+                subCell.textContent = sub > 0 ? Math.round(sub).toLocaleString('es-CL') : '—';
+            }
+        }
+    });
+    const totalCell = document.getElementById('total-' + prefix);
+    if (totalCell) {
+        totalCell.textContent = total > 0 ? Math.round(total).toLocaleString('es-CL') : '—';
+    }
+    // También llenar el input total_quoted oculto si existe
+    const totalInput = document.getElementById('total-quoted-input-new');
+    if (totalInput && replyKey === 'new') {
+        totalInput.value = total > 0 ? Math.round(total) : '';
+    }
+}
+// Inicializar totales al cargar (por si hay old() values)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[id^="total-"]').forEach(function(el) {
+        const replyKey = el.id.replace('total-', '');
+        if (replyKey) calcReplyTotal(replyKey);
+    });
+});
+</script>
 </x-app-layout>

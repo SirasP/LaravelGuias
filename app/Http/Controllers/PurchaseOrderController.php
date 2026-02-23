@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PurchaseOrderController extends Controller
 {
@@ -362,6 +363,7 @@ class PurchaseOrderController extends Controller
     {
         $validated = $request->validate([
             'chosen_supplier_id' => ['required', 'integer'],
+            'apply_reply_id'     => ['nullable', 'integer'],
         ]);
 
         $db = DB::connection('fuelcontrol');
@@ -385,8 +387,36 @@ class PurchaseOrderController extends Controller
                 'updated_at'    => now(),
             ]);
 
+        // Aplicar precios cotizados del proveedor a los ítems de la OC
+        if (!empty($validated['apply_reply_id'])) {
+            $replyId     = (int) $validated['apply_reply_id'];
+            $replyItems  = $db->table('purchase_order_reply_items')->where('reply_id', $replyId)->get();
+            $newTotal    = 0;
+
+            foreach ($replyItems as $ri) {
+                if ($ri->unit_price_quoted !== null) {
+                    $db->table('purchase_order_items')
+                        ->where('id', $ri->purchase_order_item_id)
+                        ->where('purchase_order_id', $id)
+                        ->update([
+                            'unit_price' => $ri->unit_price_quoted,
+                            'line_total' => $ri->line_total_quoted,
+                            'updated_at' => now(),
+                        ]);
+                    $newTotal += (float) $ri->line_total_quoted;
+                }
+            }
+
+            if ($newTotal > 0) {
+                $db->table('purchase_orders')->where('id', $id)->update([
+                    'total'      => round($newTotal, 2),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
         return redirect()->route('purchase_orders.show', $id)
-            ->with('success', 'Orden de compra creada con ' . $supplier->name . '.');
+            ->with('success', 'Orden de compra creada con ' . $supplier->name . '. Precios actualizados.');
     }
 
     public function upsertSupplier(Request $request)
@@ -519,7 +549,17 @@ class PurchaseOrderController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        return view('purchase_orders.show', compact('order', 'items', 'recipients', 'replies'));
+        // Cargar items cotizados por cada respuesta
+        $replyIds = $replies->pluck('id')->all();
+        $replyItemsAll = $replyIds
+            ? $db->table('purchase_order_reply_items')
+                ->whereIn('reply_id', $replyIds)
+                ->orderBy('purchase_order_item_id')
+                ->get()
+                ->groupBy('reply_id')
+            : collect();
+
+        return view('purchase_orders.show', compact('order', 'items', 'recipients', 'replies', 'replyItemsAll'));
     }
 
     public function sendEmail(Request $request, int $id)
@@ -575,41 +615,48 @@ class PurchaseOrderController extends Controller
 
         $messageTemplate = trim((string) ($validated['message'] ?? ''));
 
-        // Build items table HTML (shared for all recipients)
-        $rows = '';
-        foreach ($items as $item) {
-            $rows .= '<tr>'
-                . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->product_name) . '</td>'
-                . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->quantity, 4, ',', '.') . '</td>'
-                . '<td style="padding:6px;border:1px solid #ddd;">' . e($item->unit) . '</td>'
-                . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->unit_price, 2, ',', '.') . '</td>'
-                . '<td style="padding:6px;border:1px solid #ddd;text-align:right;">' . number_format((float) $item->line_total, 2, ',', '.') . '</td>'
-                . '</tr>';
-        }
-        $tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:13px;">'
-            . '<thead><tr>'
-            . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">Producto</th>'
-            . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Cantidad</th>'
-            . '<th style="padding:6px;border:1px solid #ddd;text-align:left;">UdM</th>'
-            . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Precio</th>'
-            . '<th style="padding:6px;border:1px solid #ddd;text-align:right;">Importe</th>'
-            . '</tr></thead><tbody>' . $rows . '</tbody></table>'
-            . '<p style="margin-top:12px;"><strong>Total:</strong> ' . e($order->currency) . ' ' . number_format((float) $order->total, 2, ',', '.') . '</p>';
-
         try {
             foreach ($recipientList as $recipient) {
-                // Personalize: replace {PROVEEDOR} with this recipient's supplier name
                 $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
 
-                $html = '<h2 style="margin:0 0 8px;">Cotización ' . e($order->order_number) . '</h2>'
-                    . '<p style="margin:0 0 6px;"><strong>Proveedor:</strong> ' . e($recipient['supplier_name']) . '</p>'
-                    . '<p style="margin:0 0 6px;"><strong>Moneda:</strong> ' . e($order->currency) . '</p>'
-                    . ($personalizedMsg !== '' ? ('<p style="margin:8px 0 12px;">' . nl2br(e($personalizedMsg)) . '</p>') : '')
-                    . $tableHtml;
+                // ── Generar PDF personalizado para este destinatario ──
+                $pdf = Pdf::loadView('purchase_orders.pdf', [
+                    'order'        => $order,
+                    'items'        => $items,
+                    'supplierName' => $recipient['supplier_name'],
+                    'supplierEmail'=> $recipient['email'],
+                    'message'      => $personalizedMsg,
+                ])->setPaper('a4', 'portrait');
+
+                $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
+                $pdfContent  = $pdf->output();
+
+                // ── Cuerpo del correo: limpio y profesional ──
+                $bodyHtml = '
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+  <div style="background:#0f766e;padding:20px 24px;border-radius:8px 8px 0 0;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización ' . e($order->order_number) . '</h1>
+    <p style="margin:4px 0 0;color:#ccfbf1;font-size:13px;">Solicitud de cotización de precios</p>
+  </div>
+  <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
+    <p style="margin:0 0 10px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($recipient['supplier_name']) . '</p>'
+    . ($personalizedMsg !== '' ? '<p style="margin:10px 0;font-size:13px;line-height:1.6;white-space:pre-line;">' . e($personalizedMsg) . '</p>' : '') . '
+    <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
+      Adjunto encontrará el detalle completo de los productos solicitados en formato PDF.<br>
+      Por favor responda indicando sus precios unitarios por ítem.
+    </p>
+  </div>
+  <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
+    ' . config('app.name', 'Sistema') . ' &mdash; Cotización N° ' . e($order->order_number) . '
+  </div>
+</div>';
 
                 $emailAddr = $recipient['email'];
-                Mail::send([], [], function ($message) use ($emailAddr, $subject, $html) {
-                    $message->to($emailAddr)->subject($subject)->html($html);
+                Mail::send([], [], function ($message) use ($emailAddr, $subject, $bodyHtml, $pdfContent, $pdfFilename) {
+                    $message->to($emailAddr)
+                        ->subject($subject)
+                        ->html($bodyHtml)
+                        ->attachData($pdfContent, $pdfFilename, ['mime' => 'application/pdf']);
                 });
             }
         } catch (\Throwable $e) {
@@ -666,7 +713,10 @@ class PurchaseOrderController extends Controller
             'supplier_name' => ['required', 'string', 'max:255'],
             'notes'         => ['nullable', 'string', 'max:8000'],
             'total_quoted'  => ['nullable', 'numeric', 'min:0'],
+            'currency'      => ['nullable', 'string', 'max:10'],
             'pdf'           => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'],
+            'item_prices'   => ['nullable', 'array'],
+            'item_prices.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $pdfPath = null;
@@ -677,17 +727,53 @@ class PurchaseOrderController extends Controller
             $pdfPath = $file->store('cotizacion-pdfs', 'public');
         }
 
-        $db->table('purchase_order_replies')->insert([
+        // Calcular total desde ítems si se ingresaron precios por ítem
+        $itemPrices = $request->input('item_prices', []);
+        $currency   = $request->input('currency') ?: ($order->currency ?? 'CLP');
+        $items      = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
+
+        $totalFromItems = null;
+        if (!empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''))) {
+            $totalFromItems = 0;
+            foreach ($items as $item) {
+                $unitPrice = isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== ''
+                    ? (float) $itemPrices[$item->id] : 0;
+                $totalFromItems += $unitPrice * (float) $item->quantity;
+            }
+        }
+
+        $totalQuoted = $totalFromItems ?? ($request->input('total_quoted') ?: null);
+
+        $replyId = $db->table('purchase_order_replies')->insertGetId([
             'purchase_order_id' => $id,
             'supplier_name'     => $request->input('supplier_name'),
             'notes'             => $request->input('notes') ?: null,
-            'total_quoted'      => $request->input('total_quoted') ?: null,
-            'currency'          => $order->currency ?? 'CLP',
+            'total_quoted'      => $totalQuoted,
+            'currency'          => $currency,
             'pdf_path'          => $pdfPath,
             'pdf_original_name' => $pdfOriginalName,
             'created_at'        => now(),
             'updated_at'        => now(),
         ]);
+
+        // Guardar precios por ítem
+        foreach ($items as $item) {
+            if (isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== '') {
+                $unitPrice = (float) $itemPrices[$item->id];
+                $lineTotal = round($unitPrice * (float) $item->quantity, 2);
+                $db->table('purchase_order_reply_items')->insert([
+                    'reply_id'               => $replyId,
+                    'purchase_order_item_id' => $item->id,
+                    'product_name'           => $item->product_name,
+                    'unit'                   => $item->unit,
+                    'quantity'               => $item->quantity,
+                    'unit_price_quoted'      => $unitPrice,
+                    'line_total_quoted'      => $lineTotal,
+                    'created_at'             => now(),
+                    'updated_at'             => now(),
+                ]);
+            }
+        }
 
         return back()->with('success', 'Respuesta de ' . $request->input('supplier_name') . ' registrada.');
     }
@@ -696,12 +782,34 @@ class PurchaseOrderController extends Controller
     {
         $db = DB::connection('fuelcontrol');
 
+        $request->validate([
+            'item_prices'   => ['nullable', 'array'],
+            'item_prices.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $itemPrices = $request->input('item_prices', []);
+        $items      = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
+
+        // Recalcular total desde ítems
+        $totalFromItems = null;
+        if (!empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''))) {
+            $totalFromItems = 0;
+            foreach ($items as $item) {
+                $unitPrice = isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== ''
+                    ? (float) $itemPrices[$item->id] : 0;
+                $totalFromItems += $unitPrice * (float) $item->quantity;
+            }
+        }
+
         $data = ['updated_at' => now()];
 
-        if ($request->has('total_quoted')) {
+        if ($totalFromItems !== null) {
+            $data['total_quoted'] = round($totalFromItems, 2);
+        } elseif ($request->has('total_quoted')) {
             $val = $request->input('total_quoted');
             $data['total_quoted'] = ($val === '' || $val === null) ? null : (float) str_replace(['.', ','], ['', '.'], $val);
         }
+
         if ($request->has('notes')) {
             $data['notes'] = $request->input('notes') ?: null;
         }
@@ -714,7 +822,33 @@ class PurchaseOrderController extends Controller
             ->where('purchase_order_id', $id)
             ->update($data);
 
-        return back()->with('success', 'Precio actualizado.');
+        // Actualizar/insertar precios por ítem
+        foreach ($items as $item) {
+            if (isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== '') {
+                $unitPrice = (float) $itemPrices[$item->id];
+                $lineTotal = round($unitPrice * (float) $item->quantity, 2);
+                $db->table('purchase_order_reply_items')->updateOrInsert(
+                    ['reply_id' => $replyId, 'purchase_order_item_id' => $item->id],
+                    [
+                        'product_name'      => $item->product_name,
+                        'unit'              => $item->unit,
+                        'quantity'          => $item->quantity,
+                        'unit_price_quoted' => $unitPrice,
+                        'line_total_quoted' => $lineTotal,
+                        'updated_at'        => now(),
+                        'created_at'        => now(),
+                    ]
+                );
+            } else {
+                // Si se borró el precio, eliminar el item del reply
+                $db->table('purchase_order_reply_items')
+                    ->where('reply_id', $replyId)
+                    ->where('purchase_order_item_id', $item->id)
+                    ->delete();
+            }
+        }
+
+        return back()->with('success', 'Respuesta actualizada.');
     }
 
     public function deleteReply(int $id, int $replyId)
