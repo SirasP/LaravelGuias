@@ -496,7 +496,13 @@
                                                         {{-- Botón eliminar --}}
                                                         <form method="POST"
                                                             action="{{ route('purchase_orders.delete_reply', [$order->id, $reply->id]) }}"
-                                                            onsubmit="return confirm('¿Eliminar esta respuesta?')"
+                                                            @submit.prevent="openConfirm({
+                                                                title: '¿Eliminar respuesta?',
+                                                                message: 'Esta acción no se puede deshacer.',
+                                                                confirmLabel: 'Eliminar',
+                                                                type: 'danger',
+                                                                callback: () => $el.submit()
+                                                            })"
                                                             class="inline" x-show="!editing">
                                                             @csrf @method('DELETE')
                                                             <button type="submit"
@@ -1011,11 +1017,17 @@
                                         </div>
                                         @endif
 
-                                        <button type="submit"
+                                        <button type="button"
                                             class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition mt-1"
                                             :disabled="!chosen"
                                             :class="!chosen ? 'opacity-50 cursor-not-allowed' : ''"
-                                            onclick="return confirm('¿Confirmas la orden de compra con el proveedor seleccionado?')">
+                                            @click="if(!chosen) return; openConfirm({
+                                                title: '¿Confirmar orden de compra?',
+                                                message: 'Se enviará la OC al proveedor seleccionado y se notificará por correo.',
+                                                confirmLabel: 'Crear OC',
+                                                type: 'confirm',
+                                                callback: () => $el.closest('form').submit()
+                                            })">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                             </svg>
@@ -1026,9 +1038,15 @@
                                     {{-- Sin destinatarios guardados: usar el proveedor principal --}}
                                     <input type="hidden" name="chosen_supplier_id" value="{{ $order->supplier_id }}">
                                     <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-2">{{ $order->supplier_name }}</p>
-                                    <button type="submit"
+                                    <button type="button"
                                         class="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition"
-                                        onclick="return confirm('¿Confirmas la orden de compra con {{ addslashes($order->supplier_name) }}?')">
+                                        @click="openConfirm({
+                                            title: '¿Confirmar orden de compra?',
+                                            message: 'Se enviará la OC a {{ addslashes($order->supplier_name) }} por correo.',
+                                            confirmLabel: 'Crear OC',
+                                            type: 'confirm',
+                                            callback: () => $el.closest('form').submit()
+                                        })">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                         </svg>
@@ -1046,7 +1064,94 @@
 
         </div>
     </div>
+{{-- ── MODAL DE CONFIRMACIÓN (Alpine.js) ── --}}
+<div x-data="{
+        show: false,
+        title: '',
+        message: '',
+        confirmLabel: 'Confirmar',
+        type: 'danger',
+        _cb: null,
+    }"
+    x-on:confirm-dialog.window="
+        title        = $event.detail.title        ?? '¿Estás seguro?';
+        message      = $event.detail.message      ?? '';
+        confirmLabel = $event.detail.confirmLabel ?? 'Confirmar';
+        type         = $event.detail.type         ?? 'danger';
+        _cb          = $event.detail.callback     ?? null;
+        show         = true;
+    "
+    x-show="show" x-cloak
+    @keydown.escape.window="show = false"
+    class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4"
+    style="background:rgba(15,23,42,.55);"
+    @click.self="show = false">
+
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-sm"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+         x-transition:leave-end="opacity-0 scale-95 translate-y-4">
+
+        <div class="p-5">
+            <div class="flex items-start gap-3">
+                {{-- Icono según tipo --}}
+                <div class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                     :class="{
+                         'bg-rose-100 dark:bg-rose-900/30': type === 'danger',
+                         'bg-blue-100 dark:bg-blue-900/30': type === 'confirm',
+                         'bg-amber-100 dark:bg-amber-900/30': type === 'warning',
+                     }">
+                    <template x-if="type === 'danger'">
+                        <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </template>
+                    <template x-if="type === 'confirm'">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </template>
+                    <template x-if="type === 'warning'">
+                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </template>
+                </div>
+                <div class="min-w-0 flex-1 pt-0.5">
+                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-snug" x-text="title"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed" x-text="message" x-show="message"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-5 pb-5 flex gap-2 justify-end">
+            <button type="button" @click="show = false"
+                class="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700
+                       text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                Cancelar
+            </button>
+            <button type="button"
+                @click="show = false; if (_cb) _cb()"
+                class="px-4 py-2 text-xs font-bold rounded-xl text-white transition"
+                :class="{
+                    'bg-rose-600 hover:bg-rose-700': type === 'danger',
+                    'bg-blue-600 hover:bg-blue-700': type === 'confirm',
+                    'bg-amber-600 hover:bg-amber-700': type === 'warning',
+                }"
+                x-text="confirmLabel">
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+function openConfirm(options) {
+    window.dispatchEvent(new CustomEvent('confirm-dialog', { detail: options }));
+}
+
 function calcReplyTotal(replyKey) {
     // replyKey = 'new' para el form de nueva respuesta, o el reply.id para edición
     const prefix = replyKey === 'new' ? 'new' : replyKey;
