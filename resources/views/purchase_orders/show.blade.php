@@ -321,33 +321,62 @@
 
                                 {{-- Respuestas --}}
                                 @forelse($replies as $reply)
-                                    <div class="flex gap-3 mb-4">
-                                        <div class="shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40
-                                                    flex items-center justify-center z-10">
-                                            <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                            </svg>
+                                    @php
+                                        $isEmail = ($reply->source ?? 'manual') === 'email';
+                                        $ext     = $reply->pdf_path ? strtolower(pathinfo($reply->pdf_path, PATHINFO_EXTENSION)) : null;
+                                        $isImage = in_array($ext, ['png','jpg','jpeg','webp','gif']);
+                                        $isPdf   = $ext === 'pdf';
+                                        $fileUrl = $reply->pdf_path ? Storage::url($reply->pdf_path) : null;
+                                        $notesLen = mb_strlen($reply->notes ?? '');
+                                    @endphp
+                                    <div class="flex gap-3 mb-4" x-data="{ expanded: false }">
+                                        {{-- Avatar --}}
+                                        <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center z-10
+                                                    {{ $isEmail ? 'bg-sky-100 dark:bg-sky-900/40' : 'bg-blue-100 dark:bg-blue-900/40' }}">
+                                            @if($isEmail)
+                                                <svg class="w-4 h-4 text-sky-500 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                                </svg>
+                                            @else
+                                                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                                </svg>
+                                            @endif
                                         </div>
+
                                         <div class="flex-1 min-w-0">
-                                            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800
-                                                        rounded-2xl rounded-tl-sm p-3 shadow-sm">
-                                                {{-- Cabecera de la respuesta --}}
-                                                <div class="flex items-start justify-between gap-2 mb-2">
-                                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                                        <span class="text-xs font-black text-blue-800 dark:text-blue-300">{{ $reply->supplier_name }}</span>
-                                                        <span class="text-[10px] text-gray-400">
-                                                            {{ \Carbon\Carbon::parse($reply->created_at)->format('d/m/Y H:i') }}
-                                                        </span>
-                                                        @if(($reply->source ?? 'manual') === 'email')
-                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
-                                                                         bg-sky-50 text-sky-600 border border-sky-200
-                                                                         dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-800
-                                                                         text-[9px] font-bold">
-                                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                                                </svg>
-                                                                Del correo
+                                            <div class="rounded-2xl rounded-tl-sm p-3 shadow-sm border
+                                                        {{ $isEmail
+                                                            ? 'bg-sky-50 border-sky-200 dark:bg-sky-900/10 dark:border-sky-800'
+                                                            : 'bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800' }}">
+
+                                                {{-- Cabecera --}}
+                                                <div class="flex items-start justify-between gap-2 mb-1.5">
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                                            <span class="text-xs font-black {{ $isEmail ? 'text-sky-800 dark:text-sky-300' : 'text-blue-800 dark:text-blue-300' }}">
+                                                                {{ $reply->supplier_name }}
                                                             </span>
+                                                            @if($isEmail)
+                                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full
+                                                                             bg-sky-100 text-sky-600 border border-sky-200
+                                                                             dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-700
+                                                                             text-[9px] font-bold tracking-wide">
+                                                                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                                                    </svg>
+                                                                    Correo automático
+                                                                </span>
+                                                            @endif
+                                                            <span class="text-[10px] text-gray-400">
+                                                                {{ \Carbon\Carbon::parse($reply->created_at)->format('d/m/Y H:i') }}
+                                                            </span>
+                                                        </div>
+                                                        {{-- Remitente (solo en correos automáticos) --}}
+                                                        @if($isEmail && $reply->sender_email)
+                                                            <p class="text-[10px] text-sky-600/70 dark:text-sky-400/70 mt-0.5 truncate">
+                                                                {{ $reply->sender_email }}
+                                                            </p>
                                                         @endif
                                                     </div>
                                                     <div class="flex items-center gap-2 shrink-0">
@@ -356,7 +385,6 @@
                                                                 {{ $reply->currency }} {{ number_format((float)$reply->total_quoted, 0, ',', '.') }}
                                                             </span>
                                                         @endif
-                                                        {{-- Botón eliminar --}}
                                                         <form method="POST"
                                                             action="{{ route('purchase_orders.delete_reply', [$order->id, $reply->id]) }}"
                                                             onsubmit="return confirm('¿Eliminar esta respuesta?')"
@@ -370,24 +398,62 @@
                                                     </div>
                                                 </div>
 
-                                                {{-- Notas --}}
+                                                {{-- Cuerpo del correo (colapsable si es largo) --}}
                                                 @if($reply->notes)
-                                                    <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">{{ $reply->notes }}</p>
+                                                    @if($notesLen > 300)
+                                                        <div class="relative">
+                                                            <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line"
+                                                               :class="expanded ? '' : 'line-clamp-4'">{{ $reply->notes }}</p>
+                                                            <button type="button"
+                                                                @click="expanded = !expanded"
+                                                                class="mt-1 text-[10px] font-semibold {{ $isEmail ? 'text-sky-600 hover:text-sky-800' : 'text-blue-600 hover:text-blue-800' }} transition">
+                                                                <span x-text="expanded ? '▲ Ver menos' : '▼ Ver más ({{ $notesLen }} caracteres)'"></span>
+                                                            </button>
+                                                        </div>
+                                                    @else
+                                                        <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">{{ $reply->notes }}</p>
+                                                    @endif
                                                 @endif
 
-                                                {{-- PDF adjunto --}}
-                                                @if($reply->pdf_path)
-                                                    <a href="{{ Storage::url($reply->pdf_path) }}" target="_blank"
-                                                        class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg
-                                                               bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-                                                               text-[11px] font-semibold text-gray-700 dark:text-gray-300
-                                                               hover:border-blue-400 hover:text-blue-600 transition">
-                                                        <svg class="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
-                                                        </svg>
-                                                        {{ $reply->pdf_original_name ?? 'Ver adjunto' }}
-                                                    </a>
+                                                {{-- Adjunto --}}
+                                                @if($fileUrl)
+                                                    <div class="mt-2.5">
+                                                        @if($isImage)
+                                                            {{-- Miniatura de imagen --}}
+                                                            <a href="{{ $fileUrl }}" target="_blank" class="block">
+                                                                <img src="{{ $fileUrl }}"
+                                                                     alt="{{ $reply->pdf_original_name }}"
+                                                                     class="max-h-48 rounded-lg border border-gray-200 dark:border-gray-700 object-contain bg-white shadow-sm hover:opacity-90 transition">
+                                                            </a>
+                                                            <p class="text-[10px] text-gray-400 mt-1">{{ $reply->pdf_original_name }}</p>
+                                                        @else
+                                                            {{-- PDF u otro archivo --}}
+                                                            <div class="flex items-center gap-2">
+                                                                <a href="{{ $fileUrl }}" target="_blank"
+                                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
+                                                                           bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                                                                           text-[11px] font-semibold text-gray-700 dark:text-gray-300
+                                                                           hover:border-sky-400 hover:text-sky-600 transition shadow-sm">
+                                                                    <svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                                                    </svg>
+                                                                    {{ $reply->pdf_original_name ?? 'Ver PDF' }}
+                                                                </a>
+                                                                <a href="{{ $fileUrl }}" download="{{ $reply->pdf_original_name }}"
+                                                                    class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg
+                                                                           bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                                                                           text-[11px] text-gray-500 dark:text-gray-400
+                                                                           hover:border-emerald-400 hover:text-emerald-600 transition shadow-sm"
+                                                                    title="Descargar">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                                    </svg>
+                                                                </a>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 @endif
+
                                             </div>
                                         </div>
                                     </div>

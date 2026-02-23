@@ -22,7 +22,7 @@
             'password-updated' => 'Contraseña actualizada correctamente.',
             default => (string) session('status'),
         };
-    } elseif ($errors->any()) {
+    } elseif (isset($errors) && $errors->any()) {
         $toastType = 'error';
         $toastMessage = $errors->first();
     }
