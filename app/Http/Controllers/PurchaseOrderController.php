@@ -332,22 +332,21 @@ class PurchaseOrderController extends Controller
                     }
                     Log::info('[PurchaseOrder] PDF generado OK, tamaño=' . strlen($pdfContent) . ' bytes');
 
+                    $bodyText = $personalizedMsg !== ''
+                        ? nl2br(e($personalizedMsg))
+                        : 'Adjunto encontrará la solicitud de cotización N° ' . e($order->order_number) . ' en formato PDF.<br>Por favor responda indicando sus precios unitarios por ítem.';
+
                     $bodyHtml = '
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
   <div style="background:#0f766e;padding:20px 24px;border-radius:8px 8px 0 0;">
     <h1 style="margin:0;color:#fff;font-size:20px;">Cotización ' . e($order->order_number) . '</h1>
     <p style="margin:4px 0 0;color:#ccfbf1;font-size:13px;">Solicitud de cotización de precios</p>
   </div>
-  <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
-    <p style="margin:0 0 10px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($recipient['supplier_name']) . '</p>'
-    . ($personalizedMsg !== '' ? '<p style="margin:10px 0;font-size:13px;line-height:1.6;white-space:pre-line;">' . e($personalizedMsg) . '</p>' : '') . '
-    <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
-      Adjunto encontrará el detalle completo de los productos solicitados en formato PDF.<br>
-      Por favor responda indicando sus precios unitarios por ítem.
-    </p>
+  <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;font-size:13px;line-height:1.7;">
+    ' . $bodyText . '
   </div>
   <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
-    ' . config('app.name', 'Sistema') . ' &mdash; Cotización N° ' . e($order->order_number) . '
+    ' . e(config('app.name', 'Sistema')) . ' &mdash; Cotización N° ' . e($order->order_number) . '
   </div>
 </div>';
 

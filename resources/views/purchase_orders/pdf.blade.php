@@ -12,292 +12,346 @@
             background: #fff;
         }
 
-        /* ── Header ── */
-        .header {
+        /* ── Header banner ── */
+        .header-bar {
+            background: #0f766e;
+            padding: 22px 28px;
+            margin-bottom: 0;
+        }
+        .header-table {
             display: table;
             width: 100%;
-            margin-bottom: 24px;
-            border-bottom: 3px solid #0f766e;
-            padding-bottom: 16px;
         }
-        .header-left  { display: table-cell; width: 55%; vertical-align: middle; }
-        .header-right { display: table-cell; width: 45%; vertical-align: middle; text-align: right; }
-
-        /* Logo: coloca tu logo en public/images/logo.png y descomenta la línea de abajo */
-        /* .logo { max-height: 55px; max-width: 180px; } */
+        .header-left {
+            display: table-cell;
+            vertical-align: middle;
+            width: 60%;
+        }
+        .header-right {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: right;
+            width: 40%;
+        }
         .company-name {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
-            color: #0f766e;
-            letter-spacing: -0.5px;
+            color: #ffffff;
+            letter-spacing: 0.5px;
         }
         .company-tagline {
             font-size: 10px;
-            color: #64748b;
+            color: #99f6e4;
             margin-top: 3px;
+            letter-spacing: 0.3px;
         }
-
         .doc-type {
-            font-size: 22px;
+            font-size: 12px;
             font-weight: bold;
-            color: #1e293b;
+            color: #ccfbf1;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         .doc-number {
-            font-size: 13px;
-            color: #0f766e;
+            font-size: 20px;
             font-weight: bold;
-            margin-top: 3px;
+            color: #ffffff;
+            margin-top: 4px;
         }
 
-        /* ── Info boxes ── */
+        /* ── Accent strip ── */
+        .accent-strip {
+            background: #0d9488;
+            height: 4px;
+            margin-bottom: 24px;
+        }
+
+        /* ── Info grid ── */
         .info-grid {
             display: table;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
+            border-collapse: separate;
         }
         .info-box {
             display: table-cell;
             width: 50%;
             vertical-align: top;
-            padding: 12px 14px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
+            padding: 14px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
         }
-        .info-box:first-child { margin-right: 8px; }
-        .info-box + .info-box { padding-left: 22px; }
-        .info-title {
+        .info-box-left  { border-right: none; border-radius: 4px 0 0 4px; background: #f8fafc; }
+        .info-box-right { border-radius: 0 4px 4px 0; background: #f0fdfa; }
+        .info-section-title {
+            font-size: 8.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: #0f766e;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-bottom: 9px;
+        }
+        .info-row { margin-bottom: 5px; line-height: 1.4; }
+        .info-label { color: #64748b; font-size: 9.5px; display: block; }
+        .info-value { color: #1e293b; font-weight: bold; font-size: 11px; }
+        .info-value-lg { color: #0f766e; font-weight: bold; font-size: 14px; display: block; margin-bottom: 2px; }
+        .info-email { color: #0f766e; font-size: 10px; font-weight: normal; }
+
+        /* ── Message box ── */
+        .message-wrap { margin-bottom: 20px; }
+        .message-box {
+            padding: 12px 16px;
+            background: #f0fdf4;
+            border-left: 4px solid #0f766e;
+            border-radius: 0 4px 4px 0;
+            font-size: 11px;
+            color: #1e293b;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* ── Section header ── */
+        .section-header {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .section-title {
             font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: .08em;
-            color: #94a3b8;
-            margin-bottom: 8px;
+            letter-spacing: .10em;
+            color: #64748b;
+            display: table-cell;
+            vertical-align: middle;
         }
-        .info-row { margin-bottom: 4px; }
-        .info-label { color: #64748b; font-size: 10px; }
-        .info-value { color: #1e293b; font-weight: bold; font-size: 11px; }
-
-        /* ── Message ── */
-        .message-box {
-            background: #f0fdf4;
-            border-left: 4px solid #10b981;
-            padding: 10px 14px;
-            margin-bottom: 20px;
-            font-size: 11px;
-            color: #1e293b;
-            line-height: 1.5;
+        .section-line {
+            display: table-cell;
+            vertical-align: middle;
+            padding-left: 10px;
+        }
+        .section-line-inner {
+            border-top: 1px solid #e2e8f0;
+            width: 100%;
+            display: block;
         }
 
         /* ── Items table ── */
-        .items-title {
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: .07em;
-            color: #64748b;
-            margin-bottom: 8px;
-        }
         table.items {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 0;
         }
         table.items thead tr {
             background: #0f766e;
-            color: #fff;
         }
         table.items thead th {
-            padding: 8px 10px;
+            padding: 9px 10px;
             text-align: left;
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: bold;
+            color: #ffffff;
             text-transform: uppercase;
-            letter-spacing: .06em;
+            letter-spacing: .07em;
         }
         table.items thead th.right { text-align: right; }
-        table.items tbody tr:nth-child(even) { background: #f8fafc; }
-        table.items tbody tr:nth-child(odd)  { background: #fff; }
+        table.items tbody tr { background: #ffffff; }
+        table.items tbody tr.alt { background: #f8fafc; }
         table.items tbody td {
             padding: 8px 10px;
             border-bottom: 1px solid #e2e8f0;
             font-size: 11px;
             color: #334155;
+            vertical-align: middle;
         }
         table.items tbody td.right { text-align: right; }
-        table.items tbody td.mono  { font-family: DejaVu Sans Mono, monospace; }
-        .row-num {
+        table.items tbody td.mono  { font-family: DejaVu Sans Mono, monospace; font-size: 10.5px; }
+        .item-num {
             display: inline-block;
-            width: 18px;
-            height: 18px;
-            line-height: 18px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
             text-align: center;
-            background: #e2e8f0;
+            background: #0f766e;
             border-radius: 50%;
             font-size: 9px;
-            color: #64748b;
+            color: #ffffff;
             font-weight: bold;
+        }
+        table.items tfoot td {
+            padding: 0;
+            border: none;
         }
 
         /* ── Totals ── */
-        .totals-wrap { margin-top: 0; }
+        .totals-outer {
+            margin-top: 2px;
+            text-align: right;
+        }
         table.totals {
-            width: 260px;
-            margin-left: auto;
+            display: inline-table;
+            min-width: 240px;
             border-collapse: collapse;
+            margin-top: 0;
         }
-        table.totals td { padding: 5px 10px; font-size: 11px; }
-        table.totals .total-row {
+        table.totals tr.subtotal-row td {
+            padding: 5px 12px;
+            font-size: 10.5px;
+            color: #475569;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table.totals .grand-row {
             background: #0f766e;
-            color: #fff;
+        }
+        table.totals .grand-row td {
+            padding: 10px 12px;
+            color: #ffffff;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 14px;
         }
-        table.totals .total-row td { padding: 8px 10px; }
+        .total-label { text-align: left; }
+        .total-amount { text-align: right; font-family: DejaVu Sans Mono, monospace; }
 
-        /* ── Notes ── */
-        .notes-box {
-            margin-top: 20px;
-            padding: 10px 14px;
-            background: #fafafa;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
+        /* ── Instructions ── */
+        .instructions-wrap { margin-top: 24px; margin-bottom: 16px; }
+        .instructions-box {
+            display: table;
+            width: 100%;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            padding: 12px 16px;
         }
-        .notes-title {
+        .instructions-icon { display: table-cell; width: 24px; vertical-align: top; }
+        .instructions-body { display: table-cell; vertical-align: top; padding-left: 8px; }
+        .instructions-title {
             font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: .07em;
-            color: #94a3b8;
-            margin-bottom: 6px;
+            letter-spacing: .10em;
+            color: #1d4ed8;
+            margin-bottom: 5px;
         }
-        .notes-text { font-size: 11px; color: #475569; line-height: 1.5; }
+        .instructions-text { font-size: 10.5px; color: #1d4ed8; line-height: 1.6; }
 
         /* ── Footer ── */
         .footer {
             margin-top: 28px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 9px;
+            border-top: 2px solid #0f766e;
+            padding-top: 10px;
+            display: table;
+            width: 100%;
+        }
+        .footer-left {
+            display: table-cell;
+            vertical-align: middle;
+            font-size: 8.5px;
             color: #94a3b8;
-            text-align: center;
         }
-
-        /* ── Reply instructions ── */
-        .reply-box {
-            margin-top: 16px;
-            padding: 10px 14px;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            border-radius: 6px;
-        }
-        .reply-title {
-            font-size: 9px;
+        .footer-right {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: right;
+            font-size: 8.5px;
+            color: #0f766e;
             font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: .07em;
-            color: #3b82f6;
-            margin-bottom: 5px;
         }
-        .reply-text { font-size: 10px; color: #1d4ed8; line-height: 1.5; }
-
-        /* ── Spacer ── */
-        .spacer { margin-bottom: 8px; }
     </style>
 </head>
 <body>
 
-    {{-- ── HEADER ── --}}
-    <div class="header">
-        <div class="header-left">
-            {{-- Si tienes logo PNG: <img src="{{ public_path('images/logo.png') }}" class="logo"> --}}
-            <div class="company-name">{{ config('app.name', 'Empresa') }}</div>
-            <div class="company-tagline">Sistema de Cotizaciones</div>
-        </div>
-        <div class="header-right">
-            <div class="doc-type">Cotización</div>
-            <div class="doc-number">N° {{ $order->order_number }}</div>
+    {{-- ── HEADER BANNER ── --}}
+    <div class="header-bar">
+        <div class="header-table">
+            <div class="header-left">
+                <div class="company-name">{{ config('app.name', 'Empresa') }}</div>
+                <div class="company-tagline">Solicitud de Cotización de Precios</div>
+            </div>
+            <div class="header-right">
+                <div class="doc-type">Cotización</div>
+                <div class="doc-number">{{ $order->order_number }}</div>
+            </div>
         </div>
     </div>
+    <div class="accent-strip"></div>
 
     {{-- ── INFO ── --}}
     <div class="info-grid">
-        <div class="info-box">
-            <div class="info-title">Información del documento</div>
+        <div class="info-box info-box-left">
+            <div class="info-section-title">Información del documento</div>
             <div class="info-row">
-                <span class="info-label">N° Cotización:&nbsp;</span>
+                <span class="info-label">N° Cotización</span>
                 <span class="info-value">{{ $order->order_number }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Fecha emisión:&nbsp;</span>
-                <span class="info-value">{{ \Carbon\Carbon::parse($order->created_at)->format('d/m/Y') }}</span>
+                <span class="info-label">Fecha de emisión</span>
+                <span class="info-value">{{ \Carbon\Carbon::parse($order->created_at)->format('d \d\e F \d\e Y') }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Moneda:&nbsp;</span>
+                <span class="info-label">Moneda</span>
                 <span class="info-value">{{ $order->currency }}</span>
             </div>
             @if($order->sent_at)
             <div class="info-row">
-                <span class="info-label">Fecha envío:&nbsp;</span>
+                <span class="info-label">Fecha de envío</span>
                 <span class="info-value">{{ \Carbon\Carbon::parse($order->sent_at)->format('d/m/Y') }}</span>
             </div>
             @endif
         </div>
-        <div class="info-box">
-            <div class="info-title">Destinatario</div>
+        <div class="info-box info-box-right">
+            <div class="info-section-title">Destinatario</div>
             <div class="info-row">
-                <span class="info-value" style="font-size:13px;">{{ $supplierName }}</span>
+                <span class="info-value-lg">{{ $supplierName }}</span>
+                @if($supplierEmail)
+                <span class="info-email">{{ $supplierEmail }}</span>
+                @endif
             </div>
-            @if($supplierEmail)
-            <div class="info-row" style="margin-top:4px;">
-                <span class="info-label">Correo:&nbsp;</span>
-                <span class="info-value" style="font-weight:normal; color:#0f766e;">{{ $supplierEmail }}</span>
-            </div>
-            @endif
         </div>
     </div>
 
     {{-- ── MENSAJE PERSONALIZADO ── --}}
     @if($message)
-    <div class="message-box">
-        {!! nl2br(e($message)) !!}
+    <div class="message-wrap">
+        <div class="message-box">{{ $message }}</div>
     </div>
     @endif
 
     {{-- ── ITEMS TABLE ── --}}
-    <div class="items-title">Detalle de productos solicitados</div>
+    <div class="section-header">
+        <span class="section-title">Productos solicitados</span>
+        <span class="section-line"><span class="section-line-inner"></span></span>
+    </div>
     <table class="items">
         <thead>
             <tr>
-                <th style="width:30px;">#</th>
-                <th>Producto</th>
-                <th style="width:50px;">UdM</th>
-                <th class="right" style="width:80px;">Cantidad</th>
+                <th style="width:28px;">#</th>
+                <th>Descripción del producto</th>
+                <th style="width:52px;">UdM</th>
+                <th class="right" style="width:78px;">Cantidad</th>
                 <th class="right" style="width:110px;">Precio unit. ref.</th>
                 <th class="right" style="width:100px;">Importe ref.</th>
             </tr>
         </thead>
         <tbody>
             @foreach($items as $i => $item)
-            <tr>
-                <td class="right"><span class="row-num">{{ $i + 1 }}</span></td>
+            <tr class="{{ $i % 2 === 0 ? '' : 'alt' }}">
+                <td style="text-align:center;"><span class="item-num">{{ $i + 1 }}</span></td>
                 <td>{{ $item->product_name }}</td>
                 <td>{{ $item->unit }}</td>
-                <td class="right mono">{{ number_format((float) $item->quantity, 4, ',', '.') }}</td>
+                <td class="right mono">{{ number_format((float) $item->quantity, 2, ',', '.') }}</td>
                 <td class="right mono">
                     @if((float)$item->unit_price > 0)
                         {{ number_format((float) $item->unit_price, 2, ',', '.') }}
                     @else
-                        <span style="color:#94a3b8;">—</span>
+                        <span style="color:#cbd5e1;">—</span>
                     @endif
                 </td>
                 <td class="right mono">
                     @if((float)$item->line_total > 0)
                         {{ number_format((float) $item->line_total, 2, ',', '.') }}
                     @else
-                        <span style="color:#94a3b8;">—</span>
+                        <span style="color:#cbd5e1;">—</span>
                     @endif
                 </td>
             </tr>
@@ -306,44 +360,42 @@
     </table>
 
     {{-- ── TOTALS ── --}}
-    <div class="totals-wrap">
+    <div class="totals-outer">
         <table class="totals">
-            <tr class="total-row">
-                <td>Total {{ $order->currency }}</td>
-                <td class="right">
+            <tr class="grand-row">
+                <td class="total-label">Total {{ $order->currency }}</td>
+                <td class="total-amount">
                     @if((float)$order->total > 0)
                         {{ number_format((float) $order->total, 2, ',', '.') }}
                     @else
-                        —
+                        Por cotizar
                     @endif
                 </td>
             </tr>
         </table>
     </div>
 
-    {{-- ── INSTRUCCIONES DE RESPUESTA ── --}}
-    <div class="reply-box">
-        <div class="reply-title">Instrucciones de respuesta</div>
-        <div class="reply-text">
-            Por favor responda este correo con sus precios unitarios para cada producto listado.<br>
-            Si no tiene disponibilidad de algún ítem, indíquelo en su respuesta.<br>
-            Incluya también el plazo de entrega estimado y condiciones de pago.
+    {{-- ── INSTRUCCIONES ── --}}
+    <div class="instructions-wrap">
+        <div class="instructions-box">
+            <div class="instructions-body">
+                <div class="instructions-title">Instrucciones de respuesta</div>
+                <div class="instructions-text">
+                    Responda este correo indicando sus precios unitarios para cada producto.
+                    Si no cuenta con disponibilidad de algún ítem, por favor indíquelo.
+                    Incluya plazo de entrega estimado y condiciones de pago.
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- ── NOTAS ── --}}
-    @if($order->notes)
-    <div class="notes-box">
-        <div class="notes-title">Notas adicionales</div>
-        <div class="notes-text">{{ $order->notes }}</div>
-    </div>
-    @endif
-
     {{-- ── FOOTER ── --}}
     <div class="footer">
-        Documento generado el {{ now()->format('d/m/Y H:i') }} &mdash;
-        {{ config('app.name', 'Sistema') }} &mdash;
-        Este documento es una solicitud de cotización, no una orden de compra.
+        <div class="footer-left">
+            Generado el {{ now()->format('d/m/Y H:i') }} &mdash;
+            Este documento es una solicitud de cotización, no una orden de compra.
+        </div>
+        <div class="footer-right">{{ config('app.name', 'Sistema') }}</div>
     </div>
 
 </body>
