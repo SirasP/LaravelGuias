@@ -447,7 +447,120 @@
                 <p class="text-xs text-gray-400 mt-0.5">Se registrará automáticamente al ingresar facturas (DTEs) al inventario.</p>
             </div>
             @endif
-        </div>
+        </div>{{-- /panel historial --}}
+
+        {{-- ── ESTADÍSTICAS DE PRECIOS (1/3) ── --}}
+        @php
+            $preciosArr   = $historialPrecios->pluck('costo_unitario')->map(fn($v) => (float)$v)->filter(fn($v) => $v > 0);
+            $precioMin    = $preciosArr->min() ?? 0;
+            $precioMax    = $preciosArr->max() ?? 0;
+            $precioPromH  = $preciosArr->count() > 0 ? $preciosArr->avg() : 0;
+            $totalCompras = $historialPrecios->count();
+            $totalUds     = $historialPrecios->sum('cantidad_ingresada');
+            $proveedores  = $historialPrecios->whereNotNull('proveedor')->pluck('proveedor')
+                                ->filter()->countBy()->sortDesc()->take(3);
+        @endphp
+        <div class="panel xl:col-span-1 flex flex-col">
+            <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Estadísticas de precio</h3>
+                    <p class="text-[11px] text-gray-400">Histórico completo de compras</p>
+                </div>
+            </div>
+
+            <div class="px-5 py-4 space-y-4 flex-1">
+
+                {{-- Precio mínimo / máximo --}}
+                <div>
+                    <p class="text-[9.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Rango de precios</p>
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-2 text-center">
+                            <p class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-0.5">Mínimo</p>
+                            <p class="text-base font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                                {{ $precioMin > 0 ? '$'.number_format($precioMin,0,',','.') : '—' }}
+                            </p>
+                        </div>
+                        <div class="flex-1 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl px-3 py-2 text-center">
+                            <p class="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase mb-0.5">Máximo</p>
+                            <p class="text-base font-black tabular-nums text-rose-700 dark:text-rose-300">
+                                {{ $precioMax > 0 ? '$'.number_format($precioMax,0,',','.') : '—' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Barra min/max --}}
+                @if($precioMin > 0 && $precioMax > $precioMin)
+                <div>
+                    <div class="relative h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div class="absolute inset-y-0 left-0 right-0 bg-gradient-to-r from-emerald-400 to-rose-400 rounded-full"></div>
+                        {{-- marcador costo promedio actual --}}
+                        @php $markerPct = (($costoPromedio - $precioMin) / ($precioMax - $precioMin)) * 100; @endphp
+                        @if($costoPromedio >= $precioMin && $costoPromedio <= $precioMax)
+                        <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-indigo-500 rounded-full shadow"
+                             style="left:calc({{ number_format($markerPct,1) }}% - 6px)"></div>
+                        @endif
+                    </div>
+                    <p class="text-[9px] text-center text-gray-400 mt-1">
+                        Costo promedio actual: <span class="font-bold text-indigo-600 dark:text-indigo-400">${{ number_format($costoPromedio,0,',','.') }}</span>
+                    </p>
+                </div>
+                @endif
+
+                {{-- Stats --}}
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Precio promedio histórico</span>
+                        <span class="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-200">
+                            {{ $precioPromH > 0 ? '$'.number_format($precioPromH,0,',','.') : '—' }}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">N° de compras registradas</span>
+                        <span class="text-sm font-black text-sky-700 dark:text-sky-400">{{ $totalCompras }}</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Unidades compradas (total)</span>
+                        <span class="text-sm font-bold tabular-nums text-gray-800 dark:text-gray-200">
+                            {{ number_format((float)$totalUds, 2, ',', '.') }}
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Proveedores más frecuentes --}}
+                @if($proveedores->count() > 0)
+                <div>
+                    <p class="text-[9.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Proveedores frecuentes</p>
+                    <div class="space-y-2">
+                        @php $maxCompras = $proveedores->first(); @endphp
+                        @foreach($proveedores as $prov => $cnt)
+                        <div>
+                            <div class="flex items-center justify-between mb-0.5">
+                                <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[160px]"
+                                      title="{{ $prov }}">{{ Str::limit($prov, 24) }}</span>
+                                <span class="text-[10px] font-bold text-sky-600 dark:text-sky-400 ml-1 shrink-0">
+                                    {{ $cnt }} {{ $cnt === 1 ? 'compra' : 'compras' }}
+                                </span>
+                            </div>
+                            <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                <div class="h-1.5 bg-sky-400 rounded-full"
+                                     style="width:{{ number_format(($cnt / $maxCompras) * 100, 1) }}%"></div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+            </div>
+        </div>{{-- /panel estadísticas --}}
+
+        </div>{{-- /grid historial+stats --}}
 
         {{-- ── MOVIMIENTOS RECIENTES ── --}}
         @if($movimientos->count() > 0)
