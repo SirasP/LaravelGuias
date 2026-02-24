@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -307,9 +308,15 @@ class PurchaseOrderController extends Controller
                 $subject         = 'Cotización ' . $order->order_number;
                 $messageTemplate = trim((string) ($data['notes'] ?? ''));
 
+                Log::info('[PurchaseOrder] Iniciando envío de correos', [
+                    'order_id'        => $orderId,
+                    'recipient_count' => count($recipientList),
+                ]);
+
                 foreach ($recipientList as $recipient) {
                     $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
 
+                    Log::info('[PurchaseOrder] Generando PDF para ' . $recipient['email']);
                     $pdf = Pdf::loadView('purchase_orders.pdf', [
                         'order'         => $order,
                         'items'         => $orderItems,
@@ -320,6 +327,10 @@ class PurchaseOrderController extends Controller
 
                     $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
                     $pdfContent  = $pdf->output();
+                    if (empty($pdfContent)) {
+                        throw new \RuntimeException('DomPDF devolvió un PDF vacío.');
+                    }
+                    Log::info('[PurchaseOrder] PDF generado OK, tamaño=' . strlen($pdfContent) . ' bytes');
 
                     $bodyHtml = '
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
@@ -341,12 +352,14 @@ class PurchaseOrderController extends Controller
 </div>';
 
                     $emailAddr = $recipient['email'];
+                    Log::info('[PurchaseOrder] Enviando correo a ' . $emailAddr);
                     Mail::send([], [], function ($msg) use ($emailAddr, $subject, $bodyHtml, $pdfContent, $pdfFilename) {
                         $msg->to($emailAddr)
                             ->subject($subject)
                             ->html($bodyHtml)
                             ->attachData($pdfContent, $pdfFilename, ['mime' => 'application/pdf']);
                     });
+                    Log::info('[PurchaseOrder] Correo enviado OK a ' . $emailAddr);
                 }
 
                 $sentCount = count($recipientList);
@@ -356,7 +369,8 @@ class PurchaseOrderController extends Controller
                     'updated_at' => now(),
                 ]);
             } catch (\Throwable $ex) {
-                $emailError = $ex->getMessage();
+                $emailError = get_class($ex) . ': ' . $ex->getMessage() . ' [' . basename($ex->getFile()) . ':' . $ex->getLine() . ']';
+                Log::error('[PurchaseOrder] Error enviando correo: ' . $emailError, ['trace' => $ex->getTraceAsString()]);
             }
         }
 
