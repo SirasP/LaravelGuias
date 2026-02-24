@@ -18,24 +18,19 @@
         $toastType = 'info';
         $toastMessage = match (session('status')) {
             'verification-link-sent' => 'Se envió un nuevo enlace de verificación a tu correo.',
-            'profile-updated' => 'Perfil actualizado correctamente.',
-            'password-updated' => 'Contraseña actualizada correctamente.',
-            default => (string) session('status'),
+            'profile-updated'        => 'Perfil actualizado correctamente.',
+            'password-updated'       => 'Contraseña actualizada correctamente.',
+            default                  => (string) session('status'),
         };
     } elseif (isset($errors) && $errors->any()) {
-        $toastType = 'error';
+        $toastType    = 'error';
         $toastMessage = $errors->first();
     }
 @endphp
 
+{{-- El x-data no lleva valores PHP para evitar que las comillas del JSON rompan el atributo HTML --}}
 <div
-    x-data="{
-        show: @json((bool) $toastMessage),
-        msg:  @json($toastMessage ?? ''),
-        type: @json($toastType ?? 'error'),
-        _timer: null
-    }"
-    x-init="if (show) _timer = setTimeout(() => show = false, 4500)"
+    x-data="{ show: false, msg: '', type: 'error', _timer: null }"
     x-on:show-toast.window="
         clearTimeout(_timer);
         msg  = $event.detail.msg;
@@ -55,65 +50,56 @@
     role="status"
     aria-live="polite"
 >
-    <div
-        class="rounded-2xl border shadow-xl overflow-hidden"
-        :class="{
-            'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-100': type === 'success',
-            'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-700 dark:text-amber-100': type === 'warning',
-            'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950 dark:border-sky-700 dark:text-sky-100': type === 'info',
-            'bg-rose-50 border-rose-300 text-rose-900 dark:bg-rose-950 dark:border-rose-700 dark:text-rose-100': type === 'error'
-        }"
-    >
+    <div class="rounded-2xl border shadow-xl overflow-hidden"
+         :class="{
+             'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-100': type === 'success',
+             'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-700 dark:text-amber-100':   type === 'warning',
+             'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950 dark:border-sky-700 dark:text-sky-100':               type === 'info',
+             'bg-rose-50 border-rose-300 text-rose-900 dark:bg-rose-950 dark:border-rose-700 dark:text-rose-100':         type === 'error'
+         }">
         <div class="flex items-start gap-3 px-4 py-3.5">
 
-            {{-- Ícono --}}
-            <div
-                class="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
-                :class="{
-                    'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200': type === 'success',
-                    'bg-amber-100 text-amber-600 dark:bg-amber-800 dark:text-amber-200': type === 'warning',
-                    'bg-sky-100 text-sky-600 dark:bg-sky-800 dark:text-sky-200': type === 'info',
-                    'bg-rose-100 text-rose-600 dark:bg-rose-800 dark:text-rose-200': type === 'error'
-                }"
-            >
-                <svg x-show="type === 'success'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <svg x-show="type === 'warning'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v4m0 4h.01M10.29 3.86l-8.5 14.72A2 2 0 003.53 21h16.94a2 2 0 001.74-2.42l-8.5-14.72a2 2 0 00-3.46 0z"/>
-                </svg>
-                <svg x-show="type === 'info'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <svg x-show="type === 'error'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
+            <div class="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
+                 :class="{
+                     'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200': type === 'success',
+                     'bg-amber-100 text-amber-600 dark:bg-amber-800 dark:text-amber-200':         type === 'warning',
+                     'bg-sky-100 text-sky-600 dark:bg-sky-800 dark:text-sky-200':                 type === 'info',
+                     'bg-rose-100 text-rose-600 dark:bg-rose-800 dark:text-rose-200':             type === 'error'
+                 }">
+                <svg x-show="type==='success'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                <svg x-show="type==='warning'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v4m0 4h.01M10.29 3.86l-8.5 14.72A2 2 0 003.53 21h16.94a2 2 0 001.74-2.42l-8.5-14.72a2 2 0 00-3.46 0z"/></svg>
+                <svg x-show="type==='info'"    class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <svg x-show="type==='error'"   class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </div>
 
-            {{-- Texto --}}
             <div class="min-w-0 flex-1">
                 <p class="text-xs font-bold uppercase tracking-wide opacity-70"
-                   x-text="{ success: 'Correcto', warning: 'Atención', info: 'Información', error: 'Error' }[type] || 'Error'"></p>
+                   x-text="({success:'Correcto',warning:'Atención',info:'Información',error:'Error'})[type]||'Error'"></p>
                 <p class="text-sm font-semibold leading-snug break-words mt-0.5" x-text="msg"></p>
             </div>
 
-            {{-- Cerrar --}}
-            <button
-                type="button"
-                @click="show = false"
-                class="shrink-0 rounded-lg p-1 transition"
-                :class="{
-                    'text-emerald-700/70 hover:text-emerald-900 hover:bg-emerald-100 dark:text-emerald-200/70 dark:hover:text-white dark:hover:bg-emerald-800': type === 'success',
-                    'text-amber-700/70 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-200/70 dark:hover:text-white dark:hover:bg-amber-800': type === 'warning',
-                    'text-sky-700/70 hover:text-sky-900 hover:bg-sky-100 dark:text-sky-200/70 dark:hover:text-white dark:hover:bg-sky-800': type === 'info',
-                    'text-rose-700/70 hover:text-rose-900 hover:bg-rose-100 dark:text-rose-200/70 dark:hover:text-white dark:hover:bg-rose-800': type === 'error'
-                }"
-                aria-label="Cerrar notificación"
-            >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
+            <button type="button" @click="show=false; clearTimeout(_timer)"
+                    class="shrink-0 rounded-lg p-1 transition"
+                    :class="{
+                        'text-emerald-700/70 hover:text-emerald-900 hover:bg-emerald-100 dark:text-emerald-200/70 dark:hover:text-white dark:hover:bg-emerald-800': type==='success',
+                        'text-amber-700/70 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-200/70 dark:hover:text-white dark:hover:bg-amber-800':   type==='warning',
+                        'text-sky-700/70 hover:text-sky-900 hover:bg-sky-100 dark:text-sky-200/70 dark:hover:text-white dark:hover:bg-sky-800':               type==='info',
+                        'text-rose-700/70 hover:text-rose-900 hover:bg-rose-100 dark:text-rose-200/70 dark:hover:text-white dark:hover:bg-rose-800':         type==='error'
+                    }"
+                    aria-label="Cerrar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
     </div>
 </div>
+
+{{-- Si hay flash de sesión, lo despachamos via JS una vez que Alpine haya inicializado --}}
+@if($toastMessage)
+<script>
+    document.addEventListener('alpine:initialized', function () {
+        window.dispatchEvent(new CustomEvent('show-toast', {
+            detail: { msg: @js($toastMessage), type: @js($toastType ?? 'error') }
+        }));
+    });
+</script>
+@endif

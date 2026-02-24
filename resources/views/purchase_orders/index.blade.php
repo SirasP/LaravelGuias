@@ -58,17 +58,6 @@
     <div class="page-bg" x-data="{ filter: 'all' }">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
 
-            @if(session('success'))
-                <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
-                        bg-emerald-50 border border-emerald-200 text-emerald-700
-                        dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 au d1">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    {{ session('success') }}
-                </div>
-            @endif
-
             <div class="panel au d1">
                 {{-- Toolbar --}}
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
