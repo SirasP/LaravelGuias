@@ -307,8 +307,11 @@
         </div>
         @endif
 
-        {{-- ── HISTORIAL DE PRECIOS ── --}}
-        <div class="panel">
+        {{-- ── HISTORIAL DE PRECIOS + ESTADÍSTICAS ── --}}
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+        {{-- Historial (2/3) --}}
+        <div class="panel xl:col-span-2">
             <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
                 <div class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
                     <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
