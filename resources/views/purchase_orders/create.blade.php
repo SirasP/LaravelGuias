@@ -253,34 +253,6 @@
     </style>
 
     <div class="page-bg" x-data="purchaseOrderForm(@js($products), @js($suppliers), @js($defaultNotesTemplate))">
-
-        {{-- Toast de validación --}}
-        <div x-cloak x-show="toast.show"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0 translate-y-2"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 translate-y-2"
-             :class="toast.type === 'error'
-                 ? 'bg-rose-600 text-white'
-                 : 'bg-emerald-600 text-white'"
-             class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3
-                    px-5 py-3 rounded-xl shadow-xl text-sm font-medium max-w-md w-max">
-            <svg x-show="toast.type === 'error'" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            </svg>
-            <svg x-show="toast.type === 'success'" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-            </svg>
-            <span x-text="toast.msg"></span>
-            <button @click="toast.show = false" class="ml-1 opacity-70 hover:opacity-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
             @if($errors->any())
@@ -1069,16 +1041,6 @@
 
                 previewOpen: false,
 
-                toast: { show: false, msg: '', type: 'error', _timer: null },
-
-                showToast(msg, type = 'error') {
-                    clearTimeout(this.toast._timer);
-                    this.toast.msg  = msg;
-                    this.toast.type = type;
-                    this.toast.show = true;
-                    this.toast._timer = setTimeout(() => { this.toast.show = false; }, 4000);
-                },
-
                 // Shared overlay for product dropdown
                 activeLine: null,
                 prodDropOpen: false,
@@ -1254,7 +1216,7 @@
 
                 async saveSupplierFromModal() {
                     if (!(this.supplierForm.name || '').trim()) {
-                        this.showToast('Debes ingresar el nombre del proveedor.');
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: 'Debes ingresar el nombre del proveedor.', type: 'error' } }));
                         return;
                     }
                     this.savingSupplier = true;
@@ -1303,7 +1265,7 @@
                         this.supplierSearch   = '';
                         this.supplierModalOpen = false;
                     } catch (err) {
-                        this.showToast(err.message || 'Error guardando proveedor.');
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: err.message || 'Error guardando proveedor.', type: 'error' } }));
                     } finally {
                         this.savingSupplier = false;
                     }
@@ -1389,17 +1351,17 @@
                     this.beforeSubmit();
                     const hasRecipients = this.recipientList.some(r => r.email);
                     if (!hasRecipients) {
-                        this.showToast('Agrega al menos un destinatario con correo electrónico antes de continuar.');
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: 'Agrega al menos un destinatario con correo electrónico antes de continuar.', type: 'error' } }));
                         return;
                     }
                     const activeLines = this.lines.filter(l => (l.product_name || '').trim());
                     if (!activeLines.length) {
-                        this.showToast('Agrega al menos una línea de producto.');
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: 'Agrega al menos una línea de producto.', type: 'error' } }));
                         return;
                     }
                     const missingUnit = activeLines.find(l => !(l.unit || '').trim());
                     if (missingUnit) {
-                        this.showToast(`El producto "${missingUnit.product_name}" no tiene unidad de medida. Complétala antes de continuar.`);
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg: `El producto "${missingUnit.product_name}" no tiene unidad de medida. Complétala antes de continuar.`, type: 'error' } }));
                         return;
                     }
                     this.previewOpen = true;
