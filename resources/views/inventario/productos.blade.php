@@ -104,11 +104,12 @@
                                 <table class="min-w-full text-sm">
                                     <thead class="bg-gray-50 dark:bg-gray-900/60 text-gray-700 dark:text-gray-200">
                                         <tr class="[&>th]:px-4 [&>th]:py-3 [&>th]:font-semibold [&>th]:text-left">
-                                            <th>ID</th>
-                                            <th>SKU</th>
+                                            <th>Código</th>
                                             <th>Nombre</th>
+                                            <th>Unidad</th>
+                                            <th class="text-right">Stock actual</th>
+                                            <th class="text-right">Costo prom.</th>
                                             <th>Estado</th>
-                                            <th>Creado</th>
                                         </tr>
                                     </thead>
 
@@ -116,45 +117,44 @@
                                         @forelse ($productos as $p)
                                             <tr class="hover:bg-emerald-50/60 dark:hover:bg-emerald-900/10 transition cursor-pointer"
                                                 onclick="window.location='{{ route('inventario.productos.show', $p->id) }}'">
-                                                <td class="px-4 py-3 text-gray-500">#{{ $p->id }}</td>
 
                                                 <td class="px-4 py-3">
-                                                    <span
-                                                        class="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs font-mono">
-                                                        {{ $p->sku ?: '—' }}
+                                                    <span class="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs font-mono">
+                                                        {{ $p->codigo ?: '—' }}
                                                     </span>
                                                 </td>
 
                                                 <td class="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">
-                                                    <div class="flex items-center gap-1.5">
-                                                        {{ $p->nombre }}
-                                                        <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                                        </svg>
-                                                    </div>
+                                                    {{ $p->nombre }}
+                                                </td>
+
+                                                <td class="px-4 py-3 text-xs text-gray-500">
+                                                    {{ $p->unidad }}
+                                                </td>
+
+                                                <td class="px-4 py-3 text-right tabular-nums font-bold
+                                                    {{ (float)$p->stock_actual > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-400' }}">
+                                                    {{ number_format((float)$p->stock_actual, 2, ',', '.') }}
+                                                </td>
+
+                                                <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                                                    {{ (float)$p->costo_promedio > 0 ? '$'.number_format((float)$p->costo_promedio, 0, ',', '.') : '—' }}
                                                 </td>
 
                                                 <td class="px-4 py-3" onclick="event.stopPropagation()">
                                                     <button type="button" role="switch"
-                                                        aria-checked="{{ $p->activo ? 'true' : 'false' }}"
+                                                        aria-checked="{{ $p->is_active ? 'true' : 'false' }}"
                                                         class="toggle-producto relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                                                                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                                         data-url="{{ route('inventario.productos.toggle', $p->id) }}"
-                                                        data-state="{{ $p->activo ? '1' : '0' }}">
-                                                        <span
-                                                            class="thumb inline-block h-4 w-4 transform rounded-full bg-white transition-transform"></span>
+                                                        data-state="{{ $p->is_active ? '1' : '0' }}">
+                                                        <span class="thumb inline-block h-4 w-4 transform rounded-full bg-white transition-transform"></span>
                                                     </button>
-                                                </td>
-
-
-
-                                                <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
-                                                    {{ \Carbon\Carbon::parse($p->created_at)->format('d-m-Y H:i') }}
                                                 </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="5" class="text-center py-12 text-gray-500">
+                                                <td colspan="6" class="text-center py-12 text-gray-500">
                                                     No hay productos para mostrar.
                                                 </td>
                                             </tr>
