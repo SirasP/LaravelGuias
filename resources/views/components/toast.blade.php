@@ -33,18 +33,15 @@
         show: @json((bool) $toastMessage),
         msg:  @json($toastMessage ?? ''),
         type: @json($toastType ?? 'error'),
-        _timer: null,
-        open(msg, type) {
-            clearTimeout(this._timer);
-            this.msg  = msg;
-            this.type = type || 'error';
-            this.show = true;
-            this._timer = setTimeout(() => this.show = false, 4500);
-        }
+        _timer: null
     }"
-    x-init="
-        if (show) _timer = setTimeout(() => show = false, 4500);
-        window.addEventListener('show-toast', e => open(e.detail.msg, e.detail.type));
+    x-init="if (show) _timer = setTimeout(() => show = false, 4500)"
+    x-on:show-toast.window="
+        clearTimeout(_timer);
+        msg  = $event.detail.msg;
+        type = $event.detail.type || 'error';
+        show = true;
+        _timer = setTimeout(() => show = false, 4500)
     "
     x-show="show"
     x-cloak
