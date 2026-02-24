@@ -323,7 +323,8 @@ class PurchaseOrderController extends Controller
                         'supplierName'  => $recipient['supplier_name'],
                         'supplierEmail' => $recipient['email'],
                         'message'       => $personalizedMsg,
-                    ])->setPaper('a4', 'portrait');
+                    ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
+                      ->setPaper('a4', 'portrait');
 
                     $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
                     $pdfContent  = $pdf->output();
@@ -460,7 +461,8 @@ class PurchaseOrderController extends Controller
                     'items'         => $freshItems,
                     'supplierName'  => $supplier->name,
                     'supplierEmail' => $supplierEmail,
-                ])->setPaper('a4', 'portrait');
+                ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
+                  ->setPaper('a4', 'portrait');
 
                 $pdfFilename = 'OrdenCompra_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $freshOrder->order_number) . '.pdf';
                 $pdfContent  = $pdf->output();
@@ -714,7 +716,8 @@ class PurchaseOrderController extends Controller
                     'supplierName' => $recipient['supplier_name'],
                     'supplierEmail'=> $recipient['email'],
                     'message'      => $personalizedMsg,
-                ])->setPaper('a4', 'portrait');
+                ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
+                  ->setPaper('a4', 'portrait');
 
                 $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
                 $pdfContent  = $pdf->output();
