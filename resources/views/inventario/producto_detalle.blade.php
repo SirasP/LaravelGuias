@@ -50,6 +50,16 @@
         .dt tbody tr:hover td { background:#f5fffb }
         .dark .dt tbody tr:hover td { background:rgba(16,185,129,.02) }
 
+        /* Responsive: ocultar columnas secundarias en móvil */
+        @media(max-width:640px) {
+            .col-hide-sm { display:none }
+            .dt tbody td, .dt thead th { padding:9px 8px; font-size:11px }
+            .kpi-val { font-size:20px }
+        }
+        @media(max-width:480px) {
+            .kpi-grid { grid-template-columns: repeat(2,1fr) }
+        }
+
         .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700 }
         .badge-entrada  { background:#dcfce7; color:#166534 }
         .badge-salida   { background:#fee2e2; color:#991b1b }
@@ -204,16 +214,16 @@
                 <table class="dt">
                     <thead>
                         <tr>
-                            <th class="w-10 text-center">Orden</th>
+                            <th class="w-10 text-center col-hide-sm">Orden</th>
                             <th>Fecha ingreso</th>
-                            <th>Antigüedad</th>
+                            <th class="col-hide-sm">Antigüedad</th>
                             <th>Proveedor</th>
-                            <th>N° Factura</th>
-                            <th class="text-right">Ingresado</th>
-                            <th class="text-right">Consumido</th>
+                            <th class="col-hide-sm">N° Factura</th>
+                            <th class="text-right col-hide-sm">Ingresado</th>
+                            <th class="text-right col-hide-sm">Consumido</th>
                             <th class="text-right">Disponible</th>
                             <th class="text-right">Costo unit.</th>
-                            <th class="text-right pr-5">Valor lote</th>
+                            <th class="text-right pr-5 col-hide-sm">Valor lote</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -228,7 +238,7 @@
                                 ? ($lote->cantidad_disponible / $lote->cantidad_ingresada) * 100 : 100;
                         @endphp
                         <tr>
-                            <td class="text-center">
+                            <td class="text-center col-hide-sm">
                                 @if($isFirst)
                                     <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white text-[10px] font-black">1</span>
                                 @else
@@ -246,7 +256,7 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="font-bold {{ $ageColor }}">{{ $age }}d</td>
+                            <td class="font-bold {{ $ageColor }} col-hide-sm">{{ $age }}d</td>
                             <td class="max-w-[170px]">
                                 @if($lote->proveedor)
                                     <span class="block truncate text-gray-700 dark:text-gray-300 text-sm font-medium"
@@ -267,10 +277,10 @@
                                     <span class="text-gray-400">—</span>
                                 @endif
                             </td>
-                            <td class="text-right tabular-nums text-gray-500">
+                            <td class="text-right tabular-nums text-gray-500 col-hide-sm">
                                 {{ number_format((float)$lote->cantidad_ingresada, 2, ',', '.') }}
                             </td>
-                            <td class="text-right tabular-nums {{ $lote->cantidad_salida > 0 ? 'text-rose-500 dark:text-rose-400 font-medium' : 'text-gray-300' }}">
+                            <td class="text-right tabular-nums col-hide-sm {{ $lote->cantidad_salida > 0 ? 'text-rose-500 dark:text-rose-400 font-medium' : 'text-gray-300' }}">
                                 {{ $lote->cantidad_salida > 0 ? number_format((float)$lote->cantidad_salida, 2, ',', '.') : '—' }}
                             </td>
                             <td class="text-right">
@@ -284,7 +294,7 @@
                             <td class="text-right tabular-nums font-bold text-gray-900 dark:text-gray-100">
                                 ${{ number_format((float)$lote->costo_unitario, 0, ',', '.') }}
                             </td>
-                            <td class="text-right tabular-nums font-black text-indigo-700 dark:text-indigo-400 pr-5">
+                            <td class="text-right tabular-nums font-black text-indigo-700 dark:text-indigo-400 pr-5 col-hide-sm">
                                 ${{ number_format((float)($lote->cantidad_disponible * $lote->costo_unitario), 0, ',', '.') }}
                             </td>
                         </tr>
@@ -583,10 +593,10 @@
                             <th>Fecha</th>
                             <th>Tipo</th>
                             <th class="text-right">Cantidad</th>
-                            <th class="text-right">Costo unit.</th>
+                            <th class="text-right col-hide-sm">Costo unit.</th>
                             <th class="text-right">Costo total</th>
-                            <th>Proveedor / Factura</th>
-                            <th class="pr-5">Notas</th>
+                            <th class="col-hide-sm">Proveedor / Factura</th>
+                            <th class="pr-5 col-hide-sm">Notas</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -605,13 +615,13 @@
                             <td class="text-right tabular-nums font-bold {{ $isEntrada ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
                                 {{ $isEntrada ? '+' : '−' }}{{ number_format((float)$m->cantidad, 2, ',', '.') }}
                             </td>
-                            <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
+                            <td class="text-right tabular-nums text-gray-600 dark:text-gray-400 col-hide-sm">
                                 {{ $m->costo_unitario ? '$'.number_format((float)$m->costo_unitario,0,',','.') : '—' }}
                             </td>
                             <td class="text-right tabular-nums font-semibold text-gray-800 dark:text-gray-200">
                                 {{ $m->costo_total ? '$'.number_format((float)$m->costo_total,0,',','.') : '—' }}
                             </td>
-                            <td class="max-w-[180px]">
+                            <td class="max-w-[180px] col-hide-sm">
                                 @if($m->proveedor)
                                     <span class="text-xs font-medium text-gray-700 dark:text-gray-300 block truncate">{{ $m->proveedor }}</span>
                                 @endif
@@ -619,7 +629,7 @@
                                     <span class="font-mono text-[10px] text-gray-400">#{{ $m->folio }}</span>
                                 @endif
                             </td>
-                            <td class="pr-5 max-w-[200px]">
+                            <td class="pr-5 max-w-[200px] col-hide-sm">
                                 @if($m->notas)
                                     <span class="text-xs text-gray-400 block truncate" title="{{ $m->notas }}">
                                         {{ Str::limit($m->notas, 45) }}
