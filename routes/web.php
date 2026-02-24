@@ -49,6 +49,7 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::get('/productos', [App\Http\Controllers\Inventario\ProductosController::class, 'index'])->name('productos');
         Route::post('/productos', [App\Http\Controllers\Inventario\ProductosController::class, 'store'])->name('productos.store');
+        Route::get('/productos/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->name('productos.show');
 
         Route::get('/categorias', function () {
             return view('inventario.categorias');

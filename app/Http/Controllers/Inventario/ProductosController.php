@@ -52,6 +52,87 @@ class ProductosController extends Controller
             ->route('inventario.productos')
             ->with('ok', 'Producto creado correctamente ✅');
     }
+    public function show(int $id)
+    {
+        $producto = DB::table('productos')->where('id', $id)->first();
+        abort_if(!$producto, 404);
+
+        // ── Lotes activos en orden FIFO (más antiguos primero = se consumen primero) ──
+        $lotes = DB::table('lotes_inventario as l')
+            ->leftJoin('bodegas as b', 'l.bodega_id', '=', 'b.id')
+            ->leftJoin('dtes as d', function ($j) {
+                $j->on('l.origen_id', '=', 'd.id')->where('l.origen_tipo', '=', 'dtes');
+            })
+            ->where('l.producto_id', $id)
+            ->where('l.estado', 'ABIERTO')
+            ->where('l.cantidad_disponible', '>', 0)
+            ->select(
+                'l.id', 'l.ingresado_el', 'l.costo_unitario',
+                'l.cantidad_ingresada', 'l.cantidad_disponible', 'l.cantidad_salida',
+                'l.codigo_lote', 'l.origen_tipo', 'l.origen_id',
+                'b.nombre as bodega_nombre', 'b.codigo as bodega_codigo',
+                'd.folio', 'd.rz_emisor as proveedor', 'd.fch_emis', 'd.tipo_dte'
+            )
+            ->orderBy('l.ingresado_el', 'asc')
+            ->get();
+
+        // ── Stock por bodega ──
+        $stockPorBodega = DB::table('lotes_inventario as l')
+            ->join('bodegas as b', 'l.bodega_id', '=', 'b.id')
+            ->where('l.producto_id', $id)
+            ->where('l.estado', 'ABIERTO')
+            ->where('l.cantidad_disponible', '>', 0)
+            ->groupBy('b.id', 'b.nombre', 'b.codigo', 'b.es_principal')
+            ->selectRaw('b.nombre as bodega, b.codigo, b.es_principal,
+                SUM(l.cantidad_disponible) as stock,
+                SUM(l.cantidad_disponible * l.costo_unitario) / NULLIF(SUM(l.cantidad_disponible),0) as costo_promedio,
+                SUM(l.cantidad_disponible * l.costo_unitario) as valor_total')
+            ->orderByDesc('b.es_principal')
+            ->get();
+
+        // ── Historial de precios (todos los lotes, incluidos cerrados) ──
+        $historialPrecios = DB::table('lotes_inventario as l')
+            ->leftJoin('dtes as d', function ($j) {
+                $j->on('l.origen_id', '=', 'd.id')->where('l.origen_tipo', '=', 'dtes');
+            })
+            ->where('l.producto_id', $id)
+            ->where('l.costo_unitario', '>', 0)
+            ->select(
+                'l.ingresado_el', 'l.costo_unitario', 'l.cantidad_ingresada',
+                'l.origen_tipo', 'd.folio', 'd.rz_emisor as proveedor', 'd.fch_emis'
+            )
+            ->orderBy('l.ingresado_el', 'asc')
+            ->limit(60)
+            ->get();
+
+        // ── Movimientos recientes ──
+        $movimientos = DB::table('movimientos_inventario as m')
+            ->leftJoin('bodegas as b', 'm.bodega_id', '=', 'b.id')
+            ->where('m.producto_id', $id)
+            ->select('m.id', 'm.tipo', 'm.cantidad', 'm.costo_unitario',
+                'm.costo_total', 'm.ocurrio_el', 'm.documento_tipo',
+                'm.documento_id', 'm.notas', 'b.nombre as bodega')
+            ->orderBy('m.ocurrio_el', 'desc')
+            ->limit(30)
+            ->get();
+
+        // ── KPIs ──
+        $stockTotal    = $lotes->sum('cantidad_disponible');
+        $valorTotal    = $lotes->sum(fn($l) => $l->cantidad_disponible * $l->costo_unitario);
+        $costoPromedio = $stockTotal > 0 ? $valorTotal / $stockTotal : 0;
+        $ultimoPrecio  = $historialPrecios->last()?->costo_unitario ?? 0;
+        $primerPrecio  = $historialPrecios->first()?->costo_unitario ?? 0;
+        $variacion     = ($primerPrecio > 0 && $ultimoPrecio > 0)
+            ? (($ultimoPrecio - $primerPrecio) / $primerPrecio) * 100
+            : null;
+
+        return view('inventario.producto_detalle', compact(
+            'producto', 'lotes', 'stockPorBodega', 'historialPrecios',
+            'movimientos', 'stockTotal', 'valorTotal', 'costoPromedio',
+            'ultimoPrecio', 'variacion'
+        ));
+    }
+
     public function toggle($id)
     {
         $producto = DB::table('productos')->where('id', $id)->first();

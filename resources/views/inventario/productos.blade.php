@@ -114,21 +114,27 @@
 
                                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                         @forelse ($productos as $p)
-                                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition">
-                                                <td class="px-4 py-3">#{{ $p->id }}</td>
+                                            <tr class="hover:bg-emerald-50/60 dark:hover:bg-emerald-900/10 transition cursor-pointer"
+                                                onclick="window.location='{{ route('inventario.productos.show', $p->id) }}'">
+                                                <td class="px-4 py-3 text-gray-500">#{{ $p->id }}</td>
 
                                                 <td class="px-4 py-3">
                                                     <span
-                                                        class="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs">
+                                                        class="inline-flex rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs font-mono">
                                                         {{ $p->sku ?: '—' }}
                                                     </span>
                                                 </td>
 
-                                                <td class="px-4 py-3 font-medium">
-                                                    {{ $p->nombre }}
+                                                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">
+                                                    <div class="flex items-center gap-1.5">
+                                                        {{ $p->nombre }}
+                                                        <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                        </svg>
+                                                    </div>
                                                 </td>
 
-                                                <td class="px-4 py-3">
+                                                <td class="px-4 py-3" onclick="event.stopPropagation()">
                                                     <button type="button" role="switch"
                                                         aria-checked="{{ $p->activo ? 'true' : 'false' }}"
                                                         class="toggle-producto relative inline-flex h-6 w-11 items-center rounded-full transition-colors
