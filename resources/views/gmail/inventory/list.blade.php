@@ -4,7 +4,8 @@
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                 </div>
                 <div class="min-w-0">
@@ -15,8 +16,10 @@
 
             <form method="GET" class="hidden lg:block w-full lg:max-w-xl lg:justify-self-center">
                 <div class="flex gap-2">
-                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por producto, codigo o unidad...">
-                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
+                    <input type="text" name="q" value="{{ $q }}" class="f-input"
+                        placeholder="Buscar por producto, codigo o unidad...">
+                    <button type="submit"
+                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
                 </div>
             </form>
 
@@ -28,56 +31,126 @@
 
     <style>
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .au { animation: fadeUp .35s ease both; }
-        .d1 { animation-delay: .06s; }
-        .d2 { animation-delay: .12s; }
-        .d3 { animation-delay: .18s; }
-        .d4 { animation-delay: .24s; }
-        .d5 { animation-delay: .30s; }
+        .au {
+            animation: fadeUp .35s ease both;
+        }
 
-        .page-bg { background:#f1f5f9; min-height:100% }
-        .dark .page-bg { background:#0d1117 }
-        .f-input { width:100%; border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:9px 12px; font-size:13px; color:#111827; outline:none }
-        .f-input:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.12) }
-        .dark .f-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
+        .d1 {
+            animation-delay: .06s;
+        }
+
+        .d2 {
+            animation-delay: .12s;
+        }
+
+        .d3 {
+            animation-delay: .18s;
+        }
+
+        .d4 {
+            animation-delay: .24s;
+        }
+
+        .d5 {
+            animation-delay: .30s;
+        }
+
+        .page-bg {
+            background: #f1f5f9;
+            min-height: 100%
+        }
+
+        .dark .page-bg {
+            background: #0d1117
+        }
+
+        .f-input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            padding: 9px 12px;
+            font-size: 13px;
+            color: #111827;
+            outline: none
+        }
+
+        .f-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, .12)
+        }
+
+        .dark .f-input {
+            border-color: #1e2a3b;
+            background: #0d1117;
+            color: #f1f5f9
+        }
+
         .card {
-            background:#fff;
-            border:1px solid #e2e8f0;
-            border-radius:16px;
-            padding:14px;
-            position:relative;
-            overflow:hidden;
-            transition:transform .15s ease, box-shadow .15s ease;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 14px;
+            position: relative;
+            overflow: hidden;
+            transition: transform .15s ease, box-shadow .15s ease;
         }
-        .card:hover { transform:translateY(-2px); box-shadow:0 10px 25px rgba(15,23,42,.08) }
-        .dark .card { background:#161c2c; border-color:#1e2a3b }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(15, 23, 42, .08)
+        }
+
+        .dark .card {
+            background: #161c2c;
+            border-color: #1e2a3b
+        }
 
         /* Etiqueta transversal sin stock */
         .ribbon-sinstock {
-            position:absolute;
-            top:14px;
-            left:-30px;
-            width:110px;
-            text-align:center;
-            transform:rotate(-45deg);
-            font-size:9px;
-            font-weight:800;
-            letter-spacing:.08em;
-            text-transform:uppercase;
-            padding:3px 0;
-            background:#ef4444;
-            color:#fff;
-            z-index:2;
-            pointer-events:none;
-            box-shadow:0 1px 4px rgba(0,0,0,.18);
+            position: absolute;
+            top: 14px;
+            left: -30px;
+            width: 110px;
+            text-align: center;
+            transform: rotate(-45deg);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 3px 0;
+            background: #ef4444;
+            color: #fff;
+            z-index: 2;
+            pointer-events: none;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
         }
-        .kv { font-size:12px; color:#94a3b8 }
-        .vv { font-size:14px; font-weight:700; color:#334155 }
-        .dark .vv { color:#e2e8f0 }
+
+        .kv {
+            font-size: 12px;
+            color: #94a3b8
+        }
+
+        .vv {
+            font-size: 14px;
+            font-weight: 700;
+            color: #334155
+        }
+
+        .dark .vv {
+            color: #e2e8f0
+        }
 
         .fab {
             position: fixed;
@@ -95,20 +168,26 @@
             box-shadow: 0 14px 28px rgba(76, 29, 149, 0.35);
             transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
         }
+
         .fab:hover {
             transform: translateY(-2px);
             background: #6d28d9;
             box-shadow: 0 16px 32px rgba(76, 29, 149, 0.45);
         }
-        .fab:active { transform: translateY(0); }
+
+        .fab:active {
+            transform: translateY(0);
+        }
     </style>
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
             <form method="GET" class="lg:hidden">
                 <div class="flex gap-2">
-                    <input type="text" name="q" value="{{ $q }}" class="f-input" placeholder="Buscar por producto, codigo o unidad...">
-                    <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
+                    <input type="text" name="q" value="{{ $q }}" class="f-input"
+                        placeholder="Buscar por producto, codigo o unidad...">
+                    <button type="submit"
+                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
                 </div>
             </form>
 
@@ -138,16 +217,22 @@
             @if($products->count() > 0)
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 au d2">
                     @foreach($products as $p)
-                        <div class="card">
-                            @if((float)$p->stock_actual <= 0)
+                        <div class="card relative group">
+
+                            <a href="{{ route('inventario.productos.show', $p->id) }}" class="absolute inset-0 z-10"
+                                aria-label="Ver producto"></a>
+
+                            @if((float) $p->stock_actual <= 0)
                                 <div class="ribbon-sinstock">Sin stock</div>
                             @endif
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $p->nombre }}</p>
+                                    <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $p->nombre }}
+                                    </p>
                                     <p class="text-xs text-gray-400 mt-0.5">{{ $p->codigo ?? 'Sin codigo' }}</p>
                                 </div>
-                                <span class="inline-flex px-2.5 py-1 text-[11px] font-semibold rounded-full {{ (int) $p->is_active === 1 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
+                                <span
+                                    class="inline-flex px-2.5 py-1 text-[11px] font-semibold rounded-full {{ (int) $p->is_active === 1 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
                                     {{ (int) $p->is_active === 1 ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </div>
@@ -159,7 +244,8 @@
                                 </div>
                                 <div>
                                     <p class="kv">Stock actual</p>
-                                    <p class="vv {{ (float)$p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">
+                                    <p
+                                        class="vv {{ (float) $p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">
                                         {{ number_format((float) $p->stock_actual, 4, ',', '.') }}
                                     </p>
                                 </div>
@@ -172,8 +258,10 @@
                     @endforeach
                 </div>
             @else
-                <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center au d2">
-                    <svg class="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div
+                    class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center au d2">
+                    <svg class="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
