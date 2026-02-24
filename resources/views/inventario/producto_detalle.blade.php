@@ -2,9 +2,9 @@
     <x-slot name="header">
         <div class="flex items-center justify-between w-full gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
-                <a href="{{ route('inventario.productos') }}"
+                <a href="{{ route('gmail.inventory.list') }}"
                    class="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition font-medium">
-                    Productos
+                    Inventario
                 </a>
                 <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>

@@ -219,7 +219,7 @@
                     @foreach($products as $p)
                         <div class="card relative group">
 
-                            <a href="{{ route('inventario.productos.show', $p->id) }}" class="absolute inset-0 z-10"
+                            <a href="{{ route('gmail.inventory.product', $p->id) }}" class="absolute inset-0 z-10"
                                 aria-label="Ver producto"></a>
 
                             @if((float) $p->stock_actual <= 0)

@@ -47,8 +47,6 @@ Route::middleware(['auth', 'role:admin'])
             return view('index');
         })->name('index');
 
-        Route::get('/productos', [App\Http\Controllers\Inventario\ProductosController::class, 'index'])->name('productos');
-        Route::post('/productos', [App\Http\Controllers\Inventario\ProductosController::class, 'store'])->name('productos.store');
         Route::get('/productos/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->name('productos.show');
 
         Route::get('/categorias', function () {
@@ -450,6 +448,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/dtes/boletas/listado', [GmailDteDocumentController::class, 'boletasList'])->name('dtes.boletas.list');
     Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
     Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
+    Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])
+        ->whereNumber('id')
+        ->name('inventory.product');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])
         ->whereNumber('id')
         ->name('dtes.print');
