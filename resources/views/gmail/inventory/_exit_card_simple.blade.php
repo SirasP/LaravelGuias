@@ -1,5 +1,8 @@
 {{-- EPP / Salida exit card — variables: $m, $cardLines, $costoTotal, $detailUrl --}}
 <a href="{{ $detailUrl ?? '#' }}" class="exit-card block hover:border-indigo-300 dark:hover:border-indigo-700 transition">
+    @php
+        $summaryName = $summaryName ?? 'Ficha Operativa';
+    @endphp
 
     {{-- Header --}}
     <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
@@ -42,7 +45,7 @@
             <tbody>
                 <tr>
                     <td class="py-1.5 pr-2">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
+                        <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $summaryName }}</p>
                     </td>
                     <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         {{ number_format($cantidadTotal, 2, ',', '.') }}

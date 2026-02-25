@@ -260,16 +260,20 @@
                         </p>
                     </div>
                 @else
-                    <div x-data="{ sub: '{{ $countEpp > 0 ? 'EPP' : 'Salida' }}' }">
+                    @php
+                        $groupCountEpp = $byTipoName->get('EPP', collect())->count();
+                        $groupCountSalida = $byTipoName->get('Salida', collect())->count();
+                    @endphp
+                    <div x-data="{ sub: '{{ $groupCountEpp > 0 ? 'EPP' : 'Salida' }}' }">
 
                         <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 w-fit mb-5">
                             <button type="button" @click="sub = 'EPP'"
                                 class="view-tab"
                                 :class="sub === 'EPP' ? 'view-tab-active-blue' : 'view-tab-inactive'">
                                 🦺 EPP
-                                @if ($countEpp > 0)
+                                @if ($groupCountEpp > 0)
                                     <span class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                        {{ $countEpp }}
+                                        {{ $groupCountEpp }}
                                     </span>
                                 @endif
                             </button>
@@ -277,9 +281,9 @@
                                 class="view-tab"
                                 :class="sub === 'Salida' ? 'view-tab-active-blue' : 'view-tab-inactive'">
                                 📦 Salidas
-                                @if ($countSalida > 0)
+                                @if ($groupCountSalida > 0)
                                     <span class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                        {{ $countSalida }}
+                                        {{ $groupCountSalida }}
                                     </span>
                                 @endif
                             </button>
@@ -296,14 +300,14 @@
                                         <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
-                                        @foreach ($movs as $m)
-                                            @php
-                                                $cardLines  = $lines->get($m->id, collect());
-                                                $costoTotal = (float) $m->costo_total;
-                                                $detailUrl  = route('gmail.inventory.exits.show', $m->id);
-                                            @endphp
-                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl'))
-                                        @endforeach
+                                        @php
+                                            $m = $movs->sortByDesc('ocurrio_el')->first();
+                                            $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
+                                            $costoTotal = (float) $movs->sum('costo_total');
+                                            $detailUrl = route('gmail.inventory.exits.group', ['destinatario' => $nombre, 'tipo' => 'EPP']);
+                                            $summaryName = 'Ficha Operativa';
+                                        @endphp
+                                        @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
                                     </div>
                                 @endforeach
                             @endif
@@ -320,14 +324,14 @@
                                         <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
-                                        @foreach ($movs as $m)
-                                            @php
-                                                $cardLines  = $lines->get($m->id, collect());
-                                                $costoTotal = (float) $m->costo_total;
-                                                $detailUrl  = route('gmail.inventory.exits.show', $m->id);
-                                            @endphp
-                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl'))
-                                        @endforeach
+                                        @php
+                                            $m = $movs->sortByDesc('ocurrio_el')->first();
+                                            $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
+                                            $costoTotal = (float) $movs->sum('costo_total');
+                                            $detailUrl = route('gmail.inventory.exits.group', ['destinatario' => $nombre, 'tipo' => 'Salida']);
+                                            $summaryName = 'Ficha Operativa';
+                                        @endphp
+                                        @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
                                     </div>
                                 @endforeach
                             @endif
