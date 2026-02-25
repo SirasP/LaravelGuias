@@ -1,24 +1,35 @@
 <x-app-layout>
     @php
         $isVenta = ($movement->tipo_salida ?? '') === 'Venta';
+        $fromGroup = request()->query('from') === 'group';
+        $groupDestinatario = trim((string) request()->query('destinatario', ''));
+        $groupTipo = trim((string) request()->query('tipo', ''));
+        $hasGroupBack = $fromGroup && $groupDestinatario !== '';
         $backParams = $isVenta ? ['tipo' => 'Venta'] : [];
+        $backUrl = $hasGroupBack
+            ? route('gmail.inventory.exits.group', array_filter([
+                'destinatario' => $groupDestinatario,
+                'tipo' => $groupTipo !== '' ? $groupTipo : null,
+            ]))
+            : route('gmail.inventory.exits', $backParams);
+        $backLabel = $hasGroupBack ? 'Volver al resumen' : 'Volver';
     @endphp
 
     <x-slot name="header">
         <div class="w-full flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-1.5 min-w-0 text-xs">
-                <a href="{{ route('gmail.inventory.exits', $backParams) }}"
+                <a href="{{ $backUrl }}"
                     class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium truncate">
-                    Salidas de inventario
+                    {{ $hasGroupBack ? 'Resumen de salidas' : 'Salidas de inventario' }}
                 </a>
                 <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                 </svg>
                 <span class="font-bold text-gray-700 dark:text-gray-300 truncate">Movimiento #{{ $movement->id }}</span>
             </div>
-            <a href="{{ route('gmail.inventory.exits', $backParams) }}"
+            <a href="{{ $backUrl }}"
                 class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition">
-                Volver
+                {{ $backLabel }}
             </a>
         </div>
     </x-slot>
