@@ -18,41 +18,104 @@
     </x-slot>
 
     <style>
-        .page-bg { background: #f1f5f9; min-height: 100% }
-        .dark .page-bg { background: #0d1117 }
-        .f-input {
-            width: 100%; border-radius: 12px; border: 1px solid #e2e8f0;
-            background: #fff; padding: 9px 12px; font-size: 13px;
-            color: #111827; outline: none;
+        [x-cloak] { display:none !important; }
+
+        .page-bg { background:#f1f5f9; min-height:100% }
+        .dark .page-bg { background:#0d1117 }
+
+        .f-label {
+            display:block; font-size:11px; font-weight:700;
+            text-transform:uppercase; letter-spacing:.05em;
+            color:#64748b; margin-bottom:5px;
         }
-        .f-input:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,.12) }
-        .dark .f-input { border-color: #1e2a3b; background: #0d1117; color: #f1f5f9 }
+        .dark .f-label { color:#94a3b8 }
+        .f-input {
+            width:100%; border-radius:10px; border:1px solid #e2e8f0; background:#fff;
+            padding:8px 11px; font-size:13px; color:#111827; outline:none;
+            transition:border-color .15s, box-shadow .15s;
+        }
+        .f-input:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.12) }
+        .dark .f-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
+
         .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; }
         .dark .card { background:#161c2c; border-color:#1e2a3b }
+
+        /* ── Destinatario combobox (combo-drop pattern from cotizaciones) ── */
+        .combo-wrap { position:relative; }
+        .combo-drop {
+            position:fixed; z-index:9999;
+            background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+            box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
+        }
+        .dark .combo-drop { background:#161c2c; border-color:#1e2a3b; box-shadow:0 8px 32px rgba(0,0,0,.4) }
+        .combo-item {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:9px 13px; cursor:pointer; font-size:13px; color:#334155; gap:8px;
+        }
+        .combo-item:hover { background:#f5f3ff }
+        .dark .combo-item { color:#cbd5e1 }
+        .dark .combo-item:hover { background:rgba(139,92,246,.08) }
+        .combo-item-sub { font-size:11px; color:#94a3b8; white-space:nowrap }
+        .combo-empty  { padding:9px 13px; font-size:12px; color:#94a3b8; font-style:italic }
+        .combo-create {
+            display:flex; align-items:center; gap:7px;
+            padding:10px 13px; cursor:pointer; font-size:12px; font-weight:700;
+            color:#8b5cf6; border-top:1px solid #f1f5f9;
+        }
+        .combo-create:hover { background:#faf5ff }
+        .dark .combo-create { color:#a78bfa; border-top-color:#1a2232 }
+        .dark .combo-create:hover { background:rgba(139,92,246,.08) }
+
+        /* ── Product dropdown (prod-drop pattern from cotizaciones) ── */
+        .prod-drop {
+            position:fixed; z-index:9999;
+            background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+            box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:220px; overflow-y:auto;
+        }
+        .dark .prod-drop { background:#161c2c; border-color:#1e2a3b; }
+        .prod-item {
+            padding:8px 12px; cursor:pointer; font-size:13px; color:#334155;
+            display:flex; align-items:center; justify-content:space-between; gap:6px;
+        }
+        .prod-item:hover { background:#f5f3ff; }
+        .dark .prod-item { color:#cbd5e1; }
+        .dark .prod-item:hover { background:rgba(139,92,246,.08); }
+        .prod-item-sub { font-size:10px; color:#94a3b8; white-space:nowrap; }
+        .prod-item-empty { padding:9px 12px; font-size:11px; color:#94a3b8; font-style:italic; }
+        .prod-item-extra {
+            padding:6px 12px; font-size:10px; color:#94a3b8; font-style:italic;
+            border-top:1px solid #f1f5f9; text-align:center;
+        }
+        .dark .prod-item-extra { border-top-color:#1a2232; }
+
+        /* Destinatario chip */
+        .dest-chip {
+            display:inline-flex; align-items:center; gap:4px;
+            padding:3px 8px 3px 10px; border-radius:999px;
+            background:#ede9fe; border:1.5px solid #c4b5fd;
+            font-size:12px; font-weight:700; color:#5b21b6; white-space:nowrap;
+        }
+        .dark .dest-chip { background:rgba(139,92,246,.15); border-color:rgba(139,92,246,.4); color:#a78bfa; }
+        .dest-chip-x {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:14px; height:14px; border-radius:999px; cursor:pointer;
+            font-size:13px; line-height:1; color:#7c3aed; background:none; border:none; padding:0; transition:.1s;
+        }
+        .dest-chip-x:hover { background:rgba(239,68,68,.15); color:#dc2626; }
+
+        /* Stock bar */
         .stock-bar-bg { height:4px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:4px }
         .dark .stock-bar-bg { background:#1e2a3b }
         .stock-bar-fill { height:100%; border-radius:99px; transition:width .2s ease }
-        .dd-item { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:10px 16px; transition:background .12s; cursor:pointer; }
-        .dd-item:hover { background:rgba(139,92,246,.06) }
-        .dark .dd-item:hover { background:rgba(139,92,246,.12) }
-        .dd-create { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 16px; border-top:1px solid #e2e8f0; cursor:pointer; transition:background .12s; }
-        .dark .dd-create { border-color:#1e2a3b }
-        .dd-create:hover { background:rgba(16,185,129,.06) }
-        .dark .dd-create:hover { background:rgba(16,185,129,.10) }
-        .dd-more { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 16px; border-top:1px solid #e2e8f0; cursor:pointer; transition:background .12s; }
-        .dark .dd-more { border-color:#1e2a3b }
-        .dd-more:hover { background:#f8fafc }
-        .dark .dd-more:hover { background:#0d1117 }
     </style>
 
-    <div class="page-bg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
-             x-data="exitForm(
-                 '{{ route('gmail.inventory.api.products') }}',
-                 '{{ route('gmail.inventory.api.lots', 0) }}',
-                 '{{ route('gmail.inventory.api.destinatarios') }}'
-             )"
-             @keydown.escape="closeDropdowns()">
+    <div class="page-bg"
+         x-data="exitForm(
+             '{{ route('gmail.inventory.api.products') }}',
+             '{{ route('gmail.inventory.api.lots', 0) }}',
+             '{{ route('gmail.inventory.api.destinatarios') }}'
+         )">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
             @if ($errors->any())
                 <div class="mb-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-4 py-3">
@@ -64,6 +127,14 @@
 
             <form method="POST" action="{{ route('gmail.inventory.exit.store') }}" @submit.prevent="submitForm($el)">
                 @csrf
+                {{-- Hidden inputs (generated by Alpine) --}}
+                <input type="hidden" name="destinatario" :value="destValue">
+                <template x-for="(item, idx) in items" :key="item.product_id">
+                    <div>
+                        <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.product_id">
+                        <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.quantity">
+                    </div>
+                </template>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -71,70 +142,18 @@
                     <div class="lg:col-span-2 space-y-4">
 
                         {{-- Product search --}}
-                        <div class="card">
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Agregar producto</p>
-                            <div class="relative" @click.outside="showDropdown = false">
-                                <input type="text"
-                                    class="f-input pr-10"
-                                    placeholder="Buscar por nombre o código..."
-                                    x-model="search"
-                                    @input.debounce.300ms="fetchProducts()"
-                                    @focus="if(results.length || search.trim()) { fetchProducts(); }"
-                                    autocomplete="off">
-                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                    <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                                    </svg>
-                                    <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
-
-                                {{-- Product dropdown --}}
-                                <div x-show="showDropdown && (visibleResults.length > 0 || noResults)"
-                                    x-transition:enter="transition ease-out duration-100"
-                                    x-transition:enter-start="opacity-0 translate-y-1"
-                                    x-transition:enter-end="opacity-100 translate-y-0"
-                                    class="absolute z-30 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
-
-                                    {{-- No results --}}
-                                    <div x-show="noResults" class="px-4 py-3 text-xs text-gray-400 text-center">
-                                        Sin resultados para "<span x-text="search"></span>"
-                                    </div>
-
-                                    {{-- Result items (max 5) --}}
-                                    <template x-for="p in visibleResults" :key="p.id">
-                                        <button type="button" @click="addItem(p)" class="dd-item">
-                                            <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="p.nombre"></p>
-                                                <p class="text-xs text-gray-400" x-text="(p.codigo ?? 'Sin código') + ' · ' + p.unidad"></p>
-                                            </div>
-                                            <div class="shrink-0 text-right">
-                                                <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400" x-text="'Stock: ' + formatNum(p.stock_actual, 4)"></p>
-                                                <p class="text-xs text-gray-400" x-text="'$ ' + formatNum(p.costo_promedio, 2)"></p>
-                                            </div>
-                                        </button>
-                                    </template>
-
-                                    {{-- "Ver más" if results were truncated --}}
-                                    <button type="button" x-show="hasMore && !loadingMore"
-                                        @click="loadMore()"
-                                        class="dd-more">
-                                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                        <span class="text-xs text-gray-500">Buscar más resultados para "<span class="font-semibold" x-text="search"></span>"</span>
-                                    </button>
-                                    <div x-show="loadingMore" class="dd-more">
-                                        <svg class="w-3.5 h-3.5 animate-spin text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                                        </svg>
-                                        <span class="text-xs text-gray-400">Buscando más...</span>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="card" style="overflow:visible">
+                            <label class="f-label">Agregar producto</label>
+                            <input type="text"
+                                x-ref="prodInput"
+                                class="f-input"
+                                placeholder="Buscar por nombre o código..."
+                                x-model="search"
+                                @focus="openProdDrop()"
+                                @input.debounce.250ms="fetchProducts()"
+                                @keydown.escape="showDropdown = false"
+                                @keydown.enter.prevent
+                                autocomplete="off">
                         </div>
 
                         {{-- Item table --}}
@@ -149,7 +168,7 @@
                             </div>
 
                             <div x-show="items.length > 0" class="overflow-x-auto -mx-1">
-                                <table class="w-full text-sm min-w-[600px]">
+                                <table class="w-full text-sm min-w-[580px]">
                                     <thead>
                                         <tr class="border-b border-gray-100 dark:border-gray-800">
                                             <th class="text-left text-xs font-semibold text-gray-400 pb-2 px-1">#</th>
@@ -168,6 +187,7 @@
                                                 <td class="py-3 px-1 min-w-[180px]">
                                                     <p class="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px]" x-text="item.nombre"></p>
                                                     <p class="text-xs text-gray-400" x-text="(item.codigo ?? 'Sin código') + ' · ' + item.unidad"></p>
+                                                    {{-- FIFO lot preview --}}
                                                     <div x-show="item.lots && item.lots.length > 0" class="mt-1">
                                                         <template x-for="(lot, li) in fifoPreview(item)" :key="li">
                                                             <span class="inline-flex items-center gap-1 mr-1 mb-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-md
@@ -190,8 +210,7 @@
                                                                 width: Math.min(100, item.stock_actual > 0 ? (item.quantity / item.stock_actual * 100) : 0) + '%',
                                                                 background: (item.quantity / item.stock_actual) >= 1 ? '#ef4444' :
                                                                             (item.quantity / item.stock_actual) > 0.7 ? '#f59e0b' : '#10b981'
-                                                            }">
-                                                        </div>
+                                                            }"></div>
                                                     </div>
                                                     <p class="text-[10px] text-gray-400 mt-0.5 text-right"
                                                         x-text="item.stock_actual > 0 ? Math.round(item.quantity / item.stock_actual * 100) + '%' : '—'"></p>
@@ -204,16 +223,14 @@
                                                             x-model.number="item.quantity"
                                                             @input="clampQuantity(item)"
                                                             class="f-input text-right py-1.5 px-2"
-                                                            style="width:90px"
+                                                            style="width:88px"
                                                             :class="item.quantity > item.stock_actual ? 'border-rose-400 dark:border-rose-600' : ''">
                                                         <button type="button" @click="item.quantity = item.stock_actual"
-                                                            title="Usar todo el stock disponible"
+                                                            title="Usar todo el stock"
                                                             class="shrink-0 px-1.5 py-1.5 rounded-lg text-[10px] font-bold
                                                                    bg-gray-100 hover:bg-emerald-100 text-gray-500 hover:text-emerald-700
                                                                    dark:bg-gray-800 dark:hover:bg-emerald-900/40 dark:text-gray-400 dark:hover:text-emerald-400
-                                                                   transition-colors whitespace-nowrap">
-                                                            Máx
-                                                        </button>
+                                                                   transition-colors whitespace-nowrap">Máx</button>
                                                     </div>
                                                     <p x-show="item.quantity > item.stock_actual"
                                                         class="text-[10px] text-rose-600 dark:text-rose-400 mt-1 text-right"
@@ -221,8 +238,7 @@
                                                 </td>
 
                                                 <td class="py-3 px-1 text-right text-gray-700 dark:text-gray-300 font-semibold text-xs whitespace-nowrap pt-3.5"
-                                                    x-text="'$ ' + formatNum(item.quantity * item.costo_promedio, 2)">
-                                                </td>
+                                                    x-text="'$ ' + formatNum(item.quantity * item.costo_promedio, 2)"></td>
 
                                                 <td class="py-3 px-1 pt-3.5">
                                                     <button type="button" @click="removeItem(idx)"
@@ -246,64 +262,39 @@
                             <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Resumen</p>
 
                             {{-- Destinatario combobox --}}
-                            <div x-data="destinatarioField('{{ route('gmail.inventory.api.destinatarios') }}')" @click.outside="showDest = false">
-                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                                    Destinatario <span class="text-rose-500">*</span>
-                                </label>
-                                <div class="relative">
-                                    <input type="text" name="destinatario"
-                                        x-model="destValue"
-                                        @input.debounce.250ms="fetchDest()"
-                                        @focus="fetchDest()"
-                                        placeholder="Nombre o área destino"
-                                        required maxlength="200"
-                                        autocomplete="off"
-                                        class="f-input pr-8"
-                                        value="{{ old('destinatario') }}">
+                            <div>
+                                <label class="f-label">Destinatario <span class="text-rose-500 normal-case tracking-normal">*</span></label>
+
+                                {{-- Chip when selected --}}
+                                <div x-show="destValue" class="flex items-center gap-2 mb-2">
+                                    <span class="dest-chip">
+                                        <span x-text="destValue"></span>
+                                        <button type="button" class="dest-chip-x" @click="destValue = ''; destSearch = ''; setTimeout(() => $refs.destInput.focus(), 50)">&times;</button>
+                                    </span>
+                                </div>
+
+                                {{-- Input (hidden when value is set) --}}
+                                <div x-show="!destValue" class="relative">
+                                    <input type="text"
+                                        x-ref="destInput"
+                                        class="f-input pr-7"
+                                        x-model="destSearch"
+                                        @focus="openDestDrop()"
+                                        @input.debounce.200ms="fetchDest()"
+                                        @keydown.escape="destDropOpen = false"
+                                        placeholder="Escribe para buscar o crear..."
+                                        autocomplete="off">
                                     <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </div>
-
-                                    {{-- Destinatario dropdown --}}
-                                    <div x-show="showDest && (destSuggestions.length > 0 || destValue.trim().length > 0)"
-                                        x-transition:enter="transition ease-out duration-100"
-                                        x-transition:enter-start="opacity-0 translate-y-1"
-                                        x-transition:enter-end="opacity-100 translate-y-0"
-                                        class="absolute z-40 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
-
-                                        {{-- Existing suggestions --}}
-                                        <template x-for="s in destSuggestions" :key="s">
-                                            <button type="button" @click="selectDest(s)" class="dd-item">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                    </svg>
-                                                    <span class="text-sm text-gray-800 dark:text-gray-200 truncate" x-text="s"></span>
-                                                </div>
-                                                <span class="text-[10px] text-gray-400 shrink-0">Reciente</span>
-                                            </button>
-                                        </template>
-
-                                        {{-- "Crear nuevo" option shown when typed value doesn't match any suggestion --}}
-                                        <button type="button"
-                                            x-show="destValue.trim().length > 0 && !destSuggestions.includes(destValue.trim())"
-                                            @click="selectDest(destValue.trim())"
-                                            class="dd-create">
-                                            <svg class="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-                                            </svg>
-                                            <span class="text-xs text-emerald-700 dark:text-emerald-400">
-                                                Usar "<strong x-text="destValue.trim()"></strong>"
-                                            </span>
-                                        </button>
-                                    </div>
                                 </div>
+                                <p x-show="!destValue" class="text-[11px] text-gray-400 mt-1">Selecciona uno reciente o crea uno nuevo.</p>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Notas (opcional)</label>
+                                <label class="f-label">Notas (opcional)</label>
                                 <textarea name="notas" rows="3" maxlength="1000"
                                     placeholder="Observaciones..."
                                     class="f-input resize-none">{{ old('notas') }}</textarea>
@@ -329,7 +320,7 @@
                             </div>
 
                             <button type="submit"
-                                :disabled="items.length === 0 || hasErrors"
+                                :disabled="items.length === 0 || hasErrors || !destValue.trim()"
                                 class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition
                                     bg-rose-600 hover:bg-rose-700
                                     disabled:opacity-40 disabled:cursor-not-allowed">
@@ -343,38 +334,156 @@
                         </div>
                     </div>
                 </div>
-
-                {{-- Hidden inputs --}}
-                <template x-for="(item, idx) in items" :key="item.product_id">
-                    <div>
-                        <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.product_id">
-                        <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.quantity">
-                    </div>
-                </template>
             </form>
         </div>
-    </div>
+
+        {{-- ── Product dropdown (position:fixed, outside panels) ── --}}
+        <div x-show="showDropdown" x-cloak class="prod-drop"
+             :style="`top:${prodDropTop}px; left:${prodDropLeft}px; width:${prodDropWidth}px`">
+
+            <div x-show="loading" class="prod-item-empty">Buscando...</div>
+
+            <template x-if="!loading && results.length === 0 && search.trim()">
+                <div class="prod-item-empty">Sin resultados — el producto debe existir en inventario con stock disponible.</div>
+            </template>
+
+            <template x-for="p in visibleResults" :key="p.id">
+                <div class="prod-item" @mousedown.prevent="addItem(p)">
+                    <div class="min-w-0">
+                        <p class="font-semibold truncate" x-text="p.nombre"></p>
+                        <p class="prod-item-sub" x-text="(p.codigo ?? 'Sin código') + ' · ' + p.unidad"></p>
+                    </div>
+                    <div class="shrink-0 text-right">
+                        <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400" x-text="'Stock: ' + formatNum(p.stock_actual, 4)"></p>
+                        <p class="prod-item-sub" x-text="'$ ' + formatNum(p.costo_promedio, 2)"></p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="hasMore">
+                <div class="prod-item-extra" @mousedown.prevent="loadMore()" style="cursor:pointer">
+                    + más resultados — haz clic o escribe para filtrar
+                </div>
+            </template>
+        </div>
+
+        {{-- ── Destinatario dropdown (position:fixed, outside panels) ── --}}
+        <div x-show="destDropOpen" x-cloak class="combo-drop"
+             :style="`top:${destDropTop}px; left:${destDropLeft}px; width:${destDropWidth}px`">
+
+            <template x-for="s in destSuggestions" :key="s">
+                <div class="combo-item" @mousedown.prevent="selectDest(s)">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span class="font-semibold truncate" x-text="s"></span>
+                    </div>
+                    <span class="combo-item-sub">Reciente</span>
+                </div>
+            </template>
+
+            <div class="combo-empty"
+                x-show="destSuggestions.length === 0 && destSearch.trim()">
+                Sin coincidencias — crea uno nuevo.
+            </div>
+
+            <div class="combo-create" @mousedown.prevent="openDestModal()">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Crear nuevo destinatario
+            </div>
+        </div>
+
+        {{-- ── Modal: Nuevo Destinatario ── --}}
+        <div x-show="destModalOpen" x-cloak
+             class="fixed inset-0 flex items-center justify-center p-4"
+             style="z-index:300"
+             @keydown.escape.window="destModalOpen = false">
+            <div class="absolute inset-0 bg-black/50" @click="destModalOpen = false"></div>
+            <div class="relative w-full max-w-md"
+                 style="background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;"
+                 x-on:click.stop>
+
+                {{-- Header --}}
+                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between"
+                     style="background:#fff">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </span>
+                        <h3 class="text-sm font-bold text-gray-900">Nuevo destinatario</h3>
+                    </div>
+                    <button type="button" @click="destModalOpen = false"
+                        class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
+                </div>
+
+                {{-- Body --}}
+                <div class="px-5 py-5" style="background:#fff">
+                    <label class="f-label">Nombre del destinatario *</label>
+                    <input type="text"
+                        x-ref="destModalInput"
+                        x-model="destModalName"
+                        @keydown.enter.prevent="confirmDestModal()"
+                        class="f-input"
+                        placeholder="Ej: Bodega central, Juan Pérez, Área producción..."
+                        maxlength="200">
+                    <p class="text-[11px] text-gray-400 mt-2">
+                        Puede ser una persona, área o punto de entrega. Se guardará en el historial para reutilizarlo.
+                    </p>
+                </div>
+
+                {{-- Footer --}}
+                <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-2"
+                     style="background:#fff">
+                    <button type="button" @click="destModalOpen = false"
+                        class="px-4 py-2 text-xs font-bold rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" @click="confirmDestModal()"
+                        :disabled="!destModalName.trim()"
+                        class="px-4 py-2 text-xs font-bold rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition disabled:opacity-50">
+                        Usar este destinatario
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>{{-- end x-data --}}
 
     <script>
-        /* ── Product search combobox ── */
         function exitForm(apiUrl, lotsBaseUrl, destApiUrl) {
             return {
+                /* ── Product search ── */
                 search: '',
-                results: [],         // all fetched results
+                results: [],
                 loading: false,
                 loadingMore: false,
                 showDropdown: false,
-                expanded: false,     // true after clicking "Ver más"
+                expanded: false,
+                prodDropTop: 0, prodDropLeft: 0, prodDropWidth: 300,
                 items: [],
 
+                /* ── Destinatario ── */
+                destSearch: '',
+                destSuggestions: [],
+                destDropOpen: false,
+                destDropTop: 0, destDropLeft: 0, destDropWidth: 280,
+                destValue: '{{ old('destinatario') }}',
+
+                /* ── Destinatario modal ── */
+                destModalOpen: false,
+                destModalName: '',
+
+                /* ── Computed ── */
                 get visibleResults() {
                     return this.expanded ? this.results : this.results.slice(0, 5);
                 },
                 get hasMore() {
                     return !this.expanded && this.results.length > 5;
-                },
-                get noResults() {
-                    return !this.loading && this.search.trim() !== '' && this.results.length === 0;
                 },
                 get totalCost() {
                     return this.items.reduce((s, i) => s + (i.quantity * i.costo_promedio), 0);
@@ -386,26 +495,28 @@
                     return this.items.some(i => i.quantity <= 0 || i.quantity > i.stock_actual);
                 },
 
+                /* ── Product methods ── */
+                openProdDrop() {
+                    const rect = this.$refs.prodInput.getBoundingClientRect();
+                    this.prodDropTop   = rect.bottom + 4;
+                    this.prodDropLeft  = rect.left;
+                    this.prodDropWidth = rect.width;
+                    this.showDropdown  = true;
+                    if (this.search.trim()) this.fetchProducts();
+                },
+
                 async fetchProducts() {
                     const q = this.search.trim();
-                    if (q === '') {
-                        this.results = [];
-                        this.showDropdown = false;
-                        this.expanded = false;
-                        return;
-                    }
-                    this.loading = true;
+                    if (q === '') { this.results = []; this.showDropdown = false; this.expanded = false; return; }
+                    this.loading  = true;
                     this.expanded = false;
                     try {
-                        // Request 6 to detect if there are more than 5
+                        // request 6 so we know if there are more than 5
                         const res = await fetch(apiUrl + '?q=' + encodeURIComponent(q) + '&limit=6');
                         this.results = await res.json();
                         this.showDropdown = true;
-                    } catch (e) {
-                        this.results = [];
-                    } finally {
-                        this.loading = false;
-                    }
+                    } catch(e) { this.results = []; }
+                    finally { this.loading = false; }
                 },
 
                 async loadMore() {
@@ -414,17 +525,13 @@
                         const res = await fetch(apiUrl + '?q=' + encodeURIComponent(this.search.trim()) + '&limit=50');
                         this.results = await res.json();
                         this.expanded = true;
-                    } catch (e) {}
+                    } catch(e) {}
                     finally { this.loadingMore = false; }
                 },
 
                 async addItem(p) {
-                    const exists = this.items.find(i => i.product_id === p.id);
-                    if (exists) {
-                        this.search = '';
-                        this.results = [];
-                        this.showDropdown = false;
-                        return;
+                    if (this.items.find(i => i.product_id === p.id)) {
+                        this.search = ''; this.results = []; this.showDropdown = false; return;
                     }
                     const item = {
                         product_id:     p.id,
@@ -438,34 +545,25 @@
                         lotsLoading:    true,
                     };
                     this.items.push(item);
-                    this.search = '';
-                    this.results = [];
-                    this.showDropdown = false;
-                    this.expanded = false;
+                    this.search = ''; this.results = []; this.showDropdown = false; this.expanded = false;
 
                     try {
                         const url = lotsBaseUrl.replace('/0', '/' + p.id);
-                        const res = await fetch(url);
-                        item.lots = await res.json();
-                    } catch (e) {
-                        item.lots = [];
-                    } finally {
-                        item.lotsLoading = false;
-                    }
+                        item.lots = await (await fetch(url)).json();
+                    } catch(e) { item.lots = []; }
+                    finally { item.lotsLoading = false; }
                 },
 
                 fifoPreview(item) {
                     const qty = item.quantity || 0;
-                    if (!item.lots || item.lots.length === 0 || qty <= 0) return [];
+                    if (!item.lots || !item.lots.length || qty <= 0) return [];
                     let pending = qty;
                     const used = [];
                     for (const lot of item.lots) {
                         if (pending <= 0) break;
                         const take = Math.min(parseFloat(lot.cantidad_disponible), pending);
-                        const date = lot.ingresado_el
-                            ? new Date(lot.ingresado_el).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                            : '—';
-                        used.push({ label: 'Lote ' + date + ' (' + this.formatNum(take, 2) + ')' });
+                        const d = lot.ingresado_el ? new Date(lot.ingresado_el).toLocaleDateString('es-CL') : '—';
+                        used.push({ label: 'Lote ' + d + ' (' + this.formatNum(take, 2) + ')' });
                         pending -= take;
                     }
                     return used;
@@ -478,10 +576,49 @@
                     if (item.quantity < 0) item.quantity = 0;
                 },
 
-                closeDropdowns() { this.showDropdown = false; },
+                /* ── Destinatario methods ── */
+                openDestDrop() {
+                    const rect = this.$refs.destInput.getBoundingClientRect();
+                    this.destDropTop   = rect.bottom + 4;
+                    this.destDropLeft  = rect.left;
+                    this.destDropWidth = rect.width;
+                    this.destDropOpen  = true;
+                    this.fetchDest();
+                },
 
+                async fetchDest() {
+                    try {
+                        const q = this.destSearch.trim();
+                        const res = await fetch(destApiUrl + '?q=' + encodeURIComponent(q));
+                        this.destSuggestions = await res.json();
+                    } catch(e) { this.destSuggestions = []; }
+                },
+
+                selectDest(val) {
+                    this.destValue    = val;
+                    this.destSearch   = '';
+                    this.destDropOpen = false;
+                },
+
+                openDestModal() {
+                    this.destModalName = this.destSearch.trim();
+                    this.destDropOpen  = false;
+                    this.destModalOpen = true;
+                    this.$nextTick(() => this.$refs.destModalInput?.focus());
+                },
+
+                confirmDestModal() {
+                    const name = this.destModalName.trim();
+                    if (!name) return;
+                    this.destValue    = name;
+                    this.destSearch   = '';
+                    this.destModalOpen = false;
+                    this.destModalName = '';
+                },
+
+                /* ── Form submit ── */
                 submitForm(form) {
-                    if (this.items.length === 0 || this.hasErrors) return;
+                    if (this.items.length === 0 || this.hasErrors || !this.destValue.trim()) return;
                     form.submit();
                 },
 
@@ -493,29 +630,15 @@
             };
         }
 
-        /* ── Destinatario combobox ── */
-        function destinatarioField(apiUrl) {
-            return {
-                destValue: '{{ old('destinatario') }}',
-                destSuggestions: [],
-                showDest: false,
-
-                async fetchDest() {
-                    this.showDest = true;
-                    const q = this.destValue.trim();
-                    try {
-                        const res = await fetch(apiUrl + '?q=' + encodeURIComponent(q));
-                        this.destSuggestions = await res.json();
-                    } catch (e) {
-                        this.destSuggestions = [];
-                    }
-                },
-
-                selectDest(val) {
-                    this.destValue = val;
-                    this.showDest = false;
-                },
-            };
-        }
+        /* Close dropdowns on outside click */
+        document.addEventListener('click', (e) => {
+            const root = document.querySelector('[x-data]');
+            if (!root || !root.__x) return;
+            const data = root.__x.$data;
+            if (data.showDropdown && !e.target.closest('.prod-drop') && !e.target.closest('[x-ref="prodInput"]'))
+                data.showDropdown = false;
+            if (data.destDropOpen && !e.target.closest('.combo-drop') && !e.target.closest('[x-ref="destInput"]'))
+                data.destDropOpen = false;
+        });
     </script>
 </x-app-layout>
