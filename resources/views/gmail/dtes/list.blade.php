@@ -1,4 +1,18 @@
 <x-app-layout>
+    @php
+        $tipoView = $tipo ?? 'facturas';
+        $tipoTitle = match ($tipoView) {
+            'boletas' => 'Boletas proveedor',
+            'guias' => 'Guías de despacho proveedor',
+            default => 'Facturas proveedor',
+        };
+        $tipoListLabel = match ($tipoView) {
+            'boletas' => 'boletas',
+            'guias' => 'guías',
+            default => 'facturas',
+        };
+    @endphp
+
     <x-slot name="header">
         <div class="w-full grid grid-cols-1 lg:grid-cols-[auto,1fr,auto] items-center gap-3">
             <div class="flex items-center gap-3 min-w-0">
@@ -9,8 +23,8 @@
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Facturas proveedor</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Listado {{ ($tipo ?? 'facturas') === 'boletas' ? 'boletas' : 'facturas' }} · {{ $documents->total() }} documentos</p>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">{{ $tipoTitle }}</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Listado {{ $tipoListLabel }} · {{ $documents->total() }} documentos</p>
                 </div>
             </div>
 
@@ -49,6 +63,7 @@
             61 => ['sigla' => 'NC',  'color' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'],
             39 => ['sigla' => 'BOL', 'color' => 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'],
             41 => ['sigla' => 'BEX', 'color' => 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300'],
+            52 => ['sigla' => 'GUI', 'color' => 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'],
         ];
     @endphp
 
@@ -186,6 +201,10 @@
                             class="{{ ($tipo ?? 'facturas') === 'boletas' ? 'f-btn active-all' : 'f-btn' }}">
                             Boletas
                         </a>
+                        <a href="{{ route('gmail.dtes.list', array_filter(['q' => $q, 'tipo' => 'guias'])) }}"
+                            class="{{ ($tipo ?? 'facturas') === 'guias' ? 'f-btn active-all' : 'f-btn' }}">
+                            Guías
+                        </a>
                         <button @click="filter = 'todos'" :class="filter === 'todos' ? 'f-btn active-all' : 'f-btn'" class="f-btn">
                             Todas
                         </button>
@@ -204,7 +223,7 @@
                     </div>
                     <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
                         <span class="hidden sm:inline tabular-nums">
-                            {{ $documents->total() }} facturas · pág. {{ $documents->currentPage() }}/{{ $documents->lastPage() }}
+                            {{ $documents->total() }} {{ $tipoListLabel }} · pág. {{ $documents->currentPage() }}/{{ $documents->lastPage() }}
                         </span>
                         <span class="sm:hidden tabular-nums">{{ $documents->total() }} total</span>
                         @if($q)
@@ -306,7 +325,7 @@
                                         <svg class="w-8 h-8 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        No hay facturas.
+                                        No hay {{ $tipoListLabel }}.
                                     </td>
                                 </tr>
                             @endforelse
@@ -392,7 +411,7 @@
                             <svg class="w-8 h-8 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            No hay facturas.
+                            No hay {{ $tipoListLabel }}.
                         </div>
                     @endforelse
                 </div>

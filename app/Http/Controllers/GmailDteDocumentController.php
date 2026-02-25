@@ -11,19 +11,35 @@ class GmailDteDocumentController extends Controller
 {
     private const FACTURA_TYPES = [33, 34, 56, 61];
     private const BOLETA_TYPES = [39, 41];
+    private const GUIA_TYPES = [52];
     private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
 
     public function index()
     {
         [$summaryFacturas, $agingFacturas] = $this->buildSummaryByTypes(self::FACTURA_TYPES);
         [$summaryBoletas, $agingBoletas] = $this->buildSummaryByTypes(self::BOLETA_TYPES);
+        [$summaryGuias, $agingGuias] = $this->buildSummaryByTypes(self::GUIA_TYPES);
 
-        return view('gmail.dtes.index', compact('summaryFacturas', 'agingFacturas', 'summaryBoletas', 'agingBoletas'));
+        return view('gmail.dtes.index', compact(
+            'summaryFacturas',
+            'agingFacturas',
+            'summaryBoletas',
+            'agingBoletas',
+            'summaryGuias',
+            'agingGuias'
+        ));
     }
 
     public function list(Request $request)
     {
-        return redirect()->route('gmail.dtes.facturas.list', $request->only('q'));
+        $q = trim((string) $request->query('q', ''));
+        $tipo = trim((string) $request->query('tipo', 'facturas'));
+
+        return match ($tipo) {
+            'boletas' => redirect()->route('gmail.dtes.boletas.list', array_filter(['q' => $q])),
+            'guias' => redirect()->route('gmail.dtes.guias.list', array_filter(['q' => $q])),
+            default => redirect()->route('gmail.dtes.facturas.list', array_filter(['q' => $q])),
+        };
     }
 
     public function facturasIndex()
@@ -32,6 +48,11 @@ class GmailDteDocumentController extends Controller
     }
 
     public function boletasIndex()
+    {
+        return redirect()->route('gmail.dtes.index');
+    }
+
+    public function guiasIndex()
     {
         return redirect()->route('gmail.dtes.index');
     }
@@ -60,6 +81,19 @@ class GmailDteDocumentController extends Controller
             ->withQueryString();
 
         return view('gmail.dtes.boletas.list', compact('documents', 'q', 'tipo'));
+    }
+
+    public function guiasList(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $tipo = 'guias';
+        $documents = $this->buildDocumentsListQuery($q, self::GUIA_TYPES)
+            ->orderByDesc('fecha_factura')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('gmail.dtes.list', compact('documents', 'q', 'tipo'));
     }
 
     private function buildSummaryByTypes(array $types): array

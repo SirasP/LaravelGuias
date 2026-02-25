@@ -474,8 +474,56 @@ class GmailDteInventoryService
     {
         $value = Str::of($value)->ascii()->lower()->value();
         $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? '';
+        $value = trim(preg_replace('/\s+/', ' ', $value) ?? '');
+        if ($value === '') {
+            return '';
+        }
 
-        return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+        $stopwords = [
+            'de', 'del', 'la', 'el', 'los', 'las', 'y', 'con', 'para', 'por', 'en', 'sin',
+        ];
+
+        $normalizedTokens = [];
+        foreach (explode(' ', $value) as $token) {
+            $token = trim($token);
+            if ($token === '' || in_array($token, $stopwords, true)) {
+                continue;
+            }
+
+            // Ignora capacidades/medidas para evitar ruido en la similitud.
+            if (preg_match('/^\d+([.,]\d+)?$/', $token)) {
+                continue;
+            }
+
+            // Canoniza unidades frecuentes.
+            if (in_array($token, ['l', 'lt', 'lts', 'ltrs', 'litro', 'litros', 'ml', 'cc'], true)) {
+                continue;
+            }
+
+            // Sinónimos y variantes comunes en inventario.
+            $mapped = match ($token) {
+                'bidon', 'bidones' => 'bidon',
+                // Botellón suele referirse a agua en envase grande.
+                'botellon', 'botellones' => 'agua bidon',
+                default => $token,
+            };
+
+            foreach (explode(' ', $mapped) as $part) {
+                $part = trim($part);
+                if ($part !== '') {
+                    $normalizedTokens[] = $part;
+                }
+            }
+        }
+
+        if (empty($normalizedTokens)) {
+            return '';
+        }
+
+        $normalizedTokens = array_values(array_unique($normalizedTokens));
+        sort($normalizedTokens, SORT_STRING);
+
+        return implode(' ', $normalizedTokens);
     }
 
     private function buildAutomaticProductCode(string $name): string

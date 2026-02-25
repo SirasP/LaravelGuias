@@ -180,6 +180,62 @@
                 </div>
             </div>
 
+            <div class="grid grid-cols-1">
+                <div class="panel">
+                    <div class="p-4 sm:p-5 space-y-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <a href="{{ route('gmail.dtes.guias.list') }}" class="text-2xl font-bold text-teal-700 dark:text-teal-300 hover:underline">
+                                    Guías de despacho proveedor
+                                </a>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Tipo 52</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Total documentos</p>
+                                <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ number_format($summaryGuias['total_docs'], 0, ',', '.') }}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Por validar</p>
+                                <p class="text-lg font-bold text-teal-700 dark:text-teal-300">{{ number_format($summaryGuias['por_validar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryGuias['por_validar_monto'], 0, ',', '.') }}</p>
+                            </div>
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Por pagar</p>
+                                <p class="text-lg font-bold text-teal-700 dark:text-teal-300">{{ number_format($summaryGuias['por_pagar_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryGuias['por_pagar_monto'], 0, ',', '.') }}</p>
+                            </div>
+                            <div class="card">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Atrasado</p>
+                                <p class="text-lg font-bold text-teal-700 dark:text-teal-300">{{ number_format($summaryGuias['atrasado_count'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">$ {{ number_format($summaryGuias['atrasado_monto'], 0, ',', '.') }}</p>
+                            </div>
+                        </div>
+
+                        @php
+                            $maxAgeG = max(1, ...array_values($agingGuias));
+                        @endphp
+                        <div class="mini-grid">
+                            @foreach($bars as $bar)
+                                @php
+                                    $value = (int) ($agingGuias[$bar['key']] ?? 0);
+                                    $height = (int) round(($value / $maxAgeG) * 100);
+                                @endphp
+                                <div class="mini-col">
+                                    <div class="mini-bar-wrap">
+                                        <div class="mini-bar" style="height: {{ max(4, $height) }}%; background: {{ $bar['color'] }}"></div>
+                                    </div>
+                                    <p class="mini-label">{{ $bar['label'] }}</p>
+                                    <p class="text-xs text-gray-400">{{ number_format($value, 0, ',', '.') }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </x-app-layout>

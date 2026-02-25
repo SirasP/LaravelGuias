@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<EnvioDTE xmlns="http://www.sii.cl/SiiDte">
+    <SetDTE>
+        <DTE>
+            <Documento>
+                <Encabezado>
+                    <IdDoc>
+                        <FchEmis>2026-02-01</FchEmis>
+                    </IdDoc>
+                </Encabezado>
+
+                <Detalle>
+                    <NmbItem>GUANTES ANTICORTE T7</NmbItem>
+                    <QtyItem>153</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES ANTICORTE T8</NmbItem>
+                    <QtyItem>379</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES ANTICORTE T9</NmbItem>
+                    <QtyItem>91</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES ANTICORTE T10</NmbItem>
+                    <QtyItem>57</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES LATEX (S)</NmbItem>
+                    <QtyItem>1158</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES LATEX (M)</NmbItem>
+                    <QtyItem>1024</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES LATEX (L)</NmbItem>
+                    <QtyItem>856</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES LATEX (XL)</NmbItem>
+                    <QtyItem>184</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES LATEX NARANJOS</NmbItem>
+                    <QtyItem>205</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES DE CABRITILLA</NmbItem>
+                    <QtyItem>49</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES VERDE T7</NmbItem>
+                    <QtyItem>16</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES VERDE T8</NmbItem>
+                    <QtyItem>5</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES VERDE T9</NmbItem>
+                    <QtyItem>16</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES VERDE T10</NmbItem>
+                    <QtyItem>18</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GUANTES PIGMENTADO</NmbItem>
+                    <QtyItem>34</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>GORROS LEGIONARIOS</NmbItem>
+                    <QtyItem>29</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ANTIPARRAS OSCURAS</NmbItem>
+                    <QtyItem>25</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ANTIPARRAS CLARAS</NmbItem>
+                    <QtyItem>23</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>MASCARILLAS</NmbItem>
+                    <QtyItem>76</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TAPONES DESECHABLES</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TAPONES CON CAJA</NmbItem>
+                    <QtyItem>25</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJE DESECH. BLANCO XL</NmbItem>
+                    <QtyItem>0</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJE DESECH. BLANCO XXL</NmbItem>
+                    <QtyItem>5</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJE FUMIGACION BLANCO XXL</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>OVEROLES XL</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>OVEROLES XXL</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>POLERA GRIS (M)</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>POLERA GRIS (L)</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>POLERA GRIS (XXL)</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>POLERA CARBON (XL)</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>POLERA CARBON (XXL)</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ZAPATOS DE SEGURIDAD T37</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ZAPATOS DE SEGURIDAD T42</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ZAPATOS DE SEGURIDAD T43</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJES DE AGUA (S)</NmbItem>
+                    <QtyItem>7</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJES DE AGUA (M)</NmbItem>
+                    <QtyItem>10</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJES DE AGUA (L)</NmbItem>
+                    <QtyItem>9</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJES DE AGUA (XL)</NmbItem>
+                    <QtyItem>15</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>TRAJES DE AGUA (XXL)</NmbItem>
+                    <QtyItem>7</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOTAS DE AGUA N42</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOTAS DE AGUA N40</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOTAS DE AGUA N41</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOTAS DE AGUA N39</NmbItem>
+                    <QtyItem>6</QtyItem>
+                </Detalle>
+
+                <Detalle>
+                    <NmbItem>PAPEL HIGIENICO INDUSTRIAL</NmbItem>
+                    <QtyItem>21</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>NOVA GIGANTE</NmbItem>
+                    <QtyItem>11</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>PAPEL TOALLA</NmbItem>
+                    <QtyItem>24</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOLSA BASURA 50X70</NmbItem>
+                    <QtyItem>6</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOLSA BASURA 70X90</NmbItem>
+                    <QtyItem>6</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOLSA BASURA 90X120</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BOLSA BASURA 80X120</NmbItem>
+                    <QtyItem>18</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>CLORO 1LT</NmbItem>
+                    <QtyItem>19</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>CLORO GEL 5LT</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>CLORO 4LT</NmbItem>
+                    <QtyItem>0</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>CIFT 1LT</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>QUIX 480ML</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>JABON 5LT</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>JABON 500ML</NmbItem>
+                    <QtyItem>1</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>LIMPIAPISO 5LT</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ELIMINADO DE SARRO 1LT</NmbItem>
+                    <QtyItem>3</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>LAVALOZAS 5LT</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>LIMPIAVIDRIOS 650ML</NmbItem>
+                    <QtyItem>0</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>LYSOFORM</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>BLOQUEADORES 1LT</NmbItem>
+                    <QtyItem>2</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>DISGREGANTE</NmbItem>
+                    <QtyItem>5</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>ESCOBAS</NmbItem>
+                    <QtyItem>6</QtyItem>
+                </Detalle>
+                <Detalle>
+                    <NmbItem>PAÑO PARA LIMPIA PISO</NmbItem>
+                    <QtyItem>10</QtyItem>
+                </Detalle>
+
+                <Detalle>
+                    <NmbItem>BIDONES DE AGUA</NmbItem>
+                    <QtyItem>29</QtyItem>
+                </Detalle>
+
+            </Documento>
+        </DTE>
+    </SetDTE>
+</EnvioDTE>

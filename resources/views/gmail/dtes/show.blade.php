@@ -5,8 +5,13 @@
         $isDraft = $workflowStatus === 'borrador';
         $inventoryStatus = data_get($document, 'inventory_status', 'pendiente');
         $isBoletaType = in_array((int) ($document->tipo_dte ?? 0), [39, 41], true);
-        $backRoute = $isBoletaType ? route('gmail.dtes.boletas.list') : route('gmail.dtes.facturas.list');
-        $backLabel = $isBoletaType ? 'Boletas proveedor' : 'Facturas proveedor';
+        $isGuiaType = (int) ($document->tipo_dte ?? 0) === 52;
+        $backRoute = $isGuiaType
+            ? route('gmail.dtes.guias.list')
+            : ($isBoletaType ? route('gmail.dtes.boletas.list') : route('gmail.dtes.facturas.list'));
+        $backLabel = $isGuiaType
+            ? 'Guías proveedor'
+            : ($isBoletaType ? 'Boletas proveedor' : 'Facturas proveedor');
         $headerTipoSigla = match ((int) ($document->tipo_dte ?? 0)) {
             33 => 'FAC',
             34 => 'FEX',
@@ -14,6 +19,7 @@
             61 => 'NC',
             39 => 'BOL',
             41 => 'BEX',
+            52 => 'GUI',
             default => 'DTE',
         };
     @endphp
@@ -121,6 +127,9 @@
             34 => ['sigla' => 'FEX', 'nombre' => 'Factura exenta',        'color' => 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'],
             56 => ['sigla' => 'ND',  'nombre' => 'Nota de débito',        'color' => 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'],
             61 => ['sigla' => 'NC',  'nombre' => 'Nota de crédito',       'color' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'],
+            39 => ['sigla' => 'BOL', 'nombre' => 'Boleta electrónica',    'color' => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'],
+            41 => ['sigla' => 'BEX', 'nombre' => 'Boleta exenta',         'color' => 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300'],
+            52 => ['sigla' => 'GUI', 'nombre' => 'Guía de despacho',      'color' => 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'],
         ];
 
         $tipo = $tipoMap[(int) ($document->tipo_dte ?? 0)] ?? ['sigla' => 'DTE', 'nombre' => 'Documento tributario', 'color' => 'bg-gray-100 text-gray-600'];

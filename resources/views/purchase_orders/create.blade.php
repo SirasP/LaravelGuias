@@ -1071,7 +1071,7 @@
 
                 openSupplierDrop() {
                     const r = this.$refs.tagsWrap.getBoundingClientRect();
-                    this.supplierDropTop   = r.bottom + 4;
+                    this.supplierDropTop   = r.bottom + 1;
                     this.supplierDropLeft  = r.left;
                     this.supplierDropWidth = r.width;
                     this.supplierDropOpen  = true;
@@ -1307,7 +1307,7 @@
                 openProdDrop(line, el) {
                     const r = el.getBoundingClientRect();
                     this.activeLine    = line;
-                    this.prodDropTop   = r.bottom + 4;
+                    this.prodDropTop   = r.bottom + 1;
                     this.prodDropLeft  = r.left;
                     this.prodDropWidth = Math.max(r.width, 220);
                     this.prodDropOpen  = true;
