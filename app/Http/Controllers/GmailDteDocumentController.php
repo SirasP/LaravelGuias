@@ -360,6 +360,76 @@ class GmailDteDocumentController extends Controller
         return back()->with('success', "Inventario actualizado. Movimiento #{$result['movement_id']}.");
     }
 
+    public function rollbackStock(int $id, GmailDteInventoryService $inventoryService)
+    {
+        try {
+            $result = $inventoryService->rollbackDocumentStock($id);
+        } catch (\RuntimeException $e) {
+            return back()->with('warning', $e->getMessage());
+        }
+
+        return back()->with('success', "Ingreso de stock anulado (movimiento #{$result['movement_id']}).");
+    }
+
+    public function reviewStockMatching(int $id, GmailDteInventoryService $inventoryService)
+    {
+        $result = $inventoryService->reviewDocumentStockMatching($id);
+
+        return response()->json([
+            'ok' => true,
+            'already_posted' => (bool) ($result['already_posted'] ?? false),
+            'movement_id' => $result['movement_id'] ?? null,
+            'unresolved' => $result['unresolved'] ?? [],
+        ]);
+    }
+
+    public function stockProductsApi(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $limit = min(300, max(20, (int) $request->query('limit', 150)));
+
+        $products = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_products')
+            ->where('is_active', 1)
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('nombre', 'like', "%{$q}%")
+                        ->orWhere('codigo', 'like', "%{$q}%");
+                });
+            })
+            ->orderBy('nombre')
+            ->limit($limit)
+            ->get(['id', 'nombre', 'codigo', 'unidad', 'stock_actual']);
+
+        return response()->json($products);
+    }
+
+    public function addToStockWithMapping(Request $request, int $id, GmailDteInventoryService $inventoryService)
+    {
+        $validated = $request->validate([
+            'mappings' => ['required', 'array', 'min:1'],
+            'mappings.*.line_id' => ['required', 'integer'],
+            'mappings.*.product_id' => ['required', 'integer'],
+        ]);
+
+        $lineProductMap = [];
+        foreach ($validated['mappings'] as $row) {
+            $lineId = (int) $row['line_id'];
+            $productId = (int) $row['product_id'];
+            if ($lineId > 0 && $productId > 0) {
+                $lineProductMap[$lineId] = $productId;
+            }
+        }
+
+        $result = $inventoryService->addDocumentToStock($id, auth()->id(), $lineProductMap, true);
+
+        if ($result['already_posted']) {
+            return back()->with('warning', 'Este documento ya fue ingresado a inventario.');
+        }
+
+        return back()->with('success', "Inventario actualizado. Movimiento #{$result['movement_id']}.");
+    }
+
     public function inventoryIndex(Request $request)
     {
         $products = DB::connection('fuelcontrol')

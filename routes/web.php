@@ -487,6 +487,17 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])
         ->whereNumber('id')
         ->name('dtes.add_stock');
+    Route::post('/dtes/{id}/rollback-stock', [GmailDteDocumentController::class, 'rollbackStock'])
+        ->whereNumber('id')
+        ->name('dtes.rollback_stock');
+    Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])
+        ->whereNumber('id')
+        ->name('dtes.stock_review');
+    Route::get('/dtes/stock-products', [GmailDteDocumentController::class, 'stockProductsApi'])
+        ->name('dtes.stock_products');
+    Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])
+        ->whereNumber('id')
+        ->name('dtes.add_stock_mapping');
     Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])
         ->whereNumber('id')
         ->whereNumber('lineId')

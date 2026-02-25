@@ -8,9 +8,115 @@ use RuntimeException;
 
 class GmailDteInventoryService
 {
-    public function addDocumentToStock(int $documentId, ?int $userId = null): array
+    public function rollbackDocumentStock(int $documentId): array
     {
-        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId) {
+        return DB::connection('fuelcontrol')->transaction(function () use ($documentId) {
+            $doc = DB::connection('fuelcontrol')
+                ->table('gmail_dte_documents')
+                ->where('id', $documentId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$doc) {
+                throw new RuntimeException("Documento no encontrado: {$documentId}");
+            }
+
+            $movementId = (int) ($doc->stock_movement_id ?? 0);
+            if (($doc->inventory_status ?? null) !== 'ingresado' || $movementId <= 0) {
+                throw new RuntimeException('El documento no tiene un ingreso de stock activo para anular.');
+            }
+
+            $movement = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_movements')
+                ->where('id', $movementId)
+                ->where('tipo', 'ENTRADA')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$movement) {
+                throw new RuntimeException('No se encontró el movimiento de entrada asociado.');
+            }
+
+            $lots = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_lots')
+                ->where('document_id', $documentId)
+                ->lockForUpdate()
+                ->get(['id', 'product_id', 'cantidad_salida']);
+
+            if ($lots->isEmpty()) {
+                throw new RuntimeException('No se encontraron lotes para este documento.');
+            }
+
+            $consumedCount = $lots->filter(fn ($lot) => (float) $lot->cantidad_salida > 0)->count();
+            if ($consumedCount > 0) {
+                throw new RuntimeException('No se puede anular: este ingreso ya tiene salidas FIFO asociadas.');
+            }
+
+            $productIds = $lots->pluck('product_id')->filter()->unique()->values()->all();
+
+            DB::connection('fuelcontrol')
+                ->table('gmail_inventory_movement_lines')
+                ->where('movement_id', $movementId)
+                ->delete();
+
+            DB::connection('fuelcontrol')
+                ->table('gmail_inventory_lots')
+                ->where('document_id', $documentId)
+                ->delete();
+
+            DB::connection('fuelcontrol')
+                ->table('gmail_inventory_movements')
+                ->where('id', $movementId)
+                ->where('tipo', 'ENTRADA')
+                ->delete();
+
+            DB::connection('fuelcontrol')
+                ->table('gmail_dte_documents')
+                ->where('id', $documentId)
+                ->update([
+                    'inventory_status' => 'pendiente',
+                    'stock_posted_at' => null,
+                    'stock_movement_id' => null,
+                    'updated_at' => now(),
+                ]);
+
+            foreach ($productIds as $productId) {
+                $totals = DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_lots')
+                    ->where('product_id', $productId)
+                    ->selectRaw('COALESCE(SUM(cantidad_disponible),0) as stock_total, COALESCE(SUM(cantidad_disponible * costo_unitario),0) as costo_total')
+                    ->first();
+
+                $stockTotal = (float) ($totals->stock_total ?? 0);
+                $costTotal = (float) ($totals->costo_total ?? 0);
+                $avgCost = $stockTotal > 0 ? ($costTotal / $stockTotal) : 0.0;
+
+                DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_products')
+                    ->where('id', $productId)
+                    ->update([
+                        'stock_actual' => $stockTotal,
+                        'costo_promedio' => $avgCost,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            return [
+                'ok' => true,
+                'movement_id' => $movementId,
+                'products_updated' => count($productIds),
+            ];
+        });
+    }
+
+    public function addDocumentToStock(
+        int $documentId,
+        ?int $userId = null,
+        array $manualLineProductMap = [],
+        bool $learnFromManualMap = true
+    ): array
+    {
+        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap) {
             $doc = DB::connection('fuelcontrol')
                 ->table('gmail_dte_documents')
                 ->where('id', $documentId)
@@ -70,8 +176,20 @@ class GmailDteInventoryService
                 $code = trim((string) ($line->codigo ?? ''));
                 $code = $code !== '' ? mb_strtoupper($code, 'UTF-8') : null;
                 $unitCost = $qty > 0 ? ((float) $line->monto_item / $qty) : 0.0;
+                $manualProductId = (int) ($manualLineProductMap[(int) $line->id] ?? 0);
+                if ($manualProductId > 0) {
+                    $product = DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $manualProductId)
+                        ->lockForUpdate()
+                        ->first();
 
-                $product = $this->resolveProductForIncomingLine($code, $name, $unit);
+                    if (!$product) {
+                        throw new RuntimeException("No se encontró el producto asignado manualmente para la línea {$line->id}.");
+                    }
+                } else {
+                    $product = $this->resolveProductForIncomingLine($code, $name, $unit, true);
+                }
 
                 if (!$product) {
                     $resolvedCode = $code ?: $this->buildAutomaticProductCode($name);
@@ -102,6 +220,10 @@ class GmailDteInventoryService
                             'updated_at' => now(),
                         ]);
                     $product->codigo = $resolvedCode;
+                }
+
+                if ($manualProductId > 0 && $learnFromManualMap) {
+                    $this->saveAliasMapping($name, $unit, (int) $product->id);
                 }
 
                 $lotId = DB::connection('fuelcontrol')
@@ -177,6 +299,66 @@ class GmailDteInventoryService
                 'movement_id' => $movementId,
             ];
         });
+    }
+
+    public function reviewDocumentStockMatching(int $documentId): array
+    {
+        $doc = DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $documentId)
+            ->first();
+
+        if (!$doc) {
+            throw new RuntimeException("Documento no encontrado: {$documentId}");
+        }
+
+        if (($doc->inventory_status ?? null) === 'ingresado' && !empty($doc->stock_movement_id)) {
+            return [
+                'already_posted' => true,
+                'movement_id' => (int) $doc->stock_movement_id,
+                'unresolved' => [],
+            ];
+        }
+
+        $lines = DB::connection('fuelcontrol')
+            ->table('gmail_dte_document_lines')
+            ->where('document_id', $documentId)
+            ->orderBy('nro_linea')
+            ->orderBy('id')
+            ->get();
+
+        $unresolved = [];
+        foreach ($lines as $line) {
+            $qty = (float) $line->cantidad;
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $rawUnit = trim((string) ($line->unidad ?? ''));
+            $unit = $this->normalizeUnit($rawUnit);
+            $name = trim((string) ($line->descripcion ?? 'SIN DESCRIPCION'));
+            $code = trim((string) ($line->codigo ?? ''));
+            $code = $code !== '' ? mb_strtoupper($code, 'UTF-8') : null;
+
+            $product = $this->resolveProductForIncomingLine($code, $name, $unit, false);
+            if ($product) {
+                continue;
+            }
+
+            $unresolved[] = [
+                'line_id' => (int) $line->id,
+                'descripcion' => $name,
+                'codigo' => $code,
+                'unidad' => $unit,
+                'cantidad' => $qty,
+            ];
+        }
+
+        return [
+            'already_posted' => false,
+            'movement_id' => null,
+            'unresolved' => $unresolved,
+        ];
     }
 
     /**
@@ -381,33 +563,41 @@ class GmailDteInventoryService
         return $map[$key] ?? $u;
     }
 
-    private function resolveProductForIncomingLine(?string $code, string $name, string $unit): ?object
+    private function resolveProductForIncomingLine(?string $code, string $name, string $unit, bool $forUpdate = true): ?object
     {
         $products = DB::connection('fuelcontrol')->table('gmail_inventory_products');
 
         if ($code) {
-            $byCode = (clone $products)
-                ->where('codigo', $code)
-                ->lockForUpdate()
-                ->first();
+            $byCodeQuery = (clone $products)->where('codigo', $code);
+            if ($forUpdate) {
+                $byCodeQuery->lockForUpdate();
+            }
+            $byCode = $byCodeQuery->first();
             if ($byCode) {
                 return $byCode;
             }
         }
 
-        $byExact = (clone $products)
+        $aliasMatch = $this->resolveAliasProduct($name, $unit, $forUpdate);
+        if ($aliasMatch) {
+            return $aliasMatch;
+        }
+
+        $byExactQuery = (clone $products)
             ->whereRaw('UPPER(TRIM(nombre)) = ?', [mb_strtoupper(trim($name), 'UTF-8')])
-            ->where('unidad', $unit)
-            ->lockForUpdate()
-            ->first();
+            ->where('unidad', $unit);
+        if ($forUpdate) {
+            $byExactQuery->lockForUpdate();
+        }
+        $byExact = $byExactQuery->first();
         if ($byExact) {
             return $byExact;
         }
 
-        return $this->findBestFuzzyMatch($name, $unit);
+        return $this->findBestFuzzyMatch($name, $unit, $forUpdate);
     }
 
-    private function findBestFuzzyMatch(string $name, string $unit): ?object
+    private function findBestFuzzyMatch(string $name, string $unit, bool $forUpdate = true): ?object
     {
         $target = $this->normalizeForSimilarity($name);
         if ($target === '') {
@@ -442,11 +632,14 @@ class GmailDteInventoryService
             return null;
         }
 
-        return DB::connection('fuelcontrol')
+        $bestQuery = DB::connection('fuelcontrol')
             ->table('gmail_inventory_products')
-            ->where('id', $best->id)
-            ->lockForUpdate()
-            ->first();
+            ->where('id', $best->id);
+        if ($forUpdate) {
+            $bestQuery->lockForUpdate();
+        }
+
+        return $bestQuery->first();
     }
 
     private function similarityScore(string $left, string $right): float
@@ -546,5 +739,86 @@ class GmailDteInventoryService
         }
 
         return $candidate;
+    }
+
+    private function resolveAliasProduct(string $name, string $unit, bool $forUpdate = true): ?object
+    {
+        $aliasKey = $this->buildAliasKey($name, $unit);
+        if ($aliasKey === null) {
+            return null;
+        }
+
+        $aliases = $this->loadAliasMap();
+        $productId = (int) ($aliases[$aliasKey] ?? 0);
+        if ($productId <= 0) {
+            return null;
+        }
+
+        $query = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_products')
+            ->where('id', $productId);
+        if ($forUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->first();
+    }
+
+    private function saveAliasMapping(string $name, string $unit, int $productId): void
+    {
+        $aliasKey = $this->buildAliasKey($name, $unit);
+        if ($aliasKey === null || $productId <= 0) {
+            return;
+        }
+
+        $aliases = $this->loadAliasMap();
+        $aliases[$aliasKey] = $productId;
+        $this->storeAliasMap($aliases);
+    }
+
+    private function buildAliasKey(string $name, string $unit): ?string
+    {
+        $normalizedName = $this->normalizeForSimilarity($name);
+        $normalizedUnit = $this->normalizeUnit($unit);
+        if ($normalizedName === '' || $normalizedUnit === '') {
+            return null;
+        }
+
+        return $normalizedUnit . '|' . $normalizedName;
+    }
+
+    private function loadAliasMap(): array
+    {
+        $path = storage_path('app/gmail/product_aliases.json');
+        if (!is_file($path)) {
+            return [];
+        }
+
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return $decoded;
+    }
+
+    private function storeAliasMap(array $aliases): void
+    {
+        $path = storage_path('app/gmail/product_aliases.json');
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+
+        @file_put_contents(
+            $path,
+            json_encode($aliases, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            LOCK_EX
+        );
     }
 }

@@ -87,11 +87,33 @@
                                 message: 'Se ingresarán las líneas de esta factura al inventario.',
                                 confirmLabel: 'Agregar',
                                 type: 'confirm',
-                                callback: () => document.getElementById('doc-stock-form').submit()
+                                callback: () => startStockAddReview(
+                                    '{{ route('gmail.dtes.stock_review', $document->id) }}',
+                                    '{{ route('gmail.dtes.stock_products') }}',
+                                    'doc-stock-form'
+                                )
                             })"
                             class="hdr-btn hdr-violet">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                             <span class="hidden sm:inline">Agregar stock</span>
+                        </button>
+                    </form>
+                @else
+                    <form id="doc-rollback-stock-form" method="POST" action="{{ route('gmail.dtes.rollback_stock', $document->id) }}" class="contents">
+                        @csrf
+                        <button type="button"
+                            @click="openConfirm({
+                                title: 'Anular ingreso de stock',
+                                message: 'Se revertirá este ingreso y el documento quedará pendiente. Si tuvo salidas FIFO, no se podrá anular.',
+                                confirmLabel: 'Anular',
+                                type: 'warning',
+                                callback: () => document.getElementById('doc-rollback-stock-form').submit()
+                            })"
+                            class="hdr-btn hdr-gray">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span class="hidden sm:inline">Anular stock</span>
                         </button>
                     </form>
                 @endif
@@ -748,6 +770,75 @@
 
     </div>
 
+    <div x-data="stockMatcherModal()" x-cloak
+         x-show="open"
+         x-on:stock-matcher-open.window="openWith($event.detail)"
+         class="fixed inset-0 z-[210] flex items-end sm:items-center justify-center p-4"
+         style="background:rgba(15,23,42,.55);"
+         @click.self="close()">
+
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-2xl max-h-[88vh] overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Resolver productos no reconocidos</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Selecciona el producto correcto para cada línea y se aprenderá para próximos ingresos.</p>
+                </div>
+                <button type="button" @click="close()"
+                    class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
+            </div>
+
+            <div class="p-4 space-y-3 overflow-y-auto max-h-[62vh]">
+                <template x-for="(row, idx) in rows" :key="row.line_id">
+                    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-2">
+                        <div>
+                            <p class="text-xs text-gray-400">Línea #<span x-text="row.line_id"></span></p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100" x-text="row.descripcion"></p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                <span x-text="'Unidad: ' + (row.unidad || 'UN')"></span>
+                                <span class="mx-1">·</span>
+                                <span x-text="'Cantidad: ' + row.cantidad"></span>
+                            </p>
+                        </div>
+
+                        <div>
+                            <input type="text"
+                                class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm px-3 py-2"
+                                :placeholder="'Buscar producto para esta línea...'"
+                                x-model="row.search"
+                                @input="onSearch(row)">
+                            <div class="mt-1 rounded-lg border border-gray-100 dark:border-gray-800 max-h-36 overflow-y-auto"
+                                x-show="row.options.length">
+                                <template x-for="opt in row.options" :key="opt.id">
+                                    <button type="button"
+                                        class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 text-sm"
+                                        @click="selectOption(row, opt)">
+                                        <span class="font-medium text-gray-800 dark:text-gray-200" x-text="opt.nombre"></span>
+                                        <span class="text-xs text-gray-400" x-text="' · ' + (opt.codigo || 'Sin código') + ' · ' + (opt.unidad || 'UN')"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1" x-show="row.product_id">
+                                Seleccionado: <span x-text="row.selected_label"></span>
+                            </p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                <button type="button" @click="close()"
+                    class="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                    Cancelar
+                </button>
+                <button type="button" @click="submit()"
+                    :disabled="!canSubmit || submitting"
+                    class="px-4 py-2 text-xs font-bold rounded-xl text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50">
+                    <span x-text="submitting ? 'Guardando...' : 'Agregar stock y aprender'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div x-data="{
             show: false,
             title: '',
@@ -832,6 +923,132 @@
     <script>
     function openConfirm(options) {
         window.dispatchEvent(new CustomEvent('confirm-dialog', { detail: options }));
+    }
+
+    async function startStockAddReview(reviewUrl, productsUrl, submitFormId) {
+        try {
+            const response = await fetch(reviewUrl, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                throw new Error('No se pudo revisar la coincidencia de productos.');
+            }
+
+            if (data.already_posted) {
+                window.location.reload();
+                return;
+            }
+
+            if (!Array.isArray(data.unresolved) || data.unresolved.length === 0) {
+                document.getElementById(submitFormId)?.submit();
+                return;
+            }
+
+            window.dispatchEvent(new CustomEvent('stock-matcher-open', {
+                detail: {
+                    rows: data.unresolved,
+                    productsUrl: productsUrl,
+                    submitUrl: '{{ route('gmail.dtes.add_stock_mapping', $document->id) }}',
+                    csrf: '{{ csrf_token() }}',
+                }
+            }));
+        } catch (error) {
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: { msg: error?.message || 'Error revisando productos.', type: 'error' }
+            }));
+        }
+    }
+
+    function stockMatcherModal() {
+        return {
+            open: false,
+            rows: [],
+            productsUrl: '',
+            submitUrl: '',
+            csrf: '',
+            allProducts: [],
+            submitting: false,
+
+            get canSubmit() {
+                return this.rows.length > 0 && this.rows.every(r => Number(r.product_id) > 0);
+            },
+
+            async openWith(detail) {
+                this.rows = (detail?.rows || []).map(r => ({
+                    ...r,
+                    search: '',
+                    options: [],
+                    product_id: null,
+                    selected_label: '',
+                }));
+                this.productsUrl = detail?.productsUrl || '';
+                this.submitUrl = detail?.submitUrl || '';
+                this.csrf = detail?.csrf || '';
+                this.open = true;
+
+                try {
+                    const r = await fetch(this.productsUrl + '?limit=300', { headers: { 'Accept': 'application/json' } });
+                    this.allProducts = await r.json();
+                } catch (_) {
+                    this.allProducts = [];
+                }
+            },
+
+            close() {
+                this.open = false;
+                this.rows = [];
+                this.submitting = false;
+            },
+
+            onSearch(row) {
+                const q = (row.search || '').toLowerCase().trim();
+                if (!q) {
+                    row.options = this.allProducts.slice(0, 12);
+                    return;
+                }
+                row.options = this.allProducts
+                    .filter(p => ((p.nombre || '').toLowerCase().includes(q) || (p.codigo || '').toLowerCase().includes(q)))
+                    .slice(0, 12);
+            },
+
+            selectOption(row, opt) {
+                row.product_id = Number(opt.id);
+                row.selected_label = `${opt.nombre} (${opt.codigo || 'Sin código'})`;
+                row.search = opt.nombre || '';
+                row.options = [];
+            },
+
+            submit() {
+                if (!this.canSubmit || this.submitting) return;
+                this.submitting = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = this.submitUrl;
+
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = this.csrf;
+                form.appendChild(csrf);
+
+                this.rows.forEach((r, idx) => {
+                    const lineInput = document.createElement('input');
+                    lineInput.type = 'hidden';
+                    lineInput.name = `mappings[${idx}][line_id]`;
+                    lineInput.value = String(r.line_id);
+                    form.appendChild(lineInput);
+
+                    const productInput = document.createElement('input');
+                    productInput.type = 'hidden';
+                    productInput.name = `mappings[${idx}][product_id]`;
+                    productInput.value = String(r.product_id);
+                    form.appendChild(productInput);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+            },
+        };
     }
     </script>
 </x-app-layout>
