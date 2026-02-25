@@ -122,26 +122,45 @@ class GmailInventoryController extends Controller
             $query->where('ocurrio_el', '<=', $hasta);
         }
 
-        $movements = $query->paginate(24)->withQueryString();
+        $movements = $query->limit(200)->get();
 
         $ids = $movements->pluck('id')->all();
 
         // Lines grouped by movement for card detail
-        $lines = $this->db()
-            ->table('gmail_inventory_movement_lines as ml')
-            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
-            ->whereIn('ml.movement_id', $ids)
-            ->orderBy('p.nombre')
-            ->get([
-                'ml.movement_id',
-                'p.nombre as producto',
-                'p.codigo',
-                'p.unidad',
-                'ml.cantidad',
-                'ml.costo_unitario',
-                'ml.costo_total',
-            ])
-            ->groupBy('movement_id');
+        $lines = $ids
+            ? $this->db()
+                ->table('gmail_inventory_movement_lines as ml')
+                ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+                ->whereIn('ml.movement_id', $ids)
+                ->orderBy('p.nombre')
+                ->get([
+                    'ml.movement_id',
+                    'p.nombre as producto',
+                    'p.codigo',
+                    'p.unidad',
+                    'ml.cantidad',
+                    'ml.costo_unitario',
+                    'ml.costo_total',
+                ])
+                ->groupBy('movement_id')
+            : collect();
+
+        // Group: tipo_salida → destinatario → movements
+        $grouped = $movements
+            ->groupBy(fn($m) => $m->tipo_salida ?? 'Salida')
+            ->map(fn($byTipo) => $byTipo->groupBy(fn($m) => $m->destinatario ?? '—'));
+
+        // Per-section stats
+        $sectionOrder = ['Venta', 'EPP', 'Salida'];
+        $stats = [];
+        foreach ($sectionOrder as $tipo) {
+            $movs = $movements->filter(fn($m) => ($m->tipo_salida ?? 'Salida') === $tipo);
+            $stats[$tipo] = [
+                'count' => $movs->count(),
+                'costo' => $movs->sum('costo_total'),
+                'venta' => $movs->sum('precio_venta'),
+            ];
+        }
 
         // KPI del mes actual
         $mesInicio = now()->startOfMonth()->toDateString();
@@ -167,8 +186,8 @@ class GmailInventoryController extends Controller
             ->first();
 
         return view('gmail.inventory.exits', compact(
-            'movements', 'lines', 'q', 'desde', 'hasta',
-            'kpiMes', 'topProducto'
+            'movements', 'lines', 'grouped', 'stats', 'sectionOrder',
+            'q', 'desde', 'hasta', 'kpiMes', 'topProducto'
         ));
     }
 
