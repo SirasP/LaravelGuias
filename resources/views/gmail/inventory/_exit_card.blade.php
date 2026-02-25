@@ -1,4 +1,4 @@
-{{-- Ventas exit card — variables: $m, $cardLines, $costoTotal, $precioVenta, $sellUrl --}}
+{{-- Ventas exit card — variables: $m, $cardLines, $costoTotal, $precioVenta, $sellUrl, $detailUrl --}}
 <div class="exit-card"
      x-data="{
         showSell: false,
@@ -42,7 +42,8 @@
      }">
 
     {{-- Header --}}
-    <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
+    <a href="{{ $detailUrl ?? '#' }}" class="block px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
+    <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
             <p class="text-[11px] text-gray-400 mb-0.5">#{{ $m->id }}</p>
             <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
@@ -65,9 +66,10 @@
             @endif
         </div>
     </div>
+    </a>
 
     {{-- Product lines --}}
-    <div class="px-4 py-2">
+    <a href="{{ $detailUrl ?? '#' }}" class="block px-4 py-2 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
         @if ($cardLines->isEmpty())
             <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
         @else
@@ -101,7 +103,7 @@
                 </tbody>
             </table>
         @endif
-    </div>
+    </a>
 
     {{-- Footer --}}
     <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">

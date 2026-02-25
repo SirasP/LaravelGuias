@@ -1,5 +1,5 @@
-{{-- EPP / Salida exit card — variables: $m, $cardLines, $costoTotal --}}
-<div class="exit-card">
+{{-- EPP / Salida exit card — variables: $m, $cardLines, $costoTotal, $detailUrl --}}
+<a href="{{ $detailUrl ?? '#' }}" class="exit-card block hover:border-indigo-300 dark:hover:border-indigo-700 transition">
 
     {{-- Header --}}
     <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
@@ -72,4 +72,4 @@
             </p>
         </div>
     </div>
-</div>
+</a>

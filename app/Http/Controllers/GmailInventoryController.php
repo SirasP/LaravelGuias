@@ -468,6 +468,36 @@ class GmailInventoryController extends Controller
         return response()->json($lines);
     }
 
+    // GET /gmail/inventario/salidas/{id}
+    public function exitShow(int $id)
+    {
+        $movement = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('id', $id)
+            ->where('tipo', 'SALIDA')
+            ->first();
+
+        abort_if(!$movement, 404);
+
+        $lines = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->leftJoin('gmail_inventory_lots as l', 'l.id', '=', 'ml.lot_id')
+            ->where('ml.movement_id', $id)
+            ->orderBy('p.nombre')
+            ->get([
+                'p.nombre as producto',
+                'p.codigo',
+                'p.unidad',
+                'ml.cantidad',
+                'ml.costo_unitario',
+                'ml.costo_total',
+                'l.ingresado_el as lote_fecha',
+            ]);
+
+        return view('gmail.inventory.exit_show', compact('movement', 'lines'));
+    }
+
     // GET /gmail/inventario/api/contactos
     public function contactsApi(Request $request)
     {
