@@ -34,7 +34,7 @@
                 </button>
             </form>
 
-            <div class="flex items-center gap-2 justify-end">
+            <div class="hidden sm:flex items-center gap-2 justify-end">
                 @php $tabHeaderBase = array_filter(['q' => $q]); @endphp
                 <div class="hidden sm:flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 shrink-0 mr-1">
                     <a href="{{ route('gmail.inventory.exits', array_merge($tabHeaderBase, ['tipo' => 'Venta'])) }}"
@@ -128,6 +128,25 @@
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+
+            <form method="GET" class="lg:hidden flex gap-2 items-center w-full">
+                @if ($vista === 'Venta')
+                    <input type="hidden" name="tipo" value="Venta">
+                @endif
+                <input type="text" name="q" value="{{ $q }}"
+                    class="f-input flex-1 min-w-0 py-2"
+                    placeholder="Buscar destinatario...">
+                @if($q)
+                    <a href="{{ route('gmail.inventory.exits', $vista === 'Venta' ? ['tipo' => 'Venta'] : []) }}"
+                        class="shrink-0 text-xs font-semibold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                        Limpiar
+                    </a>
+                @endif
+                <button type="submit"
+                    class="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition">
+                    Buscar
+                </button>
+            </form>
 
             @if (session('success'))
                 <div class="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-4 py-3">
@@ -341,13 +360,14 @@
                 @endif
             @endif
 
-            <a href="{{ route('gmail.inventory.exit.create') }}"
-                class="fixed right-5 bottom-5 z-50 sm:hidden w-14 h-14 rounded-full inline-flex items-center justify-center
-                       bg-rose-600 hover:bg-rose-700 text-white shadow-xl transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-                </svg>
-            </a>
         </div>
+
+        <a href="{{ route('gmail.inventory.exit.create') }}"
+            class="fixed right-5 bottom-5 z-50 sm:hidden w-14 h-14 rounded-full inline-flex items-center justify-center
+                   bg-rose-600 hover:bg-rose-700 text-white shadow-xl transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+            </svg>
+        </a>
     </div>
 </x-app-layout>

@@ -73,7 +73,29 @@
         @if ($cardLines->isEmpty())
             <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
         @else
-            <table class="w-full text-xs">
+            @php
+                $qtyTotal = (float) $cardLines->sum('cantidad');
+                $lineCount = (int) $cardLines->count();
+            @endphp
+
+            <div class="sm:hidden rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 p-2.5 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Resumen</span>
+                    <span class="text-[11px] font-bold text-gray-800 dark:text-gray-200">{{ $lineCount }} productos</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wide">Cantidad total</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-gray-100">{{ number_format($qtyTotal, 2, ',', '.') }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2 text-right">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-gray-100">$ {{ number_format($costoTotal, 0, ',', '.') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <table class="hidden sm:table w-full text-xs">
                 <thead>
                     <tr class="border-b border-gray-100 dark:border-gray-800">
                         <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>

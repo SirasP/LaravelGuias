@@ -8,15 +8,15 @@
     <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
         <div class="min-w-0">
             <p class="text-[11px] text-gray-400 mb-0.5">#{{ $m->id }}</p>
-            <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
+            <p class="font-bold text-sm sm:text-sm text-gray-900 dark:text-gray-100 truncate">
                 {{ $m->destinatario ?? '—' }}
             </p>
             @if ($m->notas)
-                <p class="text-xs text-gray-400 truncate mt-0.5">{{ $m->notas }}</p>
+                <p class="text-[11px] sm:text-xs text-gray-400 truncate mt-0.5">{{ $m->notas }}</p>
             @endif
         </div>
         <div class="text-right shrink-0">
-            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">
+            <p class="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100">
                 {{ \Carbon\Carbon::parse($m->ocurrio_el)->format('d/m/Y') }}
             </p>
             <p class="text-[11px] text-gray-400">
@@ -34,7 +34,24 @@
         @php
             $cantidadTotal = (float) $cardLines->sum('cantidad');
         @endphp
-        <table class="w-full text-xs">
+        <div class="sm:hidden rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 p-2.5 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Producto</span>
+                <span class="text-[11px] font-bold text-gray-800 dark:text-gray-200">{{ $summaryName }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Cantidad total</p>
+                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100">{{ number_format($cantidadTotal, 2, ',', '.') }}</p>
+                </div>
+                <div class="rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2 text-right">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
+                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100">$ {{ number_format($costoTotal, 0, ',', '.') }}</p>
+                </div>
+            </div>
+        </div>
+
+        <table class="hidden sm:table w-full text-xs">
             <thead>
                 <tr class="border-b border-gray-100 dark:border-gray-800">
                     <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
