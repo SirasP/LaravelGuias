@@ -114,6 +114,8 @@
                 @csrf
                 <input type="hidden" name="destinatario" :value="destValue">
                 <input type="hidden" name="tipo_salida"  :value="tipoSalida">
+                <input type="hidden" name="enviar_factura" :value="sendByEmail ? 1 : 0">
+                <input type="hidden" name="correo_factura" :value="saleEmail">
                 <template x-for="(item, idx) in items" :key="item.product_id">
                     <div>
                         <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.product_id">
@@ -292,6 +294,19 @@
                                         <span class="text-rose-600 dark:text-rose-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
                                     </div>
                                     <p class="text-[10px] text-gray-400">El precio de venta se registra desde el historial de salidas.</p>
+                                    <div class="pt-1.5 border-t border-emerald-100 dark:border-emerald-800/40 space-y-2">
+                                        <label class="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                                            <input type="checkbox" x-model="sendByEmail"
+                                                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                            <span>Enviar factura por correo</span>
+                                        </label>
+                                        <input type="email"
+                                            x-model="saleEmail"
+                                            x-show="sendByEmail"
+                                            x-transition
+                                            class="f-input"
+                                            placeholder="correo@cliente.cl">
+                                    </div>
                                 </div>
                             </template>
 
@@ -324,7 +339,7 @@
                             </div>
 
                             <button type="submit"
-                                :disabled="items.length === 0 || hasErrors || !destValue.trim() || !tipoSalida"
+                                :disabled="items.length === 0 || hasErrors || !destValue.trim() || !tipoSalida || (tipoSalida === 'Venta' && sendByEmail && !isValidEmail(saleEmail))"
                                 class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
                                 :class="tipoSalida === 'Venta' ? 'bg-emerald-600 hover:bg-emerald-700' : tipoSalida === 'EPP' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-rose-600 hover:bg-rose-700'">
                                 <span x-text="tipoSalida === 'Venta' ? 'Registrar Venta' : tipoSalida === 'EPP' ? 'Registrar Entrega EPP' : 'Registrar Salida'"></span>
@@ -576,6 +591,8 @@
                 savingContact: false,
                 contactErr: '',
                 contactForm: { nombre:'', rut:'', empresa:'', cargo:'', area:'', telefono:'', email:'', notas:'' },
+                sendByEmail: false,
+                saleEmail: '',
 
                 /* ── Tipo ── */
                 tipoSalida: '{{ old('tipo_salida') }}',
@@ -590,6 +607,7 @@
                 get destLabel()       { return this.tipoSalida==='Venta' ? 'Cliente' : this.tipoSalida==='EPP' ? 'Trabajador' : 'Destinatario'; },
                 get destPlaceholder() { return this.tipoSalida==='Venta' ? 'Buscar o crear cliente...' : this.tipoSalida==='EPP' ? 'Buscar o crear trabajador...' : 'Buscar o crear destinatario...'; },
                 get contactTipo()     { return this.tipoSalida==='Venta' ? 'cliente' : this.tipoSalida==='EPP' ? 'trabajador' : 'destinatario'; },
+                get contactsFilterTipo() { return this.tipoSalida==='Venta' ? 'cliente' : this.tipoSalida==='EPP' ? 'trabajador' : ''; },
                 get visibleResults()  { return this.expanded ? this.results : this.results.slice(0,5); },
                 get hasMore()         { return !this.expanded && this.results.length > 5; },
                 get totalCost()       { return this.items.reduce((s,i) => s + (i.quantity * i.costo_promedio), 0); },
@@ -608,6 +626,10 @@
                     const prev = this.tipoSalida;
                     this.tipoSalida = val;
                     if (prev !== val) { this.destValue = ''; this.destContact = null; this.destSearch = ''; }
+                    if (val !== 'Venta') {
+                        this.sendByEmail = false;
+                        this.saleEmail = '';
+                    }
                     this.tipoModalOpen = false;
                 },
 
@@ -664,7 +686,7 @@
                     this.destLoading=true;
                     try {
                         const q = encodeURIComponent(this.destSearch.trim());
-                        const t = encodeURIComponent(this.contactTipo);
+                        const t = encodeURIComponent(this.contactsFilterTipo);
                         this.destSuggestions = await (await fetch(contactsApiUrl+'?q='+q+'&tipo='+t)).json();
                     } catch(e){ this.destSuggestions=[]; } finally { this.destLoading=false; }
                 },
@@ -673,6 +695,9 @@
                     this.destContact = c;
                     this.destSearch  = '';
                     this.destDropOpen = false;
+                    if (this.tipoSalida === 'Venta') {
+                        this.saleEmail = (c.email ?? '').trim();
+                    }
                 },
 
                 /* ── Contact modal ── */
@@ -701,6 +726,9 @@
                         this.destValue   = contact.nombre;
                         this.destContact = contact;
                         this.destSearch  = '';
+                        if (this.tipoSalida === 'Venta') {
+                            this.saleEmail = (contact.email ?? '').trim();
+                        }
                         this.contactModalOpen = false;
                     } catch(e) {
                         this.contactErr = 'Error de conexión.';
@@ -712,11 +740,17 @@
                 /* ── Submit ── */
                 submitForm(form) {
                     if (this.items.length===0 || this.hasErrors || !this.destValue.trim() || !this.tipoSalida) return;
+                    if (this.tipoSalida === 'Venta' && this.sendByEmail && !this.isValidEmail(this.saleEmail)) return;
                     form.submit();
                 },
 
                 formatNum(val, decimals) {
                     return (parseFloat(val)||0).toLocaleString('es-CL',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+                },
+                isValidEmail(email) {
+                    const val = (email ?? '').trim();
+                    if (!val) return false;
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
                 },
             };
         }

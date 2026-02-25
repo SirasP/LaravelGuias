@@ -122,11 +122,14 @@ class ProductosController extends Controller
         ));
     }
 
-    public function toggle($id)
+    public function toggle(Request $request, $id)
     {
         $producto = $this->db()->table('gmail_inventory_products')->where('id', $id)->first();
         if (!$producto) {
-            return response()->json(['success' => false], 404);
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false], 404);
+            }
+            return back()->with('warning', 'Producto no encontrado.');
         }
 
         $nuevo = !(bool) $producto->is_active;
@@ -136,6 +139,14 @@ class ProductosController extends Controller
             'updated_at' => now(),
         ]);
 
-        return response()->json(['success' => true, 'activo' => $nuevo]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'activo' => $nuevo,
+                'message' => $nuevo ? 'Producto pasa a activo.' : 'Producto pasa a inactivo.',
+            ]);
+        }
+
+        return back()->with('info', $nuevo ? 'Producto pasa a activo.' : 'Producto pasa a inactivo.');
     }
 }

@@ -152,31 +152,32 @@
             color: #e2e8f0
         }
 
-        .fab {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            z-index: 70;
-            width: 54px;
-            height: 54px;
-            border-radius: 999px;
+        .switch {
+            position: relative;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            background: #7c3aed;
-            color: #fff;
-            box-shadow: 0 14px 28px rgba(76, 29, 149, 0.35);
-            transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+            width: 38px;
+            height: 22px;
+            border-radius: 999px;
+            background: #cbd5e1;
+            transition: background .18s ease;
+            cursor: pointer;
         }
-
-        .fab:hover {
-            transform: translateY(-2px);
-            background: #6d28d9;
-            box-shadow: 0 16px 32px rgba(76, 29, 149, 0.45);
+        .dark .switch { background: #334155; }
+        .switch-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,.22);
+            transform: translateX(3px);
+            transition: transform .18s ease;
         }
-
-        .fab:active {
-            transform: translateY(0);
+        input:checked + .switch {
+            background: #10b981;
+        }
+        input:checked + .switch .switch-dot {
+            transform: translateX(19px);
         }
     </style>
 
@@ -231,10 +232,27 @@
                                     </p>
                                     <p class="text-xs text-gray-400 mt-0.5">{{ $p->codigo ?? 'Sin codigo' }}</p>
                                 </div>
-                                <span
-                                    class="inline-flex px-2.5 py-1 text-[11px] font-semibold rounded-full {{ (int) $p->is_active === 1 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
-                                    {{ (int) $p->is_active === 1 ? 'Activo' : 'Inactivo' }}
-                                </span>
+                                <form method="POST"
+                                    action="{{ route('inventario.productos.toggle', $p->id) }}"
+                                    class="relative z-20 flex items-center gap-2"
+                                    onclick="event.stopPropagation()">
+                                    @csrf
+                                    @method('PATCH')
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox"
+                                            name="is_active"
+                                            class="sr-only"
+                                            {{ (int) $p->is_active === 1 ? 'checked' : '' }}
+                                            onchange="this.form.submit()">
+                                        <span class="switch">
+                                            <span class="switch-dot"></span>
+                                        </span>
+                                        <span
+                                            class="text-[11px] font-semibold {{ (int) $p->is_active === 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                            {{ (int) $p->is_active === 1 ? 'Activo' : 'Inactivo' }}
+                                        </span>
+                                    </label>
+                                </form>
                             </div>
 
                             <div class="mt-4 grid grid-cols-2 gap-3">
@@ -273,10 +291,5 @@
             <div>{{ $products->links() }}</div>
         </div>
 
-        <button type="button" class="fab" title="Acción rápida (definiremos flujo)">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-            </svg>
-        </button>
     </div>
 </x-app-layout>

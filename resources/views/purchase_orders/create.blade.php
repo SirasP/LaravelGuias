@@ -1051,9 +1051,6 @@
                         this.prodDropOpen    = false;
                         this.supplierDropOpen = false;
                     }, { passive: true });
-                    if (this.suppliers.length === 0) {
-                        this.openSupplierModal(null);
-                    }
                     this.updateNotesBySupplier();
                 },
 
