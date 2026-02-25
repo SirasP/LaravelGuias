@@ -498,6 +498,67 @@ class GmailInventoryController extends Controller
         return view('gmail.inventory.exit_show', compact('movement', 'lines'));
     }
 
+    // GET /gmail/inventario/salidas-resumen?destinatario=...&tipo=...
+    public function exitGroupShow(Request $request)
+    {
+        $destinatario = trim((string) $request->query('destinatario', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
+
+        abort_if($destinatario === '', 404);
+
+        $query = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where('destinatario', $destinatario)
+            ->orderByDesc('ocurrio_el')
+            ->orderByDesc('id');
+
+        if ($tipo === 'Venta') {
+            $query->where('tipo_salida', 'Venta');
+        } elseif ($tipo === 'EPP') {
+            $query->where('tipo_salida', 'EPP');
+        } elseif ($tipo === 'Salida') {
+            $query->where(function ($qb) {
+                $qb->where('tipo_salida', 'Salida')->orWhereNull('tipo_salida');
+            });
+        }
+
+        $movements = $query->get();
+        abort_if($movements->isEmpty(), 404);
+
+        $ids = $movements->pluck('id')->all();
+
+        $lines = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->leftJoin('gmail_inventory_lots as l', 'l.id', '=', 'ml.lot_id')
+            ->whereIn('ml.movement_id', $ids)
+            ->orderByDesc('ml.movement_id')
+            ->orderBy('p.nombre')
+            ->get([
+                'ml.movement_id',
+                'p.nombre as producto',
+                'p.codigo',
+                'p.unidad',
+                'ml.cantidad',
+                'ml.costo_unitario',
+                'ml.costo_total',
+                'l.ingresado_el as lote_fecha',
+            ])
+            ->groupBy('movement_id');
+
+        $summary = (object) [
+            'movimientos' => (int) $movements->count(),
+            'cantidad_total' => (float) $lines->flatten(1)->sum('cantidad'),
+            'costo_total' => (float) $movements->sum('costo_total'),
+            'venta_total' => (float) $movements->sum(fn($m) => (float) ($m->precio_venta ?? 0)),
+            'sin_precio' => (int) $movements->filter(fn($m) => ((float) ($m->precio_venta ?? 0)) <= 0)->count(),
+            'ultimo_movimiento' => $movements->first(),
+        ];
+
+        return view('gmail.inventory.exit_group_show', compact('destinatario', 'tipo', 'movements', 'lines', 'summary'));
+    }
+
     // GET /gmail/inventario/api/contactos
     public function contactsApi(Request $request)
     {

@@ -455,6 +455,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/inventario/api/destinatarios', [App\Http\Controllers\GmailInventoryController::class, 'destinatariosApi'])->name('inventory.api.destinatarios');
     Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
+    Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
     Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
     Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
