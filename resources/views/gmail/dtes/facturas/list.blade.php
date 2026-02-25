@@ -158,33 +158,7 @@
         .tipo-badge { display:inline-flex; align-items:center; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:800; letter-spacing:.04em }
     </style>
 
-    <div
-        class="page-bg"
-        x-data="{
-            filter: 'todos',
-            toast: '',
-            toastVisible: false,
-            toastTimer: null,
-            setFilter(value, label) {
-                this.filter = value;
-                this.toast = label;
-                this.toastVisible = true;
-                if (this.toastTimer) {
-                    clearTimeout(this.toastTimer);
-                }
-                this.toastTimer = setTimeout(() => {
-                    this.toastVisible = false;
-                }, 1800);
-            }
-        }"
-    >
-        <div
-            x-cloak
-            x-show="toastVisible"
-            x-transition.opacity.duration.180ms
-            class="fixed top-20 right-4 z-50 rounded-xl bg-slate-900/95 text-white text-xs font-semibold px-3 py-2 shadow-xl"
-            x-text="toast"
-        ></div>
+    <div class="page-bg" x-data="{ filter: 'todos' }">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
 
             {{-- Búsqueda móvil --}}
@@ -204,22 +178,18 @@
                 {{-- Toolbar con filtros --}}
                 <div class="panel-toolbar">
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <button @click="setFilter('todos', 'Filtro: todas las facturas')"
-                            :class="filter === 'todos' ? 'f-btn active-all' : 'f-btn'" class="f-btn">
+                        <button @click="filter = 'todos'" :class="filter === 'todos' ? 'f-btn active-all' : 'f-btn'" class="f-btn">
                             Todas
                         </button>
-                        <button @click="setFilter('sinpagar', 'Filtro: facturas sin pagar')"
-                            :class="filter === 'sinpagar' ? 'f-btn active-sinpagar' : 'f-btn'" class="f-btn">
+                        <button @click="filter = 'sinpagar'" :class="filter === 'sinpagar' ? 'f-btn active-sinpagar' : 'f-btn'" class="f-btn">
                             <span class="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
                             Sin pagar
                         </button>
-                        <button @click="setFilter('pendiente', 'Filtro: facturas pendientes')"
-                            :class="filter === 'pendiente' ? 'f-btn active-pendiente' : 'f-btn'" class="f-btn">
+                        <button @click="filter = 'pendiente'" :class="filter === 'pendiente' ? 'f-btn active-pendiente' : 'f-btn'" class="f-btn">
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
                             Pendiente
                         </button>
-                        <button @click="setFilter('pagado', 'Filtro: facturas pagadas')"
-                            :class="filter === 'pagado' ? 'f-btn active-pagado' : 'f-btn'" class="f-btn">
+                        <button @click="filter = 'pagado'" :class="filter === 'pagado' ? 'f-btn active-pagado' : 'f-btn'" class="f-btn">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                             Pagadas
                         </button>

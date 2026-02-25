@@ -222,7 +222,7 @@ class GmailInventoryController extends Controller
 
         $callback = function () use ($rows) {
             $fh = fopen('php://output', 'w');
-            fprintf($fh, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+            fprintf($fh, \chr(0xEF) . \chr(0xBB) . \chr(0xBF)); // BOM UTF-8
             fputcsv($fh, [
                 'ID Movimiento', 'Fecha', 'Destinatario', 'Tipo Salida', 'Notas',
                 'Costo Total Mov.', 'Precio Venta', 'Producto', 'Código', 'Unidad',
@@ -279,7 +279,8 @@ class GmailInventoryController extends Controller
     // GET /gmail/inventario/api/destinatarios
     public function destinatariosApi(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
+        $q    = trim((string) $request->query('q', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
 
         $query = $this->db()
             ->table('gmail_inventory_movements')
@@ -291,6 +292,9 @@ class GmailInventoryController extends Controller
             ->orderByDesc('last_used')
             ->limit(6);
 
+        if ($tipo !== '') {
+            $query->where('tipo_salida', $tipo);
+        }
         if ($q !== '') {
             $query->where('destinatario', 'like', "%{$q}%");
         }

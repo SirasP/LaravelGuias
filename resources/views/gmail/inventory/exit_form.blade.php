@@ -19,10 +19,8 @@
 
     <style>
         [x-cloak] { display:none !important; }
-
         .page-bg { background:#f1f5f9; min-height:100% }
         .dark .page-bg { background:#0d1117 }
-
         .f-label {
             display:block; font-size:11px; font-weight:700;
             text-transform:uppercase; letter-spacing:.05em;
@@ -36,16 +34,13 @@
         }
         .f-input:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.12) }
         .dark .f-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
-
         .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; }
         .dark .card { background:#161c2c; border-color:#1e2a3b }
 
-        /* ── Destinatario combobox (combo-drop pattern from cotizaciones) ── */
-        .combo-wrap { position:relative; }
+        /* Destinatario combobox */
         .combo-drop {
-            position:fixed; z-index:9999;
-            background:#fff; border:1px solid #e2e8f0; border-radius:12px;
-            box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
+            position:fixed; z-index:9999; background:#fff; border:1px solid #e2e8f0;
+            border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
         }
         .dark .combo-drop { background:#161c2c; border-color:#1e2a3b; box-shadow:0 8px 32px rgba(0,0,0,.4) }
         .combo-item {
@@ -58,19 +53,17 @@
         .combo-item-sub { font-size:11px; color:#94a3b8; white-space:nowrap }
         .combo-empty  { padding:9px 13px; font-size:12px; color:#94a3b8; font-style:italic }
         .combo-create {
-            display:flex; align-items:center; gap:7px;
-            padding:10px 13px; cursor:pointer; font-size:12px; font-weight:700;
-            color:#8b5cf6; border-top:1px solid #f1f5f9;
+            display:flex; align-items:center; gap:7px; padding:10px 13px; cursor:pointer;
+            font-size:12px; font-weight:700; color:#8b5cf6; border-top:1px solid #f1f5f9;
         }
         .combo-create:hover { background:#faf5ff }
         .dark .combo-create { color:#a78bfa; border-top-color:#1a2232 }
         .dark .combo-create:hover { background:rgba(139,92,246,.08) }
 
-        /* ── Product dropdown (prod-drop pattern from cotizaciones) ── */
+        /* Product dropdown */
         .prod-drop {
-            position:fixed; z-index:9999;
-            background:#fff; border:1px solid #e2e8f0; border-radius:10px;
-            box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:220px; overflow-y:auto;
+            position:fixed; z-index:9999; background:#fff; border:1px solid #e2e8f0;
+            border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:220px; overflow-y:auto;
         }
         .dark .prod-drop { background:#161c2c; border-color:#1e2a3b; }
         .prod-item {
@@ -84,24 +77,30 @@
         .prod-item-empty { padding:9px 12px; font-size:11px; color:#94a3b8; font-style:italic; }
         .prod-item-extra {
             padding:6px 12px; font-size:10px; color:#94a3b8; font-style:italic;
-            border-top:1px solid #f1f5f9; text-align:center;
+            border-top:1px solid #f1f5f9; text-align:center; cursor:pointer;
         }
         .dark .prod-item-extra { border-top-color:#1a2232; }
 
-        /* Destinatario chip */
+        /* Chip */
         .dest-chip {
-            display:inline-flex; align-items:center; gap:4px;
-            padding:3px 8px 3px 10px; border-radius:999px;
-            background:#ede9fe; border:1.5px solid #c4b5fd;
+            display:inline-flex; align-items:center; gap:4px; padding:3px 8px 3px 10px;
+            border-radius:999px; background:#ede9fe; border:1.5px solid #c4b5fd;
             font-size:12px; font-weight:700; color:#5b21b6; white-space:nowrap;
         }
         .dark .dest-chip { background:rgba(139,92,246,.15); border-color:rgba(139,92,246,.4); color:#a78bfa; }
         .dest-chip-x {
-            display:inline-flex; align-items:center; justify-content:center;
-            width:14px; height:14px; border-radius:999px; cursor:pointer;
-            font-size:13px; line-height:1; color:#7c3aed; background:none; border:none; padding:0; transition:.1s;
+            display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px;
+            border-radius:999px; cursor:pointer; font-size:13px; line-height:1; color:#7c3aed;
+            background:none; border:none; padding:0; transition:.1s;
         }
         .dest-chip-x:hover { background:rgba(239,68,68,.15); color:#dc2626; }
+
+        /* Tipo chip */
+        .tipo-chip {
+            display:inline-flex; align-items:center; gap:5px; padding:3px 10px 3px 8px;
+            border-radius:999px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid;
+            transition:.15s;
+        }
 
         /* Stock bar */
         .stock-bar-bg { height:4px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:4px }
@@ -127,13 +126,12 @@
 
             <form method="POST" action="{{ route('gmail.inventory.exit.store') }}" @submit.prevent="submitForm($el)">
                 @csrf
-                {{-- Hidden inputs (generated by Alpine) --}}
                 <input type="hidden" name="destinatario" :value="destValue">
-                <input type="hidden" name="tipo_salida" :value="tipoSalida">
+                <input type="hidden" name="tipo_salida"  :value="tipoSalida">
                 <template x-for="(item, idx) in items" :key="item.product_id">
                     <div>
                         <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.product_id">
-                        <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.quantity">
+                        <input type="hidden" :name="'items[' + idx + '][quantity]'"    :value="item.quantity">
                     </div>
                 </template>
 
@@ -142,7 +140,6 @@
                     {{-- ── Left panel ── --}}
                     <div class="lg:col-span-2 space-y-4">
 
-                        {{-- Product search --}}
                         <div class="card" style="overflow:visible">
                             <label class="f-label">Agregar producto</label>
                             <input type="text"
@@ -157,7 +154,6 @@
                                 autocomplete="off">
                         </div>
 
-                        {{-- Item table --}}
                         <div class="card">
                             <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                                 Productos a retirar
@@ -188,7 +184,6 @@
                                                 <td class="py-3 px-1 min-w-[180px]">
                                                     <p class="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px]" x-text="item.nombre"></p>
                                                     <p class="text-xs text-gray-400" x-text="(item.codigo ?? 'Sin código') + ' · ' + item.unidad"></p>
-                                                    {{-- FIFO lot preview --}}
                                                     <div x-show="item.lots && item.lots.length > 0" class="mt-1">
                                                         <template x-for="(lot, li) in fifoPreview(item)" :key="li">
                                                             <span class="inline-flex items-center gap-1 mr-1 mb-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-md
@@ -260,30 +255,49 @@
                     {{-- ── Right panel ── --}}
                     <div class="space-y-4">
                         <div class="card space-y-4">
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Resumen</p>
 
-                            {{-- Destinatario combobox --}}
+                            {{-- Tipo chip header --}}
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300"
+                                   x-text="tipoSalida === 'Venta' ? 'Venta comercial' : tipoSalida === 'EPP' ? 'Entrega de EPP' : 'Salida de stock'"></p>
+                                <button type="button" @click="tipoModalOpen = true" class="tipo-chip"
+                                    :class="tipoSalida === 'Venta'
+                                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
+                                        : tipoSalida === 'EPP'
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+                                        : 'bg-violet-50 dark:bg-violet-900/20 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400'">
+                                    <span x-text="tipoSalida ? tipoOpciones.find(o => o.value === tipoSalida)?.emoji : '?'"></span>
+                                    <span x-text="tipoSalida || 'Sin tipo'"></span>
+                                    <svg class="w-2.5 h-2.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {{-- Destinatario / Cliente / Trabajador --}}
                             <div>
-                                <label class="f-label">Destinatario <span class="text-rose-500 normal-case tracking-normal">*</span></label>
+                                <label class="f-label">
+                                    <span x-text="destLabel"></span>
+                                    <span class="text-rose-500 normal-case tracking-normal">*</span>
+                                </label>
 
-                                {{-- Chip when selected --}}
-                                <div x-show="destValue" class="flex items-center gap-2 mb-2">
+                                <div x-show="destValue" class="flex items-center gap-2 mb-1">
                                     <span class="dest-chip">
                                         <span x-text="destValue"></span>
-                                        <button type="button" class="dest-chip-x" @click="destValue = ''; destSearch = ''; setTimeout(() => $refs.destInput.focus(), 50)">&times;</button>
+                                        <button type="button" class="dest-chip-x"
+                                            @click="destValue = ''; destSearch = ''; $nextTick(() => $refs.destInput?.focus())">&times;</button>
                                     </span>
                                 </div>
 
-                                {{-- Input (hidden when value is set) --}}
                                 <div x-show="!destValue" class="relative">
                                     <input type="text"
                                         x-ref="destInput"
                                         class="f-input pr-7"
                                         x-model="destSearch"
+                                        :placeholder="destPlaceholder"
                                         @focus="openDestDrop()"
                                         @input.debounce.200ms="fetchDest()"
                                         @keydown.escape="destDropOpen = false"
-                                        placeholder="Escribe para buscar o crear..."
                                         autocomplete="off">
                                     <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,54 +305,58 @@
                                         </svg>
                                     </div>
                                 </div>
-                                <p x-show="!destValue" class="text-[11px] text-gray-400 mt-1">Selecciona uno reciente o crea uno nuevo.</p>
                             </div>
 
-                            <div>
-                                <label class="f-label">Notas (opcional)</label>
-                                <textarea name="notas" rows="3" maxlength="1000"
-                                    placeholder="Observaciones..."
-                                    class="f-input resize-none">{{ old('notas') }}</textarea>
-                            </div>
+                            {{-- Resumen — Venta --}}
+                            <template x-if="tipoSalida === 'Venta'">
+                                <div class="rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/40 px-4 py-3 space-y-1.5">
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Productos</span>
+                                        <span x-text="items.length"></span>
+                                    </div>
+                                    <div class="border-t border-emerald-100 dark:border-emerald-800/40 pt-1.5 flex justify-between text-sm font-bold">
+                                        <span class="text-gray-700 dark:text-gray-300">Costo total</span>
+                                        <span class="text-rose-600 dark:text-rose-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                    </div>
+                                    <p class="text-[10px] text-gray-400">El precio de venta se registra desde el historial de salidas.</p>
+                                </div>
+                            </template>
 
-                            {{-- Tipo de salida selector --}}
-                            <div>
-                                <label class="f-label">Tipo de salida <span class="text-rose-500 normal-case tracking-normal">*</span></label>
-                                <div class="grid grid-cols-3 gap-1.5 mt-1">
-                                    <template x-for="opt in tipoOpciones" :key="opt.value">
-                                        <button type="button"
-                                            @click="tipoSalida = opt.value"
-                                            class="rounded-xl border-2 py-2 px-1 text-center transition"
-                                            :class="tipoSalida === opt.value
-                                                ? (opt.value === 'Venta'  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' :
-                                                   opt.value === 'EPP'   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' :
-                                                   'border-violet-500 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400')
-                                                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'">
-                                            <div class="text-lg mb-0.5" x-text="opt.emoji"></div>
-                                            <div class="text-[11px] font-bold" x-text="opt.value"></div>
-                                        </button>
-                                    </template>
+                            {{-- Resumen — EPP --}}
+                            <template x-if="tipoSalida === 'EPP'">
+                                <div class="rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/40 px-4 py-3 space-y-1.5">
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Productos</span>
+                                        <span x-text="items.length"></span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Unidades</span>
+                                        <span x-text="formatNum(totalQty, 2)"></span>
+                                    </div>
+                                    <div class="border-t border-blue-100 dark:border-blue-800/40 pt-1.5 flex justify-between text-sm font-bold">
+                                        <span class="text-gray-700 dark:text-gray-300">Costo EPP</span>
+                                        <span class="text-blue-600 dark:text-blue-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                    </div>
                                 </div>
-                                <button type="button" @click="tipoModalOpen = true"
-                                    class="mt-1.5 text-[10px] text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition underline underline-offset-2">
-                                    ¿Para qué es esta salida?
-                                </button>
-                            </div>
+                            </template>
 
-                            <div class="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-4 py-3 space-y-1.5">
-                                <div class="flex justify-between text-xs text-gray-500">
-                                    <span>Productos</span>
-                                    <span x-text="items.length"></span>
+                            {{-- Resumen — Salida genérica --}}
+                            <template x-if="tipoSalida === 'Salida' || !tipoSalida">
+                                <div class="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-4 py-3 space-y-1.5">
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Productos</span>
+                                        <span x-text="items.length"></span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Unidades totales</span>
+                                        <span x-text="formatNum(totalQty, 4)"></span>
+                                    </div>
+                                    <div class="border-t border-gray-200 dark:border-gray-700 pt-1.5 flex justify-between text-sm font-bold">
+                                        <span class="text-gray-700 dark:text-gray-300">Costo estimado</span>
+                                        <span class="text-gray-900 dark:text-gray-100" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between text-xs text-gray-500">
-                                    <span>Unidades totales</span>
-                                    <span x-text="formatNum(totalQty, 4)"></span>
-                                </div>
-                                <div class="border-t border-gray-200 dark:border-gray-700 pt-1.5 flex justify-between text-sm font-bold text-gray-900 dark:text-gray-100">
-                                    <span>Costo estimado</span>
-                                    <span x-text="'$ ' + formatNum(totalCost, 2)"></span>
-                                </div>
-                            </div>
+                            </template>
 
                             <div x-show="hasErrors" class="rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-3 py-2">
                                 <p class="text-xs text-rose-700 dark:text-rose-400 font-medium">Corrige las cantidades antes de continuar.</p>
@@ -347,9 +365,13 @@
                             <button type="submit"
                                 :disabled="items.length === 0 || hasErrors || !destValue.trim() || !tipoSalida"
                                 class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition
-                                    bg-rose-600 hover:bg-rose-700
-                                    disabled:opacity-40 disabled:cursor-not-allowed">
-                                Registrar Salida
+                                       disabled:opacity-40 disabled:cursor-not-allowed"
+                                :class="tipoSalida === 'Venta'  ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                        tipoSalida === 'EPP'   ? 'bg-blue-600 hover:bg-blue-700' :
+                                        'bg-rose-600 hover:bg-rose-700'">
+                                <span x-text="tipoSalida === 'Venta' ? 'Registrar Venta' :
+                                              tipoSalida === 'EPP'   ? 'Registrar Entrega EPP' :
+                                              'Registrar Salida'"></span>
                             </button>
 
                             <a href="{{ route('gmail.inventory.exits') }}"
@@ -362,7 +384,7 @@
             </form>
         </div>
 
-        {{-- ── Product dropdown (position:fixed, outside panels) ── --}}
+        {{-- ── Product dropdown (position:fixed) ── --}}
         <div x-show="showDropdown" x-cloak class="prod-drop"
              :style="`top:${prodDropTop}px; left:${prodDropLeft}px; width:${prodDropWidth}px`">
 
@@ -386,13 +408,13 @@
             </template>
 
             <template x-if="hasMore">
-                <div class="prod-item-extra" @mousedown.prevent="loadMore()" style="cursor:pointer">
-                    + más resultados — haz clic o escribe para filtrar
+                <div class="prod-item-extra" @mousedown.prevent="loadMore()">
+                    + más resultados — haz clic para ver todos
                 </div>
             </template>
         </div>
 
-        {{-- ── Destinatario dropdown (position:fixed, outside panels) ── --}}
+        {{-- ── Destinatario dropdown (position:fixed) ── --}}
         <div x-show="destDropOpen" x-cloak class="combo-drop"
              :style="`top:${destDropTop}px; left:${destDropLeft}px; width:${destDropWidth}px`">
 
@@ -408,8 +430,7 @@
                 </div>
             </template>
 
-            <div class="combo-empty"
-                x-show="destSuggestions.length === 0 && destSearch.trim()">
+            <div class="combo-empty" x-show="destSuggestions.length === 0 && destSearch.trim()">
                 Sin coincidencias — crea uno nuevo.
             </div>
 
@@ -417,123 +438,126 @@
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                 </svg>
-                Crear nuevo destinatario
+                <span x-text="'Crear nuevo ' + destLabel.toLowerCase()"></span>
             </div>
         </div>
 
-        {{-- ── Modal: Nuevo Destinatario ── --}}
+        {{-- ── Modal: Crear cliente / trabajador / destinatario ── --}}
         <div x-show="destModalOpen" x-cloak
              class="fixed inset-0 flex items-center justify-center p-4"
              style="z-index:300"
              @keydown.escape.window="destModalOpen = false">
             <div class="absolute inset-0 bg-black/50" @click="destModalOpen = false"></div>
-            <div class="relative w-full max-w-md"
-                 style="background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;"
+            <div class="relative w-full max-w-md rounded-2xl overflow-hidden"
+                 style="background:#fff; border:1px solid #e2e8f0;"
                  x-on:click.stop>
 
-                {{-- Header --}}
-                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between"
-                     style="background:#fff">
+                <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <span class="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                        <span class="w-7 h-7 rounded-lg flex items-center justify-center"
+                            :class="tipoSalida === 'Venta' ? 'bg-emerald-100' : tipoSalida === 'EPP' ? 'bg-blue-100' : 'bg-violet-100'">
+                            <template x-if="tipoSalida === 'Venta'">
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                            </template>
+                            <template x-if="tipoSalida === 'EPP'">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </template>
+                            <template x-if="tipoSalida === 'Salida' || !tipoSalida">
+                                <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </template>
                         </span>
-                        <h3 class="text-sm font-bold text-gray-900">Nuevo destinatario</h3>
+                        <h3 class="text-sm font-bold text-gray-900" x-text="'Nuevo ' + destLabel.toLowerCase()"></h3>
                     </div>
                     <button type="button" @click="destModalOpen = false"
                         class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
                 </div>
 
-                {{-- Body --}}
-                <div class="px-5 py-5" style="background:#fff">
-                    <label class="f-label">Nombre del destinatario *</label>
+                <div class="px-5 py-5">
+                    <label class="f-label"><span x-text="destLabel"></span> *</label>
                     <input type="text"
                         x-ref="destModalInput"
                         x-model="destModalName"
                         @keydown.enter.prevent="confirmDestModal()"
                         class="f-input"
-                        placeholder="Ej: Bodega central, Juan Pérez, Área producción..."
+                        :placeholder="tipoSalida === 'Venta' ? 'Ej: Empresa ABC, Juan García...' :
+                                      tipoSalida === 'EPP'   ? 'Ej: Pedro Soto, RUT 12.345.678-9...' :
+                                      'Ej: Bodega central, Área producción...'"
                         maxlength="200">
-                    <p class="text-[11px] text-gray-400 mt-2">
-                        Puede ser una persona, área o punto de entrega. Se guardará en el historial para reutilizarlo.
-                    </p>
+                    <p class="text-[11px] text-gray-400 mt-2"
+                       x-text="tipoSalida === 'Venta' ? 'Nombre o razón social del cliente. Se guardará para ventas futuras.' :
+                                tipoSalida === 'EPP'   ? 'Nombre completo del trabajador que recibe el equipo de protección.' :
+                                'Persona, área o punto de entrega. Se guardará en el historial.'"></p>
                 </div>
 
-                {{-- Footer --}}
-                <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-2"
-                     style="background:#fff">
+                <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
                     <button type="button" @click="destModalOpen = false"
                         class="px-4 py-2 text-xs font-bold rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
                         Cancelar
                     </button>
                     <button type="button" @click="confirmDestModal()"
                         :disabled="!destModalName.trim()"
-                        class="px-4 py-2 text-xs font-bold rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition disabled:opacity-50">
-                        Usar este destinatario
+                        class="px-4 py-2 text-xs font-bold rounded-xl text-white transition disabled:opacity-50"
+                        :class="tipoSalida === 'Venta' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                tipoSalida === 'EPP'   ? 'bg-blue-600 hover:bg-blue-700' :
+                                'bg-violet-600 hover:bg-violet-700'">
+                        <span x-text="'Usar este ' + destLabel.toLowerCase()"></span>
                     </button>
                 </div>
             </div>
         </div>
 
-        {{-- ── Modal: Tipo de salida ── --}}
+        {{-- ── Modal: Tipo de salida (bottom sheet) ── --}}
         <div x-show="tipoModalOpen" x-cloak
              class="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
              style="z-index:400"
-             @keydown.escape.window="tipoModalOpen = false">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="tipoSalida ? tipoModalOpen = false : null"></div>
-            <div class="relative w-full sm:max-w-sm"
-                 style="background:#fff; border-radius:24px 24px 0 0; overflow:hidden;"
-                 :style="$el.closest('html').classList.contains('dark') ? 'background:#161c2c' : ''"
+             @keydown.escape.window="if(tipoSalida) tipoModalOpen = false">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                 @click="if(tipoSalida) tipoModalOpen = false"></div>
+
+            <div class="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-hidden"
+                 style="background:#fff"
                  x-on:click.stop>
 
-                {{-- Handle bar --}}
                 <div class="flex justify-center pt-3 pb-1 sm:hidden">
-                    <div class="w-10 h-1 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="w-10 h-1 rounded-full bg-gray-200"></div>
                 </div>
 
-                {{-- Header --}}
-                <div class="px-6 pt-4 pb-2 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mx-auto mb-3">
-                        <svg class="w-6 h-6 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="px-6 pt-5 pb-2 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
-                    <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">¿Tipo de salida?</h3>
-                    <p class="text-xs text-gray-400 mt-1">Selecciona el motivo de esta salida de inventario</p>
+                    <h3 class="text-base font-bold text-gray-900">¿Tipo de salida?</h3>
+                    <p class="text-xs text-gray-500 mt-1">Selecciona el motivo para adaptar el formulario</p>
                 </div>
 
-                {{-- Options --}}
                 <div class="px-6 py-4 grid grid-cols-3 gap-3">
                     <template x-for="opt in tipoOpciones" :key="opt.value">
                         <button type="button"
-                            @click="tipoSalida = opt.value; tipoModalOpen = false"
-                            class="rounded-2xl border-2 p-4 text-center transition group"
+                            @click="changeTipo(opt.value)"
+                            class="rounded-2xl border-2 p-4 text-center transition focus:outline-none"
                             :class="tipoSalida === opt.value
-                                ? (opt.value === 'Venta'  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' :
-                                   opt.value === 'EPP'   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' :
-                                   'border-violet-500 bg-violet-50 dark:bg-violet-900/20')
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/40'">
-                            <div class="text-3xl mb-2" x-text="opt.emoji"></div>
-                            <div class="text-xs font-bold text-gray-900 dark:text-gray-100" x-text="opt.value"></div>
+                                ? (opt.value === 'Venta'  ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' :
+                                   opt.value === 'EPP'   ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' :
+                                   'border-violet-500 bg-violet-50 ring-2 ring-violet-200')
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'">
+                            <div class="text-3xl mb-1.5" x-text="opt.emoji"></div>
+                            <div class="text-xs font-bold text-gray-900" x-text="opt.value"></div>
                             <div class="text-[10px] text-gray-400 mt-0.5 leading-tight" x-text="opt.desc"></div>
                         </button>
                     </template>
                 </div>
 
-                {{-- Footer --}}
                 <div class="px-6 pb-6">
-                    <template x-if="tipoSalida">
-                        <button type="button" @click="tipoModalOpen = false"
-                            class="w-full py-2.5 rounded-xl text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition">
-                            Confirmar
-                        </button>
-                    </template>
-                    <template x-if="!tipoSalida">
-                        <p class="text-center text-xs text-gray-400">Selecciona una opción para continuar</p>
-                    </template>
+                    <p x-show="!tipoSalida" class="text-center text-xs text-gray-400 mb-3">Selecciona una opción para continuar</p>
                 </div>
             </div>
         </div>
@@ -547,7 +571,6 @@
                 search: '',
                 results: [],
                 loading: false,
-                loadingMore: false,
                 showDropdown: false,
                 expanded: false,
                 prodDropTop: 0, prodDropLeft: 0, prodDropWidth: 300,
@@ -559,8 +582,6 @@
                 destDropOpen: false,
                 destDropTop: 0, destDropLeft: 0, destDropWidth: 280,
                 destValue: '{{ old('destinatario') }}',
-
-                /* ── Destinatario modal ── */
                 destModalOpen: false,
                 destModalName: '',
 
@@ -568,33 +589,45 @@
                 tipoSalida: '{{ old('tipo_salida') }}',
                 tipoModalOpen: false,
                 tipoOpciones: [
-                    { value: 'Venta',  emoji: '💰', desc: 'Producto vendido' },
-                    { value: 'EPP',   emoji: '🦺', desc: 'Equipo protección personal' },
-                    { value: 'Salida', emoji: '📦', desc: 'Uso interno u otro' },
+                    { value: 'Venta',  emoji: '💰', desc: 'Producto vendido a cliente' },
+                    { value: 'EPP',   emoji: '🦺', desc: 'Equipo de protección personal' },
+                    { value: 'Salida', emoji: '📦', desc: 'Uso interno u otro motivo' },
                 ],
 
+                /* ── Computed labels ── */
+                get destLabel() {
+                    return this.tipoSalida === 'Venta' ? 'Cliente' :
+                           this.tipoSalida === 'EPP'   ? 'Trabajador' : 'Destinatario';
+                },
+                get destPlaceholder() {
+                    return this.tipoSalida === 'Venta' ? 'Buscar o crear cliente...' :
+                           this.tipoSalida === 'EPP'   ? 'Buscar o crear trabajador...' :
+                           'Buscar o crear destinatario...';
+                },
+
+                /* ── Computed totals ── */
+                get visibleResults() { return this.expanded ? this.results : this.results.slice(0, 5); },
+                get hasMore()        { return !this.expanded && this.results.length > 5; },
+                get totalCost()      { return this.items.reduce((s, i) => s + (i.quantity * i.costo_promedio), 0); },
+                get totalQty()       { return this.items.reduce((s, i) => s + (i.quantity || 0), 0); },
+                get hasErrors()      { return this.items.some(i => i.quantity <= 0 || i.quantity > i.stock_actual); },
+
                 init() {
-                    // Abrir modal de tipo si no viene de un old() (resubmit)
                     if (!this.tipoSalida) {
                         this.$nextTick(() => { this.tipoModalOpen = true; });
                     }
                 },
 
-                /* ── Computed ── */
-                get visibleResults() {
-                    return this.expanded ? this.results : this.results.slice(0, 5);
-                },
-                get hasMore() {
-                    return !this.expanded && this.results.length > 5;
-                },
-                get totalCost() {
-                    return this.items.reduce((s, i) => s + (i.quantity * i.costo_promedio), 0);
-                },
-                get totalQty() {
-                    return this.items.reduce((s, i) => s + (i.quantity || 0), 0);
-                },
-                get hasErrors() {
-                    return this.items.some(i => i.quantity <= 0 || i.quantity > i.stock_actual);
+                /* Change tipo and reset destinatario when tipo changes */
+                changeTipo(val) {
+                    const prev = this.tipoSalida;
+                    this.tipoSalida = val;
+                    if (prev !== val) {
+                        // Reset destinatario when tipo changes so label matches
+                        this.destValue  = '';
+                        this.destSearch = '';
+                    }
+                    this.tipoModalOpen = false;
                 },
 
                 /* ── Product methods ── */
@@ -613,7 +646,6 @@
                     this.loading  = true;
                     this.expanded = false;
                     try {
-                        // request 6 so we know if there are more than 5
                         const res = await fetch(apiUrl + '?q=' + encodeURIComponent(q) + '&limit=6');
                         this.results = await res.json();
                         this.showDropdown = true;
@@ -622,13 +654,11 @@
                 },
 
                 async loadMore() {
-                    this.loadingMore = true;
                     try {
                         const res = await fetch(apiUrl + '?q=' + encodeURIComponent(this.search.trim()) + '&limit=50');
                         this.results = await res.json();
                         this.expanded = true;
                     } catch(e) {}
-                    finally { this.loadingMore = false; }
                 },
 
                 async addItem(p) {
@@ -648,7 +678,6 @@
                     };
                     this.items.push(item);
                     this.search = ''; this.results = []; this.showDropdown = false; this.expanded = false;
-
                     try {
                         const url = lotsBaseUrl.replace('/0', '/' + p.id);
                         item.lots = await (await fetch(url)).json();
@@ -690,8 +719,9 @@
 
                 async fetchDest() {
                     try {
-                        const q = this.destSearch.trim();
-                        const res = await fetch(destApiUrl + '?q=' + encodeURIComponent(q));
+                        const q    = this.destSearch.trim();
+                        const tipo = encodeURIComponent(this.tipoSalida || '');
+                        const res  = await fetch(destApiUrl + '?q=' + encodeURIComponent(q) + '&tipo=' + tipo);
                         this.destSuggestions = await res.json();
                     } catch(e) { this.destSuggestions = []; }
                 },
@@ -712,8 +742,8 @@
                 confirmDestModal() {
                     const name = this.destModalName.trim();
                     if (!name) return;
-                    this.destValue    = name;
-                    this.destSearch   = '';
+                    this.destValue     = name;
+                    this.destSearch    = '';
                     this.destModalOpen = false;
                     this.destModalName = '';
                 },
@@ -732,15 +762,14 @@
             };
         }
 
-        /* Close dropdowns on outside click */
         document.addEventListener('click', (e) => {
             const root = document.querySelector('[x-data]');
             if (!root || !root.__x) return;
-            const data = root.__x.$data;
-            if (data.showDropdown && !e.target.closest('.prod-drop') && !e.target.closest('[x-ref="prodInput"]'))
-                data.showDropdown = false;
-            if (data.destDropOpen && !e.target.closest('.combo-drop') && !e.target.closest('[x-ref="destInput"]'))
-                data.destDropOpen = false;
+            const d = root.__x.$data;
+            if (d.showDropdown && !e.target.closest('.prod-drop') && !e.target.closest('[x-ref="prodInput"]'))
+                d.showDropdown = false;
+            if (d.destDropOpen && !e.target.closest('.combo-drop') && !e.target.closest('[x-ref="destInput"]'))
+                d.destDropOpen = false;
         });
     </script>
 </x-app-layout>
