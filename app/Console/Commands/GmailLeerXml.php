@@ -142,14 +142,14 @@ class GmailLeerXml extends Command
                     ]);
                 }
 
-                $message = $service->users_messages->get('me', $msg->getId());
-                $parts   = $message->getPayload()->getParts() ?? [];
+                $message  = $service->users_messages->get('me', $msg->getId());
+                $xmlParts = $this->getAllXmlParts($message->getPayload());
 
-                foreach ($parts as $part) {
+                if (empty($xmlParts)) {
+                    $this->line("   (sin adjuntos XML)");
+                }
 
-                    if (!$part->getFilename() || !str_ends_with(strtolower($part->getFilename()), '.xml')) {
-                        continue;
-                    }
+                foreach ($xmlParts as $part) {
 
                     $this->info("📎 XML encontrado: {$part->getFilename()}");
 
@@ -400,6 +400,34 @@ class GmailLeerXml extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * Recorre recursivamente las partes MIME y devuelve solo las que
+     * son adjuntos XML, sin importar qué tan anidada esté la estructura
+     * multipart del correo.
+     */
+    private function getAllXmlParts($payload): array
+    {
+        $found = [];
+
+        // Si el propio payload es un adjunto XML (raro pero posible)
+        $payloadFilename = (string) $payload->getFilename();
+        if ($payloadFilename !== '' && str_ends_with(strtolower($payloadFilename), '.xml')) {
+            return [$payload];
+        }
+
+        foreach ($payload->getParts() ?? [] as $part) {
+            $filename = (string) $part->getFilename();
+            if ($filename !== '' && str_ends_with(strtolower($filename), '.xml')) {
+                $found[] = $part;
+            } elseif ($part->getParts()) {
+                // Parte anidada (multipart/*) — bajar un nivel
+                array_push($found, ...$this->getAllXmlParts($part));
+            }
+        }
+
+        return $found;
+    }
+
     private function normalizeXmlToUtf8(string $xmlContent): string
     {
         $xmlContent = ltrim($xmlContent, "\xEF\xBB\xBF \t\r\n");
@@ -469,27 +497,36 @@ class GmailLeerXml extends Command
         $tasaIvaDoc = (float) ($get('//sii:Encabezado/sii:Totales/sii:TasaIVA') ?? 0);
         $montoTotal = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntTotal') ?? 0);
 
+        // El identificador único de un DTE chileno es tipo + folio + RUT emisor (norma SII).
+        // No incluimos message_id ni filename: la misma factura que llega en dos correos
+        // distintos (reenvío, CC, sistema automático) se detecta correctamente como duplicado.
         $hash = hash('sha256', implode('|', [
-            $messageId,
-            $filename,
             (string) $tipoDte,
             (string) $folio,
             (string) $proveedorRut,
-            (string) $montoTotal,
         ]));
 
-        if ($db->table('gmail_dte_documents')->where('hash_unico', $hash)->exists()) {
+        // Buscar por nuevo hash O por identidad del documento, para cubrir también
+        // registros guardados con el formato de hash anterior (incluía message_id).
+        $existing = $db->table('gmail_dte_documents')->where('hash_unico', $hash)->first();
+
+        if (!$existing && $folio && $proveedorRut) {
+            $existing = $db->table('gmail_dte_documents')
+                ->where('tipo_dte', $tipoDte ?: null)
+                ->where('folio', $folio)
+                ->where('proveedor_rut', $proveedorRut)
+                ->first();
+        }
+
+        if ($existing) {
             if ($refreshExisting) {
-                $existing = $db->table('gmail_dte_documents')->where('hash_unico', $hash)->first();
-                if ($existing) {
-                    $db->table('gmail_dte_documents')
-                        ->where('id', $existing->id)
-                        ->update([
-                            'xml_raw' => $xmlRaw,
-                            'updated_at' => now(),
-                        ]);
-                    $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
-                }
+                $db->table('gmail_dte_documents')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'xml_raw'    => $xmlRaw,
+                        'updated_at' => now(),
+                    ]);
+                $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
             }
             return false;
         }
