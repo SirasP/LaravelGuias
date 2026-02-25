@@ -341,8 +341,8 @@
         <div x-show="showDropdown" x-cloak class="prod-drop"
              :style="`top:${prodDropTop}px; left:${prodDropLeft}px; width:${prodDropWidth}px`">
             <div x-show="loading" class="prod-item-empty">Buscando...</div>
-            <template x-if="!loading && results.length === 0 && search.trim()">
-                <div class="prod-item-empty">Sin resultados — el producto debe tener stock disponible.</div>
+            <template x-if="!loading && results.length === 0">
+                <div class="prod-item-empty" x-text="search.trim() ? 'Sin resultados — el producto debe tener stock disponible.' : 'No hay productos con stock disponible.'"></div>
             </template>
             <template x-for="p in visibleResults" :key="p.id">
                 <div class="prod-item" @mousedown.prevent="addItem(p)">
@@ -615,11 +615,10 @@
                     const rect = this.$refs.prodInput.getBoundingClientRect();
                     this.prodDropTop = rect.bottom + 4; this.prodDropLeft = rect.left; this.prodDropWidth = rect.width;
                     this.showDropdown = true;
-                    if (this.search.trim()) this.fetchProducts();
+                    this.fetchProducts();
                 },
                 async fetchProducts() {
                     const q = this.search.trim();
-                    if (!q) { this.results=[]; this.showDropdown=false; this.expanded=false; return; }
                     this.loading=true; this.expanded=false;
                     try { this.results = await (await fetch(apiUrl+'?q='+encodeURIComponent(q)+'&limit=6')).json(); this.showDropdown=true; }
                     catch(e) { this.results=[]; } finally { this.loading=false; }
