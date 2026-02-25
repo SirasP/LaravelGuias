@@ -457,6 +457,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
     Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
+    Route::get('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactsApi'])->name('inventory.api.contacts');
+    Route::post('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactStore'])->name('inventory.api.contact.store');
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])
         ->whereNumber('id')
         ->name('inventory.product');

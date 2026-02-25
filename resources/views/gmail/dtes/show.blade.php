@@ -35,11 +35,11 @@
                 <form id="doc-pay-form" method="POST" action="{{ $estadoPagoRaw === 'pagado' ? route('gmail.dtes.unpay', $document->id) : route('gmail.dtes.pay', $document->id) }}" class="contents">
                     @csrf
                     <button type="button"
-                        @click="openConfirm(
-                            '{{ $estadoPagoRaw === 'pagado' ? 'Cancelar pago' : 'Registrar pago' }}',
-                            '{{ $estadoPagoRaw === 'pagado' ? 'Se quitará el estado de pagado de este documento.' : 'Se marcará este documento como pagado.' }}',
-                            'doc-pay-form'
-                        )"
+                        @click="$dispatch('dte-confirm-open', {
+                            title: '{{ $estadoPagoRaw === 'pagado' ? 'Cancelar pago' : 'Registrar pago' }}',
+                            message: '{{ $estadoPagoRaw === 'pagado' ? 'Se quitará el estado de pagado de este documento.' : 'Se marcará este documento como pagado.' }}',
+                            formId: 'doc-pay-form'
+                        })"
                         class="hdr-btn {{ $estadoPagoRaw === 'pagado' ? 'hdr-gray' : 'hdr-emerald' }}">
                         @if($estadoPagoRaw === 'pagado')
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -53,11 +53,11 @@
                 <form id="doc-workflow-form" method="POST" action="{{ $isDraft ? route('gmail.dtes.accept', $document->id) : route('gmail.dtes.draft', $document->id) }}" class="contents">
                     @csrf
                     <button type="button"
-                        @click="openConfirm(
-                            '{{ $isDraft ? 'Aceptar borrador' : 'Enviar a borrador' }}',
-                            '{{ $isDraft ? 'El documento quedará como aceptado.' : 'El documento volverá al estado borrador.' }}',
-                            'doc-workflow-form'
-                        )"
+                        @click="$dispatch('dte-confirm-open', {
+                            title: '{{ $isDraft ? 'Aceptar borrador' : 'Enviar a borrador' }}',
+                            message: '{{ $isDraft ? 'El documento quedará como aceptado.' : 'El documento volverá al estado borrador.' }}',
+                            formId: 'doc-workflow-form'
+                        })"
                         class="hdr-btn {{ $isDraft ? 'hdr-sky' : 'hdr-gray' }}">
                         @if($isDraft)
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -72,11 +72,11 @@
                     <form id="doc-stock-form" method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                         @csrf
                         <button type="button"
-                            @click="openConfirm(
-                                'Agregar stock',
-                                'Se ingresarán las líneas de esta factura al inventario.',
-                                'doc-stock-form'
-                            )"
+                            @click="$dispatch('dte-confirm-open', {
+                                title: 'Agregar stock',
+                                message: 'Se ingresarán las líneas de esta factura al inventario.',
+                                formId: 'doc-stock-form'
+                            })"
                             class="hdr-btn hdr-violet">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                             <span class="hidden sm:inline">Agregar stock</span>
@@ -86,11 +86,11 @@
                 <form id="doc-credit-note-form" method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
                     @csrf
                     <button type="button"
-                        @click="openConfirm(
-                            'Crear nota de crédito',
-                            'Se creará una nota de crédito desde este documento.',
-                            'doc-credit-note-form'
-                        )"
+                        @click="$dispatch('dte-confirm-open', {
+                            title: 'Crear nota de crédito',
+                            message: 'Se creará una nota de crédito desde este documento.',
+                            formId: 'doc-credit-note-form'
+                        })"
                         class="hdr-btn hdr-rose">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14H5a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         <span class="hidden sm:inline">Nota crédito</span>
@@ -294,6 +294,7 @@
                 this.confirmOpen = false;
             }
         }"
+        @dte-confirm-open.window="openConfirm($event.detail.title, $event.detail.message, $event.detail.formId)"
         @keydown.escape.window="confirmOpen = false"
     >
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-5">

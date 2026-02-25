@@ -338,4 +338,57 @@ class GmailInventoryController extends Controller
 
         return response()->json($lines);
     }
+
+    // GET /gmail/inventario/api/contactos
+    public function contactsApi(Request $request)
+    {
+        $q    = trim((string) $request->query('q', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
+
+        $query = $this->db()
+            ->table('gmail_inventory_contacts')
+            ->orderByDesc('updated_at')
+            ->limit(8);
+
+        if ($tipo !== '') {
+            $query->where('tipo', $tipo);
+        }
+        if ($q !== '') {
+            $query->where(function ($qb) use ($q) {
+                $qb->where('nombre', 'like', "%{$q}%")
+                   ->orWhere('rut', 'like', "%{$q}%")
+                   ->orWhere('empresa', 'like', "%{$q}%");
+            });
+        }
+
+        return response()->json(
+            $query->get(['id', 'tipo', 'nombre', 'rut', 'empresa', 'cargo', 'area', 'telefono', 'email'])
+        );
+    }
+
+    // POST /gmail/inventario/api/contactos
+    public function contactStore(Request $request)
+    {
+        $validated = $request->validate([
+            'tipo'     => 'required|string|in:cliente,trabajador,destinatario',
+            'nombre'   => 'required|string|max:200',
+            'rut'      => 'nullable|string|max:30',
+            'empresa'  => 'nullable|string|max:200',
+            'cargo'    => 'nullable|string|max:100',
+            'area'     => 'nullable|string|max:100',
+            'telefono' => 'nullable|string|max:50',
+            'email'    => 'nullable|email|max:200',
+            'notas'    => 'nullable|string|max:1000',
+        ]);
+
+        $id = $this->db()->table('gmail_inventory_contacts')->insertGetId([
+            ...$validated,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(
+            $this->db()->table('gmail_inventory_contacts')->find($id)
+        );
+    }
 }
