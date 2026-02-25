@@ -67,9 +67,26 @@
             padding:16px 20px; flex:1;
         }
         .dark .kpi-card { background:#161c2c; border-color:#1e2a3b }
+        .exit-card {
+            background:#fff; border:1px solid #e2e8f0; border-radius:16px;
+            overflow:hidden;
+        }
+        .dark .exit-card { background:#161c2c; border-color:#1e2a3b }
+        .badge-venta  { background:#d1fae5; color:#065f46 }
+        .badge-epp    { background:#dbeafe; color:#1e40af }
+        .badge-salida { background:#f1f5f9; color:#475569 }
+        .dark .badge-venta  { background:#064e3b; color:#6ee7b7 }
+        .dark .badge-epp    { background:#1e3a5f; color:#93c5fd }
+        .dark .badge-salida { background:#1e2a3b; color:#94a3b8 }
+        .sell-input {
+            border-radius:10px; border:1px solid #e2e8f0; background:#fff;
+            padding:8px 12px; font-size:13px; color:#111827; outline:none; width:100%;
+        }
+        .sell-input:focus { border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.12) }
+        .dark .sell-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
     </style>
 
-    <div class="page-bg" x-data="exitsPage('{{ route('gmail.inventory.api.exit.detail', 0) }}')">
+    <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
 
             {{-- Mobile filter --}}
@@ -106,6 +123,14 @@
                         $ {{ number_format((float) ($kpiMes->costo_total ?? 0), 0, ',', '.') }}
                     </p>
                 </div>
+                @if ((float) ($kpiMes->precio_venta_total ?? 0) > 0)
+                <div class="kpi-card">
+                    <p class="text-xs text-gray-400 mb-1">Ventas registradas este mes</p>
+                    <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        $ {{ number_format((float) ($kpiMes->precio_venta_total ?? 0), 0, ',', '.') }}
+                    </p>
+                </div>
+                @else
                 <div class="kpi-card">
                     <p class="text-xs text-gray-400 mb-1">Más retirado este mes</p>
                     @if ($topProducto)
@@ -115,128 +140,214 @@
                         <p class="text-sm text-gray-400">Sin datos</p>
                     @endif
                 </div>
+                @endif
             </div>
 
+            {{-- Cards grid --}}
             @if ($movements->count() > 0)
-                <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th class="w-8 px-4 py-3"></th>
-                                <th class="text-left text-xs font-semibold text-gray-400 px-3 py-3">Fecha</th>
-                                <th class="text-left text-xs font-semibold text-gray-400 px-3 py-3">Destinatario</th>
-                                <th class="text-right text-xs font-semibold text-gray-400 px-3 py-3">Productos</th>
-                                <th class="text-right text-xs font-semibold text-gray-400 px-3 py-3">Costo total</th>
-                                <th class="text-left text-xs font-semibold text-gray-400 px-3 py-3 hidden md:table-cell">Registrado por</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                            @foreach ($movements as $m)
-                                {{-- Main row --}}
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer"
-                                    @click="toggleDetail({{ $m->id }})">
-                                    <td class="px-4 py-3 text-center">
-                                        <svg class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200 mx-auto"
-                                            :class="openId === {{ $m->id }} ? 'rotate-90' : ''"
-                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </td>
-                                    <td class="px-3 py-3 whitespace-nowrap">
-                                        <p class="font-semibold text-gray-900 dark:text-gray-100">
-                                            {{ \Carbon\Carbon::parse($m->ocurrio_el)->format('d/m/Y') }}
-                                        </p>
-                                        <p class="text-xs text-gray-400">
-                                            {{ \Carbon\Carbon::parse($m->created_at)->format('H:i') }}
-                                        </p>
-                                    </td>
-                                    <td class="px-3 py-3">
-                                        <p class="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
-                                            {{ $m->destinatario ?? '—' }}
-                                        </p>
-                                        @if ($m->notas)
-                                            <p class="text-xs text-gray-400 truncate max-w-[200px]">{{ $m->notas }}</p>
-                                        @endif
-                                    </td>
-                                    <td class="px-3 py-3 text-right">
-                                        <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                                            {{ $lineCounts[$m->id] ?? 0 }}
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    @foreach ($movements as $m)
+                        @php
+                            $cardLines   = $lines->get($m->id, collect());
+                            $tipoSalida  = $m->tipo_salida ?? 'Salida';
+                            $precioVenta = $m->precio_venta;
+                            $costoTotal  = (float) $m->costo_total;
+                            $margen      = ($precioVenta !== null && $costoTotal > 0)
+                                ? round((((float) $precioVenta - $costoTotal) / $costoTotal) * 100, 1)
+                                : null;
+                            $sellUrl     = route('gmail.inventory.exits.sell', $m->id);
+                        @endphp
+
+                        <div class="exit-card"
+                             x-data="{
+                                showSell: false,
+                                pvInput: '',
+                                pvSaved: {{ $precioVenta !== null ? $precioVenta : 'null' }},
+                                costo: {{ $costoTotal }},
+                                tipoSalida: '{{ $tipoSalida }}',
+                                saving: false,
+                                err: '',
+                                get margen() {
+                                    const pv = parseFloat(this.pvSaved);
+                                    if (!pv || !this.costo) return null;
+                                    return (((pv - this.costo) / this.costo) * 100).toFixed(1);
+                                },
+                                fmt(n) {
+                                    return '$ ' + parseFloat(n).toLocaleString('es-CL', {minimumFractionDigits:0, maximumFractionDigits:0});
+                                },
+                                async submitSell() {
+                                    this.err = '';
+                                    const pv = parseFloat(this.pvInput.replace(/\./g,'').replace(',','.'));
+                                    if (!pv || pv <= 0) { this.err = 'Ingresa un precio válido.'; return; }
+                                    this.saving = true;
+                                    try {
+                                        const res = await fetch('{{ $sellUrl }}', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                                            body: JSON.stringify({ precio_venta: pv })
+                                        });
+                                        const data = await res.json();
+                                        if (data.ok) {
+                                            this.pvSaved = data.precio_venta;
+                                            this.tipoSalida = 'Venta';
+                                            this.showSell = false;
+                                        } else {
+                                            this.err = data.error ?? 'Error al guardar.';
+                                        }
+                                    } catch(e) {
+                                        this.err = 'Error de conexión.';
+                                    } finally {
+                                        this.saving = false;
+                                    }
+                                }
+                             }">
+
+                            {{-- Card header --}}
+                            <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                                        {{-- Tipo badge --}}
+                                        <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wide"
+                                              :class="{
+                                                'badge-venta':  tipoSalida === 'Venta',
+                                                'badge-epp':    tipoSalida === 'EPP',
+                                                'badge-salida': tipoSalida === 'Salida' || !tipoSalida
+                                              }"
+                                              x-text="tipoSalida || 'Salida'">
                                         </span>
-                                    </td>
-                                    <td class="px-3 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                        $ {{ number_format((float) $m->costo_total, 2, ',', '.') }}
-                                    </td>
-                                    <td class="px-3 py-3 hidden md:table-cell">
-                                        <p class="text-xs text-gray-400">
-                                            @if ($m->usuario_id)
-                                                {{ optional(\App\Models\User::find($m->usuario_id))->name ?? 'Usuario #' . $m->usuario_id }}
-                                            @else
-                                                —
-                                            @endif
+                                        <span class="text-[11px] text-gray-400">#{{ $m->id }}</span>
+                                    </div>
+                                    <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
+                                        {{ $m->destinatario ?? '—' }}
+                                    </p>
+                                    @if ($m->notas)
+                                        <p class="text-xs text-gray-400 truncate mt-0.5">{{ $m->notas }}</p>
+                                    @endif
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                        {{ \Carbon\Carbon::parse($m->ocurrio_el)->format('d/m/Y') }}
+                                    </p>
+                                    <p class="text-[11px] text-gray-400">
+                                        {{ \Carbon\Carbon::parse($m->created_at)->format('H:i') }}
+                                    </p>
+                                    @if ($m->usuario_id)
+                                        <p class="text-[11px] text-gray-400 mt-0.5 truncate max-w-[120px]">
+                                            {{ optional(\App\Models\User::find($m->usuario_id))->name ?? 'Usuario #'.$m->usuario_id }}
                                         </p>
-                                    </td>
-                                </tr>
+                                    @endif
+                                </div>
+                            </div>
 
-                                {{-- Expandable detail row --}}
-                                <tr x-show="openId === {{ $m->id }}"
-                                    x-transition:enter="transition ease-out duration-150"
-                                    x-transition:enter-start="opacity-0"
-                                    x-transition:enter-end="opacity-100"
-                                    style="display:none">
-                                    <td colspan="6" class="px-6 pb-4 pt-0 bg-gray-50/60 dark:bg-gray-800/30">
+                            {{-- Product lines --}}
+                            <div class="px-4 py-2">
+                                @if ($cardLines->isEmpty())
+                                    <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
+                                @else
+                                    <table class="w-full text-xs">
+                                        <thead>
+                                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant.</th>
+                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">C. Unit.</th>
+                                                <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
+                                            @foreach ($cardLines as $line)
+                                                <tr>
+                                                    <td class="py-1.5 pr-2">
+                                                        <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $line->producto }}</p>
+                                                        <p class="text-gray-400">{{ $line->unidad }}</p>
+                                                    </td>
+                                                    <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                        {{ number_format((float) $line->cantidad, 2, ',', '.') }}
+                                                    </td>
+                                                    <td class="py-1.5 pr-2 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                        $ {{ number_format((float) $line->costo_unitario, 2, ',', '.') }}
+                                                    </td>
+                                                    <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                        $ {{ number_format((float) $line->costo_total, 0, ',', '.') }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                @endif
+                            </div>
 
-                                        {{-- Loading state --}}
-                                        <div x-show="detailLoading" class="py-4 text-center text-xs text-gray-400 animate-pulse">
-                                            Cargando detalle...
+                            {{-- Card footer --}}
+                            <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+                                {{-- Costs row --}}
+                                <div class="flex items-center justify-between flex-wrap gap-x-3 gap-y-1">
+                                    <div>
+                                        <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo</p>
+                                        <p class="text-sm font-bold text-rose-600 dark:text-rose-400">
+                                            $ {{ number_format($costoTotal, 0, ',', '.') }}
+                                        </p>
+                                    </div>
+
+                                    {{-- Precio venta (reactive) --}}
+                                    <template x-if="pvSaved !== null">
+                                        <div class="text-right">
+                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Venta</p>
+                                            <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                                               x-text="fmt(pvSaved)"></p>
                                         </div>
+                                    </template>
 
-                                        {{-- Detail table --}}
-                                        <div x-show="!detailLoading && detailLines.length > 0">
-                                            <table class="w-full text-xs mt-1">
-                                                <thead>
-                                                    <tr class="border-b border-gray-200 dark:border-gray-700">
-                                                        <th class="text-left font-semibold text-gray-400 py-1.5 pr-3">Producto</th>
-                                                        <th class="text-left font-semibold text-gray-400 py-1.5 pr-3 hidden sm:table-cell">Código</th>
-                                                        <th class="text-right font-semibold text-gray-400 py-1.5 pr-3">Lote ingresado</th>
-                                                        <th class="text-right font-semibold text-gray-400 py-1.5 pr-3">Cantidad</th>
-                                                        <th class="text-right font-semibold text-gray-400 py-1.5 pr-3">Costo unit.</th>
-                                                        <th class="text-right font-semibold text-gray-400 py-1.5">Costo total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                                    <template x-for="(line, li) in detailLines" :key="li">
-                                                        <tr>
-                                                            <td class="py-1.5 pr-3">
-                                                                <p class="font-semibold text-gray-800 dark:text-gray-200" x-text="line.producto"></p>
-                                                                <p class="text-gray-400" x-text="line.unidad"></p>
-                                                            </td>
-                                                            <td class="py-1.5 pr-3 text-gray-500 hidden sm:table-cell" x-text="line.codigo ?? '—'"></td>
-                                                            <td class="py-1.5 pr-3 text-right text-amber-600 dark:text-amber-400 font-medium"
-                                                                x-text="line.lote_fecha ? new Date(line.lote_fecha).toLocaleDateString('es-CL') : '—'">
-                                                            </td>
-                                                            <td class="py-1.5 pr-3 text-right font-semibold text-gray-800 dark:text-gray-200"
-                                                                x-text="parseFloat(line.cantidad).toLocaleString('es-CL', {minimumFractionDigits:4,maximumFractionDigits:4})">
-                                                            </td>
-                                                            <td class="py-1.5 pr-3 text-right text-gray-600 dark:text-gray-400"
-                                                                x-text="'$ ' + parseFloat(line.costo_unitario).toLocaleString('es-CL', {minimumFractionDigits:2,maximumFractionDigits:2})">
-                                                            </td>
-                                                            <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200"
-                                                                x-text="'$ ' + parseFloat(line.costo_total).toLocaleString('es-CL', {minimumFractionDigits:2,maximumFractionDigits:2})">
-                                                            </td>
-                                                        </tr>
-                                                    </template>
-                                                </tbody>
-                                            </table>
+                                    {{-- Margen --}}
+                                    <template x-if="pvSaved !== null && margen !== null">
+                                        <div class="text-right">
+                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Margen</p>
+                                            <p class="text-sm font-bold"
+                                               :class="parseFloat(margen) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'"
+                                               x-text="margen + '%'"></p>
                                         </div>
+                                    </template>
+                                </div>
 
-                                        <div x-show="!detailLoading && detailLines.length === 0" class="py-3 text-xs text-gray-400 text-center">
-                                            Sin líneas de detalle.
+                                {{-- Sell button --}}
+                                <template x-if="!showSell">
+                                    <button @click="showSell = true; pvInput = ''"
+                                        class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
+                                               border border-dashed transition"
+                                        :class="pvSaved !== null
+                                            ? 'border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                            : 'border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/40'">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span x-text="pvSaved !== null ? 'Editar precio de venta' : 'Registrar precio de venta'"></span>
+                                    </button>
+                                </template>
+
+                                {{-- Inline sell form --}}
+                                <template x-if="showSell">
+                                    <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-3 space-y-2">
+                                        <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Precio de venta total</p>
+                                        <div class="flex gap-2">
+                                            <input type="text" inputmode="numeric" x-model="pvInput"
+                                                class="sell-input" placeholder="$ 0"
+                                                @keydown.enter.prevent="submitSell()"
+                                                @keydown.escape="showSell = false">
+                                            <button @click="submitSell()" :disabled="saving"
+                                                class="shrink-0 px-3 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-50">
+                                                <span x-show="!saving">Guardar</span>
+                                                <span x-show="saving">...</span>
+                                            </button>
+                                            <button @click="showSell = false"
+                                                class="shrink-0 px-2 py-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                                                ✕
+                                            </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                        <p x-show="err" x-text="err" class="text-xs text-rose-600 dark:text-rose-400"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
 
                 <div>{{ $movements->links() }}</div>
@@ -271,34 +382,4 @@
             </a>
         </div>
     </div>
-
-    <script>
-        function exitsPage(detailBaseUrl) {
-            return {
-                openId: null,
-                detailLines: [],
-                detailLoading: false,
-
-                async toggleDetail(id) {
-                    if (this.openId === id) {
-                        this.openId = null;
-                        this.detailLines = [];
-                        return;
-                    }
-                    this.openId = id;
-                    this.detailLines = [];
-                    this.detailLoading = true;
-                    try {
-                        const url = detailBaseUrl.replace('/0/', '/' + id + '/');
-                        const res = await fetch(url);
-                        this.detailLines = await res.json();
-                    } catch (e) {
-                        this.detailLines = [];
-                    } finally {
-                        this.detailLoading = false;
-                    }
-                },
-            };
-        }
-    </script>
 </x-app-layout>

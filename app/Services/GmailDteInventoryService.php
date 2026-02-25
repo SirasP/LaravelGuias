@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class GmailDteInventoryService
@@ -66,26 +67,19 @@ class GmailDteInventoryService
                 $rawUnit = trim((string) ($line->unidad ?? ''));
                 $unit = $this->normalizeUnit($rawUnit);
                 $name = trim((string) ($line->descripcion ?? 'SIN DESCRIPCION'));
-                $code = trim((string) ($line->codigo ?? '')) ?: null;
+                $code = trim((string) ($line->codigo ?? ''));
+                $code = $code !== '' ? mb_strtoupper($code, 'UTF-8') : null;
                 $unitCost = $qty > 0 ? ((float) $line->monto_item / $qty) : 0.0;
 
-                $product = DB::connection('fuelcontrol')
-                    ->table('gmail_inventory_products')
-                    ->where(function ($q) use ($code, $name, $unit) {
-                        if ($code) {
-                            $q->where('codigo', $code);
-                        } else {
-                            $q->where('nombre', $name)->where('unidad', $unit);
-                        }
-                    })
-                    ->lockForUpdate()
-                    ->first();
+                $product = $this->resolveProductForIncomingLine($code, $name, $unit);
 
                 if (!$product) {
+                    $resolvedCode = $code ?: $this->buildAutomaticProductCode($name);
+
                     $productId = DB::connection('fuelcontrol')
                         ->table('gmail_inventory_products')
                         ->insertGetId([
-                            'codigo' => $code,
+                            'codigo' => $resolvedCode,
                             'nombre' => $name,
                             'unidad' => $unit,
                             'stock_actual' => 0,
@@ -98,6 +92,16 @@ class GmailDteInventoryService
                         ->table('gmail_inventory_products')
                         ->where('id', $productId)
                         ->first();
+                } elseif (empty($product->codigo)) {
+                    $resolvedCode = $code ?: $this->buildAutomaticProductCode($name);
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $product->id)
+                        ->update([
+                            'codigo' => $resolvedCode,
+                            'updated_at' => now(),
+                        ]);
+                    $product->codigo = $resolvedCode;
                 }
 
                 $lotId = DB::connection('fuelcontrol')
@@ -180,9 +184,9 @@ class GmailDteInventoryService
      *
      * @param  array<int, array{product_id: int, quantity: float}>  $items
      */
-    public function processExit(array $items, ?int $userId, string $destinatario, ?string $notas = null): array
+    public function processExit(array $items, ?int $userId, string $destinatario, ?string $notas = null, ?string $tipoSalida = null): array
     {
-        return DB::connection('fuelcontrol')->transaction(function () use ($items, $userId, $destinatario, $notas) {
+        return DB::connection('fuelcontrol')->transaction(function () use ($items, $userId, $destinatario, $notas, $tipoSalida) {
             // Validar stock suficiente antes de crear nada
             foreach ($items as $item) {
                 $productId = (int) $item['product_id'];
@@ -216,6 +220,7 @@ class GmailDteInventoryService
                     'usuario_id'     => $userId,
                     'notas'          => $notas,
                     'destinatario'   => $destinatario,
+                    'tipo_salida'    => $tipoSalida,
                     'cantidad_total' => 0,
                     'costo_total'    => 0,
                     'created_at'     => now(),
@@ -374,5 +379,124 @@ class GmailDteInventoryService
         ];
 
         return $map[$key] ?? $u;
+    }
+
+    private function resolveProductForIncomingLine(?string $code, string $name, string $unit): ?object
+    {
+        $products = DB::connection('fuelcontrol')->table('gmail_inventory_products');
+
+        if ($code) {
+            $byCode = (clone $products)
+                ->where('codigo', $code)
+                ->lockForUpdate()
+                ->first();
+            if ($byCode) {
+                return $byCode;
+            }
+        }
+
+        $byExact = (clone $products)
+            ->whereRaw('UPPER(TRIM(nombre)) = ?', [mb_strtoupper(trim($name), 'UTF-8')])
+            ->where('unidad', $unit)
+            ->lockForUpdate()
+            ->first();
+        if ($byExact) {
+            return $byExact;
+        }
+
+        return $this->findBestFuzzyMatch($name, $unit);
+    }
+
+    private function findBestFuzzyMatch(string $name, string $unit): ?object
+    {
+        $target = $this->normalizeForSimilarity($name);
+        if ($target === '') {
+            return null;
+        }
+
+        $candidates = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_products')
+            ->where('unidad', $unit)
+            ->where('is_active', 1)
+            ->whereNotNull('nombre')
+            ->select('id', 'codigo', 'nombre', 'unidad', 'stock_actual', 'costo_promedio', 'is_active')
+            ->get();
+
+        $best = null;
+        $bestScore = 0.0;
+
+        foreach ($candidates as $candidate) {
+            $candidateName = $this->normalizeForSimilarity((string) $candidate->nombre);
+            if ($candidateName === '') {
+                continue;
+            }
+
+            $score = $this->similarityScore($target, $candidateName);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $candidate;
+            }
+        }
+
+        if ($best === null || $bestScore < 0.88) {
+            return null;
+        }
+
+        return DB::connection('fuelcontrol')
+            ->table('gmail_inventory_products')
+            ->where('id', $best->id)
+            ->lockForUpdate()
+            ->first();
+    }
+
+    private function similarityScore(string $left, string $right): float
+    {
+        if ($left === $right) {
+            return 1.0;
+        }
+
+        similar_text($left, $right, $percent);
+        $similarTextScore = $percent / 100;
+
+        $maxLen = max(strlen($left), strlen($right), 1);
+        $levScore = 1 - (levenshtein($left, $right) / $maxLen);
+
+        $leftTokens = array_values(array_unique(array_filter(explode(' ', $left))));
+        $rightTokens = array_values(array_unique(array_filter(explode(' ', $right))));
+        $intersection = array_intersect($leftTokens, $rightTokens);
+        $unionCount = count(array_unique(array_merge($leftTokens, $rightTokens)));
+        $tokenScore = $unionCount > 0 ? count($intersection) / $unionCount : 0.0;
+
+        return ($similarTextScore * 0.45) + ($levScore * 0.35) + ($tokenScore * 0.20);
+    }
+
+    private function normalizeForSimilarity(string $value): string
+    {
+        $value = Str::of($value)->ascii()->lower()->value();
+        $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? '';
+
+        return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+    }
+
+    private function buildAutomaticProductCode(string $name): string
+    {
+        $normalized = $this->normalizeForSimilarity($name);
+        $seed = $normalized !== '' ? $normalized : 'producto';
+        $hash = strtoupper(substr(md5($seed), 0, 6));
+        $base = "AUTO-{$hash}";
+        $candidate = $base;
+        $counter = 1;
+
+        while (
+            DB::connection('fuelcontrol')
+                ->table('gmail_inventory_products')
+                ->where('codigo', $candidate)
+                ->exists()
+        ) {
+            $candidate = "{$base}-{$counter}";
+            $counter++;
+        }
+
+        return $candidate;
     }
 }

@@ -25,6 +25,7 @@ class GmailInventoryController extends Controller
     {
         $validated = $request->validate([
             'destinatario'         => 'required|string|max:200',
+            'tipo_salida'          => 'nullable|string|in:Venta,EPP,Salida',
             'notas'                => 'nullable|string|max:1000',
             'items'                => 'required|array|min:1',
             'items.*.product_id'   => 'required|integer',
@@ -47,7 +48,8 @@ class GmailInventoryController extends Controller
                 $validated['items'],
                 auth()->id(),
                 $validated['destinatario'],
-                $validated['notas'] ?? null
+                $validated['notas'] ?? null,
+                $validated['tipo_salida'] ?? null
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['items' => $e->getMessage()]);
@@ -56,6 +58,45 @@ class GmailInventoryController extends Controller
         return redirect()
             ->route('gmail.inventory.exits')
             ->with('success', 'Salida registrada correctamente (movimiento #' . $result['movement_id'] . ').');
+    }
+
+    // POST /gmail/inventario/salidas/{id}/venta
+    public function exitSell(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'precio_venta' => 'required|numeric|min:0',
+        ]);
+
+        $movement = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('id', $id)
+            ->where('tipo', 'SALIDA')
+            ->first();
+
+        if (! $movement) {
+            return response()->json(['error' => 'Movimiento no encontrado.'], 404);
+        }
+
+        $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('id', $id)
+            ->update([
+                'precio_venta' => $validated['precio_venta'],
+                'tipo_salida'  => 'Venta',
+            ]);
+
+        $costoTotal  = (float) $movement->costo_total;
+        $precioVenta = (float) $validated['precio_venta'];
+        $margen      = $costoTotal > 0
+            ? round((($precioVenta - $costoTotal) / $costoTotal) * 100, 2)
+            : null;
+
+        return response()->json([
+            'ok'           => true,
+            'precio_venta' => $precioVenta,
+            'costo_total'  => $costoTotal,
+            'margen'       => $margen,
+        ]);
     }
 
     // GET /gmail/inventario/salidas
@@ -81,15 +122,26 @@ class GmailInventoryController extends Controller
             $query->where('ocurrio_el', '<=', $hasta);
         }
 
-        $movements = $query->paginate(25)->withQueryString();
+        $movements = $query->paginate(24)->withQueryString();
 
         $ids = $movements->pluck('id')->all();
-        $lineCounts = $this->db()
-            ->table('gmail_inventory_movement_lines')
-            ->whereIn('movement_id', $ids)
-            ->selectRaw('movement_id, count(distinct product_id) as n_products')
-            ->groupBy('movement_id')
-            ->pluck('n_products', 'movement_id');
+
+        // Lines grouped by movement for card detail
+        $lines = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->whereIn('ml.movement_id', $ids)
+            ->orderBy('p.nombre')
+            ->get([
+                'ml.movement_id',
+                'p.nombre as producto',
+                'p.codigo',
+                'p.unidad',
+                'ml.cantidad',
+                'ml.costo_unitario',
+                'ml.costo_total',
+            ])
+            ->groupBy('movement_id');
 
         // KPI del mes actual
         $mesInicio = now()->startOfMonth()->toDateString();
@@ -99,7 +151,7 @@ class GmailInventoryController extends Controller
             ->table('gmail_inventory_movements')
             ->where('tipo', 'SALIDA')
             ->whereBetween('ocurrio_el', [$mesInicio, $mesFin])
-            ->selectRaw('count(*) as total_salidas, coalesce(sum(costo_total), 0) as costo_total')
+            ->selectRaw('count(*) as total_salidas, coalesce(sum(costo_total), 0) as costo_total, coalesce(sum(precio_venta), 0) as precio_venta_total')
             ->first();
 
         // Producto más retirado del mes
@@ -115,7 +167,7 @@ class GmailInventoryController extends Controller
             ->first();
 
         return view('gmail.inventory.exits', compact(
-            'movements', 'lineCounts', 'q', 'desde', 'hasta',
+            'movements', 'lines', 'q', 'desde', 'hasta',
             'kpiMes', 'topProducto'
         ));
     }
@@ -138,8 +190,10 @@ class GmailInventoryController extends Controller
                 'm.id as movimiento_id',
                 'm.ocurrio_el as fecha',
                 'm.destinatario',
+                'm.tipo_salida',
                 'm.notas',
                 'm.costo_total as costo_total_movimiento',
+                'm.precio_venta',
                 'p.nombre as producto',
                 'p.codigo as codigo',
                 'p.unidad as unidad',
@@ -170,8 +224,8 @@ class GmailInventoryController extends Controller
             $fh = fopen('php://output', 'w');
             fprintf($fh, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
             fputcsv($fh, [
-                'ID Movimiento', 'Fecha', 'Destinatario', 'Notas',
-                'Costo Total Mov.', 'Producto', 'Código', 'Unidad',
+                'ID Movimiento', 'Fecha', 'Destinatario', 'Tipo Salida', 'Notas',
+                'Costo Total Mov.', 'Precio Venta', 'Producto', 'Código', 'Unidad',
                 'Cantidad', 'Costo Unit.', 'Costo Línea',
             ], ';');
             foreach ($rows as $r) {
@@ -179,8 +233,10 @@ class GmailInventoryController extends Controller
                     $r->movimiento_id,
                     $r->fecha,
                     $r->destinatario,
+                    $r->tipo_salida ?? '',
                     $r->notas,
                     number_format((float) $r->costo_total_movimiento, 2, ',', '.'),
+                    $r->precio_venta !== null ? number_format((float) $r->precio_venta, 2, ',', '.') : '',
                     $r->producto,
                     $r->codigo,
                     $r->unidad,
