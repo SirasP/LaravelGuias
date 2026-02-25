@@ -188,7 +188,14 @@
             @if ($vista === 'Venta')
 
                 @if ($movements->isEmpty())
-                    <x-inventory-empty-state :q="$q" :desde="$desde" :hasta="$hasta" />
+                    <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center">
+                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No hay ventas registradas</p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            @if($q || $desde || $hasta) No se encontraron resultados para el filtro aplicado.
+                            @else Las ventas aparecerán aquí al registrar una salida de tipo Venta.
+                            @endif
+                        </p>
+                    </div>
                 @else
                     {{-- Summary bar --}}
                     <div class="flex items-center justify-between px-1">
