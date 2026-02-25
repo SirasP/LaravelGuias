@@ -167,22 +167,56 @@ class GmailInventoryController extends Controller
         $costoVentas = $movements->sum('costo_total');
         $pvVentas    = $movements->sum('precio_venta');
 
-        // KPI del mes actual
+        // KPIs separados por tipo — mes actual
         $mesInicio = now()->startOfMonth()->toDateString();
         $mesFin    = now()->endOfMonth()->toDateString();
 
-        $kpiMes = $this->db()
+        $kpiVentas = $this->db()
             ->table('gmail_inventory_movements')
             ->where('tipo', 'SALIDA')
+            ->where('tipo_salida', 'Venta')
             ->whereBetween('ocurrio_el', [$mesInicio, $mesFin])
-            ->selectRaw('count(*) as total_salidas, coalesce(sum(costo_total), 0) as costo_total, coalesce(sum(precio_venta), 0) as precio_venta_total')
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo, coalesce(sum(precio_venta),0) as venta')
             ->first();
 
-        $topProducto = $this->db()
+        $kpiEpp = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where('tipo_salida', 'EPP')
+            ->whereBetween('ocurrio_el', [$mesInicio, $mesFin])
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo')
+            ->first();
+
+        $kpiSalida = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where(function ($qb) {
+                $qb->where('tipo_salida', 'Salida')->orWhereNull('tipo_salida');
+            })
+            ->whereBetween('ocurrio_el', [$mesInicio, $mesFin])
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo')
+            ->first();
+
+        $topVenta = $this->db()
             ->table('gmail_inventory_movement_lines as ml')
             ->join('gmail_inventory_movements as m', 'm.id', '=', 'ml.movement_id')
             ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
             ->where('m.tipo', 'SALIDA')
+            ->where('m.tipo_salida', 'Venta')
+            ->whereBetween('m.ocurrio_el', [$mesInicio, $mesFin])
+            ->selectRaw('p.nombre, sum(ml.cantidad) as total_qty')
+            ->groupBy('p.id', 'p.nombre')
+            ->orderByDesc('total_qty')
+            ->first();
+
+        $topOps = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_movements as m', 'm.id', '=', 'ml.movement_id')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->where('m.tipo', 'SALIDA')
+            ->where(function ($qb) {
+                $qb->whereIn('m.tipo_salida', ['EPP', 'Salida'])->orWhereNull('m.tipo_salida');
+            })
             ->whereBetween('m.ocurrio_el', [$mesInicio, $mesFin])
             ->selectRaw('p.nombre, sum(ml.cantidad) as total_qty')
             ->groupBy('p.id', 'p.nombre')
@@ -192,7 +226,8 @@ class GmailInventoryController extends Controller
         return view('gmail.inventory.exits', compact(
             'movements', 'lines', 'byName', 'byTipoName',
             'vista', 'countEpp', 'countSalida', 'costoVentas', 'pvVentas',
-            'q', 'desde', 'hasta', 'kpiMes', 'topProducto'
+            'q', 'desde', 'hasta',
+            'kpiVentas', 'kpiEpp', 'kpiSalida', 'topVenta', 'topOps'
         ));
     }
 

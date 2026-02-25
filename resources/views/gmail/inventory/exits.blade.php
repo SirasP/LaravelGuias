@@ -1,85 +1,38 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="w-full flex flex-col gap-3">
-
-            {{-- Top row: title + actions --}}
-            <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-xl bg-rose-600 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Salidas de inventario</h2>
-                        <p class="text-xs text-gray-400 mt-0.5">Historial FIFO</p>
-                    </div>
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-rose-600 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
                 </div>
-                <div class="hidden sm:flex items-center gap-2">
-                    <a href="{{ route('gmail.inventory.exits.export', array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $vista === 'Venta' ? 'Venta' : ''])) }}"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
-                               bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
-                               text-gray-700 dark:text-gray-300 transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        CSV
-                    </a>
-                    <a href="{{ route('gmail.inventory.exit.create') }}"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-                        </svg>
-                        Nueva Salida
-                    </a>
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Salidas de inventario</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Historial FIFO</p>
                 </div>
             </div>
-
-            {{-- Main tabs: Ventas | EPP & Salidas --}}
-            <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/60 rounded-2xl p-1 w-fit">
-                @php
-                    $tabBase = array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta]);
-                @endphp
-                <a href="{{ route('gmail.inventory.exits', array_merge($tabBase, ['tipo' => 'Venta'])) }}"
-                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition
-                          {{ $vista === 'Venta'
-                              ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200' }}">
-                    <span>💰</span>
-                    Ventas
+            <div class="flex items-center gap-2">
+                <a href="{{ route('gmail.inventory.exits.export', array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $vista === 'Venta' ? 'Venta' : ''])) }}"
+                    class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
+                           bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
+                           text-gray-700 dark:text-gray-300 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    CSV
                 </a>
-                <a href="{{ route('gmail.inventory.exits', $tabBase) }}"
-                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition
-                          {{ $vista !== 'Venta'
-                              ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200' }}">
-                    <span>🦺</span>
-                    EPP &amp; Salidas
+                <a href="{{ route('gmail.inventory.exit.create') }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+                    </svg>
+                    <span class="hidden sm:inline">Nueva Salida</span>
+                    <span class="sm:hidden">Nueva</span>
                 </a>
             </div>
-
-            {{-- Filter form --}}
-            <form method="GET" class="hidden sm:flex gap-2 items-center">
-                @if ($vista === 'Venta')
-                    <input type="hidden" name="tipo" value="Venta">
-                @endif
-                <input type="text" name="q" value="{{ $q }}" class="f-input flex-1 min-w-0"
-                    placeholder="Buscar destinatario...">
-                <input type="date" name="desde" value="{{ $desde }}" class="f-input w-36 shrink-0" title="Desde">
-                <input type="date" name="hasta" value="{{ $hasta }}" class="f-input w-36 shrink-0" title="Hasta">
-                <button type="submit"
-                    class="shrink-0 px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
-                    Filtrar
-                </button>
-                @if($q || $desde || $hasta)
-                    <a href="{{ route('gmail.inventory.exits', $vista === 'Venta' ? ['tipo' => 'Venta'] : []) }}"
-                        class="shrink-0 px-3 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition">
-                        Limpiar
-                    </a>
-                @endif
-            </form>
         </div>
     </x-slot>
 
@@ -98,8 +51,7 @@
         }
         .dark .kpi-card { background:#161c2c; border-color:#1e2a3b }
         .exit-card {
-            background:#fff; border:1px solid #e2e8f0; border-radius:16px;
-            overflow:hidden;
+            background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden;
         }
         .dark .exit-card { background:#161c2c; border-color:#1e2a3b }
         .sell-input {
@@ -108,10 +60,6 @@
         }
         .sell-input:focus { border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.12) }
         .dark .sell-input { border-color:#1e2a3b; background:#0d1117; color:#f1f5f9 }
-        /* Sub-tab toggle (for EPP / Salidas) */
-        .sub-tab-active   { background:#fff; color:#2563eb; box-shadow:0 1px 3px rgba(0,0,0,.1) }
-        .dark .sub-tab-active { background:#0d1117; color:#60a5fa }
-        /* Name group divider */
         .name-divider {
             display:flex; align-items:center; gap:8px;
             font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
@@ -120,27 +68,32 @@
         .name-divider::after { content:''; flex:1; height:1px; background:#e2e8f0 }
         .dark .name-divider { color:#94a3b8 }
         .dark .name-divider::after { background:#1e2a3b }
+
+        /* Main view tabs */
+        .view-tab {
+            display:flex; align-items:center; gap:8px;
+            padding:8px 18px; border-radius:12px;
+            font-size:12px; font-weight:700; transition:all .15s;
+            text-decoration:none; cursor:pointer;
+        }
+        .view-tab-active-green {
+            background:#fff; color:#059669; box-shadow:0 1px 4px rgba(0,0,0,.1);
+        }
+        .view-tab-active-blue {
+            background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(0,0,0,.1);
+        }
+        .dark .view-tab-active-green { background:#0d1117; color:#34d399 }
+        .dark .view-tab-active-blue  { background:#0d1117; color:#60a5fa }
+        .view-tab-inactive {
+            color:#64748b;
+        }
+        .view-tab-inactive:hover { color:#111827 }
+        .dark .view-tab-inactive { color:#94a3b8 }
+        .dark .view-tab-inactive:hover { color:#f1f5f9 }
     </style>
 
     <div class="page-bg">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-
-            {{-- Mobile filter --}}
-            <form method="GET" class="sm:hidden space-y-2">
-                @if ($vista === 'Venta')
-                    <input type="hidden" name="tipo" value="Venta">
-                @endif
-                <div class="flex gap-2">
-                    <input type="text" name="q" value="{{ $q }}" class="f-input flex-1"
-                        placeholder="Buscar destinatario...">
-                    <button type="submit"
-                        class="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">Buscar</button>
-                </div>
-                <div class="flex gap-2">
-                    <input type="date" name="desde" value="{{ $desde }}" class="f-input flex-1">
-                    <input type="date" name="hasta" value="{{ $hasta }}" class="f-input flex-1">
-                </div>
-            </form>
 
             @if (session('success'))
                 <div class="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-4 py-3">
@@ -148,45 +101,91 @@
                 </div>
             @endif
 
-            {{-- KPI Cards --}}
-            <div class="flex flex-col sm:flex-row gap-3">
-                <div class="kpi-card">
-                    <p class="text-xs text-gray-400 mb-1">Salidas este mes</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{ $kpiMes->total_salidas ?? 0 }}
-                    </p>
+            {{-- ── View selector + filter ── --}}
+            @php $tabBase = array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta]); @endphp
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+
+                {{-- Main tabs --}}
+                <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 shrink-0">
+                    <a href="{{ route('gmail.inventory.exits', array_merge($tabBase, ['tipo' => 'Venta'])) }}"
+                       class="view-tab {{ $vista === 'Venta' ? 'view-tab-active-green' : 'view-tab-inactive' }}">
+                        💰 Ventas
+                    </a>
+                    <a href="{{ route('gmail.inventory.exits', $tabBase) }}"
+                       class="view-tab {{ $vista !== 'Venta' ? 'view-tab-active-blue' : 'view-tab-inactive' }}">
+                        🦺 EPP &amp; Salidas
+                    </a>
                 </div>
-                <div class="kpi-card">
-                    <p class="text-xs text-gray-400 mb-1">Costo total este mes</p>
-                    <p class="text-2xl font-bold text-rose-600 dark:text-rose-400">
-                        $ {{ number_format((float) ($kpiMes->costo_total ?? 0), 0, ',', '.') }}
-                    </p>
-                </div>
-                @if ((float) ($kpiMes->precio_venta_total ?? 0) > 0)
+
+                {{-- Filter form --}}
+                <form method="GET" class="flex gap-2 items-center flex-1 min-w-0">
+                    @if ($vista === 'Venta')
+                        <input type="hidden" name="tipo" value="Venta">
+                    @endif
+                    <input type="text" name="q" value="{{ $q }}" class="f-input flex-1 min-w-0"
+                        placeholder="Buscar destinatario...">
+                    <input type="date" name="desde" value="{{ $desde }}" class="f-input hidden sm:block w-36 shrink-0">
+                    <input type="date" name="hasta" value="{{ $hasta }}" class="f-input hidden sm:block w-36 shrink-0">
+                    <button type="submit"
+                        class="shrink-0 px-4 py-2 text-xs font-semibold rounded-xl bg-gray-700 hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 text-white transition">
+                        Filtrar
+                    </button>
+                    @if($q || $desde || $hasta)
+                        <a href="{{ route('gmail.inventory.exits', $vista === 'Venta' ? ['tipo' => 'Venta'] : []) }}"
+                            class="shrink-0 text-xs font-semibold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                            Limpiar
+                        </a>
+                    @endif
+                </form>
+            </div>
+
+            {{-- ══════════════════════════════════════════ --}}
+            {{-- VENTAS                                     --}}
+            {{-- ══════════════════════════════════════════ --}}
+            @if ($vista === 'Venta')
+
+                {{-- Ventas KPIs --}}
+                <div class="flex flex-col sm:flex-row gap-3">
                     <div class="kpi-card">
-                        <p class="text-xs text-gray-400 mb-1">Ventas registradas este mes</p>
-                        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            $ {{ number_format((float) ($kpiMes->precio_venta_total ?? 0), 0, ',', '.') }}
+                        <p class="text-xs text-gray-400 mb-1">Ventas este mes</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                            {{ $kpiVentas->cnt ?? 0 }}
                         </p>
                     </div>
-                @else
                     <div class="kpi-card">
-                        <p class="text-xs text-gray-400 mb-1">Más retirado este mes</p>
-                        @if ($topProducto)
-                            <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $topProducto->nombre }}</p>
-                            <p class="text-xs text-gray-400">{{ number_format((float) $topProducto->total_qty, 2, ',', '.') }} unidades</p>
+                        <p class="text-xs text-gray-400 mb-1">Costo salido este mes</p>
+                        <p class="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                            $ {{ number_format((float)($kpiVentas->costo ?? 0), 0, ',', '.') }}
+                        </p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="text-xs text-gray-400 mb-1">Total vendido este mes</p>
+                        <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                            $ {{ number_format((float)($kpiVentas->venta ?? 0), 0, ',', '.') }}
+                        </p>
+                        @php
+                            $c = (float)($kpiVentas->costo ?? 0);
+                            $v = (float)($kpiVentas->venta ?? 0);
+                            $mg = ($c > 0 && $v > 0) ? round((($v - $c) / $c) * 100, 1) : null;
+                        @endphp
+                        @if ($mg !== null)
+                            <p class="text-xs mt-0.5 {{ $mg >= 0 ? 'text-emerald-500' : 'text-rose-500' }}">
+                                Margen {{ $mg }}%
+                            </p>
+                        @endif
+                    </div>
+                    <div class="kpi-card">
+                        <p class="text-xs text-gray-400 mb-1">Más vendido este mes</p>
+                        @if ($topVenta)
+                            <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $topVenta->nombre }}</p>
+                            <p class="text-xs text-gray-400">{{ number_format((float)$topVenta->total_qty, 2, ',', '.') }} unidades</p>
                         @else
                             <p class="text-sm text-gray-400">Sin datos</p>
                         @endif
                     </div>
-                @endif
-            </div>
+                </div>
 
-            {{-- ───────────────────────────────────────────────────────── --}}
-            {{-- VENTAS VIEW                                               --}}
-            {{-- ───────────────────────────────────────────────────────── --}}
-            @if ($vista === 'Venta')
-
+                {{-- Ventas cards --}}
                 @if ($movements->isEmpty())
                     <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center">
                         <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No hay ventas registradas</p>
@@ -197,20 +196,19 @@
                         </p>
                     </div>
                 @else
-                    {{-- Summary bar --}}
-                    <div class="flex items-center justify-between px-1">
-                        <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                            {{ $movements->count() }} {{ $movements->count() === 1 ? 'venta' : 'ventas' }}
-                            &middot; Costo: $ {{ number_format((float) $costoVentas, 0, ',', '.') }}
-                            @if ((float) $pvVentas > 0)
-                                &middot; Venta: $ {{ number_format((float) $pvVentas, 0, ',', '.') }}
-                            @endif
-                        </p>
-                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 px-1">
+                        {{ $movements->count() }} {{ $movements->count() === 1 ? 'venta' : 'ventas' }} mostradas
+                        &middot; Costo: $&nbsp;{{ number_format((float)$costoVentas, 0, ',', '.') }}
+                        @if ((float)$pvVentas > 0)
+                            &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
+                        @endif
+                    </p>
 
                     @foreach ($byName as $nombre => $movs)
-                        <div class="name-divider">{{ $nombre }} <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span></div>
-
+                        <div class="name-divider">
+                            {{ $nombre }}
+                            <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                             @foreach ($movs as $m)
                                 @php
@@ -225,10 +223,47 @@
                     @endforeach
                 @endif
 
-            {{-- ───────────────────────────────────────────────────────── --}}
-            {{-- EPP + SALIDAS VIEW                                        --}}
-            {{-- ───────────────────────────────────────────────────────── --}}
+            {{-- ══════════════════════════════════════════ --}}
+            {{-- EPP + SALIDAS                              --}}
+            {{-- ══════════════════════════════════════════ --}}
             @else
+
+                {{-- EPP + Salidas KPIs --}}
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="kpi-card">
+                        <p class="text-xs text-gray-400 mb-1">🦺 EPP entregados este mes</p>
+                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {{ $kpiEpp->cnt ?? 0 }}
+                        </p>
+                        @if ((float)($kpiEpp->costo ?? 0) > 0)
+                            <p class="text-xs text-gray-400 mt-0.5">
+                                Costo: $&nbsp;{{ number_format((float)$kpiEpp->costo, 0, ',', '.') }}
+                            </p>
+                        @endif
+                    </div>
+                    <div class="kpi-card">
+                        <p class="text-xs text-gray-400 mb-1">📦 Salidas internas este mes</p>
+                        <p class="text-2xl font-bold text-slate-600 dark:text-slate-400">
+                            {{ $kpiSalida->cnt ?? 0 }}
+                        </p>
+                        @if ((float)($kpiSalida->costo ?? 0) > 0)
+                            <p class="text-xs text-gray-400 mt-0.5">
+                                Costo: $&nbsp;{{ number_format((float)$kpiSalida->costo, 0, ',', '.') }}
+                            </p>
+                        @endif
+                    </div>
+                    <div class="kpi-card">
+                        <p class="text-xs text-gray-400 mb-1">Más retirado este mes</p>
+                        @if ($topOps)
+                            <p class="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{{ $topOps->nombre }}</p>
+                            <p class="text-xs text-gray-400">{{ number_format((float)$topOps->total_qty, 2, ',', '.') }} unidades</p>
+                        @else
+                            <p class="text-sm text-gray-400">Sin datos</p>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Empty state --}}
                 @if ($movements->isEmpty())
                     <div class="bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center">
                         <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No hay registros</p>
@@ -239,26 +274,26 @@
                         </p>
                     </div>
                 @else
-                    {{-- Sub-tab toggle: EPP | Salidas --}}
+                    {{-- Sub-tab toggle: EPP | Salidas (Alpine, no page reload) --}}
                     <div x-data="{ sub: '{{ $countEpp > 0 ? 'EPP' : 'Salida' }}' }">
 
-                        <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/60 rounded-2xl p-1 w-fit mb-5">
+                        <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 w-fit mb-5">
                             <button type="button" @click="sub = 'EPP'"
-                                class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition"
-                                :class="sub === 'EPP' ? 'sub-tab-active dark:sub-tab-active' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'">
+                                class="view-tab"
+                                :class="sub === 'EPP' ? 'view-tab-active-blue' : 'view-tab-inactive'">
                                 🦺 EPP
                                 @if ($countEpp > 0)
-                                    <span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                                    <span class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                                         {{ $countEpp }}
                                     </span>
                                 @endif
                             </button>
                             <button type="button" @click="sub = 'Salida'"
-                                class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition"
-                                :class="sub === 'Salida' ? 'sub-tab-active dark:sub-tab-active' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'">
+                                class="view-tab"
+                                :class="sub === 'Salida' ? 'view-tab-active-blue' : 'view-tab-inactive'">
                                 📦 Salidas
                                 @if ($countSalida > 0)
-                                    <span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                    <span class="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                         {{ $countSalida }}
                                     </span>
                                 @endif
@@ -272,14 +307,15 @@
                                 <p class="text-sm text-gray-400 text-center py-8">No hay entregas EPP con los filtros actuales.</p>
                             @else
                                 @foreach ($eppByName as $nombre => $movs)
-                                    <div class="name-divider">{{ $nombre }} <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span></div>
+                                    <div class="name-divider">
+                                        {{ $nombre }}
+                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                                    </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                         @foreach ($movs as $m)
                                             @php
-                                                $cardLines   = $lines->get($m->id, collect());
-                                                $costoTotal  = (float) $m->costo_total;
-                                                $precioVenta = null;
-                                                $sellUrl     = '';
+                                                $cardLines  = $lines->get($m->id, collect());
+                                                $costoTotal = (float) $m->costo_total;
                                             @endphp
                                             @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal'))
                                         @endforeach
@@ -295,12 +331,15 @@
                                 <p class="text-sm text-gray-400 text-center py-8">No hay salidas internas con los filtros actuales.</p>
                             @else
                                 @foreach ($salidaByName as $nombre => $movs)
-                                    <div class="name-divider">{{ $nombre }} <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span></div>
+                                    <div class="name-divider">
+                                        {{ $nombre }}
+                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                                    </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                         @foreach ($movs as $m)
                                             @php
-                                                $cardLines   = $lines->get($m->id, collect());
-                                                $costoTotal  = (float) $m->costo_total;
+                                                $cardLines  = $lines->get($m->id, collect());
+                                                $costoTotal = (float) $m->costo_total;
                                             @endphp
                                             @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal'))
                                         @endforeach
@@ -309,7 +348,7 @@
                             @endif
                         </div>
 
-                    </div>{{-- /x-data sub-tab --}}
+                    </div>{{-- /x-data --}}
                 @endif
             @endif
 
