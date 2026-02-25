@@ -32,9 +32,15 @@
                 </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-                <form method="POST" action="{{ $estadoPagoRaw === 'pagado' ? route('gmail.dtes.unpay', $document->id) : route('gmail.dtes.pay', $document->id) }}" class="contents">
+                <form id="doc-pay-form" method="POST" action="{{ $estadoPagoRaw === 'pagado' ? route('gmail.dtes.unpay', $document->id) : route('gmail.dtes.pay', $document->id) }}" class="contents">
                     @csrf
-                    <button type="submit" class="hdr-btn {{ $estadoPagoRaw === 'pagado' ? 'hdr-gray' : 'hdr-emerald' }}">
+                    <button type="button"
+                        @click="openConfirm(
+                            '{{ $estadoPagoRaw === 'pagado' ? 'Cancelar pago' : 'Registrar pago' }}',
+                            '{{ $estadoPagoRaw === 'pagado' ? 'Se quitará el estado de pagado de este documento.' : 'Se marcará este documento como pagado.' }}',
+                            'doc-pay-form'
+                        )"
+                        class="hdr-btn {{ $estadoPagoRaw === 'pagado' ? 'hdr-gray' : 'hdr-emerald' }}">
                         @if($estadoPagoRaw === 'pagado')
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             <span class="hidden sm:inline">Cancelar pago</span>
@@ -44,9 +50,15 @@
                         @endif
                     </button>
                 </form>
-                <form method="POST" action="{{ $isDraft ? route('gmail.dtes.accept', $document->id) : route('gmail.dtes.draft', $document->id) }}" class="contents">
+                <form id="doc-workflow-form" method="POST" action="{{ $isDraft ? route('gmail.dtes.accept', $document->id) : route('gmail.dtes.draft', $document->id) }}" class="contents">
                     @csrf
-                    <button type="submit" class="hdr-btn {{ $isDraft ? 'hdr-sky' : 'hdr-gray' }}">
+                    <button type="button"
+                        @click="openConfirm(
+                            '{{ $isDraft ? 'Aceptar borrador' : 'Enviar a borrador' }}',
+                            '{{ $isDraft ? 'El documento quedará como aceptado.' : 'El documento volverá al estado borrador.' }}',
+                            'doc-workflow-form'
+                        )"
+                        class="hdr-btn {{ $isDraft ? 'hdr-sky' : 'hdr-gray' }}">
                         @if($isDraft)
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <span class="hidden sm:inline">Aceptar borrador</span>
@@ -57,17 +69,29 @@
                     </button>
                 </form>
                 @if($inventoryStatus !== 'ingresado')
-                    <form method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
+                    <form id="doc-stock-form" method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                         @csrf
-                        <button type="submit" class="hdr-btn hdr-violet">
+                        <button type="button"
+                            @click="openConfirm(
+                                'Agregar stock',
+                                'Se ingresarán las líneas de esta factura al inventario.',
+                                'doc-stock-form'
+                            )"
+                            class="hdr-btn hdr-violet">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                             <span class="hidden sm:inline">Agregar stock</span>
                         </button>
                     </form>
                 @endif
-                <form method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
+                <form id="doc-credit-note-form" method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
                     @csrf
-                    <button type="submit" class="hdr-btn hdr-rose">
+                    <button type="button"
+                        @click="openConfirm(
+                            'Crear nota de crédito',
+                            'Se creará una nota de crédito desde este documento.',
+                            'doc-credit-note-form'
+                        )"
+                        class="hdr-btn hdr-rose">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14H5a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         <span class="hidden sm:inline">Nota crédito</span>
                     </button>
@@ -250,7 +274,28 @@
         .hdr-btn:active { transform:scale(.97) }
     </style>
 
-    <div class="page-bg">
+    <div
+        class="page-bg"
+        x-data="{
+            confirmOpen: false,
+            confirmTitle: '',
+            confirmMessage: '',
+            confirmFormId: '',
+            openConfirm(title, message, formId) {
+                this.confirmTitle = title;
+                this.confirmMessage = message;
+                this.confirmFormId = formId;
+                this.confirmOpen = true;
+            },
+            submitConfirm() {
+                if (!this.confirmFormId) return;
+                const form = document.getElementById(this.confirmFormId);
+                if (form) form.submit();
+                this.confirmOpen = false;
+            }
+        }"
+        @keydown.escape.window="confirmOpen = false"
+    >
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
 
             {{-- ════ LAYOUT PRINCIPAL ════ --}}
@@ -703,6 +748,25 @@
 
             </div>{{-- /layout --}}
 
+        </div>
+
+        <div
+            x-cloak
+            x-show="confirmOpen"
+            x-transition.opacity
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="absolute inset-0 bg-slate-900/60" @click="confirmOpen = false"></div>
+            <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl p-5">
+                <h3 class="text-base font-bold text-slate-900 dark:text-slate-100" x-text="confirmTitle"></h3>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-300" x-text="confirmMessage"></p>
+                <div class="mt-5 flex items-center justify-end gap-2">
+                    <button type="button" class="hdr-btn hdr-gray" @click="confirmOpen = false">Cancelar</button>
+                    <button type="button" class="hdr-btn hdr-rose" @click="submitConfirm()">Confirmar</button>
+                </div>
+            </div>
         </div>
     </div>
 </x-app-layout>
