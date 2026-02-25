@@ -105,6 +105,8 @@ class GmailInventoryController extends Controller
         $q     = trim((string) $request->query('q', ''));
         $desde = trim((string) $request->query('desde', ''));
         $hasta = trim((string) $request->query('hasta', ''));
+        $range = trim((string) $request->query('range', ''));
+        $flag  = trim((string) $request->query('flag', ''));
         // 'Venta' → ventas view   |   '' (default) → EPP+Salidas view
         $vista = $request->query('tipo', '') === 'Venta' ? 'Venta' : 'ops';
 
@@ -126,11 +128,22 @@ class GmailInventoryController extends Controller
         if ($q !== '') {
             $query->where('destinatario', 'like', "%{$q}%");
         }
+        if ($range !== '') {
+            [$rangeDesde, $rangeHasta] = $this->resolveQuickRange($range);
+            if ($rangeDesde && $rangeHasta) {
+                $query->whereBetween('ocurrio_el', [$rangeDesde, $rangeHasta]);
+            }
+        }
         if ($desde !== '') {
             $query->where('ocurrio_el', '>=', $desde);
         }
         if ($hasta !== '') {
             $query->where('ocurrio_el', '<=', $hasta);
+        }
+        if ($vista === 'Venta' && $flag === 'sin_precio') {
+            $query->where(function ($qb) {
+                $qb->whereNull('precio_venta')->orWhere('precio_venta', '<=', 0);
+            });
         }
 
         $movements = $query->limit(200)->get();
@@ -170,6 +183,8 @@ class GmailInventoryController extends Controller
         // KPIs separados por tipo — mes actual
         $mesInicio = now()->startOfMonth()->toDateString();
         $mesFin    = now()->endOfMonth()->toDateString();
+        $mesPrevInicio = now()->subMonthNoOverflow()->startOfMonth()->toDateString();
+        $mesPrevFin    = now()->subMonthNoOverflow()->endOfMonth()->toDateString();
 
         $kpiVentas = $this->db()
             ->table('gmail_inventory_movements')
@@ -194,6 +209,32 @@ class GmailInventoryController extends Controller
                 $qb->where('tipo_salida', 'Salida')->orWhereNull('tipo_salida');
             })
             ->whereBetween('ocurrio_el', [$mesInicio, $mesFin])
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo')
+            ->first();
+
+        $kpiVentasPrev = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where('tipo_salida', 'Venta')
+            ->whereBetween('ocurrio_el', [$mesPrevInicio, $mesPrevFin])
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo, coalesce(sum(precio_venta),0) as venta')
+            ->first();
+
+        $kpiEppPrev = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where('tipo_salida', 'EPP')
+            ->whereBetween('ocurrio_el', [$mesPrevInicio, $mesPrevFin])
+            ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo')
+            ->first();
+
+        $kpiSalidaPrev = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where(function ($qb) {
+                $qb->where('tipo_salida', 'Salida')->orWhereNull('tipo_salida');
+            })
+            ->whereBetween('ocurrio_el', [$mesPrevInicio, $mesPrevFin])
             ->selectRaw('count(*) as cnt, coalesce(sum(costo_total),0) as costo')
             ->first();
 
@@ -226,8 +267,8 @@ class GmailInventoryController extends Controller
         return view('gmail.inventory.exits', compact(
             'movements', 'lines', 'byName', 'byTipoName',
             'vista', 'countEpp', 'countSalida', 'costoVentas', 'pvVentas',
-            'q', 'desde', 'hasta',
-            'kpiVentas', 'kpiEpp', 'kpiSalida', 'topVenta', 'topOps'
+            'q', 'desde', 'hasta', 'range', 'flag',
+            'kpiVentas', 'kpiEpp', 'kpiSalida', 'kpiVentasPrev', 'kpiEppPrev', 'kpiSalidaPrev', 'topVenta', 'topOps'
         ));
     }
 
@@ -237,6 +278,9 @@ class GmailInventoryController extends Controller
         $q     = trim((string) $request->query('q', ''));
         $desde = trim((string) $request->query('desde', ''));
         $hasta = trim((string) $request->query('hasta', ''));
+        $range = trim((string) $request->query('range', ''));
+        $flag  = trim((string) $request->query('flag', ''));
+        $tipo  = trim((string) $request->query('tipo', ''));
 
         $query = $this->db()
             ->table('gmail_inventory_movements as m')
@@ -264,11 +308,27 @@ class GmailInventoryController extends Controller
         if ($q !== '') {
             $query->where('m.destinatario', 'like', "%{$q}%");
         }
+        if ($tipo === 'Venta') {
+            $query->where('m.tipo_salida', 'Venta');
+        } elseif ($tipo !== '') {
+            $query->where('m.tipo_salida', $tipo);
+        }
+        if ($range !== '') {
+            [$rangeDesde, $rangeHasta] = $this->resolveQuickRange($range);
+            if ($rangeDesde && $rangeHasta) {
+                $query->whereBetween('m.ocurrio_el', [$rangeDesde, $rangeHasta]);
+            }
+        }
         if ($desde !== '') {
             $query->where('m.ocurrio_el', '>=', $desde);
         }
         if ($hasta !== '') {
             $query->where('m.ocurrio_el', '<=', $hasta);
+        }
+        if ($tipo === 'Venta' && $flag === 'sin_precio') {
+            $query->where(function ($qb) {
+                $qb->whereNull('m.precio_venta')->orWhere('m.precio_venta', '<=', 0);
+            });
         }
 
         $rows = $query->get();
@@ -308,6 +368,16 @@ class GmailInventoryController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function resolveQuickRange(string $range): array
+    {
+        return match ($range) {
+            'today' => [now()->toDateString(), now()->toDateString()],
+            '7d' => [now()->subDays(6)->toDateString(), now()->toDateString()],
+            '30d' => [now()->subDays(29)->toDateString(), now()->toDateString()],
+            default => [null, null],
+        };
     }
 
     // GET /gmail/inventario/api/productos
