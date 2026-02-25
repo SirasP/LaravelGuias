@@ -175,6 +175,133 @@ class GmailDteInventoryService
         });
     }
 
+    /**
+     * Registra una salida FIFO multi-producto.
+     *
+     * @param  array<int, array{product_id: int, quantity: float}>  $items
+     */
+    public function processExit(array $items, ?int $userId, string $destinatario, ?string $notas = null): array
+    {
+        return DB::connection('fuelcontrol')->transaction(function () use ($items, $userId, $destinatario, $notas) {
+            // Validar stock suficiente antes de crear nada
+            foreach ($items as $item) {
+                $productId = (int) $item['product_id'];
+                $needed    = (float) $item['quantity'];
+
+                $available = DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_lots')
+                    ->where('product_id', $productId)
+                    ->where('estado', 'ABIERTO')
+                    ->sum('cantidad_disponible');
+
+                if ($available < $needed) {
+                    $product = DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $productId)
+                        ->value('nombre');
+                    throw new RuntimeException(
+                        "Stock insuficiente para '{$product}': disponible {$available}, solicitado {$needed}."
+                    );
+                }
+            }
+
+            // Crear movimiento cabecera
+            $movementId = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_movements')
+                ->insertGetId([
+                    'document_id'    => null,
+                    'tipo'           => 'SALIDA',
+                    'estado'         => 'CONTABILIZADO',
+                    'ocurrio_el'     => now()->toDateString(),
+                    'usuario_id'     => $userId,
+                    'notas'          => $notas,
+                    'destinatario'   => $destinatario,
+                    'cantidad_total' => 0,
+                    'costo_total'    => 0,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+
+            $qtyTotal  = 0.0;
+            $costTotal = 0.0;
+
+            foreach ($items as $item) {
+                $productId = (int) $item['product_id'];
+                $needed    = (float) $item['quantity'];
+                $pending   = $needed;
+
+                // FIFO: lotes más antiguos primero
+                $lots = DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_lots')
+                    ->where('product_id', $productId)
+                    ->where('estado', 'ABIERTO')
+                    ->where('cantidad_disponible', '>', 0)
+                    ->orderBy('ingresado_el')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($lots as $lot) {
+                    if ($pending <= 0) {
+                        break;
+                    }
+
+                    $take = min((float) $lot->cantidad_disponible, $pending);
+                    $lineCost = $take * (float) $lot->costo_unitario;
+
+                    // Línea del movimiento por este lote
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_movement_lines')
+                        ->insert([
+                            'movement_id'    => $movementId,
+                            'lot_id'         => $lot->id,
+                            'product_id'     => $productId,
+                            'cantidad'       => $take,
+                            'costo_unitario' => $lot->costo_unitario,
+                            'costo_total'    => $lineCost,
+                            'created_at'     => now(),
+                            'updated_at'     => now(),
+                        ]);
+
+                    // Actualizar lote
+                    $newDisponible = (float) $lot->cantidad_disponible - $take;
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_lots')
+                        ->where('id', $lot->id)
+                        ->update([
+                            'cantidad_disponible' => $newDisponible,
+                            'cantidad_salida'     => (float) $lot->cantidad_salida + $take,
+                            'estado'              => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
+                            'updated_at'          => now(),
+                        ]);
+
+                    $pending   -= $take;
+                    $costTotal += $lineCost;
+                }
+
+                // Reducir stock_actual del producto (costo_promedio no cambia en salidas)
+                DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_products')
+                    ->where('id', $productId)
+                    ->decrement('stock_actual', $needed, ['updated_at' => now()]);
+
+                $qtyTotal += $needed;
+            }
+
+            // Actualizar totales del movimiento
+            DB::connection('fuelcontrol')
+                ->table('gmail_inventory_movements')
+                ->where('id', $movementId)
+                ->update([
+                    'cantidad_total' => $qtyTotal,
+                    'costo_total'    => $costTotal,
+                    'updated_at'     => now(),
+                ]);
+
+            return ['movement_id' => $movementId];
+        });
+    }
+
     private function normalizeUnit(?string $unit): string
     {
         $u = strtoupper(trim((string) $unit));

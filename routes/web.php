@@ -448,6 +448,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/dtes/boletas/listado', [GmailDteDocumentController::class, 'boletasList'])->name('dtes.boletas.list');
     Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
     Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
+    Route::get('/inventario/salida',  [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
+    Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
+    Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
+    Route::get('/inventario/api/productos', [App\Http\Controllers\GmailInventoryController::class, 'productsApi'])->name('inventory.api.products');
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])
         ->whereNumber('id')
         ->name('inventory.product');
