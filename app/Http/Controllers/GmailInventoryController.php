@@ -198,14 +198,15 @@ class GmailInventoryController extends Controller
     // GET /gmail/inventario/api/productos
     public function productsApi(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
+        $q     = trim((string) $request->query('q', ''));
+        $limit = min(50, max(1, (int) $request->query('limit', 6)));
 
         $query = $this->db()
             ->table('gmail_inventory_products')
             ->where('is_active', 1)
             ->where('stock_actual', '>', 0)
             ->orderBy('nombre')
-            ->limit(20);
+            ->limit($limit);
 
         if ($q !== '') {
             $query->where(function ($qb) use ($q) {
@@ -217,6 +218,28 @@ class GmailInventoryController extends Controller
         $products = $query->get(['id', 'nombre', 'codigo', 'unidad', 'stock_actual', 'costo_promedio']);
 
         return response()->json($products);
+    }
+
+    // GET /gmail/inventario/api/destinatarios
+    public function destinatariosApi(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $query = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->whereNotNull('destinatario')
+            ->where('destinatario', '!=', '')
+            ->selectRaw('destinatario, max(created_at) as last_used')
+            ->groupBy('destinatario')
+            ->orderByDesc('last_used')
+            ->limit(6);
+
+        if ($q !== '') {
+            $query->where('destinatario', 'like', "%{$q}%");
+        }
+
+        return response()->json($query->pluck('destinatario'));
     }
 
     // GET /gmail/inventario/api/lotes/{productId}

@@ -32,12 +32,27 @@
         .stock-bar-bg { height:4px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:4px }
         .dark .stock-bar-bg { background:#1e2a3b }
         .stock-bar-fill { height:100%; border-radius:99px; transition:width .2s ease }
+        .dd-item { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:10px 16px; transition:background .12s; cursor:pointer; }
+        .dd-item:hover { background:rgba(139,92,246,.06) }
+        .dark .dd-item:hover { background:rgba(139,92,246,.12) }
+        .dd-create { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 16px; border-top:1px solid #e2e8f0; cursor:pointer; transition:background .12s; }
+        .dark .dd-create { border-color:#1e2a3b }
+        .dd-create:hover { background:rgba(16,185,129,.06) }
+        .dark .dd-create:hover { background:rgba(16,185,129,.10) }
+        .dd-more { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 16px; border-top:1px solid #e2e8f0; cursor:pointer; transition:background .12s; }
+        .dark .dd-more { border-color:#1e2a3b }
+        .dd-more:hover { background:#f8fafc }
+        .dark .dd-more:hover { background:#0d1117 }
     </style>
 
     <div class="page-bg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
-             x-data="exitForm('{{ route('gmail.inventory.api.products') }}', '{{ route('gmail.inventory.api.lots', 0) }}')"
-             @keydown.escape="closeDropdown()">
+             x-data="exitForm(
+                 '{{ route('gmail.inventory.api.products') }}',
+                 '{{ route('gmail.inventory.api.lots', 0) }}',
+                 '{{ route('gmail.inventory.api.destinatarios') }}'
+             )"
+             @keydown.escape="closeDropdowns()">
 
             @if ($errors->any())
                 <div class="mb-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-4 py-3">
@@ -55,17 +70,16 @@
                     {{-- ── Left panel ── --}}
                     <div class="lg:col-span-2 space-y-4">
 
-                        {{-- Search box --}}
+                        {{-- Product search --}}
                         <div class="card">
                             <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Agregar producto</p>
-                            <div class="relative">
+                            <div class="relative" @click.outside="showDropdown = false">
                                 <input type="text"
                                     class="f-input pr-10"
                                     placeholder="Buscar por nombre o código..."
                                     x-model="search"
                                     @input.debounce.300ms="fetchProducts()"
-                                    @focus="if(results.length) showDropdown = true"
-                                    @click.stop
+                                    @focus="if(results.length || search.trim()) { fetchProducts(); }"
                                     autocomplete="off">
                                 <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                                     <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -77,17 +91,21 @@
                                     </svg>
                                 </div>
 
-                                {{-- Dropdown --}}
-                                <div x-show="showDropdown && results.length > 0"
+                                {{-- Product dropdown --}}
+                                <div x-show="showDropdown && (visibleResults.length > 0 || noResults)"
                                     x-transition:enter="transition ease-out duration-100"
                                     x-transition:enter-start="opacity-0 translate-y-1"
                                     x-transition:enter-end="opacity-100 translate-y-0"
-                                    @click.stop
                                     class="absolute z-30 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
-                                    <template x-for="p in results" :key="p.id">
-                                        <button type="button"
-                                            @click="addItem(p)"
-                                            class="w-full text-left flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
+
+                                    {{-- No results --}}
+                                    <div x-show="noResults" class="px-4 py-3 text-xs text-gray-400 text-center">
+                                        Sin resultados para "<span x-text="search"></span>"
+                                    </div>
+
+                                    {{-- Result items (max 5) --}}
+                                    <template x-for="p in visibleResults" :key="p.id">
+                                        <button type="button" @click="addItem(p)" class="dd-item">
                                             <div class="min-w-0">
                                                 <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="p.nombre"></p>
                                                 <p class="text-xs text-gray-400" x-text="(p.codigo ?? 'Sin código') + ' · ' + p.unidad"></p>
@@ -98,6 +116,23 @@
                                             </div>
                                         </button>
                                     </template>
+
+                                    {{-- "Ver más" if results were truncated --}}
+                                    <button type="button" x-show="hasMore && !loadingMore"
+                                        @click="loadMore()"
+                                        class="dd-more">
+                                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <span class="text-xs text-gray-500">Buscar más resultados para "<span class="font-semibold" x-text="search"></span>"</span>
+                                    </button>
+                                    <div x-show="loadingMore" class="dd-more">
+                                        <svg class="w-3.5 h-3.5 animate-spin text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                        </svg>
+                                        <span class="text-xs text-gray-400">Buscando más...</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -133,7 +168,6 @@
                                                 <td class="py-3 px-1 min-w-[180px]">
                                                     <p class="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px]" x-text="item.nombre"></p>
                                                     <p class="text-xs text-gray-400" x-text="(item.codigo ?? 'Sin código') + ' · ' + item.unidad"></p>
-                                                    {{-- FIFO lot preview --}}
                                                     <div x-show="item.lots && item.lots.length > 0" class="mt-1">
                                                         <template x-for="(lot, li) in fifoPreview(item)" :key="li">
                                                             <span class="inline-flex items-center gap-1 mr-1 mb-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-md
@@ -150,7 +184,6 @@
 
                                                 <td class="py-3 px-1 text-right align-top pt-3.5">
                                                     <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400" x-text="formatNum(item.stock_actual, 4)"></span>
-                                                    {{-- Progress bar --}}
                                                     <div class="stock-bar-bg w-20 ml-auto mt-1">
                                                         <div class="stock-bar-fill"
                                                             :style="{
@@ -161,24 +194,19 @@
                                                         </div>
                                                     </div>
                                                     <p class="text-[10px] text-gray-400 mt-0.5 text-right"
-                                                        x-text="item.stock_actual > 0 ? Math.round(item.quantity / item.stock_actual * 100) + '%' : '—'">
-                                                    </p>
+                                                        x-text="item.stock_actual > 0 ? Math.round(item.quantity / item.stock_actual * 100) + '%' : '—'"></p>
                                                 </td>
 
                                                 <td class="py-3 px-1 align-top">
                                                     <div class="flex items-center gap-1 justify-end">
                                                         <input type="number"
-                                                            :max="item.stock_actual"
-                                                            min="0.0001"
-                                                            step="any"
+                                                            :max="item.stock_actual" min="0.0001" step="any"
                                                             x-model.number="item.quantity"
                                                             @input="clampQuantity(item)"
                                                             class="f-input text-right py-1.5 px-2"
                                                             style="width:90px"
                                                             :class="item.quantity > item.stock_actual ? 'border-rose-400 dark:border-rose-600' : ''">
-                                                        {{-- Botón Máx --}}
-                                                        <button type="button"
-                                                            @click="item.quantity = item.stock_actual"
+                                                        <button type="button" @click="item.quantity = item.stock_actual"
                                                             title="Usar todo el stock disponible"
                                                             class="shrink-0 px-1.5 py-1.5 rounded-lg text-[10px] font-bold
                                                                    bg-gray-100 hover:bg-emerald-100 text-gray-500 hover:text-emerald-700
@@ -187,11 +215,9 @@
                                                             Máx
                                                         </button>
                                                     </div>
-                                                    {{-- Error badge --}}
                                                     <p x-show="item.quantity > item.stock_actual"
                                                         class="text-[10px] text-rose-600 dark:text-rose-400 mt-1 text-right"
-                                                        x-text="'Máx: ' + formatNum(item.stock_actual, 4)">
-                                                    </p>
+                                                        x-text="'Máx: ' + formatNum(item.stock_actual, 4)"></p>
                                                 </td>
 
                                                 <td class="py-3 px-1 text-right text-gray-700 dark:text-gray-300 font-semibold text-xs whitespace-nowrap pt-3.5"
@@ -219,15 +245,61 @@
                         <div class="card space-y-4">
                             <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Resumen</p>
 
-                            <div>
+                            {{-- Destinatario combobox --}}
+                            <div x-data="destinatarioField('{{ route('gmail.inventory.api.destinatarios') }}')" @click.outside="showDest = false">
                                 <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                                     Destinatario <span class="text-rose-500">*</span>
                                 </label>
-                                <input type="text" name="destinatario"
-                                    value="{{ old('destinatario') }}"
-                                    placeholder="Nombre o área destino"
-                                    required maxlength="200"
-                                    class="f-input">
+                                <div class="relative">
+                                    <input type="text" name="destinatario"
+                                        x-model="destValue"
+                                        @input.debounce.250ms="fetchDest()"
+                                        @focus="fetchDest()"
+                                        placeholder="Nombre o área destino"
+                                        required maxlength="200"
+                                        autocomplete="off"
+                                        class="f-input pr-8"
+                                        value="{{ old('destinatario') }}">
+                                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+
+                                    {{-- Destinatario dropdown --}}
+                                    <div x-show="showDest && (destSuggestions.length > 0 || destValue.trim().length > 0)"
+                                        x-transition:enter="transition ease-out duration-100"
+                                        x-transition:enter-start="opacity-0 translate-y-1"
+                                        x-transition:enter-end="opacity-100 translate-y-0"
+                                        class="absolute z-40 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+
+                                        {{-- Existing suggestions --}}
+                                        <template x-for="s in destSuggestions" :key="s">
+                                            <button type="button" @click="selectDest(s)" class="dd-item">
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                    </svg>
+                                                    <span class="text-sm text-gray-800 dark:text-gray-200 truncate" x-text="s"></span>
+                                                </div>
+                                                <span class="text-[10px] text-gray-400 shrink-0">Reciente</span>
+                                            </button>
+                                        </template>
+
+                                        {{-- "Crear nuevo" option shown when typed value doesn't match any suggestion --}}
+                                        <button type="button"
+                                            x-show="destValue.trim().length > 0 && !destSuggestions.includes(destValue.trim())"
+                                            @click="selectDest(destValue.trim())"
+                                            class="dd-create">
+                                            <svg class="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+                                            </svg>
+                                            <span class="text-xs text-emerald-700 dark:text-emerald-400">
+                                                Usar "<strong x-text="destValue.trim()"></strong>"
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
@@ -284,42 +356,66 @@
     </div>
 
     <script>
-        function exitForm(apiUrl, lotsBaseUrl) {
+        /* ── Product search combobox ── */
+        function exitForm(apiUrl, lotsBaseUrl, destApiUrl) {
             return {
                 search: '',
-                results: [],
+                results: [],         // all fetched results
                 loading: false,
+                loadingMore: false,
                 showDropdown: false,
+                expanded: false,     // true after clicking "Ver más"
                 items: [],
 
+                get visibleResults() {
+                    return this.expanded ? this.results : this.results.slice(0, 5);
+                },
+                get hasMore() {
+                    return !this.expanded && this.results.length > 5;
+                },
+                get noResults() {
+                    return !this.loading && this.search.trim() !== '' && this.results.length === 0;
+                },
                 get totalCost() {
                     return this.items.reduce((s, i) => s + (i.quantity * i.costo_promedio), 0);
                 },
-
                 get totalQty() {
                     return this.items.reduce((s, i) => s + (i.quantity || 0), 0);
                 },
-
                 get hasErrors() {
                     return this.items.some(i => i.quantity <= 0 || i.quantity > i.stock_actual);
                 },
 
                 async fetchProducts() {
-                    if (this.search.trim() === '') {
+                    const q = this.search.trim();
+                    if (q === '') {
                         this.results = [];
                         this.showDropdown = false;
+                        this.expanded = false;
                         return;
                     }
                     this.loading = true;
+                    this.expanded = false;
                     try {
-                        const res = await fetch(apiUrl + '?q=' + encodeURIComponent(this.search));
+                        // Request 6 to detect if there are more than 5
+                        const res = await fetch(apiUrl + '?q=' + encodeURIComponent(q) + '&limit=6');
                         this.results = await res.json();
-                        this.showDropdown = this.results.length > 0;
+                        this.showDropdown = true;
                     } catch (e) {
                         this.results = [];
                     } finally {
                         this.loading = false;
                     }
+                },
+
+                async loadMore() {
+                    this.loadingMore = true;
+                    try {
+                        const res = await fetch(apiUrl + '?q=' + encodeURIComponent(this.search.trim()) + '&limit=50');
+                        this.results = await res.json();
+                        this.expanded = true;
+                    } catch (e) {}
+                    finally { this.loadingMore = false; }
                 },
 
                 async addItem(p) {
@@ -345,8 +441,8 @@
                     this.search = '';
                     this.results = [];
                     this.showDropdown = false;
+                    this.expanded = false;
 
-                    // Load FIFO lots
                     try {
                         const url = lotsBaseUrl.replace('/0', '/' + p.id);
                         const res = await fetch(url);
@@ -358,7 +454,6 @@
                     }
                 },
 
-                // Simulate FIFO consumption and return lot labels to display
                 fifoPreview(item) {
                     const qty = item.quantity || 0;
                     if (!item.lots || item.lots.length === 0 || qty <= 0) return [];
@@ -376,18 +471,14 @@
                     return used;
                 },
 
-                removeItem(idx) {
-                    this.items.splice(idx, 1);
-                },
+                removeItem(idx) { this.items.splice(idx, 1); },
 
                 clampQuantity(item) {
                     if (item.quantity > item.stock_actual) item.quantity = item.stock_actual;
                     if (item.quantity < 0) item.quantity = 0;
                 },
 
-                closeDropdown() {
-                    this.showDropdown = false;
-                },
+                closeDropdowns() { this.showDropdown = false; },
 
                 submitForm(form) {
                     if (this.items.length === 0 || this.hasErrors) return;
@@ -395,21 +486,36 @@
                 },
 
                 formatNum(val, decimals) {
-                    const n = parseFloat(val) || 0;
-                    return n.toLocaleString('es-CL', {
-                        minimumFractionDigits: decimals,
-                        maximumFractionDigits: decimals,
+                    return (parseFloat(val) || 0).toLocaleString('es-CL', {
+                        minimumFractionDigits: decimals, maximumFractionDigits: decimals,
                     });
                 },
             };
         }
 
-        document.addEventListener('click', () => {
-            document.querySelectorAll('[x-data]').forEach(el => {
-                if (el.__x?.$data?.showDropdown !== undefined) {
-                    el.__x.$data.showDropdown = false;
-                }
-            });
-        });
+        /* ── Destinatario combobox ── */
+        function destinatarioField(apiUrl) {
+            return {
+                destValue: '{{ old('destinatario') }}',
+                destSuggestions: [],
+                showDest: false,
+
+                async fetchDest() {
+                    this.showDest = true;
+                    const q = this.destValue.trim();
+                    try {
+                        const res = await fetch(apiUrl + '?q=' + encodeURIComponent(q));
+                        this.destSuggestions = await res.json();
+                    } catch (e) {
+                        this.destSuggestions = [];
+                    }
+                },
+
+                selectDest(val) {
+                    this.destValue = val;
+                    this.showDest = false;
+                },
+            };
+        }
     </script>
 </x-app-layout>
