@@ -417,35 +417,28 @@
                                                 </div>
 
                                                 <div class="px-4 py-2">
-                                                    @if($rows->isEmpty())
-                                                        <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
-                                                    @else
-                                                        <table class="w-full text-xs">
-                                                            <thead>
-                                                                <tr class="border-b border-gray-100 dark:border-gray-800">
-                                                                    <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                                                                    <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
-                                                                    <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-                                                                @foreach($rows->sortByDesc('total')->take(6) as $it)
-                                                                    <tr>
-                                                                        <td class="py-1.5 pr-2">
-                                                                            <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
-                                                                            <p class="text-gray-400">{{ $it->unidad }}</p>
-                                                                        </td>
-                                                                        <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                                                            {{ number_format((float) $it->cantidad, 2, ',', '.') }}
-                                                                        </td>
-                                                                        <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                                                            $ {{ number_format((float) $it->total, 0, ',', '.') }}
-                                                                        </td>
-                                                                    </tr>
-                                                                @endforeach
-                                                            </tbody>
-                                                        </table>
-                                                    @endif
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                                <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cantidad total</th>
+                                                                <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td class="py-1.5 pr-2">
+                                                                    <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
+                                                                </td>
+                                                                <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                                    {{ number_format($r->cantidad_total, 2, ',', '.') }}
+                                                                </td>
+                                                                <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                                    $ {{ number_format($r->costo_total, 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                 </div>
 
                                                 <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
@@ -510,35 +503,28 @@
                                                 </div>
 
                                                 <div class="px-4 py-2">
-                                                    @if($rows->isEmpty())
-                                                        <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
-                                                    @else
-                                                        <table class="w-full text-xs">
-                                                            <thead>
-                                                                <tr class="border-b border-gray-100 dark:border-gray-800">
-                                                                    <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                                                                    <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
-                                                                    <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-                                                                @foreach($rows->sortByDesc('total')->take(6) as $it)
-                                                                    <tr>
-                                                                        <td class="py-1.5 pr-2">
-                                                                            <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
-                                                                            <p class="text-gray-400">{{ $it->unidad }}</p>
-                                                                        </td>
-                                                                        <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                                                            {{ number_format((float) $it->cantidad, 2, ',', '.') }}
-                                                                        </td>
-                                                                        <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                                                            $ {{ number_format((float) $it->total, 0, ',', '.') }}
-                                                                        </td>
-                                                                    </tr>
-                                                                @endforeach
-                                                            </tbody>
-                                                        </table>
-                                                    @endif
+                                                    <table class="w-full text-xs">
+                                                        <thead>
+                                                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                                <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cantidad total</th>
+                                                                <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td class="py-1.5 pr-2">
+                                                                    <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
+                                                                </td>
+                                                                <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                                    {{ number_format($r->cantidad_total, 2, ',', '.') }}
+                                                                </td>
+                                                                <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                                    $ {{ number_format($r->costo_total, 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                 </div>
 
                                                 <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
