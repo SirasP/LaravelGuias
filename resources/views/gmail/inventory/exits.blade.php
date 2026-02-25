@@ -1,6 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between gap-3">
+        <div class="w-full grid grid-cols-1 lg:grid-cols-[auto,1fr,auto] items-center gap-3">
+
+            {{-- Left: icon + title --}}
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-xl bg-rose-600 flex items-center justify-center shrink-0">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -8,13 +10,47 @@
                             d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                 </div>
-                <div>
+                <div class="min-w-0">
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Salidas de inventario</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Historial FIFO</p>
+                    <p class="text-xs text-gray-400 mt-0.5 truncate">Historial FIFO</p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('gmail.inventory.exits.export', array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $vista === 'Venta' ? 'Venta' : ''])) }}"
+
+            {{-- Center: search bar --}}
+            <form method="GET" class="hidden lg:flex gap-2 items-center w-full max-w-md justify-self-center">
+                @if ($vista === 'Venta')
+                    <input type="hidden" name="tipo" value="Venta">
+                @endif
+                <input type="text" name="q" value="{{ $q }}"
+                    class="f-input flex-1 min-w-0 py-2"
+                    placeholder="Buscar destinatario...">
+                @if($q)
+                    <a href="{{ route('gmail.inventory.exits', $vista === 'Venta' ? ['tipo' => 'Venta'] : []) }}"
+                        class="shrink-0 text-xs font-semibold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                        Limpiar
+                    </a>
+                @endif
+                <button type="submit"
+                    class="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition">
+                    Buscar
+                </button>
+            </form>
+
+            {{-- Right: CSV + Nueva Salida --}}
+            <div class="flex items-center gap-2 justify-end">
+                @php $tabHeaderBase = array_filter(['q' => $q]); @endphp
+                <div class="hidden sm:flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 shrink-0 mr-1">
+                    <a href="{{ route('gmail.inventory.exits', array_merge($tabHeaderBase, ['tipo' => 'Venta'])) }}"
+                        class="view-tab {{ $vista === 'Venta' ? 'view-tab-active-green' : 'view-tab-inactive' }}">
+                        💰 Ventas
+                    </a>
+                    <a href="{{ route('gmail.inventory.exits', $tabHeaderBase) }}"
+                        class="view-tab {{ $vista !== 'Venta' ? 'view-tab-active-blue' : 'view-tab-inactive' }}">
+                        🦺 EPP &amp; Salidas
+                    </a>
+                </div>
+
+                <a href="{{ route('gmail.inventory.exits.export', array_filter(['q' => $q, 'tipo' => $vista === 'Venta' ? 'Venta' : ''])) }}"
                     class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
                            bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
                            text-gray-700 dark:text-gray-300 transition">
@@ -33,6 +69,7 @@
                     <span class="sm:hidden">Nueva</span>
                 </a>
             </div>
+
         </div>
     </x-slot>
 
@@ -100,44 +137,6 @@
                     <p class="text-sm text-emerald-700 dark:text-emerald-400">{{ session('success') }}</p>
                 </div>
             @endif
-
-            {{-- ── View selector + filter ── --}}
-            @php $tabBase = array_filter(['q' => $q, 'desde' => $desde, 'hasta' => $hasta]); @endphp
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-
-                {{-- Main tabs --}}
-                <div class="flex gap-1 bg-gray-100 dark:bg-gray-800/70 rounded-2xl p-1 shrink-0">
-                    <a href="{{ route('gmail.inventory.exits', array_merge($tabBase, ['tipo' => 'Venta'])) }}"
-                       class="view-tab {{ $vista === 'Venta' ? 'view-tab-active-green' : 'view-tab-inactive' }}">
-                        💰 Ventas
-                    </a>
-                    <a href="{{ route('gmail.inventory.exits', $tabBase) }}"
-                       class="view-tab {{ $vista !== 'Venta' ? 'view-tab-active-blue' : 'view-tab-inactive' }}">
-                        🦺 EPP &amp; Salidas
-                    </a>
-                </div>
-
-                {{-- Filter form --}}
-                <form method="GET" class="flex gap-2 items-center flex-1 min-w-0">
-                    @if ($vista === 'Venta')
-                        <input type="hidden" name="tipo" value="Venta">
-                    @endif
-                    <input type="text" name="q" value="{{ $q }}" class="f-input flex-1 min-w-0"
-                        placeholder="Buscar destinatario...">
-                    <input type="date" name="desde" value="{{ $desde }}" class="f-input hidden sm:block w-36 shrink-0">
-                    <input type="date" name="hasta" value="{{ $hasta }}" class="f-input hidden sm:block w-36 shrink-0">
-                    <button type="submit"
-                        class="shrink-0 px-4 py-2 text-xs font-semibold rounded-xl bg-gray-700 hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 text-white transition">
-                        Filtrar
-                    </button>
-                    @if($q || $desde || $hasta)
-                        <a href="{{ route('gmail.inventory.exits', $vista === 'Venta' ? ['tipo' => 'Venta'] : []) }}"
-                            class="shrink-0 text-xs font-semibold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
-                            Limpiar
-                        </a>
-                    @endif
-                </form>
-            </div>
 
             {{-- ══════════════════════════════════════════ --}}
             {{-- VENTAS                                     --}}
