@@ -28,39 +28,31 @@
 
     {{-- Product lines --}}
     <div class="px-4 py-2">
-        @if ($cardLines->isEmpty())
-            <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
-        @else
-            <table class="w-full text-xs">
-                <thead>
-                    <tr class="border-b border-gray-100 dark:border-gray-800">
-                        <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                        <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant.</th>
-                        <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">C. Unit.</th>
-                        <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-                    @foreach ($cardLines as $line)
-                        <tr>
-                            <td class="py-1.5 pr-2">
-                                <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $line->producto }}</p>
-                                <p class="text-gray-400">{{ $line->unidad }}</p>
-                            </td>
-                            <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                {{ number_format((float) $line->cantidad, 2, ',', '.') }}
-                            </td>
-                            <td class="py-1.5 pr-2 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                $ {{ number_format((float) $line->costo_unitario, 2, ',', '.') }}
-                            </td>
-                            <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                $ {{ number_format((float) $line->costo_total, 0, ',', '.') }}
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endif
+        @php
+            $cantidadTotal = (float) $cardLines->sum('cantidad');
+        @endphp
+        <table class="w-full text-xs">
+            <thead>
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                    <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                    <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant.</th>
+                    <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="py-1.5 pr-2">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
+                    </td>
+                    <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                        {{ number_format($cantidadTotal, 2, ',', '.') }}
+                    </td>
+                    <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                        $ {{ number_format($costoTotal, 0, ',', '.') }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     {{-- Footer: cost only --}}

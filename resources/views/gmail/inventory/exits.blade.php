@@ -194,105 +194,24 @@
                             &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
                         @endif
                     </p>
-                    @php
-                        $resumenVentas = $byName->map(function ($movs, $nombre) use ($lines) {
-                            return (object) [
-                                'nombre' => $nombre,
-                                'movimientos' => (int) $movs->count(),
-                                'cantidad_total' => (float) $movs->sum(fn($m) => (float) $lines->get($m->id, collect())->sum('cantidad')),
-                                'costo_total' => (float) $movs->sum('costo_total'),
-                                'venta_total' => (float) $movs->sum(fn($m) => (float) ($m->precio_venta ?? 0)),
-                                'sin_precio' => (int) $movs->filter(fn($m) => ((float) ($m->precio_venta ?? 0)) <= 0)->count(),
-                                'ultimo' => $movs->sortByDesc('ocurrio_el')->first(),
-                            ];
-                        })->sortByDesc(fn($r) => $r->ultimo->ocurrio_el ?? null)->values();
-                    @endphp
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                        @foreach($resumenVentas as $r)
-                            @php
-                                $rows = collect();
-                                foreach($byName->get($r->nombre, collect()) as $mv) {
-                                    foreach($lines->get($mv->id, collect()) as $ln) {
-                                        $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
-                                        $item = $rows->get($k, (object) [
-                                            'producto' => $ln->producto,
-                                            'unidad' => $ln->unidad,
-                                            'cantidad' => 0.0,
-                                            'total' => 0.0,
-                                        ]);
-                                        $item->cantidad += (float) $ln->cantidad;
-                                        $item->total += (float) $ln->costo_total;
-                                        $rows->put($k, $item);
-                                    }
-                                }
-                            @endphp
-                            <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Venta']) }}" class="summary-link">
-                                <div class="exit-card">
-                                    <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
-                                        <div class="min-w-0">
-                                            <p class="text-[11px] text-emerald-500 font-bold uppercase tracking-wide">Ficha comercial</p>
-                                            <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">
-                                                {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
-                                            </p>
-                                        </div>
-                                        <div class="text-right shrink-0">
-                                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                                                {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
-                                            </p>
-                                            @if($r->sin_precio > 0)
-                                                <p class="text-[11px] text-amber-500 mt-0.5">{{ $r->sin_precio }} sin precio</p>
-                                            @endif
-                                        </div>
-                                    </div>
-
-                                    <div class="px-4 py-2">
-                                        @if($rows->isEmpty())
-                                            <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
-                                        @else
-                                            <table class="w-full text-xs">
-                                                <thead>
-                                                    <tr class="border-b border-gray-100 dark:border-gray-800">
-                                                        <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                                                        <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
-                                                        <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-                                                    @foreach($rows->sortByDesc('total')->take(6) as $it)
-                                                        <tr>
-                                                            <td class="py-1.5 pr-2">
-                                                                <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
-                                                                <p class="text-gray-400">{{ $it->unidad }}</p>
-                                                            </td>
-                                                            <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                                                {{ number_format((float) $it->cantidad, 2, ',', '.') }}
-                                                            </td>
-                                                            <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                                                $ {{ number_format((float) $it->total, 0, ',', '.') }}
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        @endif
-                                    </div>
-
-                                    <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
-                                        <div>
-                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
-                                            <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
-                                        </div>
-                                        <div class="text-right">
-                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Venta total</p>
-                                            <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400">$ {{ number_format($r->venta_total, 0, ',', '.') }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                        @endforeach
-                    </div>
+                    @foreach ($byName as $nombre => $movs)
+                        <div class="name-divider">
+                            {{ $nombre }}
+                            <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            @foreach ($movs as $m)
+                                @php
+                                    $cardLines   = $lines->get($m->id, collect());
+                                    $costoTotal  = (float) $m->costo_total;
+                                    $precioVenta = $m->precio_venta;
+                                    $sellUrl     = route('gmail.inventory.exits.sell', $m->id);
+                                    $detailUrl   = route('gmail.inventory.exits.show', $m->id);
+                                @endphp
+                                @include('gmail.inventory._exit_card', compact('m','cardLines','costoTotal','precioVenta','sellUrl','detailUrl'))
+                            @endforeach
+                        </div>
+                    @endforeach
                 @endif
 
             @else
@@ -371,84 +290,22 @@
                             @if ($eppByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay entregas EPP con los filtros actuales.</p>
                             @else
-                                @php
-                                    $resumenEpp = $eppByName->map(function ($movs, $nombre) use ($lines) {
-                                        return (object) [
-                                            'nombre' => $nombre,
-                                            'movimientos' => (int) $movs->count(),
-                                            'cantidad_total' => (float) $movs->sum(fn($m) => (float) $lines->get($m->id, collect())->sum('cantidad')),
-                                            'costo_total' => (float) $movs->sum('costo_total'),
-                                            'ultimo' => $movs->sortByDesc('ocurrio_el')->first(),
-                                        ];
-                                    })->sortByDesc(fn($r) => $r->ultimo->ocurrio_el ?? null)->values();
-                                @endphp
-                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
-                                    @foreach($resumenEpp as $r)
-                                        @php
-                                            $rows = collect();
-                                            foreach($eppByName->get($r->nombre, collect()) as $mv) {
-                                                foreach($lines->get($mv->id, collect()) as $ln) {
-                                                    $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
-                                                    $item = $rows->get($k, (object) [
-                                                        'producto' => $ln->producto,
-                                                        'unidad' => $ln->unidad,
-                                                        'cantidad' => 0.0,
-                                                        'total' => 0.0,
-                                                    ]);
-                                                    $item->cantidad += (float) $ln->cantidad;
-                                                    $item->total += (float) $ln->costo_total;
-                                                    $rows->put($k, $item);
-                                                }
-                                            }
-                                        @endphp
-                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'EPP']) }}" class="summary-link">
-                                            <div class="exit-card">
-                                                <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
-                                                    <div class="min-w-0">
-                                                        <p class="text-[11px] text-blue-500 font-bold uppercase tracking-wide">Ficha operativa</p>
-                                                        <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
-                                                        <p class="text-xs text-gray-400 mt-0.5">
-                                                            {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
-                                                        </p>
-                                                    </div>
-                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0">
-                                                        {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
-                                                    </p>
-                                                </div>
-
-                                                <div class="px-4 py-2">
-                                                    <table class="w-full text-xs">
-                                                        <thead>
-                                                            <tr class="border-b border-gray-100 dark:border-gray-800">
-                                                                <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cantidad total</th>
-                                                                <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td class="py-1.5 pr-2">
-                                                                    <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
-                                                                </td>
-                                                                <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                                                    {{ number_format($r->cantidad_total, 2, ',', '.') }}
-                                                                </td>
-                                                                <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                                                    $ {{ number_format($r->costo_total, 0, ',', '.') }}
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-
-                                                <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
-                                                    <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    @endforeach
-                                </div>
+                                @foreach ($eppByName as $nombre => $movs)
+                                    <div class="name-divider">
+                                        {{ $nombre }}
+                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
+                                        @foreach ($movs as $m)
+                                            @php
+                                                $cardLines  = $lines->get($m->id, collect());
+                                                $costoTotal = (float) $m->costo_total;
+                                                $detailUrl  = route('gmail.inventory.exits.show', $m->id);
+                                            @endphp
+                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl'))
+                                        @endforeach
+                                    </div>
+                                @endforeach
                             @endif
                         </div>
 
@@ -457,84 +314,22 @@
                             @if ($salidaByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay salidas internas con los filtros actuales.</p>
                             @else
-                                @php
-                                    $resumenSalida = $salidaByName->map(function ($movs, $nombre) use ($lines) {
-                                        return (object) [
-                                            'nombre' => $nombre,
-                                            'movimientos' => (int) $movs->count(),
-                                            'cantidad_total' => (float) $movs->sum(fn($m) => (float) $lines->get($m->id, collect())->sum('cantidad')),
-                                            'costo_total' => (float) $movs->sum('costo_total'),
-                                            'ultimo' => $movs->sortByDesc('ocurrio_el')->first(),
-                                        ];
-                                    })->sortByDesc(fn($r) => $r->ultimo->ocurrio_el ?? null)->values();
-                                @endphp
-                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
-                                    @foreach($resumenSalida as $r)
-                                        @php
-                                            $rows = collect();
-                                            foreach($salidaByName->get($r->nombre, collect()) as $mv) {
-                                                foreach($lines->get($mv->id, collect()) as $ln) {
-                                                    $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
-                                                    $item = $rows->get($k, (object) [
-                                                        'producto' => $ln->producto,
-                                                        'unidad' => $ln->unidad,
-                                                        'cantidad' => 0.0,
-                                                        'total' => 0.0,
-                                                    ]);
-                                                    $item->cantidad += (float) $ln->cantidad;
-                                                    $item->total += (float) $ln->costo_total;
-                                                    $rows->put($k, $item);
-                                                }
-                                            }
-                                        @endphp
-                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Salida']) }}" class="summary-link">
-                                            <div class="exit-card">
-                                                <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
-                                                    <div class="min-w-0">
-                                                        <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wide">Ficha operativa</p>
-                                                        <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
-                                                        <p class="text-xs text-gray-400 mt-0.5">
-                                                            {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
-                                                        </p>
-                                                    </div>
-                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0">
-                                                        {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
-                                                    </p>
-                                                </div>
-
-                                                <div class="px-4 py-2">
-                                                    <table class="w-full text-xs">
-                                                        <thead>
-                                                            <tr class="border-b border-gray-100 dark:border-gray-800">
-                                                                <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
-                                                                <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cantidad total</th>
-                                                                <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td class="py-1.5 pr-2">
-                                                                    <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">Ficha Operativa</p>
-                                                                </td>
-                                                                <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                                                                    {{ number_format($r->cantidad_total, 2, ',', '.') }}
-                                                                </td>
-                                                                <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                                                    $ {{ number_format($r->costo_total, 0, ',', '.') }}
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-
-                                                <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
-                                                    <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    @endforeach
-                                </div>
+                                @foreach ($salidaByName as $nombre => $movs)
+                                    <div class="name-divider">
+                                        {{ $nombre }}
+                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
+                                        @foreach ($movs as $m)
+                                            @php
+                                                $cardLines  = $lines->get($m->id, collect());
+                                                $costoTotal = (float) $m->costo_total;
+                                                $detailUrl  = route('gmail.inventory.exits.show', $m->id);
+                                            @endphp
+                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl'))
+                                        @endforeach
+                                    </div>
+                                @endforeach
                             @endif
                         </div>
 
