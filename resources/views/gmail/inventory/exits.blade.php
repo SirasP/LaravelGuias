@@ -122,13 +122,8 @@
         .dark .view-tab-inactive { color:#94a3b8 }
         .dark .view-tab-inactive:hover { color:#f1f5f9 }
 
-        .summary-card {
-            display:block; background:#fff; border:1px solid #e2e8f0; border-radius:16px;
-            padding:14px 16px; transition:border-color .15s, box-shadow .15s;
-        }
-        .summary-card:hover { border-color:#c7d2fe; box-shadow:0 6px 18px rgba(15,23,42,.06) }
-        .dark .summary-card { background:#161c2c; border-color:#1e2a3b }
-        .dark .summary-card:hover { border-color:#334155 }
+        .summary-link { display:block; transition:transform .12s; }
+        .summary-link:hover { transform:translateY(-1px); }
     </style>
 
     <div class="page-bg">
@@ -215,20 +210,86 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         @foreach($resumenVentas as $r)
-                            <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Venta']) }}" class="summary-card">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0">
-                                        <p class="text-[11px] uppercase tracking-wide font-bold text-emerald-500">Ficha comercial</p>
-                                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                            @php
+                                $rows = collect();
+                                foreach($byName->get($r->nombre, collect()) as $mv) {
+                                    foreach($lines->get($mv->id, collect()) as $ln) {
+                                        $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
+                                        $item = $rows->get($k, (object) [
+                                            'producto' => $ln->producto,
+                                            'unidad' => $ln->unidad,
+                                            'cantidad' => 0.0,
+                                            'total' => 0.0,
+                                        ]);
+                                        $item->cantidad += (float) $ln->cantidad;
+                                        $item->total += (float) $ln->costo_total;
+                                        $rows->put($k, $item);
+                                    }
+                                }
+                            @endphp
+                            <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Venta']) }}" class="summary-link">
+                                <div class="exit-card">
+                                    <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
+                                        <div class="min-w-0">
+                                            <p class="text-[11px] text-emerald-500 font-bold uppercase tracking-wide">Ficha comercial</p>
+                                            <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                                            <p class="text-xs text-gray-400 mt-0.5">
+                                                {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
+                                            </p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                                {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
+                                            </p>
+                                            @if($r->sin_precio > 0)
+                                                <p class="text-[11px] text-amber-500 mt-0.5">{{ $r->sin_precio }} sin precio</p>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <span class="text-[11px] text-gray-400 shrink-0">{{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}</span>
+
+                                    <div class="px-4 py-2">
+                                        @if($rows->isEmpty())
+                                            <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
+                                        @else
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                        <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                        <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
+                                                        <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
+                                                    @foreach($rows->sortByDesc('total')->take(6) as $it)
+                                                        <tr>
+                                                            <td class="py-1.5 pr-2">
+                                                                <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
+                                                                <p class="text-gray-400">{{ $it->unidad }}</p>
+                                                            </td>
+                                                            <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                                {{ number_format((float) $it->cantidad, 2, ',', '.') }}
+                                                            </td>
+                                                            <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                                $ {{ number_format((float) $it->total, 0, ',', '.') }}
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        @endif
+                                    </div>
+
+                                    <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                                        <div>
+                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
+                                            <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-[10px] text-gray-400 uppercase tracking-wide">Venta total</p>
+                                            <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400">$ {{ number_format($r->venta_total, 0, ',', '.') }}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                    {{ $r->movimientos }} mov · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds ·
-                                    costo $ {{ number_format($r->costo_total, 0, ',', '.') }} ·
-                                    venta $ {{ number_format($r->venta_total, 0, ',', '.') }}
-                                    @if($r->sin_precio > 0) · {{ $r->sin_precio }} sin precio @endif
-                                </p>
                             </a>
                         @endforeach
                     </div>
@@ -323,18 +384,75 @@
                                 @endphp
                                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                     @foreach($resumenEpp as $r)
-                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'EPP']) }}" class="summary-card">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <p class="text-[11px] uppercase tracking-wide font-bold text-blue-500">Ficha operativa</p>
-                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                                        @php
+                                            $rows = collect();
+                                            foreach($eppByName->get($r->nombre, collect()) as $mv) {
+                                                foreach($lines->get($mv->id, collect()) as $ln) {
+                                                    $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
+                                                    $item = $rows->get($k, (object) [
+                                                        'producto' => $ln->producto,
+                                                        'unidad' => $ln->unidad,
+                                                        'cantidad' => 0.0,
+                                                        'total' => 0.0,
+                                                    ]);
+                                                    $item->cantidad += (float) $ln->cantidad;
+                                                    $item->total += (float) $ln->costo_total;
+                                                    $rows->put($k, $item);
+                                                }
+                                            }
+                                        @endphp
+                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'EPP']) }}" class="summary-link">
+                                            <div class="exit-card">
+                                                <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
+                                                    <div class="min-w-0">
+                                                        <p class="text-[11px] text-blue-500 font-bold uppercase tracking-wide">Ficha operativa</p>
+                                                        <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                                                        <p class="text-xs text-gray-400 mt-0.5">
+                                                            {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
+                                                        </p>
+                                                    </div>
+                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0">
+                                                        {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
+                                                    </p>
                                                 </div>
-                                                <span class="text-[11px] text-gray-400 shrink-0">{{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}</span>
+
+                                                <div class="px-4 py-2">
+                                                    @if($rows->isEmpty())
+                                                        <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
+                                                    @else
+                                                        <table class="w-full text-xs">
+                                                            <thead>
+                                                                <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                                    <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                                    <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
+                                                                    <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
+                                                                @foreach($rows->sortByDesc('total')->take(6) as $it)
+                                                                    <tr>
+                                                                        <td class="py-1.5 pr-2">
+                                                                            <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
+                                                                            <p class="text-gray-400">{{ $it->unidad }}</p>
+                                                                        </td>
+                                                                        <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                                            {{ number_format((float) $it->cantidad, 2, ',', '.') }}
+                                                                        </td>
+                                                                        <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                                            $ {{ number_format((float) $it->total, 0, ',', '.') }}
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    @endif
+                                                </div>
+
+                                                <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
+                                                    <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
+                                                </div>
                                             </div>
-                                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                {{ $r->movimientos }} mov · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds ·
-                                                costo $ {{ number_format($r->costo_total, 0, ',', '.') }}
-                                            </p>
                                         </a>
                                     @endforeach
                                 </div>
@@ -359,18 +477,75 @@
                                 @endphp
                                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                     @foreach($resumenSalida as $r)
-                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Salida']) }}" class="summary-card">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <p class="text-[11px] uppercase tracking-wide font-bold text-slate-500">Ficha operativa</p>
-                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                                        @php
+                                            $rows = collect();
+                                            foreach($salidaByName->get($r->nombre, collect()) as $mv) {
+                                                foreach($lines->get($mv->id, collect()) as $ln) {
+                                                    $k = mb_strtolower(trim(($ln->producto ?? '') . '|' . ($ln->unidad ?? '')), 'UTF-8');
+                                                    $item = $rows->get($k, (object) [
+                                                        'producto' => $ln->producto,
+                                                        'unidad' => $ln->unidad,
+                                                        'cantidad' => 0.0,
+                                                        'total' => 0.0,
+                                                    ]);
+                                                    $item->cantidad += (float) $ln->cantidad;
+                                                    $item->total += (float) $ln->costo_total;
+                                                    $rows->put($k, $item);
+                                                }
+                                            }
+                                        @endphp
+                                        <a href="{{ route('gmail.inventory.exits.group', ['destinatario' => $r->nombre, 'tipo' => 'Salida']) }}" class="summary-link">
+                                            <div class="exit-card">
+                                                <div class="px-4 pt-4 pb-3 flex items-start justify-between gap-2 border-b border-gray-100 dark:border-gray-800">
+                                                    <div class="min-w-0">
+                                                        <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wide">Ficha operativa</p>
+                                                        <p class="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{{ $r->nombre }}</p>
+                                                        <p class="text-xs text-gray-400 mt-0.5">
+                                                            {{ $r->movimientos }} mov · {{ $rows->count() }} prod · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds
+                                                        </p>
+                                                    </div>
+                                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0">
+                                                        {{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}
+                                                    </p>
                                                 </div>
-                                                <span class="text-[11px] text-gray-400 shrink-0">{{ $r->ultimo?->ocurrio_el ? \Carbon\Carbon::parse($r->ultimo->ocurrio_el)->format('d/m/Y') : '—' }}</span>
+
+                                                <div class="px-4 py-2">
+                                                    @if($rows->isEmpty())
+                                                        <p class="text-xs text-gray-400 text-center py-2">Sin líneas de detalle</p>
+                                                    @else
+                                                        <table class="w-full text-xs">
+                                                            <thead>
+                                                                <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                                    <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
+                                                                    <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant. prod total</th>
+                                                                    <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
+                                                                @foreach($rows->sortByDesc('total')->take(6) as $it)
+                                                                    <tr>
+                                                                        <td class="py-1.5 pr-2">
+                                                                            <p class="font-semibold text-gray-800 dark:text-gray-200 leading-tight">{{ $it->producto }}</p>
+                                                                            <p class="text-gray-400">{{ $it->unidad }}</p>
+                                                                        </td>
+                                                                        <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                                            {{ number_format((float) $it->cantidad, 2, ',', '.') }}
+                                                                        </td>
+                                                                        <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                                                            $ {{ number_format((float) $it->total, 0, ',', '.') }}
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    @endif
+                                                </div>
+
+                                                <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
+                                                    <p class="text-sm font-bold text-rose-600 dark:text-rose-400">$ {{ number_format($r->costo_total, 0, ',', '.') }}</p>
+                                                </div>
                                             </div>
-                                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                {{ $r->movimientos }} mov · {{ number_format($r->cantidad_total, 2, ',', '.') }} uds ·
-                                                costo $ {{ number_format($r->costo_total, 0, ',', '.') }}
-                                            </p>
                                         </a>
                                     @endforeach
                                 </div>
