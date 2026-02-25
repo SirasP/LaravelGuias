@@ -134,6 +134,7 @@
                                 placeholder="Buscar por nombre o código..."
                                 x-model="search"
                                 @focus="openProdDrop()"
+                                @click="openProdDrop()"
                                 @input.debounce.250ms="fetchProducts()"
                                 @blur="setTimeout(() => { showDropdown = false }, 150)"
                                 @keydown.escape="showDropdown = false"
