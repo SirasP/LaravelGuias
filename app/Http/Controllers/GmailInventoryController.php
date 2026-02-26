@@ -642,6 +642,7 @@ class GmailInventoryController extends Controller
     public function contactStore(Request $request)
     {
         $validated = $request->validate([
+            'id'       => 'nullable|integer|exists:fuelcontrol.gmail_inventory_contacts,id',
             'tipo'     => 'required|string|in:cliente,trabajador,destinatario',
             'nombre'   => 'required|string|max:200',
             'rut'      => 'nullable|string|max:30',
@@ -653,14 +654,26 @@ class GmailInventoryController extends Controller
             'notas'    => 'nullable|string|max:1000',
         ]);
 
-        $id = $this->db()->table('gmail_inventory_contacts')->insertGetId([
-            ...$validated,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $contactId = (int) ($validated['id'] ?? 0);
+        unset($validated['id']);
+
+        if ($contactId > 0) {
+            $this->db()->table('gmail_inventory_contacts')
+                ->where('id', $contactId)
+                ->update([
+                    ...$validated,
+                    'updated_at' => now(),
+                ]);
+        } else {
+            $contactId = $this->db()->table('gmail_inventory_contacts')->insertGetId([
+                ...$validated,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         return response()->json(
-            $this->db()->table('gmail_inventory_contacts')->find($id)
+            $this->db()->table('gmail_inventory_contacts')->find($contactId)
         );
     }
 }

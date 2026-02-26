@@ -70,23 +70,86 @@
 
         /* Chips */
         .dest-chip {
-            display:inline-flex; align-items:center; gap:4px; padding:4px 10px 4px 12px;
-            border-radius:999px; border:1.5px solid #c4b5fd; background:#ede9fe;
-            font-size:12px; font-weight:700; color:#5b21b6;
+            display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+            width:100%; padding:9px 10px;
+            border-radius:12px; border:1.5px solid #c4b5fd; background:#ede9fe;
+            color:#5b21b6;
         }
         .dark .dest-chip { background:rgba(139,92,246,.15); border-color:rgba(139,92,246,.4); color:#a78bfa; }
-        .dest-chip-sub { font-size:10px; font-weight:400; color:#7c3aed; margin-left:3px }
-        .dark .dest-chip-sub { color:#a78bfa }
+        .dest-chip-name {
+            display:block;
+            font-size:12px; font-weight:800; line-height:1.25;
+            max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        .dest-chip-meta {
+            display:flex; flex-direction:column; gap:2px; margin-top:4px;
+            font-size:11px; font-weight:600; opacity:.9;
+        }
+        .dest-chip-email, .dest-chip-rut {
+            max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        .dest-chip--venta { background:#ecfdf5; border-color:#a7f3d0; color:#065f46; }
+        .dark .dest-chip--venta { background:rgba(16,185,129,.15); border-color:rgba(16,185,129,.35); color:#6ee7b7; }
+        .dest-chip--epp { background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
+        .dark .dest-chip--epp { background:rgba(59,130,246,.16); border-color:rgba(59,130,246,.35); color:#93c5fd; }
+        .dest-chip--salida { background:#ede9fe; border-color:#c4b5fd; color:#5b21b6; }
+        .dark .dest-chip--salida { background:rgba(139,92,246,.15); border-color:rgba(139,92,246,.4); color:#a78bfa; }
+        .dest-chip-actions {
+            display:flex; align-items:center; gap:5px; flex-shrink:0;
+        }
         .dest-chip-x {
-            margin-left:4px; width:15px; height:15px; border-radius:999px; cursor:pointer;
-            font-size:13px; line-height:1; color:#7c3aed; background:none; border:none; padding:0;
+            width:22px; height:22px; border-radius:7px; cursor:pointer;
+            font-size:15px; line-height:1; color:#7c3aed; background:rgba(124,58,237,.12); border:none; padding:0;
             display:inline-flex; align-items:center; justify-content:center; transition:.1s;
         }
         .dest-chip-x:hover { background:rgba(239,68,68,.15); color:#dc2626; }
+        .dest-chip-edit {
+            width:22px; height:22px; border-radius:7px; cursor:pointer;
+            font-size:11px; line-height:1; color:#6d28d9; background:rgba(99,102,241,.12); border:none; padding:0;
+            display:inline-flex; align-items:center; justify-content:center; transition:.1s;
+        }
+        .dest-chip-edit:hover { background:rgba(99,102,241,.15); color:#4338ca; }
         .tipo-chip {
             display:inline-flex; align-items:center; gap:5px; padding:3px 10px 3px 8px;
             border-radius:999px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid; transition:.15s;
         }
+        .dest-email-card {
+            display:flex; flex-direction:column; gap:3px;
+            padding:8px 11px; border-radius:12px;
+            background:#ecfdf5; border:1.5px solid #a7f3d0;
+        }
+        .dark .dest-email-card { background:rgba(16,185,129,.07); border-color:rgba(16,185,129,.2) }
+        .dest-email-name {
+            font-size:10px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.05em; color:#065f46;
+        }
+        .dark .dest-email-name { color:#34d399 }
+        .dest-card-head {
+            display:flex; align-items:center; justify-content:space-between; gap:6px;
+        }
+        .dest-actions { display:flex; gap:3px; shrink:0 }
+        .dest-btn {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:18px; height:18px; border-radius:6px; cursor:pointer;
+            background:rgba(16,185,129,.15); color:#065f46; font-size:12px;
+            transition:.12s;
+        }
+        .dest-btn:hover { background:rgba(239,68,68,.15); color:#dc2626 }
+        .dark .dest-btn { background:rgba(16,185,129,.15); color:#34d399 }
+        .dest-btn-edit { background:rgba(99,102,241,.1); color:#4338ca }
+        .dest-btn-edit:hover { background:rgba(99,102,241,.2); color:#4338ca }
+        .dark .dest-btn-edit { color:#818cf8 }
+        .dest-email { font-size:12px; font-weight:600; color:#047857 }
+        .dark .dest-email { color:#6ee7b7 }
+        .dest-selected-sub { font-size:11px; color:#94a3b8 }
+        .dest-inline-email {
+            width:100%; background:transparent; border:none;
+            border-bottom:1.5px dashed #6ee7b7; outline:none;
+            font-size:12px; color:#047857; padding:1px 0; transition:border-color .15s;
+        }
+        .dest-inline-email:focus { border-bottom-color:#10b981; }
+        .dest-inline-email::placeholder { color:#94a3b8; }
+        .dark .dest-inline-email { border-bottom-color:rgba(16,185,129,.3); color:#6ee7b7; }
 
         /* Stock bar */
         .stock-bar-bg { height:4px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:4px }
@@ -261,13 +324,33 @@
                                 </label>
 
                                 {{-- Chip when selected --}}
-                                <div x-show="destValue" class="flex items-center gap-2 mb-1">
-                                    <span class="dest-chip">
-                                        <span x-text="destValue"></span>
-                                        <span class="dest-chip-sub" x-show="destContact && destContact.rut" x-text="destContact?.rut"></span>
-                                        <button type="button" class="dest-chip-x"
-                                            @click="destValue = ''; destContact = null; destSearch = ''; $nextTick(() => $refs.destInput?.focus())">&times;</button>
-                                    </span>
+                                <div x-show="destValue" class="mb-1">
+                                    <div class="dest-chip"
+                                          :class="tipoSalida === 'Venta' ? 'dest-chip--venta' : (tipoSalida === 'EPP' ? 'dest-chip--epp' : 'dest-chip--salida')">
+                                        <div class="min-w-0 flex-1">
+                                            <span class="dest-chip-name" x-text="destValue"></span>
+                                            <div class="dest-chip-meta" x-show="(tipoSalida === 'Venta' && saleEmail) || (destContact && (destContact.email || destContact.rut))">
+                                                <span class="dest-chip-email"
+                                                      x-show="(tipoSalida === 'Venta' && saleEmail) || (destContact && destContact.email)"
+                                                      x-text="(tipoSalida === 'Venta' && saleEmail) ? saleEmail : (destContact?.email ?? '')"></span>
+                                                <span class="dest-chip-rut"
+                                                      x-show="destContact && destContact.rut"
+                                                      x-text="'RUT: ' + destContact?.rut"></span>
+                                            </div>
+                                        </div>
+                                        <div class="dest-chip-actions">
+                                            <button type="button" class="dest-chip-edit" title="Editar selección"
+                                                @click="openEditContactModal()">
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                </svg>
+                                            </button>
+                                            <button type="button" class="dest-chip-x"
+                                                title="Quitar selección"
+                                                @click="clearDestSelection()">&times;</button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {{-- Input when not selected --}}
@@ -603,9 +686,10 @@
                 contactModalOpen: false,
                 savingContact: false,
                 contactErr: '',
-                contactForm: { nombre:'', rut:'', empresa:'', cargo:'', area:'', telefono:'', email:'', notas:'' },
+                contactForm: { id:null, nombre:'', rut:'', empresa:'', cargo:'', area:'', telefono:'', email:'', notas:'' },
                 sendByEmail: false,
                 saleEmail: '',
+                saleEmailEditing: false,
 
                 /* ── Tipo ── */
                 tipoSalida: '{{ old('tipo_salida') }}',
@@ -642,6 +726,7 @@
                     if (val !== 'Venta') {
                         this.sendByEmail = false;
                         this.saleEmail = '';
+                        this.saleEmailEditing = false;
                     }
                     this.tipoModalOpen = false;
                 },
@@ -710,14 +795,35 @@
                     this.destDropOpen = false;
                     if (this.tipoSalida === 'Venta') {
                         this.saleEmail = (c.email ?? '').trim();
+                        this.saleEmailEditing = false;
                     }
                 },
 
                 /* ── Contact modal ── */
                 openContactModal() {
-                    this.contactForm = { nombre:this.destSearch.trim(), rut:'', empresa:'', cargo:'', area:'', telefono:'', email:'', notas:'' };
+                    this.contactForm = { id:null, nombre:this.destSearch.trim(), rut:'', empresa:'', cargo:'', area:'', telefono:'', email:'', notas:'' };
                     this.contactErr  = '';
                     this.destDropOpen = false;
+                    this.contactModalOpen = true;
+                    this.$nextTick(() => document.querySelector('[x-model="contactForm.nombre"]')?.focus());
+                },
+                openEditContactModal() {
+                    this.contactErr = '';
+                    this.destDropOpen = false;
+
+                    const c = this.destContact || {};
+                    this.contactForm = {
+                        id: c.id ?? null,
+                        nombre: (c.nombre ?? this.destValue ?? '').trim(),
+                        rut: (c.rut ?? '').trim(),
+                        empresa: (c.empresa ?? '').trim(),
+                        cargo: (c.cargo ?? '').trim(),
+                        area: (c.area ?? '').trim(),
+                        telefono: (c.telefono ?? '').trim(),
+                        email: (c.email ?? this.saleEmail ?? '').trim(),
+                        notas: (c.notas ?? '').trim(),
+                    };
+
                     this.contactModalOpen = true;
                     this.$nextTick(() => document.querySelector('[x-model="contactForm.nombre"]')?.focus());
                 },
@@ -741,6 +847,7 @@
                         this.destSearch  = '';
                         if (this.tipoSalida === 'Venta') {
                             this.saleEmail = (contact.email ?? '').trim();
+                            this.saleEmailEditing = false;
                         }
                         this.contactModalOpen = false;
                     } catch(e) {
@@ -764,6 +871,40 @@
                     const val = (email ?? '').trim();
                     if (!val) return false;
                     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+                },
+                startEmailEdit() {
+                    this.saleEmailEditing = true;
+                    this.$nextTick(() => this.$refs.saleEmailInput?.focus());
+                },
+                clearSaleEmail() {
+                    this.saleEmail = '';
+                    this.saleEmailEditing = true;
+                    this.$nextTick(() => this.$refs.saleEmailInput?.focus());
+                },
+                saveEmailEdit() {
+                    this.saleEmail = (this.saleEmail ?? '').trim().toLowerCase();
+                    this.saleEmailEditing = false;
+                },
+                beginEditDestSelection() {
+                    this.destSearch = this.destValue || '';
+                    this.destValue = '';
+                    this.destContact = null;
+                    this.$nextTick(() => {
+                        this.$refs.destInput?.focus();
+                        this.openDestDrop();
+                    });
+                },
+                clearDestSelection() {
+                    this.destValue = '';
+                    this.destContact = null;
+                    this.destSearch = '';
+                    this.$nextTick(() => this.$refs.destInput?.focus());
+                },
+                changeDest() {
+                    this.beginEditDestSelection();
+                },
+                clearDest() {
+                    this.clearDestSelection();
                 },
             };
         }
