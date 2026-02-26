@@ -59,7 +59,7 @@
 
     {{-- ── Navigation ─────────────────────────────────────── --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 sidebar-scroll" :class="expanded ? 'px-2.5' : 'px-1.5'">
-        @if(false)
+        @if(auth()->check() && auth()->user()->role === 'admin')
         {{-- ─── SECCIÓN: DOCUMENTOS ─── --}}
         <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1">
             <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Documentos</p>
