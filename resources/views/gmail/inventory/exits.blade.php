@@ -219,7 +219,7 @@
                             &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
                         @endif
                     </p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         @foreach ($byName as $movs)
                             @foreach ($movs as $m)
                                 @php
@@ -315,7 +315,7 @@
                             @if ($eppByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay entregas EPP con los filtros actuales.</p>
                             @else
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                     @foreach ($eppByName as $nombre => $movs)
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
@@ -338,7 +338,7 @@
                             @if ($salidaByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay salidas internas con los filtros actuales.</p>
                             @else
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
                                     @foreach ($salidaByName as $nombre => $movs)
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
