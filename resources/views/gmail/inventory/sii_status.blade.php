@@ -46,24 +46,9 @@
     </style>
 
     <div class="py-6">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div class="max-w-7xxl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
-            {{-- ── Flash ───────────────────────────────────────────── --}}
-            @if(session('success'))
-                <div class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 px-4 py-3">
-                    <svg class="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <p class="text-sm text-emerald-700 dark:text-emerald-300">{{ session('success') }}</p>
-                </div>
-            @endif
-            @if($errors->any())
-                <div class="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3">
-                    <ul class="text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
-                        @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
-                    </ul>
-                </div>
-            @endif
+           
 
             {{-- ═══════════════ ESTADO SII ══════════════════════════ --}}
             <section>
