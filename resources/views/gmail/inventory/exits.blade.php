@@ -124,6 +124,12 @@
 
         .summary-link { display:block; transition:transform .12s; }
         .summary-link:hover { transform:translateY(-1px); }
+        .card-group-title {
+            font-size:11px; font-weight:700; letter-spacing:.02em;
+            color:#64748b; margin:0 0 6px 2px;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .dark .card-group-title { color:#94a3b8; }
     </style>
 
     <div class="page-bg">
@@ -213,12 +219,8 @@
                             &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
                         @endif
                     </p>
-                    @foreach ($byName as $nombre => $movs)
-                        <div class="name-divider">
-                            {{ $nombre }}
-                            <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        @foreach ($byName as $movs)
                             @foreach ($movs as $m)
                                 @php
                                     $cardLines   = $lines->get($m->id, collect());
@@ -229,8 +231,8 @@
                                 @endphp
                                 @include('gmail.inventory._exit_card', compact('m','cardLines','costoTotal','precioVenta','sellUrl','detailUrl'))
                             @endforeach
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 @endif
 
             @else
@@ -313,12 +315,8 @@
                             @if ($eppByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay entregas EPP con los filtros actuales.</p>
                             @else
-                                @foreach ($eppByName as $nombre => $movs)
-                                    <div class="name-divider">
-                                        {{ $nombre }}
-                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 mb-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                                    @foreach ($eppByName as $nombre => $movs)
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
                                             $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
@@ -326,9 +324,12 @@
                                             $detailUrl = route('gmail.inventory.exits.group', ['destinatario' => $nombre, 'tipo' => 'EPP']);
                                             $summaryName = 'Ficha Operativa';
                                         @endphp
-                                        @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
-                                    </div>
-                                @endforeach
+                                        <div>
+                                            <p class="card-group-title">{{ $nombre }} <span class="text-gray-400">({{ $movs->count() }})</span></p>
+                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
+                                        </div>
+                                    @endforeach
+                                </div>
                             @endif
                         </div>
 
@@ -337,12 +338,8 @@
                             @if ($salidaByName->isEmpty())
                                 <p class="text-sm text-gray-400 text-center py-8">No hay salidas internas con los filtros actuales.</p>
                             @else
-                                @foreach ($salidaByName as $nombre => $movs)
-                                    <div class="name-divider">
-                                        {{ $nombre }}
-                                        <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 mb-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                                    @foreach ($salidaByName as $nombre => $movs)
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
                                             $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
@@ -350,9 +347,12 @@
                                             $detailUrl = route('gmail.inventory.exits.group', ['destinatario' => $nombre, 'tipo' => 'Salida']);
                                             $summaryName = 'Ficha Operativa';
                                         @endphp
-                                        @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
-                                    </div>
-                                @endforeach
+                                        <div>
+                                            <p class="card-group-title">{{ $nombre }} <span class="text-gray-400">({{ $movs->count() }})</span></p>
+                                            @include('gmail.inventory._exit_card_simple', compact('m','cardLines','costoTotal','detailUrl','summaryName'))
+                                        </div>
+                                    @endforeach
+                                </div>
                             @endif
                         </div>
 
