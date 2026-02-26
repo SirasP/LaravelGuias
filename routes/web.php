@@ -276,7 +276,7 @@ Route::middleware(['auth', 'role:admin'])
 
 /*
 |--------------------------------------------------------------------------
-| AGRAK — Vistas (todos los autenticados)
+| AGRAK — Vistas (admin y viewer)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')

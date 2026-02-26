@@ -35,7 +35,7 @@
     <x-slot name="header">
         <div class="w-full flex items-center justify-between gap-3">
             <div class="flex items-center gap-2 min-w-0 text-xs">
-                <a href="{{ route('gmail.inventory.exits', $backParams) }}"
+                <a href="{{ route('gmail.inventory.exits') }}"
                     class="flex items-center gap-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-medium shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
@@ -47,23 +47,9 @@
                 </svg>
                 <span class="font-bold text-gray-700 dark:text-gray-300 truncate">{{ $destinatario }}</span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <a href="{{ route('gmail.inventory.exits.group.pdf', array_filter(['destinatario' => $destinatario, 'tipo' => $tipo ?: null])) }}"
-                    target="_blank"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold
-                           bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40
-                           text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 13h4M10 17h4M12 9v4"/>
-                    </svg>
-                    Descargar PDF
-                </a>
-                <span class="text-xs text-gray-400">
-                    {{ $isVenta ? '💰' : ($isEpp ? '🦺' : '📦') }} {{ $tipoLabel }}
-                </span>
-            </div>
+            <span class="text-xs text-gray-400 shrink-0">
+                {{ $isVenta ? '💰' : ($isEpp ? '🦺' : '📦') }} {{ $tipoLabel }}
+            </span>
         </div>
     </x-slot>
 
