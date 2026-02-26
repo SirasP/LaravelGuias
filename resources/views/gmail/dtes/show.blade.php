@@ -822,15 +822,18 @@
                             </p>
                         </div>
 
-                        <div>
+                        <div class="relative">
                             <input type="text"
                                 class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm px-3 py-2"
                                 :placeholder="'Buscar producto para esta línea...'"
                                 x-model="row.search"
-                                @input="onSearch(row)">
-                            <p class="text-[11px] text-gray-400 mt-1" x-show="row.loading">Buscando productos...</p>
-                            <div class="mt-1 rounded-lg border border-gray-100 dark:border-gray-800 max-h-64 overflow-y-auto"
-                                x-show="row.options.length">
+                                @focus="onFocusRow(row)"
+                                @input="onSearch(row)"
+                                @click="onFocusRow(row)"
+                                @blur="onBlurRow(row)">
+                            <div class="absolute left-0 right-0 mt-1 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg max-h-56 overflow-y-auto z-40"
+                                x-show="row.showOptions && (row.loading || row.options.length > 0)">
+                                <p class="px-3 py-2 text-[11px] text-gray-400" x-show="row.loading">Buscando productos...</p>
                                 <template x-for="opt in row.options" :key="opt.id">
                                     <button type="button"
                                         class="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/70 text-sm"
@@ -842,6 +845,9 @@
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-show="!row.loading && row.search.trim().length >= 2 && row.options.length === 0">
                                 Sin coincidencias para esta búsqueda.
+                            </p>
+                            <p class="text-[11px] text-gray-400 mt-1" x-show="!row.search.trim()">
+                                Mostrando 5 sugerencias. Escribe para buscar más.
                             </p>
                             <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1" x-show="row.product_id">
                                 Seleccionado: <span x-text="row.selected_label"></span>
@@ -1008,6 +1014,7 @@
                     loading: false,
                     timer: null,
                     searchReqId: 0,
+                    showOptions: false,
                 }));
                 this.productsUrl = detail?.productsUrl || '';
                 this.submitUrl = detail?.submitUrl || '';
@@ -1038,9 +1045,10 @@
 
                 row.timer = setTimeout(async () => {
                     const q = (row.search || '').trim();
+                    row.showOptions = true;
                     if (!q) {
                         row.loading = false;
-                        row.options = this.allProducts.slice(0, 25);
+                        row.options = this.allProducts.slice(0, 5);
                         return;
                     }
 
@@ -1049,7 +1057,7 @@
                         row.loading = false;
                         row.options = this.allProducts
                             .filter(p => ((p.nombre || '').toLowerCase().includes(qLower) || (p.codigo || '').toLowerCase().includes(qLower)))
-                            .slice(0, 40);
+                            .slice(0, 5);
                         return;
                     }
 
@@ -1071,11 +1079,27 @@
                 }, 220);
             },
 
+            onFocusRow(row) {
+                row.showOptions = true;
+                if ((row.search || '').trim() === '') {
+                    row.options = this.allProducts.slice(0, 5);
+                } else {
+                    this.onSearch(row);
+                }
+            },
+
+            onBlurRow(row) {
+                setTimeout(() => {
+                    row.showOptions = false;
+                }, 150);
+            },
+
             selectOption(row, opt) {
                 row.product_id = Number(opt.id);
                 row.selected_label = `${opt.nombre} (${opt.codigo || 'Sin código'})`;
                 row.search = opt.nombre || '';
                 row.options = [];
+                row.showOptions = false;
             },
 
             submit() {
