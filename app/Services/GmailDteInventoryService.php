@@ -222,6 +222,21 @@ class GmailDteInventoryService
                     $product->codigo = $resolvedCode;
                 }
 
+                // Si el producto proviene de inventario inicial (codigo AUTO/vacio)
+                // y esta linea trae codigo real del DTE, promovemos nombre+codigo una sola vez.
+                if ($this->shouldPromoteInitialProductFromDte($product, $code, $name)) {
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $product->id)
+                        ->update([
+                            'codigo' => $code,
+                            'nombre' => $name,
+                            'updated_at' => now(),
+                        ]);
+                    $product->codigo = $code;
+                    $product->nombre = $name;
+                }
+
                 if ($manualProductId > 0 && $learnFromManualMap) {
                     $this->saveAliasMapping($name, $unit, (int) $product->id);
                 }
@@ -739,6 +754,23 @@ class GmailDteInventoryService
         }
 
         return $candidate;
+    }
+
+    private function shouldPromoteInitialProductFromDte(object $product, ?string $incomingCode, string $incomingName): bool
+    {
+        $incomingCode = trim((string) $incomingCode);
+        $incomingName = trim((string) $incomingName);
+        if ($incomingCode === '' || $incomingName === '') {
+            return false;
+        }
+
+        $currentCode = mb_strtoupper(trim((string) ($product->codigo ?? '')), 'UTF-8');
+        if ($currentCode === '') {
+            return true;
+        }
+
+        // Solo una vez: cuando aun es "inicial" (codigo automatico).
+        return str_starts_with($currentCode, 'AUTO-');
     }
 
     private function resolveAliasProduct(string $name, string $unit, bool $forUpdate = true): ?object

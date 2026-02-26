@@ -17,7 +17,7 @@
 {{-- ── SIDEBAR ───────────────────────────────────────────── --}}
 <aside
     :class="[mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0', !expanded ? 'lg:cursor-pointer' : '']"
-    @click.stop="if(!expanded && window.innerWidth >= 1024) { expanded = true; localStorage.setItem('sidebar_state','expanded'); }"
+    @click.stop="if(!expanded && window.innerWidth >= 1024) { expandFromRail(); }"
     class="fixed lg:sticky top-0.5 left-0 z-50 lg:z-30
            h-[calc(100vh-2px)] flex flex-col
            bg-white dark:bg-gray-950
@@ -230,8 +230,8 @@
             </div>
         </div>
 
-        @if(auth()->check() && auth()->user()->role === 'admin')
-            {{-- ─── SECCIÓN: DTE XML (solo admin) ─── --}}
+        @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
+            {{-- ─── SECCIÓN: FACTURAS PROVEEDOR (admin + bodeguero) ─── --}}
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Facturas Proveedor</p>
             </div>
@@ -255,18 +255,24 @@
                     </svg>
                 </button>
                 <div x-show="expanded && openSection === 'dteprov'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-cyan-100 dark:border-cyan-900/40 space-y-0.5 pb-1">
-                    <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.index') || request()->routeIs('gmail.dtes.facturas.index') || request()->routeIs('gmail.dtes.boletas.index') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Tablero</a>
+                    @if(auth()->user()->role === 'admin')
+                        <a href="{{ route('gmail.dtes.index') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.index') || request()->routeIs('gmail.dtes.facturas.index') || request()->routeIs('gmail.dtes.boletas.index') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Tablero</a>
+                    @endif
                     <a href="{{ route('gmail.dtes.facturas.list') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.facturas.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Facturas</a>
-                    <a href="{{ route('gmail.dtes.boletas.list') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.boletas.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Boletas</a>
+                    @if(auth()->user()->role === 'admin')
+                        <a href="{{ route('gmail.dtes.boletas.list') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.boletas.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Boletas</a>
+                    @endif
                 </div>
             </div>
+        @endif
 
+        @if(auth()->check() && auth()->user()->role === 'admin')
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Cotizaciones</p>
             </div>
@@ -298,7 +304,10 @@
                         Nueva cotización</a>
                 </div>
             </div>
+        @endif
 
+        @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
+            {{-- ─── SECCIÓN: INVENTARIO (admin + bodeguero) ─── --}}
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Inventario</p>
             </div>
@@ -331,9 +340,11 @@
                     <a href="{{ route('gmail.inventory.exits') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exits') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Salidas</a>
-                    <a href="{{ route('gmail.inventory.exit.create') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exit.create') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Nueva Salida</a>
+                    @if(auth()->user()->role === 'admin')
+                        <a href="{{ route('gmail.inventory.exit.create') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exit.create') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Nueva Salida</a>
+                    @endif
                 </div>
             </div>
         @endif
@@ -429,16 +440,7 @@
             openSection: null,
 
             init() {
-                // Auto-abrir la sección activa
-                const path = window.location.pathname;
-                if (path.startsWith('/pdf') || path.startsWith('/guias-recepcionadas')) this.openSection = 'docs';
-                else if (path.startsWith('/excel') || path.startsWith('/odoo')) this.openSection = 'odoo';
-                else if (path.startsWith('/agrak')) this.openSection = 'agrak';
-                else if (path.startsWith('/guias')) this.openSection = 'xml';
-                else if (path.startsWith('/gmail/dtes')) this.openSection = 'dteprov';
-                else if (path.startsWith('/ordenes-compra')) this.openSection = 'oc';
-                else if (path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) this.openSection = 'dteinv';
-                else if (path.startsWith('/fuelcontrol') || path.startsWith('/gmail')) this.openSection = 'fuel';
+                this.openSection = this.detectCurrentSection();
 
                 // En mobile siempre expandido cuando se abre
                 this.$watch('mobileOpen', (val) => {
@@ -446,12 +448,60 @@
                         this.expanded = true;
                     }
                 });
+
+                this.$watch('expanded', (val) => {
+                    if (val) {
+                        if (!this.openSection) this.openSection = this.detectCurrentSection();
+                        this.scrollToActiveNav(220);
+                    }
+                });
+
+                this.$watch('openSection', () => {
+                    if (this.expanded) this.scrollToActiveNav(220);
+                });
+
+                if (this.expanded) {
+                    this.scrollToActiveNav(0);
+                }
             },
 
             toggle() {
                 this.expanded = !this.expanded;
                 localStorage.setItem('sidebar_state', this.expanded ? 'expanded' : 'collapsed');
-                if (!this.expanded) this.openSection = null;
+                if (!this.expanded) {
+                    this.openSection = null;
+                } else if (!this.openSection) {
+                    this.openSection = this.detectCurrentSection();
+                }
+            },
+
+            expandFromRail() {
+                this.expanded = true;
+                localStorage.setItem('sidebar_state', 'expanded');
+                if (!this.openSection) this.openSection = this.detectCurrentSection();
+                this.scrollToActiveNav(220);
+            },
+
+            detectCurrentSection() {
+                const sections = [
+                    { name: 'docs', active: @json(request()->routeIs('pdf.*')) },
+                    { name: 'odoo', active: @json(request()->routeIs('excel_out_transfers.*')) },
+                    { name: 'agrak', active: @json(request()->routeIs('agrak.*')) },
+                    { name: 'xml', active: @json(request()->routeIs('guias.*')) },
+                    { name: 'dteprov', active: @json(request()->routeIs('gmail.dtes.*')) },
+                    { name: 'oc', active: @json(request()->routeIs('purchase_orders.*')) },
+                    { name: 'dteinv', active: @json(request()->routeIs('gmail.inventory.*')) },
+                    { name: 'fuel', active: @json(request()->routeIs('fuelcontrol.*')) || @json(request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) },
+                ];
+                const current = sections.find((s) => s.active);
+                if (current) return current.name;
+
+                const path = window.location.pathname;
+                if (path.startsWith('/cotizaciones')) return 'oc';
+                if (path.startsWith('/gmail/dtes')) return 'dteprov';
+                if (path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) return 'dteinv';
+                if (path.startsWith('/fuelcontrol')) return 'fuel';
+                return null;
             },
 
             toggleSection(name) {
@@ -462,6 +512,56 @@
                     return;
                 }
                 this.openSection = this.openSection === name ? null : name;
+            },
+
+            scrollToActiveNav(delay = 0) {
+                const run = () => {
+                    const nav = document.querySelector('aside nav.sidebar-scroll');
+                    if (!nav) return;
+
+                    const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+                    const anchors = Array.from(nav.querySelectorAll('a'));
+                    const visible = anchors.filter((el) => el.offsetParent !== null);
+
+                    let active = visible.find((el) => (el.className || '').includes('font-semibold'));
+                    if (!active) {
+                        const scored = visible
+                            .map((el) => {
+                                try {
+                                    const hrefPath = new URL(el.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                                    if (hrefPath === '/' || hrefPath === '') return null;
+                                    const exact = hrefPath === currentPath;
+                                    const prefix = currentPath.startsWith(hrefPath + '/');
+                                    if (!exact && !prefix) return null;
+                                    return { el, score: hrefPath.length + (exact ? 1000 : 0) };
+                                } catch (_) {
+                                    return null;
+                                }
+                            })
+                            .filter(Boolean)
+                            .sort((a, b) => b.score - a.score);
+                        active = scored[0]?.el || null;
+                    }
+                    if (!active) return;
+
+                    const navRect = nav.getBoundingClientRect();
+                    const itemRect = active.getBoundingClientRect();
+                    const outOfView = itemRect.top < navRect.top || itemRect.bottom > navRect.bottom;
+
+                    if (outOfView) {
+                        active.scrollIntoView({
+                            block: 'center',
+                            inline: 'nearest',
+                            behavior: 'smooth',
+                        });
+                    }
+                };
+
+                if (delay > 0) {
+                    setTimeout(run, delay);
+                } else {
+                    this.$nextTick(run);
+                }
             }
         };
     }

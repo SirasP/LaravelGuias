@@ -67,7 +67,9 @@ class GmailDteDocumentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('gmail.dtes.facturas.list', compact('documents', 'q', 'tipo'));
+        $canSeeValues = auth()->user()?->canSeeValues() ?? true;
+
+        return view('gmail.dtes.facturas.list', compact('documents', 'q', 'tipo', 'canSeeValues'));
     }
 
     public function boletasList(Request $request)
@@ -219,7 +221,9 @@ class GmailDteDocumentController extends Controller
     {
         [$document, $lines] = $this->getDocumentWithLines($id);
 
-        return view('gmail.dtes.show', compact('document', 'lines'));
+        $canSeeValues = auth()->user()?->canSeeValues() ?? true;
+
+        return view('gmail.dtes.show', compact('document', 'lines', 'canSeeValues'));
     }
 
     public function print(int $id)

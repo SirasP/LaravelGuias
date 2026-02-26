@@ -217,8 +217,10 @@
                                 <th style="width:120px">Fecha</th>
                                 <th style="width:130px">Vencimiento</th>
                                 <th style="width:290px">Referencia</th>
+                                @if($canSeeValues ?? true)
                                 <th style="width:140px" class="text-right">Neto</th>
                                 <th style="width:150px" class="text-right">Total</th>
+                                @endif
                                 <th style="width:120px">Estado</th>
                             </tr>
                         </thead>
@@ -279,12 +281,14 @@
                                             {{ $d->referencia ?? '—' }}
                                         </div>
                                     </td>
+                                    @if($canSeeValues ?? true)
                                     <td class="text-right">
                                         <span class="amt-sub">{{ $montoNetoSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoNetoSigned), 0, ',', '.') }}</span>
                                     </td>
                                     <td class="text-right">
                                         <span class="amt-main">{{ $montoTotalSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoTotalSigned), 0, ',', '.') }}</span>
                                     </td>
+                                    @endif
                                     <td>
                                         <span class="chip {{
                                             $estado === 'Pagado'
@@ -378,10 +382,12 @@
                                         @endif
                                     </div>
                                 </div>
+                                @if($canSeeValues ?? true)
                                 <div class="text-right shrink-0">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
                                     <p class="text-base font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">{{ $montoTotalSigned < 0 ? '-$ ' : '$ ' }}{{ number_format(abs($montoTotalSigned), 0, ',', '.') }}</p>
                                 </div>
+                                @endif
                             </div>
                         </a>
                     @empty

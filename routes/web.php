@@ -428,6 +428,37 @@ Route::middleware(['auth'])
 
 /*
 |--------------------------------------------------------------------------
+| GMAIL — Admin + Bodeguero (facturas solo lectura + inventario + agregar stock)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmail.')->group(function () {
+
+    // Facturas proveedor — listado y detalle (bodeguero ve sin valores)
+    Route::get('/dtes/facturas/listado', [GmailDteDocumentController::class, 'facturasList'])->name('dtes.facturas.list');
+    Route::get('/dtes/stock-products', [GmailDteDocumentController::class, 'stockProductsApi'])->name('dtes.stock_products');
+    Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])->whereNumber('id')->name('dtes.stock_review');
+    Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])->whereNumber('id')->name('dtes.print');
+    Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])->whereNumber('id')->name('dtes.add_stock');
+    Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])->whereNumber('id')->name('dtes.add_stock_mapping');
+    Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])->whereNumber('id')->name('dtes.show');
+
+    // Inventario — lectura completa
+    Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
+    Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
+    Route::get('/inventario/api/productos', [App\Http\Controllers\GmailInventoryController::class, 'productsApi'])->name('inventory.api.products');
+    Route::get('/inventario/api/destinatarios', [App\Http\Controllers\GmailInventoryController::class, 'destinatariosApi'])->name('inventory.api.destinatarios');
+    Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
+    Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
+    Route::get('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactsApi'])->name('inventory.api.contacts');
+    Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
+    Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
+    Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
+    Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');
+
+});
+
+/*
+|--------------------------------------------------------------------------
 | GMAIL (solo ADMIN)
 |--------------------------------------------------------------------------
 */
@@ -443,68 +474,26 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
     Route::get('/dtes/listado', [GmailDteDocumentController::class, 'list'])->name('dtes.list');
     Route::get('/dtes/facturas', [GmailDteDocumentController::class, 'facturasIndex'])->name('dtes.facturas.index');
-    Route::get('/dtes/facturas/listado', [GmailDteDocumentController::class, 'facturasList'])->name('dtes.facturas.list');
     Route::get('/dtes/boletas', [GmailDteDocumentController::class, 'boletasIndex'])->name('dtes.boletas.index');
     Route::get('/dtes/boletas/listado', [GmailDteDocumentController::class, 'boletasList'])->name('dtes.boletas.list');
     Route::get('/dtes/guias', [GmailDteDocumentController::class, 'guiasIndex'])->name('dtes.guias.index');
     Route::get('/dtes/guias/listado', [GmailDteDocumentController::class, 'guiasList'])->name('dtes.guias.list');
-    Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
-    Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
-    Route::get('/inventario/salida',  [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
+
+    // Operaciones admin-only sobre DTEs
+    Route::post('/dtes/{id}/pay', [GmailDteDocumentController::class, 'markPaid'])->whereNumber('id')->name('dtes.pay');
+    Route::post('/dtes/{id}/unpay', [GmailDteDocumentController::class, 'markUnpaid'])->whereNumber('id')->name('dtes.unpay');
+    Route::post('/dtes/{id}/draft', [GmailDteDocumentController::class, 'markDraft'])->whereNumber('id')->name('dtes.draft');
+    Route::post('/dtes/{id}/accept', [GmailDteDocumentController::class, 'markAccepted'])->whereNumber('id')->name('dtes.accept');
+    Route::post('/dtes/{id}/credit-note', [GmailDteDocumentController::class, 'markCreditNote'])->whereNumber('id')->name('dtes.credit_note');
+    Route::post('/dtes/{id}/rollback-stock', [GmailDteDocumentController::class, 'rollbackStock'])->whereNumber('id')->name('dtes.rollback_stock');
+    Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])->whereNumber('id')->whereNumber('lineId')->name('dtes.lines.update');
+
+    // Salidas inventario — solo admin puede crear
+    Route::get('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
     Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
-    Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
-    Route::get('/inventario/api/productos', [App\Http\Controllers\GmailInventoryController::class, 'productsApi'])->name('inventory.api.products');
-    Route::get('/inventario/api/destinatarios', [App\Http\Controllers\GmailInventoryController::class, 'destinatariosApi'])->name('inventory.api.destinatarios');
     Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
-    Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
-    Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
-    Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
-    Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
-    Route::get('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactsApi'])->name('inventory.api.contacts');
     Route::post('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactStore'])->name('inventory.api.contact.store');
-    Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])
-        ->whereNumber('id')
-        ->name('inventory.product');
-    Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])
-        ->whereNumber('id')
-        ->name('dtes.print');
-    Route::post('/dtes/{id}/pay', [GmailDteDocumentController::class, 'markPaid'])
-        ->whereNumber('id')
-        ->name('dtes.pay');
-    Route::post('/dtes/{id}/unpay', [GmailDteDocumentController::class, 'markUnpaid'])
-        ->whereNumber('id')
-        ->name('dtes.unpay');
-    Route::post('/dtes/{id}/draft', [GmailDteDocumentController::class, 'markDraft'])
-        ->whereNumber('id')
-        ->name('dtes.draft');
-    Route::post('/dtes/{id}/accept', [GmailDteDocumentController::class, 'markAccepted'])
-        ->whereNumber('id')
-        ->name('dtes.accept');
-    Route::post('/dtes/{id}/credit-note', [GmailDteDocumentController::class, 'markCreditNote'])
-        ->whereNumber('id')
-        ->name('dtes.credit_note');
-    Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])
-        ->whereNumber('id')
-        ->name('dtes.add_stock');
-    Route::post('/dtes/{id}/rollback-stock', [GmailDteDocumentController::class, 'rollbackStock'])
-        ->whereNumber('id')
-        ->name('dtes.rollback_stock');
-    Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])
-        ->whereNumber('id')
-        ->name('dtes.stock_review');
-    Route::get('/dtes/stock-products', [GmailDteDocumentController::class, 'stockProductsApi'])
-        ->name('dtes.stock_products');
-    Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])
-        ->whereNumber('id')
-        ->name('dtes.add_stock_mapping');
-    Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])
-        ->whereNumber('id')
-        ->whereNumber('lineId')
-        ->name('dtes.lines.update');
-    Route::get('/dtes/{id}', [GmailDteDocumentController::class, 'show'])
-        ->whereNumber('id')
-        ->name('dtes.show');
 
 });
 

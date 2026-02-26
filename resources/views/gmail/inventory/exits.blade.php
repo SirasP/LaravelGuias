@@ -156,7 +156,7 @@
 
             @if ($vista === 'Venta')
 
-                <div class="flex flex-col sm:flex-row gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div class="kpi-card">
                         <p class="text-xs text-gray-400 mb-1">Ventas este mes</p>
                         <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -235,7 +235,7 @@
 
             @else
 
-                <div class="flex flex-col sm:flex-row gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div class="kpi-card">
                         <p class="text-xs text-gray-400 mb-1">🦺 EPP entregados este mes</p>
                         <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">

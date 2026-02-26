@@ -503,6 +503,11 @@
             color: #4338ca
         }
 
+        .role-bodeguero {
+            background: #d1fae5;
+            color: #065f46
+        }
+
         .dark .role-admin {
             background: rgba(220, 38, 38, .15);
             color: #f87171
@@ -511,6 +516,11 @@
         .dark .role-viewer {
             background: rgba(99, 102, 241, .15);
             color: #a5b4fc
+        }
+
+        .dark .role-bodeguero {
+            background: rgba(16, 185, 129, .15);
+            color: #6ee7b7
         }
 
         .switch {
@@ -678,7 +688,7 @@
 
                                             <td>
                                                 <span class="role-badge"
-                                                    :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : 'role-viewer'"
+                                                    :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : ((user.role || 'viewer') === 'bodeguero' ? 'role-bodeguero' : 'role-viewer')"
                                                     x-text="(user.role || 'viewer')"></span>
                                             </td>
 
@@ -798,7 +808,7 @@
                                             x-text="user.name"></p>
                                         <p class="text-xs email-chip truncate" x-text="user.email"></p>
                                         <span class="role-badge mt-1"
-                                            :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : 'role-viewer'"
+                                            :class="(user.role || 'viewer') === 'admin' ? 'role-admin' : ((user.role || 'viewer') === 'bodeguero' ? 'role-bodeguero' : 'role-viewer')"
                                             x-text="(user.role || 'viewer')"></span>
                                     </div>
                                     <span :class="user.is_active ? 'badge-active' : 'badge-inactive'">

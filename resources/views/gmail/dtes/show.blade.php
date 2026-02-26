@@ -38,6 +38,7 @@
                 </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+                @if($canSeeValues)
                 <form id="doc-pay-form" method="POST" action="{{ $estadoPagoRaw === 'pagado' ? route('gmail.dtes.unpay', $document->id) : route('gmail.dtes.pay', $document->id) }}" class="contents">
                     @csrf
                     <button type="button"
@@ -78,6 +79,7 @@
                         @endif
                     </button>
                 </form>
+                @endif
                 @if($inventoryStatus !== 'ingresado')
                     <form id="doc-stock-form" method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                         @csrf
@@ -117,6 +119,7 @@
                         </button>
                     </form>
                 @endif
+                @if($canSeeValues)
                 <form id="doc-credit-note-form" method="POST" action="{{ route('gmail.dtes.credit_note', $document->id) }}" class="contents">
                     @csrf
                     <button type="button"
@@ -132,6 +135,7 @@
                         <span class="hidden sm:inline">Nota crédito</span>
                     </button>
                 </form>
+                @endif
                 <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
                 <a href="{{ route('gmail.dtes.print', $document->id) }}?autoprint=1" target="_blank" class="hdr-btn hdr-gray">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,7 +346,8 @@
                                     </p>
                                 </div>
 
-                                {{-- Total visible en desktop --}}
+                                {{-- Total visible en desktop (solo si puede ver valores) --}}
+                                @if($canSeeValues)
                                 <div class="hidden sm:flex flex-col items-end gap-1 shrink-0">
                                     <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total factura</p>
                                     <p class="text-2xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
@@ -352,6 +357,7 @@
                                         {{ $estadoPago }}
                                     </span>
                                 </div>
+                                @endif
                             </div>
 
                             {{-- Chips de estado --}}
@@ -403,9 +409,13 @@
                                             <th class="text-center w-10">#</th>
                                             <th>Producto / Descripción</th>
                                             <th class="text-right">Cantidad</th>
+                                            @if($canSeeValues)
                                             <th class="text-right">Precio unit.</th>
+                                            @endif
                                             <th>Impuesto</th>
+                                            @if($canSeeValues)
                                             <th class="text-right pr-5">Importe</th>
+                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -460,6 +470,7 @@
                                                         @endif
                                                     @endif
                                                 </td>
+                                                @if($canSeeValues)
                                                 <td class="text-right tabular-nums text-gray-600 dark:text-gray-400">
                                                     @if($isDraft)
                                                         <input type="number"
@@ -474,6 +485,7 @@
                                                         $ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}
                                                     @endif
                                                 </td>
+                                                @endif
                                                 <td>
                                                     <div class="flex flex-wrap gap-1">
                                                         @foreach($taxLabels as $label)
@@ -481,6 +493,7 @@
                                                         @endforeach
                                                     </div>
                                                 </td>
+                                                @if($canSeeValues)
                                                 <td class="text-right tabular-nums amt-col pr-5 text-sm">
                                                     $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
                                                     @if($isDraft)
@@ -489,6 +502,7 @@
                                                         </form>
                                                     @endif
                                                 </td>
+                                                @endif
                                             </tr>
                                         @empty
                                             <tr>
@@ -528,9 +542,11 @@
                                                     <span class="inline-flex mt-0.5 px-1.5 py-px text-[10px] font-mono rounded bg-gray-100 dark:bg-gray-800 text-gray-500">{{ $l->codigo }}</span>
                                                 @endif
                                             </div>
+                                            @if($canSeeValues)
                                             <p class="text-base font-black text-indigo-600 dark:text-indigo-400 tabular-nums shrink-0">
                                                 $ {{ number_format((float) $l->monto_item, 0, ',', '.') }}
                                             </p>
+                                            @endif
                                         </div>
                                         <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-xs border-t border-gray-100 dark:border-gray-800 pt-3">
                                             <div>
@@ -540,10 +556,12 @@
                                                     <span class="text-gray-400 ml-0.5 font-normal">{{ $l->unidad ?? '' }}</span>
                                                 </p>
                                             </div>
+                                            @if($canSeeValues)
                                             <div>
                                                 <p class="text-gray-400 uppercase tracking-wide text-[10px] mb-0.5">Precio unit.</p>
                                                 <p class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">$ {{ number_format((float) $l->precio_unitario, 0, ',', '.') }}</p>
                                             </div>
+                                            @endif
                                         </div>
                                         <div class="flex flex-wrap gap-1 mt-2.5">
                                             @foreach($tlm as $label)
@@ -568,6 +586,7 @@
                             </div>
 
                             {{-- Totales --}}
+                            @if($canSeeValues)
                             <div class="border-t-2 border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/60 dark:bg-gray-900/20">
                                 <div class="flex justify-end">
                                     <div class="space-y-1.5 min-w-[230px]">
@@ -592,6 +611,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
                         </div>
 
                         {{-- Tab: Apuntes contables --}}
@@ -670,7 +690,8 @@
                 {{-- ── SIDEBAR ────────────────────────────────── --}}
                 <div class="w-full xl:w-72 2xl:w-80 shrink-0 space-y-4 au d2">
 
-                    {{-- Estado de pago --}}
+                    {{-- Resumen de pago (solo admin) --}}
+                    @if($canSeeValues)
                     <div class="panel">
                         <div class="sidebar-section">
                             <p class="section-label">Resumen de pago</p>
@@ -729,6 +750,7 @@
                             @endif
                         </div>
                     </div>
+                    @endif
 
                     {{-- Proveedor + Fechas --}}
                     <div class="panel">

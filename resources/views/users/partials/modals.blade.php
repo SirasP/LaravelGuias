@@ -239,6 +239,7 @@ Condición: $store.ui.openView === true
                                 @change="updateRole($store.ui.selectedUser, $event.target.value)">
                                 <option value="viewer">viewer</option>
                                 <option value="admin">admin</option>
+                                <option value="bodeguero">bodeguero</option>
                             </select>
                         </div>
                     </div>
