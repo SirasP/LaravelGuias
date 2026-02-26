@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\DteGeneratorService;
 use App\Services\GmailDteInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,12 +22,14 @@ class GmailInventoryController extends Controller
     }
 
     // POST /gmail/inventario/salida
-    public function exitStore(Request $request, GmailDteInventoryService $service)
+    public function exitStore(Request $request, GmailDteInventoryService $service, DteGeneratorService $dteGenerator)
     {
         $validated = $request->validate([
             'destinatario'         => 'required|string|max:200',
             'tipo_salida'          => 'nullable|string|in:Venta,EPP,Salida',
             'notas'                => 'nullable|string|max:1000',
+            'enviar_factura'       => 'nullable|boolean',
+            'correo_factura'       => 'nullable|string|email|max:200',
             'items'                => 'required|array|min:1',
             'items.*.product_id'   => 'required|integer',
             'items.*.quantity'     => 'required|numeric|gt:0',
@@ -43,6 +46,14 @@ class GmailInventoryController extends Controller
             return back()->withInput()->withErrors(['items' => 'Uno o más productos no son válidos.']);
         }
 
+        if (
+            ($validated['tipo_salida'] ?? null) === 'Venta'
+            && (int) ($validated['enviar_factura'] ?? 0) === 1
+            && trim((string) ($validated['correo_factura'] ?? '')) === ''
+        ) {
+            return back()->withInput()->withErrors(['correo_factura' => 'Debes indicar un correo para enviar la factura.']);
+        }
+
         try {
             $result = $service->processExit(
                 $validated['items'],
@@ -51,13 +62,54 @@ class GmailInventoryController extends Controller
                 $validated['notas'] ?? null,
                 $validated['tipo_salida'] ?? null
             );
+
+            $dteXmlPath = null;
+            if (($validated['tipo_salida'] ?? null) === 'Venta') {
+                $products = $this->db()
+                    ->table('gmail_inventory_products')
+                    ->whereIn('id', $productIds)
+                    ->get(['id', 'nombre', 'costo_promedio'])
+                    ->keyBy('id');
+
+                $dteItems = collect($validated['items'])
+                    ->map(function (array $item) use ($products): ?array {
+                        $productId = (int) $item['product_id'];
+                        $product = $products->get($productId);
+                        if (!$product) {
+                            return null;
+                        }
+
+                        return [
+                            'product_id' => $productId,
+                            'nombre' => (string) $product->nombre,
+                            'quantity' => (float) $item['quantity'],
+                            'unit_price' => (float) $product->costo_promedio,
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                $dteXmlPath = $dteGenerator->generateFacturaXmlForExit([
+                    'movement_id' => (int) $result['movement_id'],
+                    'destinatario' => (string) $validated['destinatario'],
+                    'receptor_email' => trim((string) ($validated['correo_factura'] ?? '')),
+                    'items' => $dteItems,
+                ]);
+            }
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['items' => $e->getMessage()]);
         }
 
+        $success = 'Salida registrada correctamente (movimiento #' . $result['movement_id'] . ').';
+        if (($validated['tipo_salida'] ?? null) === 'Venta' && !empty($dteXmlPath)) {
+            $success .= ' XML DTE generado: ' . $dteXmlPath;
+        }
+
         return redirect()
             ->route('gmail.inventory.exits')
-            ->with('success', 'Salida registrada correctamente (movimiento #' . $result['movement_id'] . ').');
+            ->with('success', $success)
+            ->with('dte_xml_path', $dteXmlPath ?? null);
     }
 
     // POST /gmail/inventario/salidas/{id}/venta

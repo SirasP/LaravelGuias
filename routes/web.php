@@ -450,6 +450,9 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
     Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
     Route::get('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactsApi'])->name('inventory.api.contacts');
+    Route::post('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactStore'])->name('inventory.api.contact.store');
+    Route::get('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
+    Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
     Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
     Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
@@ -488,12 +491,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/rollback-stock', [GmailDteDocumentController::class, 'rollbackStock'])->whereNumber('id')->name('dtes.rollback_stock');
     Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])->whereNumber('id')->whereNumber('lineId')->name('dtes.lines.update');
 
-    // Salidas inventario — solo admin puede crear
-    Route::get('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
-    Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
+    // Salidas inventario — operaciones admin-only
     Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
-    Route::post('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactStore'])->name('inventory.api.contact.store');
 
 });
 

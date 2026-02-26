@@ -59,6 +59,7 @@
 
     {{-- ── Navigation ─────────────────────────────────────── --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 sidebar-scroll" :class="expanded ? 'px-2.5' : 'px-1.5'">
+        @if(false)
         {{-- ─── SECCIÓN: DOCUMENTOS ─── --}}
         <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1">
             <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Documentos</p>
@@ -94,7 +95,6 @@
                 @endif
             </div>
         </div>
-
         {{-- Guías ODOO --}}
         @php $odooActive = request()->routeIs('excel_out_transfers.*'); @endphp
         <div class="mb-0.5">
@@ -229,6 +229,7 @@
                 @endif
             </div>
         </div>
+        @endif
 
         @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
             {{-- ─── SECCIÓN: FACTURAS PROVEEDOR (admin + bodeguero) ─── --}}
@@ -340,7 +341,7 @@
                     <a href="{{ route('gmail.inventory.exits') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exits') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Salidas</a>
-                    @if(auth()->user()->role === 'admin')
+                    @if(in_array(auth()->user()->role, ['admin', 'bodeguero']))
                         <a href="{{ route('gmail.inventory.exit.create') }}" @click="mobileOpen = false"
                             class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exit.create') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                             Nueva Salida</a>

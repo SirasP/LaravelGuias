@@ -1,3 +1,4 @@
+@php $canSeeValues = auth()->user()?->canSeeValues() ?? true; @endphp
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
@@ -160,7 +161,9 @@
                                             <th class="text-left text-xs font-semibold text-gray-400 pb-2 px-1">Producto</th>
                                             <th class="text-right text-xs font-semibold text-gray-400 pb-2 px-1">Stock disp.</th>
                                             <th class="text-right text-xs font-semibold text-gray-400 pb-2 px-1">Cantidad</th>
-                                            <th class="text-right text-xs font-semibold text-gray-400 pb-2 px-1">Costo est.</th>
+                                            @if($canSeeValues)
+                                                <th class="text-right text-xs font-semibold text-gray-400 pb-2 px-1">Costo est.</th>
+                                            @endif
                                             <th class="pb-2 px-1"></th>
                                         </tr>
                                     </thead>
@@ -208,8 +211,10 @@
                                                         class="text-[10px] text-rose-600 dark:text-rose-400 mt-1 text-right"
                                                         x-text="'Máx: ' + formatNum(item.stock_actual, 4)"></p>
                                                 </td>
-                                                <td class="py-3 px-1 text-right text-gray-700 dark:text-gray-300 font-semibold text-xs whitespace-nowrap pt-3.5"
-                                                    x-text="'$ ' + formatNum(item.quantity * item.costo_promedio, 2)"></td>
+                                                @if($canSeeValues)
+                                                    <td class="py-3 px-1 text-right text-gray-700 dark:text-gray-300 font-semibold text-xs whitespace-nowrap pt-3.5"
+                                                        x-text="'$ ' + formatNum(item.quantity * item.costo_promedio, 2)"></td>
+                                                @endif
                                                 <td class="py-3 px-1 pt-3.5">
                                                     <button type="button" @click="removeItem(idx)"
                                                         class="text-gray-300 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
@@ -289,10 +294,12 @@
                             <template x-if="tipoSalida === 'Venta'">
                                 <div class="rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/40 px-4 py-3 space-y-1.5">
                                     <div class="flex justify-between text-xs text-gray-500"><span>Productos</span><span x-text="items.length"></span></div>
-                                    <div class="border-t border-emerald-100 dark:border-emerald-800/40 pt-1.5 flex justify-between text-sm font-bold">
-                                        <span class="text-gray-700 dark:text-gray-300">Costo total</span>
-                                        <span class="text-rose-600 dark:text-rose-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
-                                    </div>
+                                    @if($canSeeValues)
+                                        <div class="border-t border-emerald-100 dark:border-emerald-800/40 pt-1.5 flex justify-between text-sm font-bold">
+                                            <span class="text-gray-700 dark:text-gray-300">Costo total</span>
+                                            <span class="text-rose-600 dark:text-rose-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                        </div>
+                                    @endif
                                     <p class="text-[10px] text-gray-400">El precio de venta se registra desde el historial de salidas.</p>
                                     <div class="pt-1.5 border-t border-emerald-100 dark:border-emerald-800/40 space-y-2">
                                         <label class="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -315,10 +322,12 @@
                                 <div class="rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/40 px-4 py-3 space-y-1.5">
                                     <div class="flex justify-between text-xs text-gray-500"><span>Productos</span><span x-text="items.length"></span></div>
                                     <div class="flex justify-between text-xs text-gray-500"><span>Unidades</span><span x-text="formatNum(totalQty, 2)"></span></div>
-                                    <div class="border-t border-blue-100 dark:border-blue-800/40 pt-1.5 flex justify-between text-sm font-bold">
-                                        <span class="text-gray-700 dark:text-gray-300">Costo EPP</span>
-                                        <span class="text-blue-600 dark:text-blue-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
-                                    </div>
+                                    @if($canSeeValues)
+                                        <div class="border-t border-blue-100 dark:border-blue-800/40 pt-1.5 flex justify-between text-sm font-bold">
+                                            <span class="text-gray-700 dark:text-gray-300">Costo EPP</span>
+                                            <span class="text-blue-600 dark:text-blue-400" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                        </div>
+                                    @endif
                                 </div>
                             </template>
 
@@ -327,10 +336,12 @@
                                 <div class="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-4 py-3 space-y-1.5">
                                     <div class="flex justify-between text-xs text-gray-500"><span>Productos</span><span x-text="items.length"></span></div>
                                     <div class="flex justify-between text-xs text-gray-500"><span>Unidades</span><span x-text="formatNum(totalQty, 4)"></span></div>
-                                    <div class="border-t border-gray-200 dark:border-gray-700 pt-1.5 flex justify-between text-sm font-bold">
-                                        <span class="text-gray-700 dark:text-gray-300">Costo estimado</span>
-                                        <span class="text-gray-900 dark:text-gray-100" x-text="'$ ' + formatNum(totalCost, 2)"></span>
-                                    </div>
+                                    @if($canSeeValues)
+                                        <div class="border-t border-gray-200 dark:border-gray-700 pt-1.5 flex justify-between text-sm font-bold">
+                                            <span class="text-gray-700 dark:text-gray-300">Costo estimado</span>
+                                            <span class="text-gray-900 dark:text-gray-100" x-text="'$ ' + formatNum(totalCost, 2)"></span>
+                                        </div>
+                                    @endif
                                 </div>
                             </template>
 
@@ -368,7 +379,9 @@
                     </div>
                     <div class="shrink-0 text-right">
                         <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400" x-text="'Stock: ' + formatNum(p.stock_actual, 4)"></p>
-                        <p class="prod-item-sub" x-text="'$ ' + formatNum(p.costo_promedio, 2)"></p>
+                        @if($canSeeValues)
+                            <p class="prod-item-sub" x-text="'$ ' + formatNum(p.costo_promedio, 2)"></p>
+                        @endif
                     </div>
                 </div>
             </template>
