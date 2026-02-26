@@ -312,7 +312,7 @@
             </div>
             <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
-            @php $dteInventoryActive = request()->routeIs('gmail.inventory.*'); @endphp
+            @php $dteInventoryActive = request()->routeIs('gmail.inventory.*') && !request()->routeIs('gmail.inventory.sii.status'); @endphp
             <div class="mb-0.5">
                 <button @click="toggleSection('dteinv')" :title="!expanded ? 'Inventario' : ''"
                     class="w-full flex items-center rounded-xl transition-all duration-150"

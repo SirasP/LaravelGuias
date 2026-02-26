@@ -495,6 +495,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     // Salidas inventario — operaciones admin-only
     Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
+    Route::get('/inventario/salidas/{id}/editar', [App\Http\Controllers\GmailInventoryController::class, 'exitEdit'])->name('inventory.exits.edit')->whereNumber('id');
+    Route::put('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitUpdate'])->name('inventory.exits.update')->whereNumber('id');
+    Route::get('/inventario/salidas-resumen/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupPdf'])->name('inventory.exits.group.pdf');
 
     // Configuraciones SII (admin-only)
     Route::post('/inventario/sii-config', [App\Http\Controllers\GmailInventoryController::class, 'siiConfigUpdate'])->name('inventory.sii.config');

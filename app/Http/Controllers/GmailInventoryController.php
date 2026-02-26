@@ -755,6 +755,259 @@ class GmailInventoryController extends Controller
         );
     }
 
+    // GET /gmail/inventario/salidas/{id}/editar
+    public function exitEdit(int $id)
+    {
+        $movement = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('id', $id)
+            ->where('tipo', 'SALIDA')
+            ->first();
+
+        abort_if(!$movement, 404);
+
+        $items = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->where('ml.movement_id', $id)
+            ->selectRaw('ml.product_id, p.nombre, p.codigo, p.unidad, p.stock_actual, SUM(ml.cantidad) as cantidad')
+            ->groupBy('ml.product_id', 'p.nombre', 'p.codigo', 'p.unidad', 'p.stock_actual')
+            ->orderBy('p.nombre')
+            ->get()
+            ->map(fn ($i) => [
+                'product_id'     => (int) $i->product_id,
+                'nombre'         => $i->nombre,
+                'codigo'         => $i->codigo,
+                'unidad'         => $i->unidad,
+                'quantity'       => (float) $i->cantidad,
+                'stock_efectivo' => (float) $i->stock_actual + (float) $i->cantidad,
+            ]);
+
+        return view('gmail.inventory.exit_edit', compact('movement', 'items'));
+    }
+
+    // PUT /gmail/inventario/salidas/{id}
+    public function exitUpdate(Request $request, int $id)
+    {
+        $movement = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('id', $id)
+            ->where('tipo', 'SALIDA')
+            ->first();
+
+        abort_if(!$movement, 404);
+
+        $validated = $request->validate([
+            'destinatario'       => 'required|string|max:200',
+            'tipo_salida'        => 'required|string|in:Venta,EPP,Salida',
+            'ocurrio_el'         => 'required|date',
+            'notas'              => 'nullable|string|max:2000',
+            'items'              => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:fuelcontrol.gmail_inventory_products,id',
+            'items.*.quantity'   => 'required|numeric|gt:0',
+        ]);
+
+        try {
+            $this->db()->transaction(function () use ($validated, $id) {
+                // 1. Reverse existing FIFO lines (restore stock to lots and products)
+                $existingLines = $this->db()
+                    ->table('gmail_inventory_movement_lines')
+                    ->where('movement_id', $id)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($existingLines as $line) {
+                    if ($line->lot_id) {
+                        $lot = $this->db()
+                            ->table('gmail_inventory_lots')
+                            ->where('id', $line->lot_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($lot) {
+                            $newDisponible = (float) $lot->cantidad_disponible + (float) $line->cantidad;
+                            $newSalida     = max(0.0, (float) $lot->cantidad_salida - (float) $line->cantidad);
+                            $this->db()->table('gmail_inventory_lots')
+                                ->where('id', $lot->id)
+                                ->update([
+                                    'cantidad_disponible' => $newDisponible,
+                                    'cantidad_salida'     => $newSalida,
+                                    'estado'              => $newDisponible > 0 ? 'ABIERTO' : 'CERRADO',
+                                    'updated_at'          => now(),
+                                ]);
+                        }
+                    }
+
+                    $this->db()->table('gmail_inventory_products')
+                        ->where('id', $line->product_id)
+                        ->increment('stock_actual', (float) $line->cantidad, ['updated_at' => now()]);
+                }
+
+                // 2. Delete existing lines
+                $this->db()->table('gmail_inventory_movement_lines')
+                    ->where('movement_id', $id)
+                    ->delete();
+
+                // 3. Validate new stock (after restoration)
+                foreach ($validated['items'] as $item) {
+                    $productId = (int) $item['product_id'];
+                    $needed    = (float) $item['quantity'];
+                    $available = (float) $this->db()
+                        ->table('gmail_inventory_lots')
+                        ->where('product_id', $productId)
+                        ->where('estado', 'ABIERTO')
+                        ->sum('cantidad_disponible');
+
+                    if ($available < $needed) {
+                        $nombre = $this->db()
+                            ->table('gmail_inventory_products')
+                            ->where('id', $productId)
+                            ->value('nombre');
+                        throw new \RuntimeException(
+                            "Stock insuficiente para '{$nombre}': disponible {$available}, solicitado {$needed}."
+                        );
+                    }
+                }
+
+                // 4. Re-apply FIFO with new items
+                $qtyTotal  = 0.0;
+                $costTotal = 0.0;
+
+                foreach ($validated['items'] as $item) {
+                    $productId = (int) $item['product_id'];
+                    $needed    = (float) $item['quantity'];
+                    $pending   = $needed;
+
+                    $lots = $this->db()
+                        ->table('gmail_inventory_lots')
+                        ->where('product_id', $productId)
+                        ->where('estado', 'ABIERTO')
+                        ->where('cantidad_disponible', '>', 0)
+                        ->orderBy('ingresado_el')
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($lots as $lot) {
+                        if ($pending <= 0) {
+                            break;
+                        }
+
+                        $take     = min((float) $lot->cantidad_disponible, $pending);
+                        $lineCost = $take * (float) $lot->costo_unitario;
+
+                        $this->db()->table('gmail_inventory_movement_lines')->insert([
+                            'movement_id'    => $id,
+                            'lot_id'         => $lot->id,
+                            'product_id'     => $productId,
+                            'cantidad'       => $take,
+                            'costo_unitario' => $lot->costo_unitario,
+                            'costo_total'    => $lineCost,
+                            'created_at'     => now(),
+                            'updated_at'     => now(),
+                        ]);
+
+                        $newDisponible = (float) $lot->cantidad_disponible - $take;
+                        $this->db()->table('gmail_inventory_lots')
+                            ->where('id', $lot->id)
+                            ->update([
+                                'cantidad_disponible' => $newDisponible,
+                                'cantidad_salida'     => (float) $lot->cantidad_salida + $take,
+                                'estado'              => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
+                                'updated_at'          => now(),
+                            ]);
+
+                        $pending   -= $take;
+                        $costTotal += $lineCost;
+                    }
+
+                    $this->db()->table('gmail_inventory_products')
+                        ->where('id', $productId)
+                        ->decrement('stock_actual', $needed, ['updated_at' => now()]);
+
+                    $qtyTotal += $needed;
+                }
+
+                // 5. Update movement header and totals
+                $this->db()->table('gmail_inventory_movements')
+                    ->where('id', $id)
+                    ->update([
+                        'destinatario'   => $validated['destinatario'],
+                        'tipo_salida'    => $validated['tipo_salida'],
+                        'ocurrio_el'     => $validated['ocurrio_el'],
+                        'notas'          => $validated['notas'] ?? null,
+                        'cantidad_total' => $qtyTotal,
+                        'costo_total'    => $costTotal,
+                        'updated_at'     => now(),
+                    ]);
+            });
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->withErrors(['items' => $e->getMessage()]);
+        }
+
+        $backParams = array_filter([
+            'from'         => $request->query('from'),
+            'destinatario' => $request->query('destinatario'),
+            'tipo'         => $request->query('tipo'),
+        ]);
+
+        return redirect()
+            ->route('gmail.inventory.exits.show', array_merge(['id' => $id], $backParams))
+            ->with('success', 'Salida #' . $id . ' actualizada correctamente.');
+    }
+
+    // GET /gmail/inventario/salidas-resumen/pdf
+    public function exitGroupPdf(Request $request)
+    {
+        $destinatario = trim((string) $request->query('destinatario', ''));
+        $tipo         = trim((string) $request->query('tipo', ''));
+
+        abort_if($destinatario === '', 404);
+
+        $query = $this->db()
+            ->table('gmail_inventory_movements')
+            ->where('tipo', 'SALIDA')
+            ->where('destinatario', $destinatario)
+            ->orderBy('ocurrio_el')
+            ->orderBy('id');
+
+        if ($tipo === 'EPP') {
+            $query->where('tipo_salida', 'EPP');
+        } elseif ($tipo === 'Venta') {
+            $query->where('tipo_salida', 'Venta');
+        } elseif ($tipo === 'Salida') {
+            $query->where(function ($qb) {
+                $qb->where('tipo_salida', 'Salida')->orWhereNull('tipo_salida');
+            });
+        }
+
+        $movements = $query->get();
+        abort_if($movements->isEmpty(), 404);
+
+        $ids = $movements->pluck('id')->all();
+
+        $consolidatedLines = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->whereIn('ml.movement_id', $ids)
+            ->selectRaw('p.nombre as producto, p.codigo, p.unidad, SUM(ml.cantidad) as cantidad_total, SUM(ml.costo_total) as costo_total')
+            ->groupBy('ml.product_id', 'p.nombre', 'p.codigo', 'p.unidad')
+            ->orderBy('p.nombre')
+            ->get();
+
+        $fechas     = $movements->pluck('ocurrio_el');
+        $primeraMov = $fechas->min();
+        $ultimaMov  = $fechas->max();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('gmail.inventory.exit_group_pdf', compact(
+            'destinatario', 'tipo', 'movements', 'consolidatedLines', 'primeraMov', 'ultimaMov'
+        ))->setPaper('letter', 'portrait');
+
+        $filename = 'EPP_' . \Illuminate\Support\Str::slug($destinatario) . '_' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
     // POST /gmail/inventario/api/contactos
     public function contactStore(Request $request)
     {

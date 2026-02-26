@@ -303,31 +303,7 @@
                             Estas personas recibirán un correo automático cuando el stock de un producto caiga por debajo del mínimo configurado.
                         </p>
                     </div>
-                    <div class="p-5"
-                        x-data="{
-                            emails: @json($emailsList),
-                            newEmail: '',
-                            errMsg: '',
-                            add() {
-                                const e = this.newEmail.trim().toLowerCase();
-                                if (!e) return;
-                                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-                                    this.errMsg = 'El correo ingresado no es válido.';
-                                    return;
-                                }
-                                if (this.emails.includes(e)) {
-                                    this.errMsg = 'Ese correo ya está en la lista.';
-                                    return;
-                                }
-                                this.emails.push(e);
-                                this.newEmail = '';
-                                this.errMsg = '';
-                            },
-                            remove(i) {
-                                this.emails.splice(i, 1);
-                                this.errMsg = '';
-                            }
-                        }">
+                    <div class="p-5" x-data="emailTagInput()">
 
                         <form method="POST"
                               action="{{ route('gmail.inventory.sii.config') }}"
@@ -388,4 +364,33 @@
 
         </div>
     </div>
+
+    <script>
+    function emailTagInput() {
+        return {
+            emails: @json($emailsList),
+            newEmail: '',
+            errMsg: '',
+            add() {
+                const e = this.newEmail.trim().toLowerCase();
+                if (!e) return;
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+                    this.errMsg = 'El correo ingresado no es válido.';
+                    return;
+                }
+                if (this.emails.includes(e)) {
+                    this.errMsg = 'Ese correo ya está en la lista.';
+                    return;
+                }
+                this.emails.push(e);
+                this.newEmail = '';
+                this.errMsg = '';
+            },
+            remove(i) {
+                this.emails.splice(i, 1);
+                this.errMsg = '';
+            }
+        };
+    }
+    </script>
 </x-app-layout>

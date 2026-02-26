@@ -42,7 +42,26 @@
                     {{ $movement->destinatario ?? 'Movimiento #'.$movement->id }}
                 </span>
             </div>
-            <span class="text-xs text-gray-400 shrink-0">Mov. #{{ $movement->id }}</span>
+            <div class="flex items-center gap-2 shrink-0">
+                @if(auth()->user()?->isAdmin())
+                @php
+                    $editParams = array_filter([
+                        'from'         => request()->query('from'),
+                        'destinatario' => request()->query('destinatario'),
+                        'tipo'         => request()->query('tipo'),
+                    ]);
+                @endphp
+                <a href="{{ route('gmail.inventory.exits.edit', array_merge(['id' => $movement->id], $editParams)) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Modificar
+                </a>
+                @endif
+                <span class="text-xs text-gray-400">Mov. #{{ $movement->id }}</span>
+            </div>
         </div>
     </x-slot>
 
