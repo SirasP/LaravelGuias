@@ -218,7 +218,7 @@
                             {{ $nombre }}
                             <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3">
                             @foreach ($movs as $m)
                                 @php
                                     $cardLines   = $lines->get($m->id, collect());
@@ -318,7 +318,7 @@
                                         {{ $nombre }}
                                         <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 mb-2">
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
                                             $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
@@ -342,7 +342,7 @@
                                         {{ $nombre }}
                                         <span class="font-normal normal-case tracking-normal text-gray-400">({{ $movs->count() }})</span>
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 mb-2">
                                         @php
                                             $m = $movs->sortByDesc('ocurrio_el')->first();
                                             $cardLines = $movs->flatMap(fn($mv) => $lines->get($mv->id, collect()));
