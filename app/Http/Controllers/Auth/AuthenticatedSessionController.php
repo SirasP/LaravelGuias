@@ -29,6 +29,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->forget('url.intended'); // 🔥 importante
 
+        $role = $request->user()?->role;
+
+        if ($role === 'bodeguero') {
+            return redirect()->route('gmail.dtes.facturas.list');
+        }
+
         return redirect()->route('index');
     }
 

@@ -82,7 +82,9 @@ class GmailDteDocumentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('gmail.dtes.boletas.list', compact('documents', 'q', 'tipo'));
+        $canSeeValues = auth()->user()?->canSeeValues() ?? true;
+
+        return view('gmail.dtes.boletas.list', compact('documents', 'q', 'tipo', 'canSeeValues'));
     }
 
     public function guiasList(Request $request)
@@ -95,7 +97,9 @@ class GmailDteDocumentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('gmail.dtes.list', compact('documents', 'q', 'tipo'));
+        $canSeeValues = auth()->user()?->canSeeValues() ?? true;
+
+        return view('gmail.dtes.list', compact('documents', 'q', 'tipo', 'canSeeValues'));
     }
 
     private function buildSummaryByTypes(array $types): array
