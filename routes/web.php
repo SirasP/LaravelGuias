@@ -434,6 +434,7 @@ Route::middleware(['auth'])
 Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmail.')->group(function () {
 
     // Facturas proveedor — listado y detalle (bodeguero ve sin valores)
+    Route::get('/dtes/listado', [GmailDteDocumentController::class, 'list'])->name('dtes.list');
     Route::get('/dtes/facturas/listado', [GmailDteDocumentController::class, 'facturasList'])->name('dtes.facturas.list');
     Route::get('/dtes/boletas/listado', [GmailDteDocumentController::class, 'boletasList'])->name('dtes.boletas.list');
     Route::get('/dtes/guias/listado', [GmailDteDocumentController::class, 'guiasList'])->name('dtes.guias.list');
@@ -477,7 +478,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::get('/status', [GmailAuthController::class, 'status'])->name('status');
 
     Route::get('/dtes', [GmailDteDocumentController::class, 'index'])->name('dtes.index');
-    Route::get('/dtes/listado', [GmailDteDocumentController::class, 'list'])->name('dtes.list');
     Route::get('/dtes/facturas', [GmailDteDocumentController::class, 'facturasIndex'])->name('dtes.facturas.index');
     Route::get('/dtes/boletas', [GmailDteDocumentController::class, 'boletasIndex'])->name('dtes.boletas.index');
     Route::get('/dtes/guias', [GmailDteDocumentController::class, 'guiasIndex'])->name('dtes.guias.index');

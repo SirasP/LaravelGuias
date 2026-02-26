@@ -1,5 +1,6 @@
 <x-app-layout>
     @php
+        $canSeeValues = $canSeeValues ?? (auth()->user()?->canSeeValues() ?? true);
         $tipoView = $tipo ?? 'facturas';
         $tipoTitle = match ($tipoView) {
             'boletas' => 'Boletas proveedor',
@@ -244,8 +245,10 @@
                                 <th style="width:120px">Fecha</th>
                                 <th style="width:130px">Vencimiento</th>
                                 <th style="width:290px">Referencia</th>
-                                <th style="width:140px" class="text-right">Neto</th>
-                                <th style="width:150px" class="text-right">Total</th>
+                                @if($canSeeValues)
+                                    <th style="width:140px" class="text-right">Neto</th>
+                                    <th style="width:150px" class="text-right">Total</th>
+                                @endif
                                 <th style="width:120px">Estado</th>
                             </tr>
                         </thead>
@@ -303,12 +306,14 @@
                                             {{ $d->referencia ?? '—' }}
                                         </div>
                                     </td>
-                                    <td class="text-right">
-                                        <span class="amt-sub">$ {{ number_format((float) $d->monto_neto, 0, ',', '.') }}</span>
-                                    </td>
-                                    <td class="text-right">
-                                        <span class="amt-main">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</span>
-                                    </td>
+                                    @if($canSeeValues)
+                                        <td class="text-right">
+                                            <span class="amt-sub">$ {{ number_format((float) $d->monto_neto, 0, ',', '.') }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="amt-main">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</span>
+                                        </td>
+                                    @endif
                                     <td>
                                         <span class="chip {{
                                             $estado === 'Pagado'
@@ -321,7 +326,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-12 text-gray-400">
+                                    <td colspan="{{ $canSeeValues ? 8 : 6 }}" class="text-center py-12 text-gray-400">
                                         <svg class="w-8 h-8 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
@@ -400,10 +405,12 @@
                                         @endif
                                     </div>
                                 </div>
-                                <div class="text-right shrink-0">
-                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
-                                    <p class="text-base font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</p>
-                                </div>
+                                @if($canSeeValues)
+                                    <div class="text-right shrink-0">
+                                        <p class="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
+                                        <p class="text-base font-extrabold text-gray-900 dark:text-gray-100 tabular-nums">$ {{ number_format((float) $d->monto_total, 0, ',', '.') }}</p>
+                                    </div>
+                                @endif
                             </div>
                         </a>
                     @empty

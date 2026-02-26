@@ -59,7 +59,7 @@
 
     {{-- ── Navigation ─────────────────────────────────────── --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 sidebar-scroll" :class="expanded ? 'px-2.5' : 'px-1.5'">
-        @if(auth()->check() && auth()->user()->role === 'admin')
+        @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'viewer']))
         {{-- ─── SECCIÓN: DOCUMENTOS ─── --}}
         <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1">
             <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Documentos</p>
@@ -185,50 +185,52 @@
             </div>
         </div>
 
-        {{-- ─── SECCIÓN: COMBUSTIBLE ─── --}}
-        <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
-            <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Combustible</p>
-        </div>
-        <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
-
-        {{-- FuelControl --}}
-        @php $fuelActive = request()->routeIs('fuelcontrol.*') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
-        <div class="mb-0.5">
-            <button @click="toggleSection('fuel')" :title="!expanded ? 'FuelControl' : ''"
-                class="w-full flex items-center rounded-xl transition-all duration-150"
-                :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
-                :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                    {{ $fuelActive ? 'bg-orange-100 dark:bg-orange-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
-                    <svg class="w-[18px] h-[18px] transition-colors {{ $fuelActive ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </div>
-                <span x-show="expanded" class="flex-1 text-left truncate {{ $fuelActive ? 'text-orange-700 dark:text-orange-300' : 'text-gray-600 dark:text-gray-400' }}">FuelControl</span>
-                <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'fuel' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            <div x-show="expanded && openSection === 'fuel'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-orange-100 dark:border-orange-900/40 space-y-0.5 pb-1">
-                <a href="{{ route('fuelcontrol.index') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.index') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Dashboard</a>
-                <a href="{{ route('fuelcontrol.productos') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.productos') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Productos</a>
-                <a href="{{ route('fuelcontrol.vehiculos.index') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.vehiculos.*') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Vehículos</a>
-                <a href="{{ route('fuelcontrol.movimientos') }}" @click="mobileOpen = false"
-                    class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.movimientos') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                    Movimientos</a>
-                @if(auth()->check() && auth()->user()->role === 'admin')
-                    <a href="{{ route('gmail.index') }}" @click="mobileOpen = false"
-                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Gmail DTE</a>
-                @endif
+        @if(auth()->check() && auth()->user()->role === 'admin')
+            {{-- ─── SECCIÓN: COMBUSTIBLE ─── --}}
+            <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
+                <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Combustible</p>
             </div>
-        </div>
+            <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
+
+            {{-- FuelControl --}}
+            @php $fuelActive = request()->routeIs('fuelcontrol.*') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
+            <div class="mb-0.5">
+                <button @click="toggleSection('fuel')" :title="!expanded ? 'FuelControl' : ''"
+                    class="w-full flex items-center rounded-xl transition-all duration-150"
+                    :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
+                    :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                        {{ $fuelActive ? 'bg-orange-100 dark:bg-orange-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        <svg class="w-[18px] h-[18px] transition-colors {{ $fuelActive ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <span x-show="expanded" class="flex-1 text-left truncate {{ $fuelActive ? 'text-orange-700 dark:text-orange-300' : 'text-gray-600 dark:text-gray-400' }}">FuelControl</span>
+                    <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'fuel' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="expanded && openSection === 'fuel'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-orange-100 dark:border-orange-900/40 space-y-0.5 pb-1">
+                    <a href="{{ route('fuelcontrol.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.index') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Dashboard</a>
+                    <a href="{{ route('fuelcontrol.productos') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.productos') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Productos</a>
+                    <a href="{{ route('fuelcontrol.vehiculos.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.vehiculos.*') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Vehículos</a>
+                    <a href="{{ route('fuelcontrol.movimientos') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.movimientos') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Movimientos</a>
+                    @if(auth()->check() && auth()->user()->role === 'admin')
+                        <a href="{{ route('gmail.index') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Gmail DTE</a>
+                    @endif
+                </div>
+            </div>
+        @endif
         @endif
 
         @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
@@ -264,11 +266,12 @@
                     <a href="{{ route('gmail.dtes.facturas.list') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.facturas.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Facturas</a>
-                    @if(auth()->user()->role === 'admin')
-                        <a href="{{ route('gmail.dtes.boletas.list') }}" @click="mobileOpen = false"
-                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.boletas.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                            Boletas</a>
-                    @endif
+                    <a href="{{ route('gmail.dtes.boletas.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.boletas.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Boletas</a>
+                    <a href="{{ route('gmail.dtes.guias.list') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.dtes.guias.list') ? 'text-cyan-700 dark:text-cyan-300 font-semibold bg-cyan-50 dark:bg-cyan-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Guías</a>
                 </div>
             </div>
         @endif
