@@ -185,7 +185,7 @@
             </div>
         </div>
 
-        @if(auth()->check() && auth()->user()->role === 'admin')
+        @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'viewer']))
             {{-- ─── SECCIÓN: COMBUSTIBLE ─── --}}
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Combustible</p>
