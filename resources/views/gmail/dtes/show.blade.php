@@ -799,7 +799,7 @@
          style="background:rgba(15,23,42,.55);"
          @click.self="close()">
 
-        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-2xl max-h-[88vh] overflow-hidden">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-4xl max-h-[92vh] overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <div>
                     <p class="text-sm font-bold text-gray-900 dark:text-gray-100">Resolver productos no reconocidos</p>
@@ -809,7 +809,7 @@
                     class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 text-xl leading-none transition">&times;</button>
             </div>
 
-            <div class="p-4 space-y-3 overflow-y-auto max-h-[62vh]">
+            <div class="p-4 space-y-3 overflow-y-auto max-h-[calc(92vh-150px)]">
                 <template x-for="(row, idx) in rows" :key="row.line_id">
                     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-2">
                         <div>
@@ -828,7 +828,8 @@
                                 :placeholder="'Buscar producto para esta línea...'"
                                 x-model="row.search"
                                 @input="onSearch(row)">
-                            <div class="mt-1 rounded-lg border border-gray-100 dark:border-gray-800 max-h-36 overflow-y-auto"
+                            <p class="text-[11px] text-gray-400 mt-1" x-show="row.loading">Buscando productos...</p>
+                            <div class="mt-1 rounded-lg border border-gray-100 dark:border-gray-800 max-h-64 overflow-y-auto"
                                 x-show="row.options.length">
                                 <template x-for="opt in row.options" :key="opt.id">
                                     <button type="button"
@@ -839,6 +840,9 @@
                                     </button>
                                 </template>
                             </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-show="!row.loading && row.search.trim().length >= 2 && row.options.length === 0">
+                                Sin coincidencias para esta búsqueda.
+                            </p>
                             <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1" x-show="row.product_id">
                                 Seleccionado: <span x-text="row.selected_label"></span>
                             </p>
@@ -1001,6 +1005,9 @@
                     options: [],
                     product_id: null,
                     selected_label: '',
+                    loading: false,
+                    timer: null,
+                    searchReqId: 0,
                 }));
                 this.productsUrl = detail?.productsUrl || '';
                 this.submitUrl = detail?.submitUrl || '';
@@ -1008,8 +1015,11 @@
                 this.open = true;
 
                 try {
-                    const r = await fetch(this.productsUrl + '?limit=300', { headers: { 'Accept': 'application/json' } });
+                    const r = await fetch(this.productsUrl + '?limit=1000', { headers: { 'Accept': 'application/json' } });
                     this.allProducts = await r.json();
+                    this.rows.forEach(row => {
+                        row.options = this.allProducts.slice(0, 25);
+                    });
                 } catch (_) {
                     this.allProducts = [];
                 }
@@ -1022,14 +1032,43 @@
             },
 
             onSearch(row) {
-                const q = (row.search || '').toLowerCase().trim();
-                if (!q) {
-                    row.options = this.allProducts.slice(0, 12);
-                    return;
+                if (row.timer) {
+                    clearTimeout(row.timer);
                 }
-                row.options = this.allProducts
-                    .filter(p => ((p.nombre || '').toLowerCase().includes(q) || (p.codigo || '').toLowerCase().includes(q)))
-                    .slice(0, 12);
+
+                row.timer = setTimeout(async () => {
+                    const q = (row.search || '').trim();
+                    if (!q) {
+                        row.loading = false;
+                        row.options = this.allProducts.slice(0, 25);
+                        return;
+                    }
+
+                    if (q.length < 2) {
+                        const qLower = q.toLowerCase();
+                        row.loading = false;
+                        row.options = this.allProducts
+                            .filter(p => ((p.nombre || '').toLowerCase().includes(qLower) || (p.codigo || '').toLowerCase().includes(qLower)))
+                            .slice(0, 40);
+                        return;
+                    }
+
+                    row.loading = true;
+                    const reqId = ++row.searchReqId;
+                    try {
+                        const response = await fetch(this.productsUrl + '?q=' + encodeURIComponent(q) + '&limit=120', {
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        const data = await response.json();
+                        if (reqId !== row.searchReqId) return;
+                        row.options = Array.isArray(data) ? data : [];
+                    } catch (_) {
+                        if (reqId !== row.searchReqId) return;
+                        row.options = [];
+                    } finally {
+                        if (reqId === row.searchReqId) row.loading = false;
+                    }
+                }, 220);
             },
 
             selectOption(row, opt) {
