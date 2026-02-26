@@ -3,17 +3,26 @@
 namespace App\Services;
 
 use DOMDocument;
+use DOMElement;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class DteGeneratorService
 {
+    public function __construct(
+        private readonly CafService $cafService,
+        private readonly XmlDsigSignerService $xmlDsigSignerService,
+        private readonly TedSignerService $tedSignerService
+    ) {
+    }
+
     /**
      * @param  array{
      *   movement_id:int,
      *   destinatario:string,
      *   receptor_email:?string,
      *   folio:?int,
+     *   caf_path:?string,
      *   items:array<int,array{
      *     product_id:int,
      *     nombre:string,
@@ -27,7 +36,8 @@ class DteGeneratorService
         $movementId = (int) ($data['movement_id'] ?? 0);
         $destinatario = trim((string) ($data['destinatario'] ?? ''));
         $receptorEmail = trim((string) ($data['receptor_email'] ?? ''));
-        $folio = (int) ($data['folio'] ?? 0);
+        $folioInput = (int) ($data['folio'] ?? 0);
+        $cafPath = isset($data['caf_path']) ? trim((string) $data['caf_path']) : null;
         $items = $data['items'] ?? [];
 
         if ($movementId <= 0) {
@@ -40,9 +50,26 @@ class DteGeneratorService
             throw new RuntimeException('No hay ítems para generar DTE.');
         }
 
-        $folio = $folio > 0 ? $folio : $this->buildTestFolio($movementId);
         $emisor = $this->mockEmisor();
         $receptor = $this->buildReceptor($destinatario, $receptorEmail);
+        $caf = $this->cafService->loadForTipoDte(33, $cafPath);
+
+        $isDevCaf = (bool) ($caf['is_dev'] ?? false);
+
+        if (!$isDevCaf && strcasecmp($caf['rut_emisor'], (string) $emisor['RUTEmisor']) !== 0) {
+            throw new RuntimeException(
+                "RUT emisor del CAF ({$caf['rut_emisor']}) no coincide con RUT emisor del DTE ({$emisor['RUTEmisor']})."
+            );
+        }
+
+        if ($isDevCaf) {
+            $folio = $folioInput > 0 ? $folioInput : $this->buildDevFolio($movementId);
+        } else {
+            $folio = $folioInput > 0
+                ? $folioInput
+                : $this->buildCafBackedFolio($movementId, $caf['folio_desde'], $caf['folio_hasta']);
+            $this->cafService->assertFolioInRange($folio, $caf);
+        }
 
         $lines = [];
         $neto = 0;
@@ -160,6 +187,33 @@ class DteGeneratorService
             $documento->appendChild($detalle);
         }
 
+        $ted = $this->buildTedNode(
+            $doc,
+            $caf,
+            $folio,
+            $emisor['RUTEmisor'],
+            $receptor['RUTRecep'],
+            $receptor['RznSocRecep'],
+            $total,
+            $lines
+        );
+        if (!$isDevCaf) {
+            $this->tedSignerService->timbrarTed($ted, $caf);
+        } else {
+            $frmt = $this->findFirstChildByLocalName($ted, 'FRMT');
+            if ($frmt) {
+                $frmt->nodeValue = 'SIN_CAF_DEV';
+                $frmt->setAttribute('algoritmo', 'SHA1withRSA');
+            }
+        }
+        $documento->appendChild($ted);
+        if ($isDevCaf) {
+            $documento->appendChild($doc->createComment('SIN_CAF_DEV'));
+        }
+        $documento->appendChild($doc->createElement('TmstFirma', now()->format('Y-m-d\TH:i:s')));
+
+        $this->xmlDsigSignerService->signDocumentoById($doc, 'F33T' . $folio);
+
         $xmlUtf8 = $doc->saveXML();
         if (!is_string($xmlUtf8) || $xmlUtf8 === '') {
             throw new RuntimeException('No se pudo serializar XML DTE.');
@@ -177,17 +231,17 @@ class DteGeneratorService
     private function mockEmisor(): array
     {
         return [
-            'RUTEmisor' => '76000000-0',
-            'RznSoc' => 'EMPRESA DEMO SPA',
-            'GiroEmis' => 'COMERCIALIZACION DE PRODUCTOS',
-            'Acteco' => '469000',
-            'DirOrigen' => 'AV. DEMO 123',
-            'CmnaOrigen' => 'SANTIAGO',
-            'CiudadOrigen' => 'SANTIAGO',
-            'RutEnvia' => '76000000-0',
-            'RutReceptor' => '60803000-K',
-            'FchResol' => '2024-01-01',
-            'NroResol' => '0',
+            'RUTEmisor' => (string) config('dte.emisor.rut', '76000000-0'),
+            'RznSoc' => (string) config('dte.emisor.razon_social', 'EMPRESA DEMO SPA'),
+            'GiroEmis' => (string) config('dte.emisor.giro', 'COMERCIALIZACION DE PRODUCTOS'),
+            'Acteco' => (string) config('dte.emisor.acteco', '469000'),
+            'DirOrigen' => (string) config('dte.emisor.direccion', 'AV. DEMO 123'),
+            'CmnaOrigen' => (string) config('dte.emisor.comuna', 'SANTIAGO'),
+            'CiudadOrigen' => (string) config('dte.emisor.ciudad', 'SANTIAGO'),
+            'RutEnvia' => (string) config('dte.emisor.rut_envia', '76000000-0'),
+            'RutReceptor' => (string) config('dte.envio.rut_receptor', '60803000-K'),
+            'FchResol' => (string) config('dte.envio.fecha_resolucion', '2024-01-01'),
+            'NroResol' => (string) config('dte.envio.numero_resolucion', '0'),
         ];
     }
 
@@ -204,9 +258,71 @@ class DteGeneratorService
         ];
     }
 
-    private function buildTestFolio(int $movementId): int
+    /**
+     * @param array{
+     *   tipo_dte:int,
+     *   rut_emisor:string,
+     *   folio_desde:int,
+     *   folio_hasta:int,
+     *   idk:string,
+     *   rsapk_m:string,
+     *   rsapk_e:string,
+     *   frma:string,
+     *   caf_xml:string,
+     *   caf_path:string
+     * } $caf
+     * @param array<int,array{NroLinDet:int,NmbItem:string,QtyItem:float,PrcItem:float,MontoItem:int}> $lines
+     */
+    private function buildTedNode(
+        DOMDocument $doc,
+        array $caf,
+        int $folio,
+        string $rutEmisor,
+        string $rutReceptor,
+        string $razonSocialReceptor,
+        int $montoTotal,
+        array $lines
+    ): DOMElement {
+        $ted = $doc->createElement('TED');
+        $ted->setAttribute('version', '1.0');
+
+        $dd = $doc->createElement('DD');
+        $dd->appendChild($doc->createElement('RE', $rutEmisor));
+        $dd->appendChild($doc->createElement('TD', '33'));
+        $dd->appendChild($doc->createElement('F', (string) $folio));
+        $dd->appendChild($doc->createElement('FE', now()->toDateString()));
+        $dd->appendChild($doc->createElement('RR', $rutReceptor));
+        $dd->appendChild($doc->createElement('RSR', $this->limitTedText($razonSocialReceptor, 40)));
+        $dd->appendChild($doc->createElement('MNT', (string) $montoTotal));
+        $dd->appendChild($doc->createElement('IT1', $this->limitTedText((string) ($lines[0]['NmbItem'] ?? ''), 40)));
+
+        $dd->appendChild($this->cafService->importCafNode($doc, $caf['caf_xml']));
+        $dd->appendChild($doc->createElement('TSTED', now()->format('Y-m-d\TH:i:s')));
+
+        $ted->appendChild($dd);
+
+        $frmt = $doc->createElement('FRMT', 'PENDIENTE_FIRMA');
+        $frmt->setAttribute('algoritmo', 'SHA1withRSA');
+        $ted->appendChild($frmt);
+
+        return $ted;
+    }
+
+    private function buildCafBackedFolio(int $movementId, int $folioDesde, int $folioHasta): int
     {
-        $base = 100000 + $movementId;
+        $rangeSize = ($folioHasta - $folioDesde) + 1;
+        if ($rangeSize <= 0) {
+            throw new RuntimeException('Rango CAF inválido para cálculo de folio.');
+        }
+
+        $offset = max($movementId - 1, 0) % $rangeSize;
+
+        return $folioDesde + $offset;
+    }
+
+    private function buildDevFolio(int $movementId): int
+    {
+        $base = 90000000 + $movementId;
         if ($base > 99999999) {
             return (int) substr((string) $base, -8);
         }
@@ -218,5 +334,25 @@ class DteGeneratorService
     {
         return number_format($value, $decimals, '.', '');
     }
-}
 
+    private function limitTedText(string $value, int $maxLen): string
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $value) ?? '');
+        if ($normalized === '') {
+            return '';
+        }
+
+        return mb_substr($normalized, 0, $maxLen, 'UTF-8');
+    }
+
+    private function findFirstChildByLocalName(DOMElement $parent, string $localName): ?DOMElement
+    {
+        foreach ($parent->childNodes as $child) {
+            if ($child instanceof DOMElement && strcasecmp($child->localName ?? '', $localName) === 0) {
+                return $child;
+            }
+        }
+
+        return null;
+    }
+}

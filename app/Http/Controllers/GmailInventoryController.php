@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Services\DteGeneratorService;
 use App\Services\GmailDteInventoryService;
+use App\Services\InventoryConfigService;
+use App\Services\SiiClientService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class GmailInventoryController extends Controller
@@ -21,8 +25,94 @@ class GmailInventoryController extends Controller
         return view('gmail.inventory.exit_form');
     }
 
+    // GET /gmail/inventario/sii-status
+    public function siiStatus(InventoryConfigService $settings)
+    {
+        $cafDisk = (string) config('dte.caf_disk', 'local');
+        $cafPath = (string) config('dte.caf_paths.33', 'caf/caf_33.xml');
+        $pfxDisk = (string) config('dte.signature.disk', 'local');
+        $pfxPath = (string) config('dte.signature.pfx_path', '');
+
+        $cafExists = $cafPath !== '' && Storage::disk($cafDisk)->exists($cafPath);
+        $pfxExists = $pfxPath !== '' && Storage::disk($pfxDisk)->exists($pfxPath);
+        $isRealMode = $cafExists && $pfxExists;
+
+        return view('gmail.inventory.sii_status', [
+            'cafDisk' => $cafDisk,
+            'cafPath' => $cafPath,
+            'cafExists' => $cafExists,
+            'pfxDisk' => $pfxDisk,
+            'pfxPath' => $pfxPath,
+            'pfxExists' => $pfxExists,
+            'isRealMode' => $isRealMode,
+            'seedUrl' => (string) config('dte.sii.endpoints.seed'),
+            'tokenUrl' => (string) config('dte.sii.endpoints.token'),
+            'recepcionUrl' => (string) config('dte.sii.endpoints.recepcion'),
+            'estadoUrl' => (string) config('dte.sii.endpoints.estado'),
+            'lowStockEmails' => implode(', ', $settings->getLowStockEmails()),
+            'hasPfxPassword' => $settings->getDtePfxPassword() !== null,
+        ]);
+    }
+
+    public function siiConfigUpdate(Request $request, InventoryConfigService $settings)
+    {
+        $validated = $request->validate([
+            'low_stock_emails' => 'nullable|string|max:2000',
+            'dte_signature_pfx_password' => 'nullable|string|max:255',
+        ]);
+
+        $emails = trim((string) ($validated['low_stock_emails'] ?? ''));
+        $settings->set('low_stock_emails', $emails);
+
+        $pwd = (string) ($validated['dte_signature_pfx_password'] ?? '');
+        if ($pwd !== '') {
+            $settings->set('dte_signature_pfx_password', $pwd);
+        }
+
+        return back()->with('success', 'Configuraciones actualizadas.');
+    }
+
+    public function uploadCaf(Request $request)
+    {
+        $request->validate([
+            'caf_file' => 'required|file|mimes:xml|max:10240',
+        ]);
+
+        $disk = (string) config('dte.caf_disk', 'local');
+        $path = (string) config('dte.caf_paths.33', 'caf/caf_33.xml');
+        $dir = trim(dirname($path), '.');
+        if ($dir !== '') {
+            Storage::disk($disk)->makeDirectory($dir);
+        }
+        Storage::disk($disk)->put($path, file_get_contents($request->file('caf_file')->getRealPath()));
+
+        return back()->with('success', 'CAF cargado correctamente.');
+    }
+
+    public function uploadPfx(Request $request)
+    {
+        $request->validate([
+            'pfx_file' => 'required|file|max:10240',
+        ]);
+
+        $disk = (string) config('dte.signature.disk', 'local');
+        $path = (string) config('dte.signature.pfx_path', 'certs/dte_certificacion.pfx');
+        $dir = trim(dirname($path), '.');
+        if ($dir !== '') {
+            Storage::disk($disk)->makeDirectory($dir);
+        }
+        Storage::disk($disk)->put($path, file_get_contents($request->file('pfx_file')->getRealPath()));
+
+        return back()->with('success', 'Certificado PFX cargado correctamente.');
+    }
+
     // POST /gmail/inventario/salida
-    public function exitStore(Request $request, GmailDteInventoryService $service, DteGeneratorService $dteGenerator)
+    public function exitStore(
+        Request $request,
+        GmailDteInventoryService $service,
+        DteGeneratorService $dteGenerator,
+        SiiClientService $siiClientService
+    )
     {
         $validated = $request->validate([
             'destinatario'         => 'required|string|max:200',
@@ -64,6 +154,7 @@ class GmailInventoryController extends Controller
             );
 
             $dteXmlPath = null;
+            $siiTrackId = null;
             if (($validated['tipo_salida'] ?? null) === 'Venta') {
                 $products = $this->db()
                     ->table('gmail_inventory_products')
@@ -96,6 +187,29 @@ class GmailInventoryController extends Controller
                     'receptor_email' => trim((string) ($validated['correo_factura'] ?? '')),
                     'items' => $dteItems,
                 ]);
+
+                $envio = $siiClientService->enviarDte($dteXmlPath);
+                $siiTrackId = (string) ($envio['track_id'] ?? '');
+
+                $movementUpdate = ['updated_at' => now()];
+                $columns = [
+                    'dte_xml_path' => $dteXmlPath,
+                    'sii_track_id' => $siiTrackId !== '' ? $siiTrackId : null,
+                    'sii_estado' => (string) ($envio['sii_estado'] ?? 'ENVIADO'),
+                    'sii_ultimo_envio_xml' => (string) ($envio['response_xml'] ?? ''),
+                    'sii_enviado_at' => now(),
+                ];
+
+                foreach ($columns as $col => $val) {
+                    if (Schema::connection('fuelcontrol')->hasColumn('gmail_inventory_movements', $col)) {
+                        $movementUpdate[$col] = $val;
+                    }
+                }
+
+                $this->db()
+                    ->table('gmail_inventory_movements')
+                    ->where('id', (int) $result['movement_id'])
+                    ->update($movementUpdate);
             }
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['items' => $e->getMessage()]);
@@ -104,6 +218,9 @@ class GmailInventoryController extends Controller
         $success = 'Salida registrada correctamente (movimiento #' . $result['movement_id'] . ').';
         if (($validated['tipo_salida'] ?? null) === 'Venta' && !empty($dteXmlPath)) {
             $success .= ' XML DTE generado: ' . $dteXmlPath;
+            if (!empty($siiTrackId)) {
+                $success .= ' TRACKID SII: ' . $siiTrackId;
+            }
         }
 
         return redirect()

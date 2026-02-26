@@ -457,6 +457,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
     Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
     Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
+    Route::get('/inventario/sii-status', [App\Http\Controllers\GmailInventoryController::class, 'siiStatus'])->name('inventory.sii.status');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
     Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');
@@ -494,6 +495,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     // Salidas inventario — operaciones admin-only
     Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
+
+    // Configuraciones SII (admin-only)
+    Route::post('/inventario/sii-config', [App\Http\Controllers\GmailInventoryController::class, 'siiConfigUpdate'])->name('inventory.sii.config');
+    Route::post('/inventario/sii-upload-caf', [App\Http\Controllers\GmailInventoryController::class, 'uploadCaf'])->name('inventory.sii.upload.caf');
+    Route::post('/inventario/sii-upload-pfx', [App\Http\Controllers\GmailInventoryController::class, 'uploadPfx'])->name('inventory.sii.upload.pfx');
 
 });
 

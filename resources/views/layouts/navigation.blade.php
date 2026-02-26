@@ -193,7 +193,7 @@
             <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
             {{-- FuelControl --}}
-            @php $fuelActive = request()->routeIs('fuelcontrol.*') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
+            @php $fuelActive = request()->routeIs('fuelcontrol.*'); @endphp
             <div class="mb-0.5">
                 <button @click="toggleSection('fuel')" :title="!expanded ? 'FuelControl' : ''"
                     class="w-full flex items-center rounded-xl transition-all duration-150"
@@ -223,11 +223,6 @@
                     <a href="{{ route('fuelcontrol.movimientos') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('fuelcontrol.movimientos') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Movimientos</a>
-                    @if(auth()->check() && auth()->user()->role === 'admin')
-                        <a href="{{ route('gmail.index') }}" @click="mobileOpen = false"
-                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                            Gmail DTE</a>
-                    @endif
                 </div>
             </div>
         @endif
@@ -343,7 +338,7 @@
                         Listado</a>
                     <a href="{{ route('gmail.inventory.exits') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exits') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
-                        Salidas</a>
+                        Registro Salidas</a>
                     @if(in_array(auth()->user()->role, ['admin', 'bodeguero']))
                         <a href="{{ route('gmail.inventory.exit.create') }}" @click="mobileOpen = false"
                             class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exit.create') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
@@ -373,6 +368,33 @@
                 </div>
                 <span x-show="expanded" class="text-sm font-medium truncate {{ $usersActive ? 'text-rose-700 dark:text-rose-300' : 'text-gray-600 dark:text-gray-400' }}">Usuarios</span>
             </a>
+
+            @php $configActive = request()->routeIs('gmail.inventory.sii.status') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
+            <div class="mb-0.5">
+                <button @click="toggleSection('config')" :title="!expanded ? 'Configuraciones' : ''"
+                    class="w-full flex items-center rounded-xl transition-all duration-150"
+                    :class="expanded ? 'gap-3 px-2.5 py-2 text-sm font-medium' : 'justify-center px-0 py-2'"
+                    :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                        {{ $configActive ? 'bg-indigo-100 dark:bg-indigo-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+                        <svg class="w-[18px] h-[18px] transition-colors {{ $configActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317a1 1 0 011.35-.936l1.618.708a1 1 0 001.042-.145l1.28-1.024a1 1 0 011.451.19l1.06 1.414a1 1 0 00.94.386l1.619-.27a1 1 0 011.133.966l.087 1.767a1 1 0 00.555.835l1.52.79a1 1 0 01.433 1.37l-.79 1.52a1 1 0 000 .928l.79 1.52a1 1 0 01-.433 1.37l-1.52.79a1 1 0 00-.555.835l-.087 1.767a1 1 0 01-1.133.966l-1.619-.27a1 1 0 00-.94.386l-1.06 1.414a1 1 0 01-1.451.19l-1.28-1.024a1 1 0 00-1.042-.145l-1.618.708a1 1 0 01-1.35-.936l-.24-1.733a1 1 0 00-.666-.796l-1.666-.555a1 1 0 01-.617-1.304l.555-1.666a1 1 0 00-.14-.908l-1.024-1.28a1 1 0 01.19-1.451l1.414-1.06a1 1 0 00.386-.94l-.27-1.619a1 1 0 01.966-1.133l1.767-.087a1 1 0 00.835-.555l.79-1.52a1 1 0 011.37-.433l1.52.79a1 1 0 00.928 0l1.52-.79z" />
+                        </svg>
+                    </div>
+                    <span x-show="expanded" class="flex-1 text-left truncate {{ $configActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400' }}">Configuraciones</span>
+                    <svg x-show="expanded" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200 shrink-0" :class="{ 'rotate-180': openSection === 'config' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="expanded && openSection === 'config'" x-collapse class="mt-0.5 ml-[22px] pl-3.5 border-l-2 border-indigo-100 dark:border-indigo-900/40 space-y-0.5 pb-1">
+                    <a href="{{ route('gmail.inventory.sii.status') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.sii.status') ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Configuraciones</a>
+                    <a href="{{ route('gmail.index') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) ? 'text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Gmail DTE</a>
+                </div>
+            </div>
 
         @endif
 
@@ -494,8 +516,9 @@
                     { name: 'xml', active: @json(request()->routeIs('guias.*')) },
                     { name: 'dteprov', active: @json(request()->routeIs('gmail.dtes.*')) },
                     { name: 'oc', active: @json(request()->routeIs('purchase_orders.*')) },
-                    { name: 'dteinv', active: @json(request()->routeIs('gmail.inventory.*')) },
-                    { name: 'fuel', active: @json(request()->routeIs('fuelcontrol.*')) || @json(request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) },
+                    { name: 'dteinv', active: @json(request()->routeIs('gmail.inventory.*') && !request()->routeIs('gmail.inventory.sii.status')) },
+                    { name: 'fuel', active: @json(request()->routeIs('fuelcontrol.*')) },
+                    { name: 'config', active: @json(request()->routeIs('gmail.inventory.sii.status')) || @json(request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')) },
                 ];
                 const current = sections.find((s) => s.active);
                 if (current) return current.name;
