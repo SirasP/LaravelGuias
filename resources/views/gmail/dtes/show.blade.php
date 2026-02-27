@@ -811,21 +811,39 @@
 
             <div class="p-4 space-y-3 overflow-y-auto max-h-[calc(92vh-150px)]">
                 <template x-for="(row, idx) in rows" :key="row.line_id">
-                    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-                        <div>
-                            <p class="text-xs text-gray-400">Línea #<span x-text="row.line_id"></span></p>
-                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100" x-text="row.descripcion"></p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                <span x-text="'Unidad: ' + (row.unidad || 'UN')"></span>
-                                <span class="mx-1">·</span>
-                                <span x-text="'Cantidad: ' + row.cantidad"></span>
-                            </p>
+                    <div class="rounded-xl border p-3 space-y-2 transition-colors"
+                         :class="row.skipped
+                             ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 opacity-60'
+                             : 'border-gray-200 dark:border-gray-700'">
+
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="text-xs text-gray-400">Línea #<span x-text="row.line_id"></span></p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-snug" x-text="row.descripcion"></p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    <span x-text="'Unidad: ' + (row.unidad || 'UN')"></span>
+                                    <span class="mx-1">·</span>
+                                    <span x-text="'Cantidad: ' + row.cantidad"></span>
+                                </p>
+                            </div>
+                            <button type="button" @click="toggleSkip(row)"
+                                class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors"
+                                :class="row.skipped
+                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'">
+                                <template x-if="row.skipped">
+                                    <span>↩ Incluir</span>
+                                </template>
+                                <template x-if="!row.skipped">
+                                    <span>Saltar</span>
+                                </template>
+                            </button>
                         </div>
 
-                        <div class="relative">
+                        <div class="relative" x-show="!row.skipped">
                             <input type="text"
-                                class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm px-3 py-2"
-                                :placeholder="'Buscar producto para esta línea...'"
+                                class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm px-3 py-2 focus:outline-none focus:border-violet-400"
+                                placeholder="Buscar producto en inventario..."
                                 x-model="row.search"
                                 @focus="onFocusRow(row)"
                                 @input="onSearch(row)"
@@ -843,30 +861,60 @@
                                     </button>
                                 </template>
                             </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-show="!row.loading && row.search.trim().length >= 2 && row.options.length === 0">
-                                Sin coincidencias para esta búsqueda.
-                            </p>
+
+                            {{-- Sin coincidencias --}}
+                            <div x-show="!row.loading && row.search.trim().length >= 2 && row.options.length === 0"
+                                 class="mt-1.5 flex items-center justify-between gap-2 px-1">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    No existe en inventario.
+                                </p>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button type="button" @click="quickAdd(row)"
+                                        :disabled="row.createLoading"
+                                        class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 disabled:opacity-50 transition">
+                                        <span x-text="row.createLoading ? 'Agregando...' : '+ Agregar al inventario'"></span>
+                                    </button>
+                                    <button type="button" @click="toggleSkip(row)"
+                                        class="text-[11px] font-semibold text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition">
+                                        Saltar
+                                    </button>
+                                </div>
+                            </div>
+                            <p x-show="row.createError" x-text="row.createError"
+                               class="mt-1 text-xs text-red-500 dark:text-red-400 px-1"></p>
+
                             <p class="text-[11px] text-gray-400 mt-1" x-show="!row.search.trim()">
                                 Mostrando 5 sugerencias. Escribe para buscar más.
                             </p>
-                            <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1" x-show="row.product_id">
-                                Seleccionado: <span x-text="row.selected_label"></span>
+                            <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium" x-show="row.product_id && !row.skipped">
+                                ✓ <span x-text="row.selected_label"></span>
                             </p>
                         </div>
+
+                        {{-- Mensaje cuando está saltada --}}
+                        <p x-show="row.skipped"
+                           class="text-[11px] text-amber-600 dark:text-amber-400">
+                            Esta línea no se ingresará al inventario.
+                        </p>
                     </div>
                 </template>
             </div>
 
-            <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
-                <button type="button" @click="close()"
-                    class="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                    Cancelar
-                </button>
-                <button type="button" @click="submit()"
-                    :disabled="!canSubmit || submitting"
-                    class="px-4 py-2 text-xs font-bold rounded-xl text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50">
-                    <span x-text="submitting ? 'Guardando...' : 'Agregar stock y aprender'"></span>
-                </button>
+            <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                <p class="text-[11px] text-gray-400" x-show="rows.some(r => r.skipped)">
+                    <span x-text="rows.filter(r => r.skipped).length"></span> línea(s) se saltarán.
+                </p>
+                <div class="flex gap-2 ml-auto">
+                    <button type="button" @click="close()"
+                        class="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" @click="submit()"
+                        :disabled="!canSubmit || submitting"
+                        class="px-4 py-2 text-xs font-bold rounded-xl text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 transition">
+                        <span x-text="submitting ? 'Guardando...' : 'Agregar stock y aprender'"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -980,6 +1028,7 @@
                     rows: data.unresolved,
                     productsUrl: productsUrl,
                     submitUrl: '{{ route('gmail.dtes.add_stock_mapping', $document->id) }}',
+                    createProductUrl: '{{ route('gmail.inventory.api.products.create') }}',
                     csrf: '{{ csrf_token() }}',
                 }
             }));
@@ -995,13 +1044,17 @@
             open: false,
             rows: [],
             productsUrl: '',
+            createProductUrl: '',
             submitUrl: '',
             csrf: '',
             allProducts: [],
             submitting: false,
 
             get canSubmit() {
-                return this.rows.length > 0 && this.rows.every(r => Number(r.product_id) > 0);
+                // Válido si al menos una fila está resuelta y todas las no-saltadas tienen product_id
+                const active = this.rows.filter(r => !r.skipped);
+                const resolved = this.rows.filter(r => !r.skipped && Number(r.product_id) > 0);
+                return this.rows.length > 0 && active.every(r => Number(r.product_id) > 0) && resolved.length > 0;
             },
 
             async openWith(detail) {
@@ -1015,8 +1068,12 @@
                     timer: null,
                     searchReqId: 0,
                     showOptions: false,
+                    skipped: false,
+                    createLoading: false,
+                    createError: '',
                 }));
                 this.productsUrl = detail?.productsUrl || '';
+                this.createProductUrl = detail?.createProductUrl || '';
                 this.submitUrl = detail?.submitUrl || '';
                 this.csrf = detail?.csrf || '';
                 this.open = true;
@@ -1100,11 +1157,58 @@
                 row.search = opt.nombre || '';
                 row.options = [];
                 row.showOptions = false;
+                row.skipped = false;
+            },
+
+            toggleSkip(row) {
+                row.skipped = !row.skipped;
+                if (row.skipped) {
+                    row.product_id = null;
+                    row.selected_label = '';
+                    row.search = '';
+                    row.showOptions = false;
+                }
+            },
+
+            async quickAdd(row) {
+                if (row.createLoading) return;
+                row.createLoading = true;
+                row.createError = '';
+                try {
+                    const res = await fetch(this.createProductUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf,
+                        },
+                        body: JSON.stringify({
+                            nombre: row.descripcion || row.search.trim(),
+                            codigo: row.codigo || null,
+                            unidad: row.unidad || 'UN',
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        const firstError = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
+                        row.createError = firstError || 'No se pudo agregar el producto.';
+                        return;
+                    }
+                    this.allProducts.push(data);
+                    this.selectOption(row, data);
+                } catch (_) {
+                    row.createError = 'Error de conexión. Intenta de nuevo.';
+                } finally {
+                    row.createLoading = false;
+                }
             },
 
             submit() {
                 if (!this.canSubmit || this.submitting) return;
                 this.submitting = true;
+
+                // Solo enviar las filas que no fueron saltadas
+                const activeRows = this.rows.filter(r => !r.skipped);
 
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -1116,7 +1220,7 @@
                 csrf.value = this.csrf;
                 form.appendChild(csrf);
 
-                this.rows.forEach((r, idx) => {
+                activeRows.forEach((r, idx) => {
                     const lineInput = document.createElement('input');
                     lineInput.type = 'hidden';
                     lineInput.name = `mappings[${idx}][line_id]`;

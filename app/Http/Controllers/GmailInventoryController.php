@@ -588,6 +588,62 @@ class GmailInventoryController extends Controller
         return response()->json($products);
     }
 
+    // POST /gmail/inventario/api/productos  – creación rápida desde modal
+    public function createProductApi(Request $request)
+    {
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'codigo' => 'nullable|string|max:100',
+            'unidad' => 'nullable|string|max:20',
+        ]);
+
+        $nombre = trim($validated['nombre']);
+        $unidad = strtoupper(trim($validated['unidad'] ?? 'UN')) ?: 'UN';
+        $codigo = trim($validated['codigo'] ?? '') ?: null;
+
+        // Si ya existe con mismo nombre+unidad, devolvemos el existente
+        $existing = $this->db()
+            ->table('gmail_inventory_products')
+            ->where('nombre', $nombre)
+            ->where('unidad', $unidad)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'id'             => $existing->id,
+                'nombre'         => $existing->nombre,
+                'codigo'         => $existing->codigo,
+                'unidad'         => $existing->unidad,
+                'stock_actual'   => $existing->stock_actual,
+                'costo_promedio' => $existing->costo_promedio,
+                'already_existed' => true,
+            ]);
+        }
+
+        $id = $this->db()->table('gmail_inventory_products')->insertGetId([
+            'nombre'         => $nombre,
+            'codigo'         => $codigo,
+            'unidad'         => $unidad,
+            'stock_actual'   => 0,
+            'costo_promedio' => 0,
+            'is_active'      => 1,
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        $product = $this->db()->table('gmail_inventory_products')->find($id);
+
+        return response()->json([
+            'id'             => $product->id,
+            'nombre'         => $product->nombre,
+            'codigo'         => $product->codigo,
+            'unidad'         => $product->unidad,
+            'stock_actual'   => $product->stock_actual,
+            'costo_promedio' => $product->costo_promedio,
+            'already_existed' => false,
+        ], 201);
+    }
+
     // GET /gmail/inventario/api/destinatarios
     public function destinatariosApi(Request $request)
     {

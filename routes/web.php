@@ -452,6 +452,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario', [GmailDteDocumentController::class, 'inventoryIndex'])->name('inventory.index');
     Route::get('/inventario/listado', [GmailDteDocumentController::class, 'inventoryList'])->name('inventory.list');
     Route::get('/inventario/api/productos', [App\Http\Controllers\GmailInventoryController::class, 'productsApi'])->name('inventory.api.products');
+    Route::post('/inventario/api/productos', [App\Http\Controllers\GmailInventoryController::class, 'createProductApi'])->name('inventory.api.products.create');
     Route::get('/inventario/api/destinatarios', [App\Http\Controllers\GmailInventoryController::class, 'destinatariosApi'])->name('inventory.api.destinatarios');
     Route::get('/inventario/api/lotes/{productId}', [App\Http\Controllers\GmailInventoryController::class, 'lotsApi'])->name('inventory.api.lots')->whereNumber('productId');
     Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
