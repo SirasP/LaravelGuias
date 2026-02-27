@@ -465,7 +465,6 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustCreate'])->name('inventory.adjust.create');
     Route::post('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustStore'])->name('inventory.adjust.store');
     Route::get('/inventario/ajustes', [App\Http\Controllers\GmailInventoryController::class, 'adjustList'])->name('inventory.adjustments');
-    Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
     Route::get('/inventario/salidas/{id}/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
     Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
@@ -507,6 +506,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
     Route::get('/inventario/salidas/{id}/editar', [App\Http\Controllers\GmailInventoryController::class, 'exitEdit'])->name('inventory.exits.edit')->whereNumber('id');
     Route::put('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitUpdate'])->name('inventory.exits.update')->whereNumber('id');
+    Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
     // Configuraciones SII (admin-only)
     Route::post('/inventario/sii-config', [App\Http\Controllers\GmailInventoryController::class, 'siiConfigUpdate'])->name('inventory.sii.config');
     Route::post('/inventario/sii-upload-caf', [App\Http\Controllers\GmailInventoryController::class, 'uploadCaf'])->name('inventory.sii.upload.caf');

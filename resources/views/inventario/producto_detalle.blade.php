@@ -132,6 +132,7 @@
                 <p class="kpi-sub">{{ $lotes->count() }} lote{{ $lotes->count() !== 1 ? 's' : '' }} activo{{ $lotes->count() !== 1 ? 's' : '' }} en cola FIFO</p>
             </div>
 
+            @if(auth()->user()->canSeeValues())
             <div class="kpi">
                 <div class="top-bar bg-indigo-500"></div>
                 <p class="kpi-label">Costo promedio FIFO</p>
@@ -166,6 +167,7 @@
                     @endif
                 </p>
             </div>
+            @endif
 
             {{-- KPI Stock mínimo editable --}}
             @php $hayMinimo = $producto->stock_minimo !== null; $bajoMin = $hayMinimo && (float)$producto->stock_actual < (float)$producto->stock_minimo; @endphp
@@ -258,8 +260,10 @@
                             <th class="text-right col-hide-sm">Ingresado</th>
                             <th class="text-right col-hide-sm">Consumido</th>
                             <th class="text-right">Disponible</th>
+                            @if(auth()->user()->canSeeValues())
                             <th class="text-right">Costo unit.</th>
                             <th class="text-right pr-5 col-hide-sm">Valor lote</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -327,12 +331,14 @@
                                     <div class="h-1 bg-emerald-500 rounded-full" style="width:{{ number_format($pctDisp, 1) }}%"></div>
                                 </div>
                             </td>
+                            @if(auth()->user()->canSeeValues())
                             <td class="text-right tabular-nums font-bold text-gray-900 dark:text-gray-100">
                                 ${{ number_format((float)$lote->costo_unitario, 0, ',', '.') }}
                             </td>
                             <td class="text-right tabular-nums font-black text-indigo-700 dark:text-indigo-400 pr-5 col-hide-sm">
                                 ${{ number_format((float)($lote->cantidad_disponible * $lote->costo_unitario), 0, ',', '.') }}
                             </td>
+                            @endif
                         </tr>
                         @endforeach
                     </tbody>
@@ -343,9 +349,11 @@
                                 {{ number_format($stockTotal, 2, ',', '.') }}
                             </td>
                             <td></td>
+                            @if(auth()->user()->canSeeValues())
                             <td class="px-5 py-3 text-right font-black tabular-nums text-indigo-700 dark:text-indigo-400">
                                 ${{ number_format($valorTotal, 0, ',', '.') }}
                             </td>
+                            @endif
                         </tr>
                     </tfoot>
                 </table>
@@ -354,6 +362,7 @@
         @endif
 
         {{-- ── HISTORIAL DE PRECIOS + ESTADÍSTICAS ── --}}
+        @if(auth()->user()->canSeeValues())
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
         {{-- Historial (2/3) --}}
@@ -607,6 +616,7 @@
         </div>{{-- /panel estadísticas --}}
 
         </div>{{-- /grid historial+stats --}}
+        @endif
 
         {{-- ── MOVIMIENTOS RECIENTES ── --}}
         @if($movimientos->count() > 0)
@@ -629,8 +639,10 @@
                             <th>Fecha</th>
                             <th>Tipo</th>
                             <th class="text-right">Cantidad</th>
+                            @if(auth()->user()->canSeeValues())
                             <th class="text-right col-hide-sm">Costo unit.</th>
                             <th class="text-right">Costo total</th>
+                            @endif
                             <th class="col-hide-sm">Proveedor / Factura</th>
                             <th class="pr-5 col-hide-sm">Notas</th>
                         </tr>
@@ -651,12 +663,14 @@
                             <td class="text-right tabular-nums font-bold {{ $isEntrada ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
                                 {{ $isEntrada ? '+' : '−' }}{{ number_format((float)$m->cantidad, 2, ',', '.') }}
                             </td>
+                            @if(auth()->user()->canSeeValues())
                             <td class="text-right tabular-nums text-gray-600 dark:text-gray-400 col-hide-sm">
                                 {{ $m->costo_unitario ? '$'.number_format((float)$m->costo_unitario,0,',','.') : '—' }}
                             </td>
                             <td class="text-right tabular-nums font-semibold text-gray-800 dark:text-gray-200">
                                 {{ $m->costo_total ? '$'.number_format((float)$m->costo_total,0,',','.') : '—' }}
                             </td>
+                            @endif
                             <td class="max-w-[180px] col-hide-sm">
                                 @if($m->proveedor)
                                     <span class="text-xs font-medium text-gray-700 dark:text-gray-300 block truncate">{{ $m->proveedor }}</span>

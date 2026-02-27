@@ -275,18 +275,21 @@
                                         <td class="px-4 py-3.5 text-right font-semibold text-gray-800 dark:text-gray-200 tabular-nums">
                                             {{ number_format((float)$line->cantidad, 2, ',', '.') }}
                                         </td>
+                                        @if(auth()->user()->canSeeValues())
                                         <td class="px-4 py-3.5 text-right text-gray-500 dark:text-gray-400 tabular-nums text-xs">
                                             $ {{ number_format((float)$line->costo_unitario, 2, ',', '.') }}
                                         </td>
                                         <td class="px-4 py-3.5 text-right font-bold text-gray-900 dark:text-gray-100 tabular-nums">
                                             $ {{ number_format((float)$line->costo_total, 0, ',', '.') }}
                                         </td>
+                                        @endif
                                         <td class="px-5 py-3.5 text-right text-xs text-gray-400 tabular-nums">
                                             {{ $line->lote_fecha ? \Carbon\Carbon::parse($line->lote_fecha)->format('d/m/Y') : '—' }}
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
+                            @if(auth()->user()->canSeeValues())
                             <tfoot>
                                 <tr class="bg-gray-50 dark:bg-gray-800/50 border-t-2 border-gray-100 dark:border-gray-800">
                                     <td colspan="4" class="px-5 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total del movimiento</td>
@@ -296,6 +299,7 @@
                                     <td></td>
                                 </tr>
                             </tfoot>
+                            @endif
                         </table>
                     </div>
 
@@ -308,23 +312,29 @@
                                         <p class="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight">{{ $line->producto }}</p>
                                         <p class="text-xs text-gray-400 mt-0.5">{{ $line->codigo ?? '' }} · {{ $line->unidad ?? '' }}</p>
                                     </div>
+                                    @if(auth()->user()->canSeeValues())
                                     <p class="text-sm font-bold text-gray-900 dark:text-gray-100 tabular-nums shrink-0">
                                         $ {{ number_format((float)$line->costo_total, 0, ',', '.') }}
                                     </p>
+                                    @endif
                                 </div>
                                 <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                     <span class="font-semibold">{{ number_format((float)$line->cantidad, 2, ',', '.') }} {{ $line->unidad ?? '' }}</span>
+                                    @if(auth()->user()->canSeeValues())
                                     <span>$ {{ number_format((float)$line->costo_unitario, 2, ',', '.') }} / u</span>
+                                    @endif
                                     @if ($line->lote_fecha)
                                         <span class="text-gray-400">Lote {{ \Carbon\Carbon::parse($line->lote_fecha)->format('d/m/Y') }}</span>
                                     @endif
                                 </div>
                             </div>
                         @endforeach
+                        @if(auth()->user()->canSeeValues())
                         <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/40 flex items-center justify-between">
                             <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</span>
                             <span class="text-base font-black text-rose-600 dark:text-rose-400 tabular-nums">$ {{ number_format($costoTotal, 0, ',', '.') }}</span>
                         </div>
+                        @endif
                     </div>
                 @endif
             </div>

@@ -4,7 +4,7 @@
         showSell: false,
         pvInput: '',
         pvSaved: {{ $precioVenta !== null ? (float) $precioVenta : 'null' }},
-        costo: {{ $costoTotal }},
+        costo: {{ auth()->user()->canSeeValues() ? $costoTotal : 0 }},
         saving: false,
         err: '',
         get margen() {
@@ -88,10 +88,12 @@
                         <p class="text-[10px] text-gray-400 uppercase tracking-wide">Cantidad total</p>
                         <p class="text-sm font-bold text-gray-800 dark:text-gray-100">{{ number_format($qtyTotal, 2, ',', '.') }}</p>
                     </div>
+                    @if(auth()->user()->canSeeValues())
                     <div class="rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-2 text-right">
                         <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo total</p>
                         <p class="text-sm font-bold text-gray-800 dark:text-gray-100">$ {{ number_format($costoTotal, 0, ',', '.') }}</p>
                     </div>
+                    @endif
                 </div>
             </div>
 
@@ -100,8 +102,10 @@
                     <tr class="border-b border-gray-100 dark:border-gray-800">
                         <th class="text-left text-gray-400 font-semibold py-1.5 pr-2">Producto</th>
                         <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">Cant.</th>
+                        @if(auth()->user()->canSeeValues())
                         <th class="text-right text-gray-400 font-semibold py-1.5 pr-2">C. Unit.</th>
                         <th class="text-right text-gray-400 font-semibold py-1.5">Total</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -114,12 +118,14 @@
                             <td class="py-1.5 pr-2 text-right font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                 {{ number_format((float) $line->cantidad, 2, ',', '.') }}
                             </td>
+                            @if(auth()->user()->canSeeValues())
                             <td class="py-1.5 pr-2 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                 $ {{ number_format((float) $line->costo_unitario, 2, ',', '.') }}
                             </td>
                             <td class="py-1.5 text-right font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
                                 $ {{ number_format((float) $line->costo_total, 0, ',', '.') }}
                             </td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>
@@ -130,12 +136,14 @@
     {{-- Footer --}}
     <div class="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
         <div class="flex items-center justify-between flex-wrap gap-x-3 gap-y-1">
+            @if(auth()->user()->canSeeValues())
             <div>
                 <p class="text-[10px] text-gray-400 uppercase tracking-wide">Costo</p>
                 <p class="text-sm font-bold text-rose-600 dark:text-rose-400">
                     $ {{ number_format($costoTotal, 0, ',', '.') }}
                 </p>
             </div>
+            @endif
             <template x-if="pvSaved !== null">
                 <div class="text-right">
                     <p class="text-[10px] text-gray-400 uppercase tracking-wide">Venta</p>
