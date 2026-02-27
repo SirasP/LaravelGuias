@@ -16,14 +16,15 @@ class CheckStockJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle(InventoryConfigService $settings): void
+    public function handle(): void
     {
+        $settings = app(InventoryConfigService::class);
         Log::info('CheckStockJob iniciado');
 
         $emails = $settings->getLowStockEmails();
 
         $productos = [
-            'Diésel'   => $settings->getFuelMinimo('diesel'),
+            'Diésel' => $settings->getFuelMinimo('diesel'),
             'Gasolina' => $settings->getFuelMinimo('gasolina'),
         ];
 
@@ -35,8 +36,8 @@ class CheckStockJob
 
             Log::info('Stock leído', [
                 'producto' => $nombreProducto,
-                'stock'    => $stockActual,
-                'minimo'   => $minimo,
+                'stock' => $stockActual,
+                'minimo' => $minimo,
             ]);
 
             if ($stockActual === null || $stockActual >= $minimo) {
@@ -67,8 +68,8 @@ class CheckStockJob
             DB::connection('fuelcontrol')
                 ->table('stock_alerts')
                 ->insert([
-                    'producto'   => $nombreProducto,
-                    'fecha'      => now()->toDateString(),
+                    'producto' => $nombreProducto,
+                    'fecha' => now()->toDateString(),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
