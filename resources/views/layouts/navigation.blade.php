@@ -349,6 +349,9 @@
                         <a href="{{ route('gmail.inventory.adjust.create') }}" @click="mobileOpen = false"
                             class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.adjust.create') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                             Ajuste Stock</a>
+                        <a href="{{ route('gmail.inventory.adjustments') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.adjustments') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Historial Ajustes</a>
                     @endif
                 </div>
             </div>

@@ -464,6 +464,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/sii-status', [App\Http\Controllers\GmailInventoryController::class, 'siiStatus'])->name('inventory.sii.status');
     Route::get('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustCreate'])->name('inventory.adjust.create');
     Route::post('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustStore'])->name('inventory.adjust.store');
+    Route::get('/inventario/ajustes', [App\Http\Controllers\GmailInventoryController::class, 'adjustList'])->name('inventory.adjustments');
     Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
     Route::get('/inventario/salidas/{id}/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
