@@ -106,10 +106,12 @@
                             <p class="text-xs uppercase tracking-wide text-gray-400">Stock total acumulado</p>
                             <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 mt-1">{{ number_format($stockTotalUnidades, 4, ',', '.') }}</p>
                         </div>
+                        @if(auth()->user()->canSeeValues())
                         <div class="card">
                             <p class="text-xs uppercase tracking-wide text-gray-400">Valor inventario (referencial)</p>
                             <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 mt-1">$ {{ number_format($valorInventario, 0, ',', '.') }}</p>
                         </div>
+                        @endif
                     </div>
 
                     @php

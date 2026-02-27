@@ -169,6 +169,7 @@
                             {{ $kpiVentas->cnt ?? 0 }}
                         </p>
                     </div>
+                    @if(auth()->user()->canSeeValues())
                     <div class="kpi-card">
                         <p class="text-xs text-gray-400 mb-1">Costo salido este mes</p>
                         <p class="text-2xl font-bold text-rose-600 dark:text-rose-400">
@@ -191,6 +192,7 @@
                             </p>
                         @endif
                     </div>
+                    @endif
                     <div class="kpi-card">
                         <p class="text-xs text-gray-400 mb-1">Más vendido este mes</p>
                         @if ($topVenta)
@@ -214,9 +216,11 @@
                 @else
                     <p class="text-xs text-gray-500 dark:text-gray-400 px-1">
                         {{ $movements->count() }} {{ $movements->count() === 1 ? 'venta' : 'ventas' }} mostradas
-                        &middot; Costo: $&nbsp;{{ number_format((float)$costoVentas, 0, ',', '.') }}
-                        @if ((float)$pvVentas > 0)
-                            &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
+                        @if(auth()->user()->canSeeValues())
+                            &middot; Costo: $&nbsp;{{ number_format((float)$costoVentas, 0, ',', '.') }}
+                            @if ((float)$pvVentas > 0)
+                                &middot; Vendido: $&nbsp;{{ number_format((float)$pvVentas, 0, ',', '.') }}
+                            @endif
                         @endif
                     </p>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -243,7 +247,7 @@
                         <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
                             {{ $kpiEpp->cnt ?? 0 }}
                         </p>
-                        @if ((float)($kpiEpp->costo ?? 0) > 0)
+                        @if(auth()->user()->canSeeValues() && (float)($kpiEpp->costo ?? 0) > 0)
                             <p class="text-xs text-gray-400 mt-0.5">
                                 Costo: $&nbsp;{{ number_format((float)$kpiEpp->costo, 0, ',', '.') }}
                             </p>
@@ -254,7 +258,7 @@
                         <p class="text-2xl font-bold text-slate-600 dark:text-slate-400">
                             {{ $kpiSalida->cnt ?? 0 }}
                         </p>
-                        @if ((float)($kpiSalida->costo ?? 0) > 0)
+                        @if(auth()->user()->canSeeValues() && (float)($kpiSalida->costo ?? 0) > 0)
                             <p class="text-xs text-gray-400 mt-0.5">
                                 Costo: $&nbsp;{{ number_format((float)$kpiSalida->costo, 0, ',', '.') }}
                             </p>

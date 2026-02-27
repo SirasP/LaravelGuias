@@ -285,11 +285,13 @@
                                         {{ number_format((float) $p->stock_minimo, 4, ',', '.') }}
                                     </p>
                                 </div>
+                                @if(auth()->user()->canSeeValues())
                                 <div>
                                     <p class="kv">Costo promedio</p>
                                     <p class="vv">$ {{ number_format((float) $p->costo_promedio, 2, ',', '.') }}</p>
                                 </div>
-                                @else
+                                @endif
+                                @elseif(auth()->user()->canSeeValues())
                                 <div class="col-span-2">
                                     <p class="kv">Costo promedio</p>
                                     <p class="vv">$ {{ number_format((float) $p->costo_promedio, 2, ',', '.') }}</p>

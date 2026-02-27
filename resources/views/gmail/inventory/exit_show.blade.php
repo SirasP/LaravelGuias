@@ -143,6 +143,7 @@
                             <p class="stat-label">Unidades</p>
                             <p class="stat-value">{{ number_format((float)$lines->sum('cantidad'), 2, ',', '.') }}</p>
                         </div>
+                        @if(auth()->user()->canSeeValues())
                         <div class="bg-rose-50 dark:bg-rose-900/20 rounded-2xl px-4 py-3">
                             <p class="stat-label" style="color:#f43f5e">Costo total</p>
                             <p class="text-sm font-bold text-rose-600 dark:text-rose-400 text-lg">$ {{ number_format($costoTotal, 0, ',', '.') }}</p>
@@ -157,10 +158,11 @@
                                 @endif
                             </div>
                         @endif
+                        @endif
                     </div>
 
                     {{-- Margen badge --}}
-                    @if ($margen !== null)
+                    @if ($margen !== null && auth()->user()->canSeeValues())
                         <div class="mt-3 rounded-2xl {{ $margen >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800' }} px-4 py-3 flex items-center justify-between">
                             <p class="text-xs font-bold {{ $margen >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400' }} uppercase tracking-wide">Margen de ganancia</p>
                             <p class="text-2xl font-black {{ $margen >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ $margen }}%</p>
@@ -255,8 +257,10 @@
                                     <th class="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Producto</th>
                                     <th class="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Código</th>
                                     <th class="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Cantidad</th>
+                                    @if(auth()->user()->canSeeValues())
                                     <th class="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">C. Unit.</th>
                                     <th class="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Total</th>
+                                    @endif
                                     <th class="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">Lote</th>
                                 </tr>
                             </thead>
