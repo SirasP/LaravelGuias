@@ -713,7 +713,7 @@ class GmailInventoryController extends Controller
         $movement = $this->db()
             ->table('gmail_inventory_movements')
             ->where('id', $id)
-            ->where('tipo', 'SALIDA')
+            ->whereIn('tipo', ['SALIDA', 'AJUSTE'])
             ->first();
 
         abort_if(!$movement, 404);
