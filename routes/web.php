@@ -469,6 +469,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/salidas/{id}/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
     Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
+    Route::get('/inventario/salidas-resumen/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupPdf'])->name('inventory.exits.group.pdf');
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');
 
 });
@@ -506,8 +507,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
     Route::get('/inventario/salidas/{id}/editar', [App\Http\Controllers\GmailInventoryController::class, 'exitEdit'])->name('inventory.exits.edit')->whereNumber('id');
     Route::put('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitUpdate'])->name('inventory.exits.update')->whereNumber('id');
-    Route::get('/inventario/salidas-resumen/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupPdf'])->name('inventory.exits.group.pdf');
-
     // Configuraciones SII (admin-only)
     Route::post('/inventario/sii-config', [App\Http\Controllers\GmailInventoryController::class, 'siiConfigUpdate'])->name('inventory.sii.config');
     Route::post('/inventario/sii-upload-caf', [App\Http\Controllers\GmailInventoryController::class, 'uploadCaf'])->name('inventory.sii.upload.caf');
