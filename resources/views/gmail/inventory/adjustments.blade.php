@@ -47,6 +47,7 @@
                     <p class="text-[11px] text-rose-600">{{ number_format((float)($kpiNeg->qty ?? 0), 0, ',', '.') }} uds</p>
                 </div>
             </div>
+            @if(auth()->user()->role !== 'bodeguero')
             <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
                     <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,6 +70,7 @@
                     <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">${{ number_format((float)($kpiNeg->costo ?? 0), 0, ',', '.') }}</p>
                 </div>
             </div>
+            @endif
         </div>
 
         {{-- Filtros --}}
@@ -134,7 +136,9 @@
                                     <th class="px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Cantidad</th>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Motivo</th>
                                     <th class="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Notas</th>
+                                    @if(auth()->user()->role !== 'bodeguero')
                                     <th class="px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Costo</th>
+                                    @endif
                                     <th class="px-4 py-3"></th>
                                 </tr>
                             </thead>
@@ -183,6 +187,7 @@
                                         <td class="px-4 py-3 text-xs text-gray-400 max-w-[140px] truncate" title="{{ $m->notas ?? '' }}">
                                             {{ $m->notas ?? '—' }}
                                         </td>
+                                        @if(auth()->user()->role !== 'bodeguero')
                                         <td class="px-4 py-3 text-right text-xs text-gray-500">
                                             @if((float)$m->costo_total > 0)
                                                 ${{ number_format((float)$m->costo_total, 0, ',', '.') }}
@@ -190,6 +195,7 @@
                                                 —
                                             @endif
                                         </td>
+                                        @endif
                                         <td class="px-4 py-3">
                                             <a href="{{ route('gmail.inventory.exits.show', $m->id) }}"
                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 text-gray-500 hover:text-violet-600 dark:hover:text-violet-400 text-[11px] font-semibold transition">
