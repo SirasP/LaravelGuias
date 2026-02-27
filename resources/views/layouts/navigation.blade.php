@@ -339,10 +339,16 @@
                     <a href="{{ route('gmail.inventory.exits') }}" @click="mobileOpen = false"
                         class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exits') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                         Registro Salidas</a>
+                    <a href="{{ route('gmail.inventory.valuation') }}" @click="mobileOpen = false"
+                        class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.valuation') ? 'text-violet-700 dark:text-violet-300 font-semibold bg-violet-50 dark:bg-violet-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                        Valorizado</a>
                     @if(in_array(auth()->user()->role, ['admin', 'bodeguero']))
                         <a href="{{ route('gmail.inventory.exit.create') }}" @click="mobileOpen = false"
                             class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.exit.create') ? 'text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
                             Nueva Salida</a>
+                        <a href="{{ route('gmail.inventory.adjust.create') }}" @click="mobileOpen = false"
+                            class="block px-3 py-1.5 rounded-lg text-[13px] transition-colors {{ request()->routeIs('gmail.inventory.adjust.create') ? 'text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50' }}">
+                            Ajuste Stock</a>
                     @endif
                 </div>
             </div>

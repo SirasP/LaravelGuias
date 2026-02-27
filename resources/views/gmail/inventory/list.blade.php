@@ -213,6 +213,12 @@
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'sin_stock' ? 'bg-amber-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
                     Sin stock ({{ $totalSinStock }})
                 </a>
+                @if($totalBajoMinimo > 0)
+                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'bajo_minimo'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'bajo_minimo' ? 'bg-orange-600 text-white' : 'bg-white text-orange-600 border border-orange-200 dark:bg-orange-900/10 dark:text-orange-400 dark:border-orange-800' }}">
+                    ⚠ Bajo mínimo ({{ $totalBajoMinimo }})
+                </a>
+                @endif
             </div>
 
             @if($products->count() > 0)
@@ -255,6 +261,9 @@
                                 </form>
                             </div>
 
+                            @php
+                                $bajoMinimo = $p->stock_minimo !== null && (float)$p->stock_actual < (float)$p->stock_minimo;
+                            @endphp
                             <div class="mt-4 grid grid-cols-2 gap-3">
                                 <div>
                                     <p class="kv">Unidad</p>
@@ -262,15 +271,30 @@
                                 </div>
                                 <div>
                                     <p class="kv">Stock actual</p>
-                                    <p
-                                        class="vv {{ (float) $p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : '' }}">
+                                    <p class="vv flex items-center gap-1 {{ (float) $p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : ($bajoMinimo ? 'text-orange-500 dark:text-orange-400' : '') }}">
                                         {{ number_format((float) $p->stock_actual, 4, ',', '.') }}
+                                        @if($bajoMinimo)
+                                            <span class="text-[9px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1 py-0.5 rounded border border-orange-200 dark:border-orange-800">min</span>
+                                        @endif
                                     </p>
                                 </div>
+                                @if($p->stock_minimo !== null)
+                                <div>
+                                    <p class="kv">Stock mínimo</p>
+                                    <p class="vv {{ $bajoMinimo ? 'text-orange-500 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500' }}">
+                                        {{ number_format((float) $p->stock_minimo, 4, ',', '.') }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="kv">Costo promedio</p>
+                                    <p class="vv">$ {{ number_format((float) $p->costo_promedio, 2, ',', '.') }}</p>
+                                </div>
+                                @else
                                 <div class="col-span-2">
                                     <p class="kv">Costo promedio</p>
                                     <p class="vv">$ {{ number_format((float) $p->costo_promedio, 2, ',', '.') }}</p>
                                 </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach

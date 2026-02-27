@@ -69,6 +69,9 @@ Route::middleware(['auth', 'role:admin'])
         Route::patch('/productos/{id}/toggle', [App\Http\Controllers\Inventario\ProductosController::class, 'toggle'])
             ->name('productos.toggle');
 
+        Route::patch('/productos/{id}/minimo', [App\Http\Controllers\Inventario\ProductosController::class, 'updateMinimo'])
+            ->name('producto.minimo')->whereNumber('id');
+
         Route::get('/dte', function () {
             return view('inventario.dte');
         })->name('dte');
@@ -458,6 +461,10 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
     Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
     Route::get('/inventario/sii-status', [App\Http\Controllers\GmailInventoryController::class, 'siiStatus'])->name('inventory.sii.status');
+    Route::get('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustCreate'])->name('inventory.adjust.create');
+    Route::post('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustStore'])->name('inventory.adjust.store');
+    Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
+    Route::get('/inventario/salidas/{id}/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
     Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
     Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');

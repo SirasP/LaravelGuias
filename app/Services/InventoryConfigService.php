@@ -67,6 +67,14 @@ class InventoryConfigService
         return $pwd === '' ? null : $pwd;
     }
 
+    public function getFuelMinimo(string $producto): float
+    {
+        $key = 'fuel_minimo_' . strtolower(str_replace(['é', 'á', 'ó', 'í', 'ú'], ['e', 'a', 'o', 'i', 'u'], $producto));
+        $defaults = ['fuel_minimo_diesel' => '1000', 'fuel_minimo_gasolina' => '20'];
+        $raw = $this->get($key, $defaults[$key] ?? '0') ?? '0';
+        return max(0.0, (float) $raw);
+    }
+
     private function existsTable(): bool
     {
         return Schema::connection('fuelcontrol')->hasTable($this->table);

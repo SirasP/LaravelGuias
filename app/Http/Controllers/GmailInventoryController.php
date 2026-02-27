@@ -49,16 +49,20 @@ class GmailInventoryController extends Controller
             'tokenUrl' => (string) config('dte.sii.endpoints.token'),
             'recepcionUrl' => (string) config('dte.sii.endpoints.recepcion'),
             'estadoUrl' => (string) config('dte.sii.endpoints.estado'),
-            'lowStockEmails' => implode(', ', $settings->getLowStockEmails()),
-            'hasPfxPassword' => $settings->getDtePfxPassword() !== null,
+            'lowStockEmails'    => implode(', ', $settings->getLowStockEmails()),
+            'hasPfxPassword'    => $settings->getDtePfxPassword() !== null,
+            'fuelMinimoDiesel'  => $settings->getFuelMinimo('diesel'),
+            'fuelMinimoGasolina'=> $settings->getFuelMinimo('gasolina'),
         ]);
     }
 
     public function siiConfigUpdate(Request $request, InventoryConfigService $settings)
     {
         $validated = $request->validate([
-            'low_stock_emails' => 'nullable|string|max:2000',
+            'low_stock_emails'           => 'nullable|string|max:2000',
             'dte_signature_pfx_password' => 'nullable|string|max:255',
+            'fuel_minimo_diesel'         => 'nullable|numeric|min:0',
+            'fuel_minimo_gasolina'       => 'nullable|numeric|min:0',
         ]);
 
         $emails = trim((string) ($validated['low_stock_emails'] ?? ''));
@@ -67,6 +71,14 @@ class GmailInventoryController extends Controller
         $pwd = (string) ($validated['dte_signature_pfx_password'] ?? '');
         if ($pwd !== '') {
             $settings->set('dte_signature_pfx_password', $pwd);
+        }
+
+        if (isset($validated['fuel_minimo_diesel'])) {
+            $settings->set('fuel_minimo_diesel', (string) max(0.0, (float) $validated['fuel_minimo_diesel']));
+        }
+
+        if (isset($validated['fuel_minimo_gasolina'])) {
+            $settings->set('fuel_minimo_gasolina', (string) max(0.0, (float) $validated['fuel_minimo_gasolina']));
         }
 
         return back()->with('success', 'Configuraciones actualizadas.');
@@ -555,10 +567,12 @@ class GmailInventoryController extends Controller
         $q     = trim((string) $request->query('q', ''));
         $limit = min(50, max(1, (int) $request->query('limit', 6)));
 
+        $withStock = (string) $request->query('with_stock', '1');
+
         $query = $this->db()
             ->table('gmail_inventory_products')
             ->where('is_active', 1)
-            ->where('stock_actual', '>', 0)
+            ->when($withStock !== '0', fn($qb) => $qb->where('stock_actual', '>', 0))
             ->orderBy('nombre')
             ->limit($limit);
 
@@ -1045,5 +1059,102 @@ class GmailInventoryController extends Controller
         return response()->json(
             $this->db()->table('gmail_inventory_contacts')->find($contactId)
         );
+    }
+
+    // ─── AJUSTE DE INVENTARIO ───────────────────────────────────────────────
+
+    // GET /gmail/inventario/ajuste
+    public function adjustCreate()
+    {
+        return view('gmail.inventory.adjust_form');
+    }
+
+    // POST /gmail/inventario/ajuste
+    public function adjustStore(Request $request, GmailDteInventoryService $service)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|integer',
+            'quantity'   => 'required|numeric|gt:0',
+            'direccion'  => 'required|in:POSITIVO,NEGATIVO',
+            'motivo'     => 'required|string|max:100',
+            'notas'      => 'nullable|string|max:1000',
+        ]);
+
+        $exists = $this->db()->table('gmail_inventory_products')->where('id', $validated['product_id'])->exists();
+        if (!$exists) {
+            return back()->withInput()->withErrors(['product_id' => 'Producto no válido.']);
+        }
+
+        try {
+            $result = $service->processAdjustment(
+                (int)   $validated['product_id'],
+                (float) $validated['quantity'],
+                        $validated['direccion'],
+                        $validated['motivo'],
+                auth()->id(),
+                $validated['notas'] ?? null
+            );
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->withErrors(['quantity' => $e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('gmail.inventory.exits.show', $result['movement_id'])
+            ->with('success', 'Ajuste de inventario registrado correctamente.');
+    }
+
+    // ─── PDF SALIDA INDIVIDUAL ──────────────────────────────────────────────
+
+    // GET /gmail/inventario/salidas/{id}/pdf
+    public function exitPdf(int $id)
+    {
+        $movement = $this->db()
+            ->table('gmail_inventory_movements')
+            ->whereIn('tipo', ['SALIDA', 'AJUSTE'])
+            ->where('id', $id)
+            ->first();
+        abort_if(!$movement, 404);
+
+        $lines = $this->db()
+            ->table('gmail_inventory_movement_lines as ml')
+            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+            ->where('ml.movement_id', $id)
+            ->select('p.nombre as producto', 'p.codigo', 'p.unidad', 'ml.cantidad', 'ml.costo_unitario', 'ml.costo_total')
+            ->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('gmail.inventory.exit_pdf', compact('movement', 'lines'))
+            ->setPaper('letter', 'portrait');
+
+        $slug = \Illuminate\Support\Str::slug($movement->destinatario ?? 'salida');
+        $filename = 'Salida_' . $id . '_' . $slug . '_' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    // ─── REPORTE VALORIZADO ─────────────────────────────────────────────────
+
+    // GET /gmail/inventario/valorizado
+    public function stockValuation(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $products = $this->db()
+            ->table('gmail_inventory_products')
+            ->where('is_active', true)
+            ->when($q !== '', fn($query) => $query->where(function ($sub) use ($q) {
+                $sub->where('nombre', 'like', "%{$q}%")
+                    ->orWhere('codigo', 'like', "%{$q}%");
+            }))
+            ->orderByDesc(\DB::raw('stock_actual * costo_promedio'))
+            ->get(['id', 'nombre', 'codigo', 'unidad', 'stock_actual', 'costo_promedio', 'stock_minimo']);
+
+        $totalValor      = $products->sum(fn($p) => (float)$p->stock_actual * (float)$p->costo_promedio);
+        $totalProductos  = $products->count();
+        $totalConStock   = $products->where('stock_actual', '>', 0)->count();
+        $totalBajoMinimo = $products->filter(fn($p) => $p->stock_minimo !== null && (float)$p->stock_actual < (float)$p->stock_minimo)->count();
+
+        return view('gmail.inventory.stock_valuation', compact(
+            'products', 'totalValor', 'totalProductos', 'totalConStock', 'totalBajoMinimo', 'q'
+        ));
     }
 }

@@ -492,17 +492,20 @@ class GmailDteDocumentController extends Controller
             ->when($estado === 'activos', fn($query) => $query->where('is_active', 1))
             ->when($estado === 'inactivos', fn($query) => $query->where('is_active', 0))
             ->when($stock === 'con_stock', fn($query) => $query->where('stock_actual', '>', 0))
-            ->when($stock === 'sin_stock', fn($query) => $query->where('stock_actual', '<=', 0));
+            ->when($stock === 'sin_stock', fn($query) => $query->where('stock_actual', '<=', 0))
+            ->when($stock === 'bajo_minimo', fn($query) => $query->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo'));
 
         $products = (clone $baseQuery)
             ->orderBy('nombre')
             ->paginate(30)
             ->withQueryString();
 
-        $totalActivos = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 1)->count();
+        $totalActivos   = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 1)->count();
         $totalInactivos = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 0)->count();
-        $totalConStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '>', 0)->count();
-        $totalSinStock = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '<=', 0)->count();
+        $totalConStock  = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '>', 0)->count();
+        $totalSinStock  = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '<=', 0)->count();
+        $totalBajoMinimo = DB::connection('fuelcontrol')->table('gmail_inventory_products')
+            ->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo')->count();
 
         return view('gmail.inventory.list', compact(
             'products',
@@ -512,7 +515,8 @@ class GmailDteDocumentController extends Controller
             'totalActivos',
             'totalInactivos',
             'totalConStock',
-            'totalSinStock'
+            'totalSinStock',
+            'totalBajoMinimo'
         ));
     }
 

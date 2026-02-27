@@ -166,6 +166,42 @@
                     @endif
                 </p>
             </div>
+
+            {{-- KPI Stock mínimo editable --}}
+            @php $hayMinimo = $producto->stock_minimo !== null; $bajoMin = $hayMinimo && (float)$producto->stock_actual < (float)$producto->stock_minimo; @endphp
+            <div class="kpi" x-data="{ editing: false }">
+                <div class="top-bar {{ $bajoMin ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-700' }}"></div>
+                <p class="kpi-label">Stock mínimo</p>
+                <div x-show="!editing">
+                    <p class="kpi-val {{ $bajoMin ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-300' }}">
+                        {{ $hayMinimo ? number_format((float)$producto->stock_minimo, 2, ',', '.') : '—' }}
+                        @if($hayMinimo)<span style="font-size:13px;font-weight:600;color:#94a3b8"> {{ $producto->unidad }}</span>@endif
+                    </p>
+                    <p class="kpi-sub {{ $bajoMin ? 'text-orange-500 font-semibold' : '' }}">
+                        {{ $bajoMin ? '⚠ Stock bajo el mínimo' : ($hayMinimo ? 'Alerta activa' : 'Sin alerta configurada') }}
+                    </p>
+                    @if(auth()->user()?->isAdmin())
+                    <button @click="editing=true" class="mt-2 text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 hover:underline">
+                        {{ $hayMinimo ? 'Cambiar' : 'Configurar' }}
+                    </button>
+                    @endif
+                </div>
+                @if(auth()->user()?->isAdmin())
+                <div x-show="editing" x-cloak>
+                    <form method="POST" action="{{ route('inventario.producto.minimo', $producto->id) }}">
+                        @csrf @method('PATCH')
+                        <input type="number" name="stock_minimo" step="0.01" min="0"
+                            value="{{ $producto->stock_minimo }}"
+                            class="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 mt-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:border-indigo-400 outline-none"
+                            placeholder="Ej: 10">
+                        <div class="flex gap-2 mt-2">
+                            <button type="submit" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">Guardar</button>
+                            <button type="button" @click="editing=false" class="text-[11px] font-bold px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                @endif
+            </div>
         </div>
 
         {{-- ── COLA FIFO ── --}}

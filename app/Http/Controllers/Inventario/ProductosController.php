@@ -149,4 +149,20 @@ class ProductosController extends Controller
 
         return back()->with('info', $nuevo ? 'Producto pasa a activo.' : 'Producto pasa a inactivo.');
     }
+
+    public function updateMinimo(Request $request, int $id)
+    {
+        $this->db()->table('gmail_inventory_products')->where('id', $id)->firstOrFail();
+
+        $data = $request->validate([
+            'stock_minimo' => 'nullable|numeric|min:0',
+        ]);
+
+        $this->db()->table('gmail_inventory_products')->where('id', $id)->update([
+            'stock_minimo' => ($data['stock_minimo'] !== null && $data['stock_minimo'] > 0) ? $data['stock_minimo'] : null,
+            'updated_at'   => now(),
+        ]);
+
+        return back()->with('ok', 'Stock mínimo actualizado.');
+    }
 }
