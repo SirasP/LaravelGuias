@@ -80,7 +80,12 @@
                     </button>
                 </form>
                 @endif
-                @if($inventoryStatus !== 'ingresado')
+                @if($inventoryStatus === 'combustible')
+                    <span class="hdr-btn hdr-gray cursor-default opacity-70" title="Factura de combustible — no aplica a inventario de productos">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        <span class="hidden sm:inline">Combustible</span>
+                    </span>
+                @elseif($inventoryStatus !== 'ingresado')
                     <form id="doc-stock-form" method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                         @csrf
                         <button type="button"
@@ -1207,8 +1212,8 @@
                 if (!this.canSubmit || this.submitting) return;
                 this.submitting = true;
 
-                // Solo enviar las filas que no fueron saltadas
                 const activeRows = this.rows.filter(r => !r.skipped);
+                const skippedRows = this.rows.filter(r => r.skipped);
 
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -1232,6 +1237,15 @@
                     productInput.name = `mappings[${idx}][product_id]`;
                     productInput.value = String(r.product_id);
                     form.appendChild(productInput);
+                });
+
+                // Enviar IDs de líneas saltadas para que el servidor las omita completamente
+                skippedRows.forEach(r => {
+                    const skipInput = document.createElement('input');
+                    skipInput.type = 'hidden';
+                    skipInput.name = 'skipped_lines[]';
+                    skipInput.value = String(r.line_id);
+                    form.appendChild(skipInput);
                 });
 
                 document.body.appendChild(form);

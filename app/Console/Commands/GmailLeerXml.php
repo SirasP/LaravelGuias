@@ -245,8 +245,10 @@ class GmailLeerXml extends Command
                         ];
                     }
 
-                    // ✅ Sin combustible, o en modo temporal fuel->DTE: guardar en módulo DTE.
-                    if (count($fuelDetails) === 0 || $fuelToDteOnly) {
+                    // ✅ Guardar en módulo DTE siempre.
+                    // Sin combustible → status 'pendiente' (puede agregar stock).
+                    // Con combustible → status 'combustible' (solo lectura, stock bloqueado).
+                    if (count($fuelDetails) === 0) {
                         $saved = $this->persistNonFuelDte(
                             $db,
                             $msg->getId(),
@@ -256,16 +258,32 @@ class GmailLeerXml extends Command
                             $reprocess,
                             $contenidoXml
                         );
-
                         if ($saved) {
-                            $this->info($fuelToDteOnly && count($fuelDetails) > 0
-                                ? "🧾 DTE combustible guardado temporalmente en DTE: {$part->getFilename()}"
-                                : "🧾 DTE no combustible guardado: {$part->getFilename()}");
+                            $this->info("🧾 DTE no combustible guardado: {$part->getFilename()}");
                         } else {
-                            $this->line($fuelToDteOnly && count($fuelDetails) > 0
-                                ? "⏭ DTE combustible ya existía en DTE: {$part->getFilename()}"
-                                : "⏭ DTE no combustible ya existía: {$part->getFilename()}");
+                            $this->line("⏭ DTE no combustible ya existía: {$part->getFilename()}");
                         }
+                        continue;
+                    }
+
+                    // DTE combustible: guardar en DTE (bloqueado) Y procesar FuelControl.
+                    $savedFuel = $this->persistNonFuelDte(
+                        $db,
+                        $msg->getId(),
+                        (string) $part->getFilename(),
+                        $xml,
+                        $fechaEmision,
+                        $reprocess,
+                        $contenidoXml,
+                        'combustible'
+                    );
+                    if ($savedFuel) {
+                        $this->info("🧾 DTE combustible guardado en facturas (bloqueado): {$part->getFilename()}");
+                    } else {
+                        $this->line("⏭ DTE combustible ya existía en facturas: {$part->getFilename()}");
+                    }
+
+                    if ($fuelToDteOnly) {
                         continue;
                     }
 
@@ -469,7 +487,7 @@ class GmailLeerXml extends Command
     /**
      * Guardar DTE no combustible para módulo administrativo.
      */
-    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false, ?string $xmlRaw = null): bool
+    private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false, ?string $xmlRaw = null, string $inventoryStatus = 'pendiente'): bool
     {
         $get = function (string $path) use ($xml): ?string {
             $node = $xml->xpath($path)[0] ?? null;
@@ -519,14 +537,26 @@ class GmailLeerXml extends Command
         }
 
         if ($existing) {
+            $updateData = ['updated_at' => now()];
             if ($refreshExisting) {
+                $updateData['xml_raw'] = $xmlRaw;
+                $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
+            }
+            // Si el documento existía con un status distinto al solicitado
+            // (ej. 'pendiente' → 'combustible') actualizar el status también.
+            if (($existing->inventory_status ?? 'pendiente') !== $inventoryStatus
+                && $existing->inventory_status !== 'ingresado') {
+                $updateData['inventory_status'] = $inventoryStatus;
+                $this->warn("🔄 Status actualizado a '{$inventoryStatus}': {$filename}");
+            }
+            if (count($updateData) > 1) { // más que solo updated_at
                 $db->table('gmail_dte_documents')
                     ->where('id', $existing->id)
-                    ->update([
-                        'xml_raw'    => $xmlRaw,
-                        'updated_at' => now(),
-                    ]);
-                $this->updateExistingDocumentLineTaxes($db, (int) $existing->id, $xml, $tasaIvaDoc);
+                    ->update($updateData);
+            } elseif ($refreshExisting) {
+                $db->table('gmail_dte_documents')
+                    ->where('id', $existing->id)
+                    ->update($updateData);
             }
             return false;
         }
@@ -550,7 +580,7 @@ class GmailLeerXml extends Command
             'monto_total' => $montoTotal,
             'payment_status' => 'sin_pagar',
             'workflow_status' => 'aceptado',
-            'inventory_status' => 'pendiente',
+            'inventory_status' => $inventoryStatus,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

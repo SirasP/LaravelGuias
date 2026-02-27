@@ -418,6 +418,8 @@ class GmailDteDocumentController extends Controller
             'mappings' => ['required', 'array', 'min:1'],
             'mappings.*.line_id' => ['required', 'integer'],
             'mappings.*.product_id' => ['required', 'integer'],
+            'skipped_lines' => ['nullable', 'array'],
+            'skipped_lines.*' => ['integer'],
         ]);
 
         $lineProductMap = [];
@@ -429,7 +431,9 @@ class GmailDteDocumentController extends Controller
             }
         }
 
-        $result = $inventoryService->addDocumentToStock($id, auth()->id(), $lineProductMap, true);
+        $skipLineIds = array_map('intval', $validated['skipped_lines'] ?? []);
+
+        $result = $inventoryService->addDocumentToStock($id, auth()->id(), $lineProductMap, true, $skipLineIds);
 
         if ($result['already_posted']) {
             return back()->with('warning', 'Este documento ya fue ingresado a inventario.');

@@ -91,14 +91,29 @@ class GmailDteInventoryService
                 $costTotal = (float) ($totals->costo_total ?? 0);
                 $avgCost = $stockTotal > 0 ? ($costTotal / $stockTotal) : 0.0;
 
-                DB::connection('fuelcontrol')
-                    ->table('gmail_inventory_products')
-                    ->where('id', $productId)
-                    ->update([
-                        'stock_actual' => $stockTotal,
-                        'costo_promedio' => $avgCost,
-                        'updated_at' => now(),
-                    ]);
+                // Si el producto quedó sin stock y sin ninguna otra actividad
+                // (fue creado automáticamente solo para este ingreso) → eliminar.
+                $hasOtherActivity = DB::connection('fuelcontrol')
+                    ->table('gmail_inventory_movement_lines')
+                    ->where('product_id', $productId)
+                    ->where('movement_id', '!=', $movementId)
+                    ->exists();
+
+                if ($stockTotal <= 0 && !$hasOtherActivity) {
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $productId)
+                        ->delete();
+                } else {
+                    DB::connection('fuelcontrol')
+                        ->table('gmail_inventory_products')
+                        ->where('id', $productId)
+                        ->update([
+                            'stock_actual' => $stockTotal,
+                            'costo_promedio' => $avgCost,
+                            'updated_at' => now(),
+                        ]);
+                }
             }
 
             return [
@@ -113,10 +128,11 @@ class GmailDteInventoryService
         int $documentId,
         ?int $userId = null,
         array $manualLineProductMap = [],
-        bool $learnFromManualMap = true
+        bool $learnFromManualMap = true,
+        array $skipLineIds = []
     ): array
     {
-        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap) {
+        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap, $skipLineIds) {
             $doc = DB::connection('fuelcontrol')
                 ->table('gmail_dte_documents')
                 ->where('id', $documentId)
@@ -165,6 +181,11 @@ class GmailDteInventoryService
             $costTotal = 0.0;
 
             foreach ($lines as $line) {
+                // Línea marcada como "saltar" por el usuario en el modal
+                if (!empty($skipLineIds) && in_array((int) $line->id, $skipLineIds, true)) {
+                    continue;
+                }
+
                 $qty = (float) $line->cantidad;
                 if ($qty <= 0) {
                     continue;
@@ -806,11 +827,24 @@ class GmailDteInventoryService
         $maxLen = max(strlen($left), strlen($right), 1);
         $levScore = 1 - (levenshtein($left, $right) / $maxLen);
 
-        $leftTokens = array_values(array_unique(array_filter(explode(' ', $left))));
+        $leftTokens  = array_values(array_unique(array_filter(explode(' ', $left))));
         $rightTokens = array_values(array_unique(array_filter(explode(' ', $right))));
         $intersection = array_intersect($leftTokens, $rightTokens);
         $unionCount = count(array_unique(array_merge($leftTokens, $rightTokens)));
         $tokenScore = $unionCount > 0 ? count($intersection) / $unionCount : 0.0;
+
+        // Penalización por variante de talla/modelo: si los tokens de talla difieren
+        // entre ambos nombres, son definitivamente productos distintos (XL ≠ XXL, M ≠ L).
+        $sizeTokens = ['xs', 'xp', 's', 'm', 'l', 'xl', 'xxl', 'xxxl',
+                       'xg', 'xxg', '2xl', '3xl', '4xl', '5xl',
+                       'xchico', 'chico', 'mediano', 'grande', 'xgrande'];
+        $leftSizes  = array_values(array_intersect($leftTokens, $sizeTokens));
+        $rightSizes = array_values(array_intersect($rightTokens, $sizeTokens));
+        sort($leftSizes);
+        sort($rightSizes);
+        if ($leftSizes !== $rightSizes) {
+            return 0.0;
+        }
 
         return ($similarTextScore * 0.45) + ($levScore * 0.35) + ($tokenScore * 0.20);
     }
