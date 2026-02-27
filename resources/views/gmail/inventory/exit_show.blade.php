@@ -59,7 +59,7 @@
                     </svg>
                     Modificar
                 </a>
-                @endif
+                @endcan
                 <span class="text-xs text-gray-400">Mov. #{{ $movement->id }}</span>
             </div>
         </div>
