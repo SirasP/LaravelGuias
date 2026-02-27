@@ -37,7 +37,7 @@ class GmailInventoryController extends Controller
         $pfxExists = $pfxPath !== '' && Storage::disk($pfxDisk)->exists($pfxPath);
         $isRealMode = $cafExists && $pfxExists;
 
-        return view('gmail.inventory.sii_status', [
+        return view('gmail.inventory.configuraciones', [
             'cafDisk' => $cafDisk,
             'cafPath' => $cafPath,
             'cafExists' => $cafExists,

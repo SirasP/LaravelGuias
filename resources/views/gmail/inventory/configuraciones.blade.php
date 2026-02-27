@@ -77,10 +77,12 @@
             @endif
 
             {{-- ── Banner Estado SII ───────────────────────────────────── --}}
-            <div class="rounded-2xl border overflow-hidden
+            <div class="rounded-2xl border
                 {{ $isRealMode
                     ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10'
                     : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10' }}">
+
+                {{-- Fila principal --}}
                 <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
                         <span class="w-3 h-3 rounded-full shrink-0
@@ -121,22 +123,27 @@
                         </div>
                         @endforeach
 
-                        <details class="group relative">
+                        {{-- Botón endpoints --}}
+                        <details class="group" x-data>
                             <summary class="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 cursor-pointer select-none list-none hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                 <svg class="w-3 h-3 transition-transform duration-150 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
                                 </svg>
                                 Endpoints
                             </summary>
-                            <div class="absolute right-0 top-full mt-2 z-10 w-80 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg p-3 space-y-1.5">
-                                @foreach(['Seed' => $seedUrl, 'Token' => $tokenUrl, 'Recepción' => $recepcionUrl, 'Estado' => $estadoUrl] as $key => $val)
-                                <div class="flex gap-2 text-[11px]">
-                                    <span class="w-16 font-semibold text-gray-600 dark:text-gray-300 shrink-0">{{ $key }}</span>
-                                    <span class="font-mono text-gray-400 dark:text-gray-500 break-all">{{ $val ?: '—' }}</span>
-                                </div>
-                                @endforeach
-                            </div>
                         </details>
+                    </div>
+                </div>
+
+                {{-- Endpoints expandibles (inline, no absolute) --}}
+                <div id="endpoints-panel" class="hidden px-5 pb-4">
+                    <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-1.5">
+                        @foreach(['Seed' => $seedUrl, 'Token' => $tokenUrl, 'Recepción' => $recepcionUrl, 'Estado' => $estadoUrl] as $key => $val)
+                        <div class="flex gap-2 text-[11px]">
+                            <span class="w-16 font-semibold text-gray-600 dark:text-gray-300 shrink-0">{{ $key }}</span>
+                            <span class="font-mono text-gray-400 dark:text-gray-500 break-all">{{ $val ?: '—' }}</span>
+                        </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -470,6 +477,17 @@
     </div>
 
     <script>
+    // Toggle endpoints panel
+    document.addEventListener('DOMContentLoaded', () => {
+        const details = document.querySelector('details[x-data]');
+        const panel   = document.getElementById('endpoints-panel');
+        if (details && panel) {
+            details.addEventListener('toggle', () => {
+                panel.classList.toggle('hidden', !details.open);
+            });
+        }
+    });
+
     function emailTagInput() {
         return {
             emails: @json($emailsList),
