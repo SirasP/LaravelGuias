@@ -2,6 +2,273 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── SweetAlert2 z-index fix ─────────────────────────────────────────── */
 .swal2-container {
     z-index: 20000 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DASHBOARD COMPONENTS
+   Migrado desde index.blade.php para reutilización y purge correcto
+   ══════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+
+    /* ── Animación slideUp (para .au + .d1–.d9 en el dashboard) ── */
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .au { animation: slideUp .4s cubic-bezier(.22, 1, .36, 1) both; }
+    .d1 { animation-delay: .04s; }
+    .d2 { animation-delay: .08s; }
+    .d3 { animation-delay: .12s; }
+    .d4 { animation-delay: .16s; }
+    .d5 { animation-delay: .20s; }
+    .d6 { animation-delay: .24s; }
+    .d7 { animation-delay: .28s; }
+    .d8 { animation-delay: .32s; }
+    .d9 { animation-delay: .36s; }
+
+    /* ── Section label ──────────────────────────────────────────── */
+    .section-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .10em;
+        text-transform: uppercase;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .section-label::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
+    }
+
+    .dark .section-label::after {
+        background: #1e2a3b;
+    }
+
+    /* ── KPI Cards ──────────────────────────────────────────────── */
+    .kpi-group {
+        display: grid;
+        gap: 10px;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: box-shadow .2s, transform .15s;
+    }
+
+    .dark .kpi-card {
+        background: #161c2c;
+        border-color: #1e2a3b;
+    }
+
+    .kpi-card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, .07);
+        transform: translateY(-1px);
+    }
+
+    .dark .kpi-card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+    }
+
+    .kpi-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: #94a3b8;
+        margin-bottom: 4px;
+    }
+
+    .kpi-value {
+        font-size: 1.55rem;
+        font-weight: 900;
+        letter-spacing: -.04em;
+        line-height: 1.1;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .dark .kpi-value {
+        color: #f1f5f9;
+    }
+
+    .kpi-icon {
+        padding: 10px;
+        border-radius: 12px;
+        flex-shrink: 0;
+    }
+
+    /* ── KPI badge de variación (nuevo) ─────────────────────────── */
+    .kpi-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 2px 7px;
+        margin-top: 4px;
+    }
+
+    .kpi-badge-up   { background: #dcfce7; color: #15803d; }
+    .kpi-badge-down { background: #fee2e2; color: #b91c1c; }
+    .kpi-badge-neu  { background: #f1f5f9; color: #64748b; }
+
+    .dark .kpi-badge-up   { background: rgba(21,128,61,.2);  color: #86efac; }
+    .dark .kpi-badge-down { background: rgba(185,28,28,.2);  color: #fca5a5; }
+    .dark .kpi-badge-neu  { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+    /* ── Chart Cards ────────────────────────────────────────────── */
+    .chart-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .dark .chart-card {
+        background: #161c2c;
+        border-color: #1e2a3b;
+    }
+
+    .chart-header {
+        padding: 14px 18px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .chart-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .dark .chart-title {
+        color: #e2e8f0;
+    }
+
+    .chart-pill {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: #94a3b8;
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: 2px 9px;
+    }
+
+    .dark .chart-pill {
+        background: #1e2a3b;
+    }
+
+    /* ── Data Table (.dt) ───────────────────────────────────────── */
+    .dt {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .dt thead tr {
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .dark .dt thead tr {
+        border-bottom-color: #1e2a3b;
+    }
+
+    .dt th {
+        padding: 10px 16px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        white-space: nowrap;
+    }
+
+    .dt th.r { text-align: right; }
+
+    .dt td {
+        padding: 11px 16px;
+        border-bottom: 1px solid #f8fafc;
+        color: #334155;
+    }
+
+    .dark .dt td {
+        border-bottom-color: #1a2232;
+        color: #cbd5e1;
+    }
+
+    .dt tbody tr:last-child td { border-bottom: none; }
+
+    .dt tbody tr { transition: background .1s; }
+
+    .dt tbody tr:hover td { background: #f8fafc; }
+    .dark .dt tbody tr:hover td { background: #1a2436; }
+
+    /* ── Kg adjustment card ─────────────────────────────────────── */
+    .kg-card {
+        background: #fafafa;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .dark .kg-card {
+        background: #161c2c;
+        border-color: #1e2a3b;
+    }
+
+    /* ── Skeleton loader ─────────────────────────────────────────── */
+    @keyframes shimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position:  400px 0; }
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 800px 100%;
+        animation: shimmer 1.4s infinite;
+        border-radius: 6px;
+    }
+
+    .dark .skeleton {
+        background: linear-gradient(90deg, #1e293b 25%, #1a2436 50%, #1e293b 75%);
+        background-size: 800px 100%;
+        animation: shimmer 1.4s infinite;
+    }
+
+    /* ── Sidebar scrollbar ───────────────────────────────────────── */
+    .sidebar-scroll::-webkit-scrollbar       { width: 3px; }
+    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+    .dark .sidebar-scroll::-webkit-scrollbar-thumb { background: #1e293b; }
+    .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
 }

@@ -111,20 +111,23 @@ Route::get('/google/oauth/token', function () {
     return Cache::get('gmail_token') ?? 'NO TOKEN';
 })->middleware('auth');
 
-Route::get('/debug/google', function () {
-    return response()->json([
-        'client_id' => config('services.google.client_id'),
-        'client_secret_set' => !empty(config('services.google.client_secret')),
-        'redirect' => config('services.google.redirect'),
-    ]);
-});
+// ⚠️  Rutas de debug — solo admin en producción
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/debug/google', function () {
+        return response()->json([
+            'client_id'          => config('services.google.client_id'),
+            'client_secret_set'  => !empty(config('services.google.client_secret')),
+            'redirect'           => config('services.google.redirect'),
+        ]);
+    });
 
-Route::get('/debug/env', function () {
-    return response()->json([
-        'env_client_id' => env('GOOGLE_CLIENT_ID'),
-        'cfg_client_id' => config('services.google.client_id'),
-        'app_env' => app()->environment(),
-    ]);
+    Route::get('/debug/env', function () {
+        return response()->json([
+            'env_client_id' => env('GOOGLE_CLIENT_ID'),
+            'cfg_client_id' => config('services.google.client_id'),
+            'app_env'       => app()->environment(),
+        ]);
+    });
 });
 
 Route::get('/google/oauth/redirect', [App\Http\Controllers\GoogleOAuthController::class, 'redirect'])
@@ -146,14 +149,8 @@ Route::get('/gmail/test', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])
-    ->get('/usuarios', function () {
-        $movimientos = DB::table('users')
-            ->orderBy('id', 'desc')
-            ->limit(20)
-            ->get();
-
-        return view('usuarios.index', compact('movimientos'));
-    })->name('dashboard');
+    ->get('/usuarios', [UserController::class, 'index'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'role:admin'])
     ->get('/dashboard', function () {
@@ -279,13 +276,14 @@ Route::middleware(['auth', 'role:admin'])
 
 /*
 |--------------------------------------------------------------------------
-| AGRAK — Vistas (admin y viewer)
+| AGRAK — Vistas (autenticados) + Importaciones (solo ADMIN)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')
     ->prefix('agrak')
     ->name('agrak.')
     ->group(function () {
+        // Lectura — todos los autenticados
         Route::get('/', [AgrakController::class, 'index'])->name('index');
         Route::get('/{id}', [AgrakController::class, 'show'])
             ->whereNumber('id')
@@ -301,22 +299,12 @@ Route::middleware('auth')->group(function () {
         ->name('centros.detalle');
 });
 
-/*
-|--------------------------------------------------------------------------
-| AGRAK — Importaciones (solo ADMIN)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'role:admin'])
-    ->prefix('agrak')
-    ->name('agrak.')
-    ->group(function () {
-        Route::get('/import', fn() => view('agrak.import'))
-            ->name('import.form');
-        Route::post('/import', [PdfImportController::class, 'importExcelAgrak'])
-            ->name('import');
-    });
-
+// Operaciones admin-only sobre AGRAK
 Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/agrak/import', fn() => view('agrak.import'))
+        ->name('agrak.import.form');
+    Route::post('/agrak/import', [PdfImportController::class, 'importExcelAgrak'])
+        ->name('agrak.import');
     Route::get('/agrak/create', [CamionController::class, 'create'])
         ->name('agrak.create');
     Route::post('/agrak', [CamionController::class, 'store'])

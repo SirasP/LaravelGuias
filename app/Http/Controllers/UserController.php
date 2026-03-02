@@ -4,14 +4,32 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function create()
+    /**
+     * Listado de usuarios del sistema (solo admin).
+     */
+    public function index(): View
+    {
+        $movimientos = DB::table('users')
+            ->orderBy('id', 'desc')
+            ->limit(20)
+            ->get();
+
+        return view('usuarios.index', compact('movimientos'));
+    }
+
+    public function create(): View
     {
         return view('users.create');
     }
+
 
     public function store(Request $request)
     {
