@@ -417,6 +417,75 @@ class DashboardController extends Controller
 
 
         // ======================
+        // 📉 CÁLCULOS PERÍODO ANTERIOR (% CAMBIO)
+        // ======================
+        $fromPrev = Carbon::now()->subDays(240)->startOfDay();
+        $toPrev   = Carbon::now()->subDays(120)->endOfDay();
+
+        // Odoo (Kilos) prev
+        $kpiOdooPrev = DB::table('excel_out_transfers as t')
+            ->join('excel_out_transfer_lines as l', 'l.excel_out_transfer_id', '=', 't.id')
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereBetween('t.fecha_prevista', [$fromPrev, $toPrev])
+            ->whereNotNull(DB::raw("JSON_EXTRACT(l.raw, '$.L')"))
+            ->selectRaw("SUM($kgFromRaw) as kilos_odoo_prev")
+            ->value('kilos_odoo_prev') ?? 0;
+
+        // Odoo (Bandejas) prev
+        $kpiBandejasPrev = DB::table('excel_out_transfers as t')
+            ->join('excel_out_transfer_lines as l', 'l.excel_out_transfer_id', '=', 't.id')
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereBetween('t.fecha_prevista', [$fromPrev, $toPrev])
+            ->whereRaw("UPPER(l.producto) LIKE '%BANDE%'")
+            ->selectRaw("SUM($qtyNorm) as total_bandejas")
+            ->value('total_bandejas') ?? 0;
+
+        // Centros prev
+        $kpiCentrosPrev = DB::table('excel_out_transfers as t')
+            ->leftJoin(DB::raw("
+                (SELECT p.guia_no, MAX(CAST(JSON_UNQUOTE(COALESCE(JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'), JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'), JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'), JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'), JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs'))) AS DECIMAL(18,3))) AS kilos_centro FROM pdf_imports p GROUP BY p.guia_no) centros
+            "), DB::raw('CAST(centros.guia_no AS CHAR)'), '=', DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')"))
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereBetween('t.fecha_prevista', [$fromPrev, $toPrev])
+            ->selectRaw('SUM(centros.kilos_centro) as total_centros')
+            ->value('total_centros') ?? 0;
+
+        // Agrak (Bandejas) prev
+        $kpiBandejasAgrakPrev = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$fromPrev, $toPrev])
+            ->whereNotNull('numero_bandejas_palet')
+            ->selectRaw('SUM(numero_bandejas_palet) as total_bandejas')
+            ->value('total_bandejas') ?? 0;
+
+        // Agrak (Bins) prev
+        $kpiBinsAgrakPrev = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$fromPrev, $toPrev])
+            ->whereNotNull('codigo_bin')
+            ->count('codigo_bin');
+
+        $calcPct = function($current, $prev) {
+            if ($prev == 0) return $current > 0 ? 100 : 0;
+            return (($current - $prev) / abs($prev)) * 100;
+        };
+
+        $pctOdoo = $calcPct((float) $rows->sum('kilos_odoo'), (float) $kpiOdooPrev);
+        $pctBandejas = $calcPct((float) $kpiBandejas, (float) $kpiBandejasPrev);
+        $pctCentros = $calcPct((float) $rows->sum('kilos_centros'), (float) $kpiCentrosPrev);
+        $pctBandejasAgrak = $calcPct((float) $kpiBandejasAgrak, (float) $kpiBandejasAgrakPrev);
+        $pctBinsAgrak = $calcPct((float) $kpiBinsAgrak, (float) $kpiBinsAgrakPrev);
+
+
+        // ======================
         // 📤 VISTA
         // ======================
         return view('index', [
@@ -448,6 +517,12 @@ class DashboardController extends Controller
             //chart bins agrak
             'binsAgrakLabels' => $binsAgrakLabels,
             'binsAgrakData' => $binsAgrakData,
+            'pctOdoo' => $pctOdoo,
+            'pctBandejas' => $pctBandejas,
+            'pctCentros' => $pctCentros,
+            'pctBandejasAgrak' => $pctBandejasAgrak,
+            'pctBinsAgrak' => $pctBinsAgrak,
+
             //chart maquinas agrak
             'maquinasLabels' => $maquinasLabels,
             'maquinasTotales' => $maquinasTotales,

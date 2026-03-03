@@ -31,7 +31,17 @@ class PurchaseOrderController extends Controller
             ->groupBy('purchase_order_id')
             ->map(fn($rows) => $rows->pluck('supplier_name')->filter()->unique()->values());
 
-        return view('purchase_orders.index', compact('orders', 'suppliersByOrder'));
+        // ===== KPIs =====
+        $stats = (object) [
+            'total' => (clone $orders->getCollection())->count(),
+            'confirmed' => $db->table('purchase_orders')->where('status', 'order')->count(),
+            'sent' => $db->table('purchase_orders')->where('status', 'sent')->count(),
+            'total_clp' => $db->table('purchase_orders')->where('currency', 'CLP')->sum('total'),
+            'total_usd' => $db->table('purchase_orders')->where('currency', 'USD')->sum('total'),
+        ];
+        $stats->total = $orders->total();
+
+        return view('purchase_orders.index', compact('orders', 'suppliersByOrder', 'stats'));
     }
 
     public function create()

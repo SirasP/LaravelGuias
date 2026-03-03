@@ -35,7 +35,7 @@ class ComfrutGuiaController extends Controller
     }
     public function importForm()
     {
-        return view('guias.comfrut.import');
+        return redirect()->route('pdf.import.form');
     }
     public function show(ComfrutGuia $guia)
     {

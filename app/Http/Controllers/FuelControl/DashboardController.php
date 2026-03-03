@@ -710,4 +710,16 @@ class DashboardController extends Controller
 
 
 
+    public function leerNotificacion($id)
+    {
+        DB::connection('fuelcontrol')
+            ->table('notificacion_usuarios')
+            ->where('notificacion_id', $id)
+            ->where('user_id', auth()->id())
+            ->update([
+                'leido' => 1,
+                'updated_at' => now()
+            ]);
+        return response()->json(['ok' => true]);
+    }
 }

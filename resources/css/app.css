@@ -16,20 +16,56 @@
 
     /* ── Animación slideUp (para .au + .d1–.d9 en el dashboard) ── */
     @keyframes slideUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .au { animation: slideUp .4s cubic-bezier(.22, 1, .36, 1) both; }
-    .d1 { animation-delay: .04s; }
-    .d2 { animation-delay: .08s; }
-    .d3 { animation-delay: .12s; }
-    .d4 { animation-delay: .16s; }
-    .d5 { animation-delay: .20s; }
-    .d6 { animation-delay: .24s; }
-    .d7 { animation-delay: .28s; }
-    .d8 { animation-delay: .32s; }
-    .d9 { animation-delay: .36s; }
+    .au {
+        animation: slideUp .4s cubic-bezier(.22, 1, .36, 1) both;
+    }
+
+    .d1 {
+        animation-delay: .04s;
+    }
+
+    .d2 {
+        animation-delay: .08s;
+    }
+
+    .d3 {
+        animation-delay: .12s;
+    }
+
+    .d4 {
+        animation-delay: .16s;
+    }
+
+    .d5 {
+        animation-delay: .20s;
+    }
+
+    .d6 {
+        animation-delay: .24s;
+    }
+
+    .d7 {
+        animation-delay: .28s;
+    }
+
+    .d8 {
+        animation-delay: .32s;
+    }
+
+    .d9 {
+        animation-delay: .36s;
+    }
 
     /* ── Section label ──────────────────────────────────────────── */
     .section-label {
@@ -126,13 +162,35 @@
         margin-top: 4px;
     }
 
-    .kpi-badge-up   { background: #dcfce7; color: #15803d; }
-    .kpi-badge-down { background: #fee2e2; color: #b91c1c; }
-    .kpi-badge-neu  { background: #f1f5f9; color: #64748b; }
+    .kpi-badge-up {
+        background: #dcfce7;
+        color: #15803d;
+    }
 
-    .dark .kpi-badge-up   { background: rgba(21,128,61,.2);  color: #86efac; }
-    .dark .kpi-badge-down { background: rgba(185,28,28,.2);  color: #fca5a5; }
-    .dark .kpi-badge-neu  { background: rgba(100,116,139,.15); color: #94a3b8; }
+    .kpi-badge-down {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .kpi-badge-neu {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .dark .kpi-badge-up {
+        background: rgba(21, 128, 61, .2);
+        color: #86efac;
+    }
+
+    .dark .kpi-badge-down {
+        background: rgba(185, 28, 28, .2);
+        color: #fca5a5;
+    }
+
+    .dark .kpi-badge-neu {
+        background: rgba(100, 116, 139, .15);
+        color: #94a3b8;
+    }
 
     /* ── Chart Cards ────────────────────────────────────────────── */
     .chart-card {
@@ -208,7 +266,9 @@
         white-space: nowrap;
     }
 
-    .dt th.r { text-align: right; }
+    .dt th.r {
+        text-align: right;
+    }
 
     .dt td {
         padding: 11px 16px;
@@ -221,12 +281,21 @@
         color: #cbd5e1;
     }
 
-    .dt tbody tr:last-child td { border-bottom: none; }
+    .dt tbody tr:last-child td {
+        border-bottom: none;
+    }
 
-    .dt tbody tr { transition: background .1s; }
+    .dt tbody tr {
+        transition: background .1s;
+    }
 
-    .dt tbody tr:hover td { background: #f8fafc; }
-    .dark .dt tbody tr:hover td { background: #1a2436; }
+    .dt tbody tr:hover td {
+        background: #f8fafc;
+    }
+
+    .dark .dt tbody tr:hover td {
+        background: #1a2436;
+    }
 
     /* ── Kg adjustment card ─────────────────────────────────────── */
     .kg-card {
@@ -247,8 +316,13 @@
 
     /* ── Skeleton loader ─────────────────────────────────────────── */
     @keyframes shimmer {
-        0%   { background-position: -400px 0; }
-        100% { background-position:  400px 0; }
+        0% {
+            background-position: -400px 0;
+        }
+
+        100% {
+            background-position: 400px 0;
+        }
     }
 
     .skeleton {
@@ -265,10 +339,51 @@
     }
 
     /* ── Sidebar scrollbar ───────────────────────────────────────── */
-    .sidebar-scroll::-webkit-scrollbar       { width: 3px; }
-    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-    .sidebar-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
-    .dark .sidebar-scroll::-webkit-scrollbar-thumb { background: #1e293b; }
-    .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .sidebar-scroll::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 99px;
+    }
+
+    .dark .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: #1e293b;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* ── Premium Backgrounds ────────────────────────────────────── */
+    .premium-bg {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .premium-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.03;
+        background: radial-gradient(circle at 10% 20%, #6366f1 0%, transparent 50%),
+            radial-gradient(circle at 90% 80%, #10b981 0%, transparent 50%);
+    }
+
+    .dark .premium-bg::before {
+        opacity: 0.08;
+    }
+
+    .premium-content {
+        position: relative;
+        z-index: 10;
+    }
 
 }

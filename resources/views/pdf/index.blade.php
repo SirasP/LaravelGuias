@@ -113,89 +113,86 @@
         }
 
         .page-bg {
-            background: #f1f5f9;
-            min-height: 100%
+            background: #f8fafc;
+            min-height: 100vh;
         }
 
         .dark .page-bg {
-            background: #0d1117
+            background: #090e1a;
         }
 
+        /* Glass Cards */
         .t-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            overflow: hidden
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
         }
 
         .dark .t-card {
-            background: #161c2c;
-            border-color: #1e2a3b
+            background: rgba(22, 28, 44, 0.6);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
         }
 
-        /* Table */
-        .dt {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px
-        }
-
+        /* Table Premium Styles */
         .dt thead tr {
-            background: #f8fafc;
-            border-bottom: 1px solid #f1f5f9
+            background: rgba(248, 250, 252, 0.5);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
         }
 
         .dark .dt thead tr {
-            background: #111827;
-            border-bottom-color: #1e2a3b
+            background: rgba(15, 23, 42, 0.4);
+            border-bottom-color: rgba(255, 255, 255, 0.05);
         }
 
         .dt th {
-            padding: 11px 16px;
-            text-align: left;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .08em;
-            text-transform: uppercase;
+            padding: 14px 16px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .dark .dt th {
             color: #94a3b8;
-            white-space: nowrap
         }
 
         .dt td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f8fafc;
+            padding: 16px;
+            border-bottom: 1px solid rgba(241, 245, 249, 0.5);
             color: #334155;
-            vertical-align: middle
+            transition: all 0.2s;
         }
 
         .dark .dt td {
-            border-bottom-color: #1a2232;
-            color: #cbd5e1
-        }
-
-        .dt tbody tr:last-child td {
-            border-bottom: none
+            border-bottom-color: rgba(255, 255, 255, 0.03);
+            color: #cbd5e1;
         }
 
         .dt tbody tr:hover td {
-            background: #f8fafc
+            background: rgba(248, 250, 252, 0.8);
         }
 
         .dark .dt tbody tr:hover td {
-            background: #1a2436
+            background: rgba(255, 255, 255, 0.02);
         }
 
-        /* Mobile card */
+        /* Mobile Premium Card */
         .m-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 14px 16px
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 8px 20px -8px rgba(0,0,0,0.05);
         }
 
         .dark .m-card {
-            background: #161c2c;
-            border-color: #1e2a3b
+            background: rgba(22, 28, 44, 0.6);
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         /* Botones acción */
@@ -343,8 +340,8 @@
         }
     </style>
 
-    <div class="page-bg" x-data="pdfIndex({{ $rowsJson }})">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+    <div class="page-bg premium-bg" x-data="pdfIndex({{ $rowsJson }})">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 premium-content">
 
             {{-- Buscador móvil --}}
             <div class="sm:hidden au d1">

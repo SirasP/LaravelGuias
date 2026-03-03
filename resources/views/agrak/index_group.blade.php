@@ -167,8 +167,8 @@ function odooStatus($m): array {
     .dark .trip-divider { border-top-color:#1e2a3b }
 </style>
 
-<div class="page-bg">
-<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+<div class="page-bg premium-bg min-h-screen">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5 premium-content">
 
     {{-- Flash --}}
     @if(session('ok'))

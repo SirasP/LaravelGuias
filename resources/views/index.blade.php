@@ -79,7 +79,8 @@
         $kgProm = (float) ($kgPromedioAgrak ?? 2.5);
     @endphp
 
-    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-8">
+    <div class="premium-bg min-h-screen">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 premium-content">
 
         {{-- ══ SECCIÓN ODOO ══ --}}
         <div class="au d1">
@@ -89,6 +90,7 @@
                     label="Kilos"
                     :value="$kpiFormatted"
                     unit="kg"
+                    :pct="$pctOdoo"
                     icon-bg="bg-blue-50 dark:bg-blue-900/20"
                 >
                     <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,6 +101,7 @@
                 <x-kpi-card
                     label="Bandejas"
                     :value="number_format($kpiBandejas ?? 0, 0, ',', '.')"
+                    :pct="$pctBandejas"
                     icon-bg="bg-sky-50 dark:bg-sky-900/20"
                 >
                     <svg class="w-6 h-6 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,6 +118,7 @@
                 label="Kilos recepcionados"
                 :value="$kpiCFormatted"
                 unit="kg"
+                :pct="$pctCentros"
                 icon-bg="bg-amber-50 dark:bg-amber-900/20"
             >
                 <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,6 +139,7 @@
                         value="—"
                         id="kilosAgrak"
                         :loading="false"
+                        :pct="$pctBandejasAgrak"
                         icon-bg="bg-emerald-50 dark:bg-emerald-900/20"
                     >
                         <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,6 +151,7 @@
                     <x-kpi-card
                         label="Bandejas"
                         :value="number_format($kpiBandejasAgrak ?? 0, 0, ',', '.')"
+                        :pct="$pctBandejasAgrak"
                         icon-bg="bg-indigo-50 dark:bg-indigo-900/20"
                     >
                         <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,6 +163,7 @@
                     <x-kpi-card
                         label="Bins"
                         :value="number_format($kpiBinsAgrak ?? 0, 0, ',', '.')"
+                        :pct="$pctBinsAgrak"
                         icon-bg="bg-violet-50 dark:bg-violet-900/20"
                     >
                         <svg class="w-6 h-6 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

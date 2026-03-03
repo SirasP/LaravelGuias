@@ -1,27 +1,27 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\Inventario\DtesController;
-use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\AgrakController;
-use Illuminate\Support\Facades\Cache;
-use App\Http\Controllers\ComprasController;
-use App\Http\Controllers\Guias\ComfrutGuiaController;
-use App\Http\Controllers\ExcelOutTransferController;
-use App\Http\Controllers\CamionController;
 use App\Http\Controllers\AgrakExportController;
+use App\Http\Controllers\CamionController;
 use App\Http\Controllers\CentroController;
-use App\Http\Controllers\Inventario\DashboardController as InventarioDashboard;
+use App\Http\Controllers\ComprasController;
+use App\Http\Controllers\ExcelOutTransferController;
 use App\Http\Controllers\FuelControl\DashboardController as FuelDashboard;
+use App\Http\Controllers\FuelControl\MovimientoController;
 use App\Http\Controllers\FuelControl\ProductoController;
 use App\Http\Controllers\FuelControl\VehiculoController;
-use App\Http\Controllers\FuelControl\MovimientoController;
 use App\Http\Controllers\GmailAuthController;
 use App\Http\Controllers\GmailDteDocumentController;
+use App\Http\Controllers\Guias\ComfrutGuiaController;
+use App\Http\Controllers\Inventario\DashboardController as InventarioDashboard;
+use App\Http\Controllers\Inventario\DtesController;
+use App\Http\Controllers\PdfImportController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 
 /*
@@ -232,17 +232,17 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // PDF - importar
     Route::get('/pdf/import', [PdfImportController::class, 'create'])->name('pdf.import.form');
     Route::post('/pdf/import', [PdfImportController::class, 'store'])->name('pdf.import');
-    Route::post('/pdf/import/xml', [PdfImportController::class, 'storeXml'])
+    Route::post('/pdf/import/xml', [\App\Http\Controllers\XmlImportController::class, 'storeXml'])
         ->name('pdf.import.xml');
 
     // Excel QC / RFP
-    Route::get('/excel/import', [PdfImportController::class, 'excelForm'])->name('excel.import.form');
-    Route::post('/excel/import', [PdfImportController::class, 'importExcelQc'])->name('excel.import.qc');
-    Route::post('/excel/import/rfp', [PdfImportController::class, 'importExcelRfp'])
+    Route::get('/excel/import', [\App\Http\Controllers\ExcelImportController::class, 'excelForm'])->name('excel.import.form');
+    Route::post('/excel/import', [\App\Http\Controllers\ExcelImportController::class, 'importExcelQc'])->name('excel.import.qc');
+    Route::post('/excel/import/rfp', [\App\Http\Controllers\ExcelImportController::class, 'importExcelRfp'])
         ->name('excel.import.rfp');
 
     // Guías ODOO - importar
-    Route::get('/excel-out-transfers/import', fn() => view('excel_out_transfers.import'))
+    Route::get('/excel-out-transfers/import', fn() => redirect()->route('pdf.import.form'))
         ->name('excel_out_transfers.form');
     Route::post('/excel-out-transfers/import', [ExcelOutTransferController::class, 'importExcelOutTransfers'])
         ->name('excel_out_transfers.import');
@@ -301,9 +301,9 @@ Route::middleware('auth')->group(function () {
 
 // Operaciones admin-only sobre AGRAK
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/agrak/import', fn() => view('agrak.import'))
+    Route::get('/agrak/import', fn() => redirect()->route('pdf.import.form'))
         ->name('agrak.import.form');
-    Route::post('/agrak/import', [PdfImportController::class, 'importExcelAgrak'])
+    Route::post('/agrak/import', [\App\Http\Controllers\ExcelImportController::class, 'importExcelAgrak'])
         ->name('agrak.import');
     Route::get('/agrak/create', [CamionController::class, 'create'])
         ->name('agrak.create');
@@ -377,17 +377,7 @@ Route::middleware(['auth'])
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
             ->name('productos.destroy');
 
-        Route::post('/notificaciones/{id}/leer', function ($id) {
-            DB::connection('fuelcontrol')
-                ->table('notificacion_usuarios')
-                ->where('notificacion_id', $id)
-                ->where('user_id', auth()->id())
-                ->update([
-                    'leido' => 1,
-                    'updated_at' => now()
-                ]);
-            return response()->json(['ok' => true]);
-        })->name('notificaciones.leer');
+        Route::post('/notificaciones/{id}/leer', [FuelDashboard::class, 'leerNotificacion'])->name('notificaciones.leer');
 
         /* XML */
         Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
@@ -446,17 +436,26 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/api/salida/{id}/lineas', [App\Http\Controllers\GmailInventoryController::class, 'exitDetail'])->name('inventory.api.exit.detail')->whereNumber('id');
     Route::get('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactsApi'])->name('inventory.api.contacts');
     Route::post('/inventario/api/contactos', [App\Http\Controllers\GmailInventoryController::class, 'contactStore'])->name('inventory.api.contact.store');
-    Route::get('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitCreate'])->name('inventory.exit.create');
-    Route::post('/inventario/salida', [App\Http\Controllers\GmailInventoryController::class, 'exitStore'])->name('inventory.exit.store');
-    Route::get('/inventario/salidas', [App\Http\Controllers\GmailInventoryController::class, 'exitList'])->name('inventory.exits');
+
+    Route::get('/inventario/salida', [\App\Http\Controllers\InventoryExitController::class, 'exitCreate'])->name('inventory.exit.create');
+    Route::post('/inventario/salida', [\App\Http\Controllers\InventoryExitController::class, 'exitStore'])->name('inventory.exit.store');
+    Route::get('/inventario/salidas', [\App\Http\Controllers\InventoryExitController::class, 'exitList'])->name('inventory.exits');
+    Route::get('/inventario/salidas/{id}/pdf', [\App\Http\Controllers\InventoryExitController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
+    Route::get('/inventario/salidas/{id}', [\App\Http\Controllers\InventoryExitController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
+    Route::get('/inventario/salidas-resumen', [\App\Http\Controllers\InventoryExitController::class, 'exitGroupShow'])->name('inventory.exits.group');
+    Route::get('/inventario/salidas-resumen/pdf', [\App\Http\Controllers\InventoryExitController::class, 'exitGroupPdf'])->name('inventory.exits.group.pdf');
+    Route::get('/inventario/salidas/export', [\App\Http\Controllers\InventoryExitController::class, 'exitExport'])->name('inventory.exits.export');
+    Route::post('/inventario/salidas/{id}/venta', [\App\Http\Controllers\InventoryExitController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
+    Route::get('/inventario/salidas/{id}/editar', [\App\Http\Controllers\InventoryExitController::class, 'exitEdit'])->name('inventory.exits.edit')->whereNumber('id');
+    Route::put('/inventario/salidas/{id}', [\App\Http\Controllers\InventoryExitController::class, 'exitUpdate'])->name('inventory.exits.update')->whereNumber('id');
+    Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
+
     Route::get('/inventario/sii-status', [App\Http\Controllers\GmailInventoryController::class, 'siiStatus'])->name('inventory.sii.status');
-    Route::get('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustCreate'])->name('inventory.adjust.create');
-    Route::post('/inventario/ajuste', [App\Http\Controllers\GmailInventoryController::class, 'adjustStore'])->name('inventory.adjust.store');
-    Route::get('/inventario/ajustes', [App\Http\Controllers\GmailInventoryController::class, 'adjustList'])->name('inventory.adjustments');
-    Route::get('/inventario/salidas/{id}/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitPdf'])->name('inventory.exits.pdf')->whereNumber('id');
-    Route::get('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitShow'])->name('inventory.exits.show')->whereNumber('id');
-    Route::get('/inventario/salidas-resumen', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupShow'])->name('inventory.exits.group');
-    Route::get('/inventario/salidas-resumen/pdf', [App\Http\Controllers\GmailInventoryController::class, 'exitGroupPdf'])->name('inventory.exits.group.pdf');
+    
+    Route::get('/inventario/ajuste', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustCreate'])->name('inventory.adjust.create');
+    Route::post('/inventario/ajuste', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustStore'])->name('inventory.adjust.store');
+    Route::get('/inventario/ajustes', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustList'])->name('inventory.adjustments');
+    
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');
 
 });
@@ -489,12 +488,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail')->name('gmail.')->grou
     Route::post('/dtes/{id}/rollback-stock', [GmailDteDocumentController::class, 'rollbackStock'])->whereNumber('id')->name('dtes.rollback_stock');
     Route::post('/dtes/{id}/lines/{lineId}', [GmailDteDocumentController::class, 'updateLine'])->whereNumber('id')->whereNumber('lineId')->name('dtes.lines.update');
 
-    // Salidas inventario — operaciones admin-only
-    Route::get('/inventario/salidas/export', [App\Http\Controllers\GmailInventoryController::class, 'exitExport'])->name('inventory.exits.export');
-    Route::post('/inventario/salidas/{id}/venta', [App\Http\Controllers\GmailInventoryController::class, 'exitSell'])->name('inventory.exits.sell')->whereNumber('id');
-    Route::get('/inventario/salidas/{id}/editar', [App\Http\Controllers\GmailInventoryController::class, 'exitEdit'])->name('inventory.exits.edit')->whereNumber('id');
-    Route::put('/inventario/salidas/{id}', [App\Http\Controllers\GmailInventoryController::class, 'exitUpdate'])->name('inventory.exits.update')->whereNumber('id');
-    Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
     // Configuraciones SII (admin-only)
     Route::post('/inventario/sii-config', [App\Http\Controllers\GmailInventoryController::class, 'siiConfigUpdate'])->name('inventory.sii.config');
     Route::post('/inventario/sii-upload-caf', [App\Http\Controllers\GmailInventoryController::class, 'uploadCaf'])->name('inventory.sii.upload.caf');

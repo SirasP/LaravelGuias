@@ -10,6 +10,15 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="shortcut icon" href="{{ asset('favicon.svg') }}">
 
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -37,7 +46,7 @@
                 @click="if(expanded && window.innerWidth >= 1024) { expanded = false; localStorage.setItem('sidebar_state','collapsed'); openSection = null; }">
 
                 {{-- Topbar mobile: hamburger + logo --}}
-                <header class="lg:hidden bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800 h-14 flex items-center px-4 gap-3 shrink-0 z-40">
+                <header class="lg:hidden sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 h-14 flex items-center px-4 gap-3 shrink-0 z-40 transition-colors">
                     <button @click="mobileOpen = true"
                         class="p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,9 +58,9 @@
                     </a>
                 </header>
 
-                {{-- Context header --}}
+                {{-- Context header (Desktop Sticky Glassmorphism) --}}
                 @isset($header)
-                    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                    <div class="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shrink-0 transition-colors">
                         <div class="w-full px-4 sm:px-6 lg:px-8">
                             <div class="h-14 flex items-center">
                                 {{ $header }}

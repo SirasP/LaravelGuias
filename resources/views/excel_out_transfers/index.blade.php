@@ -208,8 +208,8 @@
         }
 
         .dark .badge-nomatch {
-            background: rgba(255, 255, 255, .05);
-            color: #475569;
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
         }
 
         /* Mobile cards */
@@ -257,107 +257,36 @@
         }
     </style>
 
-    <div class="page-wrap">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-2">
-            {{-- Título + stats --}}
-            <div class="hidden sm:flex items-center gap-6 mt-2.5">
+    <div class="page-wrap premium-bg">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-2 premium-content">
+            {{-- Stats Grid (KPI Cards) --}}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
+                <x-kpi-card 
+                    label="Total Transferencias" 
+                    value="{{ $total }}"
+                    iconBg="bg-indigo-50 dark:bg-indigo-900/20"
+                    :trend="0"
+                >
+                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2"></path></svg>
+                </x-kpi-card>
 
-                {{-- Total --}}
-                <div class="flex items-baseline gap-2">
-                    <span class="text-xs uppercase tracking-wider text-gray-400 font-semibold">
-                        Total
-                    </span>
-                    <span class="text-lg font-black text-gray-800 dark:text-gray-100">
-                        {{ $total }}
-                    </span>
-                </div>
+                <x-kpi-card 
+                    label="Con Match ODOO" 
+                    value="{{ $matched }}"
+                    iconBg="bg-emerald-50 dark:bg-emerald-900/20"
+                    :pct="$total > 0 ? ($matched / $total * 100) : 0"
+                >
+                    <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </x-kpi-card>
 
-                {{-- Match --}}
-                <div class="flex items-baseline gap-2">
-                    <span class="text-xs uppercase tracking-wider text-emerald-500 font-semibold">
-                        Match
-                    </span>
-                    <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                        {{ $matched }}
-                    </span>
-                    <span class="text-xs text-gray-400">
-                        ({{ round($matched / max($total, 1) * 100) }}%)
-                    </span>
-                </div>
-
-                {{-- Sin Match --}}
-                <div class="flex items-baseline gap-2">
-                    <span class="text-xs uppercase tracking-wider text-red-500 font-semibold">
-                        Sin match
-                    </span>
-                    <span class="text-lg font-black text-red-600 dark:text-red-400">
-                        {{ $unmatched }}
-                    </span>
-                </div>
-
-            </div>
-
-
-            {{-- Buscador móvil --}}
-            <form method="GET" class="lg:hidden flex gap-2 au d1">
-                <div class="relative flex-1">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
-                    </svg>
-                    <input name="q" value="{{ $q }}" inputmode="search" enterkeyhint="search"
-                        placeholder="Contacto, guía, patente…" class="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl
-                          border border-gray-200 dark:border-gray-700
-                          bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                          focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
-                </div>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-bold rounded-xl bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900">
-                    Buscar
-                </button>
-            </form>
-
-            {{-- Stats móvil --}}
-            <div class="lg:hidden grid grid-cols-3 gap-2 au d1">
-
-                {{-- Total --}}
-                <div class="rounded-xl border border-gray-200 dark:border-gray-700
-                bg-white dark:bg-gray-800 p-3 text-center">
-                    <div class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
-                        Total
-                    </div>
-                    <div class="text-lg font-black text-gray-800 dark:text-gray-100">
-                        {{ $total }}
-                    </div>
-                </div>
-
-                {{-- Match --}}
-                <div class="rounded-xl border border-emerald-200 dark:border-emerald-800
-                bg-emerald-50 dark:bg-emerald-900/20 p-3 text-center">
-                    <div
-                        class="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">
-                        Match
-                    </div>
-                    <div class="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                        {{ $matched }}
-                    </div>
-                    <div class="text-[10px] text-emerald-500 opacity-80">
-                        {{ round($matched / max($total, 1) * 100) }}%
-                    </div>
-                </div>
-
-                {{-- Sin Match --}}
-                <div class="rounded-xl border border-red-200 dark:border-red-800
-                bg-red-50 dark:bg-red-900/20 p-3 text-center">
-                    <div class="text-[10px] uppercase tracking-wider text-red-600 dark:text-red-400 font-semibold">
-                        Sin match
-                    </div>
-                    <div class="text-lg font-black text-red-600 dark:text-red-400">
-                        {{ $unmatched }}
-                    </div>
-                </div>
-
+                <x-kpi-card 
+                    label="Sin Match" 
+                    value="{{ $unmatched }}"
+                    iconBg="bg-rose-50 dark:bg-rose-900/20"
+                    :pct="$total > 0 ? -($unmatched / $total * 100) : 0"
+                >
+                    <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </x-kpi-card>
             </div>
 
 

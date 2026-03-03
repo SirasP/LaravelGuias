@@ -195,6 +195,14 @@ class AgrakController extends Controller
         }
 
         $query->orderBy('id', 'desc');
+        
+        // ===== KPIs =====
+        $stats = [
+            'total_bins' => (clone $query)->count(),
+            'total_bandejas' => (clone $query)->sum('numero_bandejas_palet'),
+            'variedades' => (clone $query)->whereNotNull('variedad')->where('variedad', '!=', '')->distinct('variedad')->count(),
+            'cuarteles' => (clone $query)->whereNotNull('cuartel')->where('cuartel', '!=', '')->distinct('cuartel')->count(),
+        ];
 
         $items = $query->paginate(20)->withQueryString();
 
@@ -202,7 +210,7 @@ class AgrakController extends Controller
         $cuarteles = AgrakRegistro::select('cuartel')->whereNotNull('cuartel')->distinct()->orderBy('cuartel')->pluck('cuartel');
         $especies = AgrakRegistro::select('especie')->whereNotNull('especie')->distinct()->orderBy('especie')->pluck('especie');
 
-        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies'));
+        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies', 'stats'));
     }
 
     public function show(int $id)

@@ -150,8 +150,8 @@
         }
     </style>
 
-    <div class="page-bg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+    <div class="page-bg premium-bg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5 premium-content">
 
             {{-- Hero panel --}}
             <div class="panel">
@@ -205,16 +205,16 @@
                                 {{ number_format((float) $summary->cantidad_total, 0, ',', '.') }}
                             </p>
                         </div>
-                        <div class="kpi-box" style="background:#fff1f2; border-color:#fecdd3">
-                            <p class="stat-label" style="color:#f43f5e">Costo total</p>
-                            <p class="text-2xl font-black text-rose-600 dark:text-rose-400">$
+                        <div class="kpi-box bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/40">
+                            <p class="stat-label text-rose-600 dark:text-rose-400">Costo total</p>
+                            <p class="text-2xl font-black text-rose-700 dark:text-rose-300">$
                                 {{ number_format((float) $summary->costo_total, 0, ',', '.') }}
                             </p>
                         </div>
                         @if ($isVenta)
-                            <div class="kpi-box" style="background:#ecfdf5; border-color:#bbf7d0">
-                                <p class="stat-label" style="color:#059669">Venta total</p>
-                                <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                            <div class="kpi-box bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-900/40">
+                                <p class="stat-label text-emerald-600 dark:text-emerald-400">Venta total</p>
+                                <p class="text-2xl font-black text-emerald-700 dark:text-emerald-300">
                                     {{ $summary->venta_total > 0 ? '$ ' . number_format((float) $summary->venta_total, 0, ',', '.') : '—' }}
                                 </p>
                             </div>

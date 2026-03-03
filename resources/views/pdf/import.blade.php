@@ -40,8 +40,8 @@
     /* ── Prevent FOUC ── */
     [x-cloak] { display: none !important; }
 
-    @keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
-    .au { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(15px) } to { opacity:1; transform:translateY(0) } }
+    .au { animation: fadeUp .6s cubic-bezier(.22,1,.36,1) both }
     .d1 { animation-delay:.04s } .d2 { animation-delay:.10s } .d3 { animation-delay:.16s }
 
     /* ── Page ── */
@@ -49,9 +49,17 @@
     .dark .page-bg { background:#0d1117 }
 
     /* ── Panel — flex col so submit sticks to bottom ── */
-    .panel       { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;
-                   display:flex; flex-direction:column }
-    .dark .panel { background:#161c2c; border-color:#1e2a3b }
+    /* ── Panel — Glassmorphism Refine ── */
+    .panel       { background: rgba(255, 255, 255, 0.7); 
+                   backdrop-blur-xl border:1px solid rgba(255, 255, 255, 0.3); 
+                   border-radius:18px; overflow:hidden;
+                   display:flex; flex-direction:column;
+                   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+                   transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .panel:hover { transform: translateY(-2px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1); }
+    .dark .panel { background: rgba(22, 28, 44, 0.6); 
+                   border-color: rgba(255, 255, 255, 0.05);
+                   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2); }
     .panel-head  { padding:16px 20px; border-bottom:1px solid #f1f5f9;
                    display:flex; align-items:center; gap:10px; flex-shrink:0 }
     .dark .panel-head { border-bottom-color:#1e2a3b }
@@ -84,14 +92,15 @@
     .dark .fitem { border-bottom-color:#1a2232 }
     .fitem:last-child { border-bottom:none }
 
-    /* ── Segment control (full-width) ── */
-    .seg     { display:flex; background:#f1f5f9; border-radius:8px; padding:3px; gap:2px }
-    .dark .seg { background:rgba(255,255,255,.06) }
-    .seg-btn { flex:1; padding:5px 0; border-radius:6px; font-size:12px; font-weight:700;
-               cursor:pointer; transition:background .15s, color .15s; text-align:center;
-               border:none; background:transparent; color:#64748b }
-    .seg-btn.active      { background:#fff; color:#1e293b; box-shadow:0 1px 3px rgba(0,0,0,.12) }
-    .dark .seg-btn.active { background:#1e293b; color:#f1f5f9 }
+    /* ── Segment control (Pill style) ── */
+    .seg     { display:flex; background:rgba(0,0,0,0.04); border-radius:12px; padding:3px; gap:2px }
+    .dark .seg { background:rgba(255,255,255,0.06) }
+    .seg-btn { flex:1; padding:7px 0; border-radius:9px; font-size:12px; font-weight:700;
+               cursor:pointer; transition:all .2s cubic-bezier(0.4, 0, 0.2, 1); text-align:center;
+               border:none; background:transparent; color:#64748b; 
+               display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .seg-btn.active      { background:#fff; color:#4f46e5; box-shadow:0 4px 12px rgba(0,0,0,0.08) }
+    .dark .seg-btn.active { background:#4f46e5; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.2) }
 
     /* ── Column chips ── */
     .col-chip { display:inline-flex; font-size:10px; font-weight:700;
@@ -139,11 +148,16 @@
 
     /* ── Section label ── */
     .s-label { font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
-               color:#94a3b8; margin-bottom:6px; display:block }
+               color:#94a3b8; margin-bottom:8px; display:block }
+
+    /* ── Dropzone enhancement ── */
+    .dz { transform: scale(1); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .dz:active { transform: scale(0.98); }
+    .dz .w-10 { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 </style>
 
-<div class="page-bg">
-<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5">
+<div class="page-bg premium-bg">
+<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-5 premium-content">
 
     {{-- Flash --}}
     @if(session('ok'))
@@ -163,8 +177,8 @@
         </div>
     @endif
 
-    {{-- ═══ GRID 3 paneles ═══ --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-stretch">
+    {{-- ═══ GRID 2+1 paneles ═══ --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
 
         {{-- ─── 1 · PDF ─────────────────────────────── --}}
         <div class="panel au d1" x-data="pdfUploader()">
@@ -278,11 +292,25 @@
                     <span class="s-label">Tipo de Excel</span>
                     <div class="seg">
                         <button type="button" class="seg-btn" :class="{ active: excelType === 'vt' }"
-                                @click="excelType = 'vt'">VT (GDD)</button>
+                                @click="excelType = 'vt'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400" x-show="excelType === 'vt'"></span>
+                            VT (GDD)
+                        </button>
                         <button type="button" class="seg-btn" :class="{ active: excelType === 'rfp' }"
-                                @click="excelType = 'rfp'">RFP</button>
+                                @click="excelType = 'rfp'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400" x-show="excelType === 'rfp'"></span>
+                            RFP
+                        </button>
                         <button type="button" class="seg-btn" :class="{ active: excelType === 'agrak' }"
-                                @click="excelType = 'agrak'">AGRAK</button>
+                                @click="excelType = 'agrak'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" x-show="excelType === 'agrak'"></span>
+                            AGRAK
+                        </button>
+                        <button type="button" class="seg-btn" :class="{ active: excelType === 'odoo' }"
+                                @click="excelType = 'odoo'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-violet-400" x-show="excelType === 'odoo'"></span>
+                            ODOO Match
+                        </button>
                     </div>
                 </div>
 
@@ -320,6 +348,18 @@
                                 <template x-for="c in ['Código bin','Fecha registro','Hora registro','Exportadora','Nº sello','Especie','Variedad','Cuartel']">
                                     <span class="col-chip bg-emerald-50 text-emerald-700 border border-emerald-100
                                                  dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                                          x-text="c"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="excelType === 'odoo'">
+                        <div>
+                            <span class="s-label">Columnas · ODOO Match</span>
+                            <div class="flex flex-wrap -m-0.5">
+                                <template x-for="c in ['Contacto','Fecha prevista','Patente','Guía de entrega','Referencia']">
+                                    <span class="col-chip bg-violet-50 text-violet-700 border border-violet-100
+                                                 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900/30"
                                           x-text="c"></span>
                                 </template>
                             </div>
@@ -387,7 +427,7 @@
         </div>
 
         {{-- ─── 3 · XML SII ─────────────────────────── --}}
-        <div class="panel au d3" x-data="xmlUploader()">
+        <div class="panel au d3 lg:col-span-2" x-data="xmlUploader()">
             <div class="panel-head">
                 <div class="icon-dot bg-violet-50 dark:bg-violet-900/30">
                     <svg class="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -401,36 +441,64 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('pdf.import.xml') }}" enctype="multipart/form-data"
-                  class="panel-body" @submit="onSubmit">
-                @csrf
-
-                {{-- Dropzone --}}
-                <div class="dz dz-violet" :class="{ 'is-drag': dragging }"
-                     @dragover.prevent="dragging = true"
-                     @dragleave.prevent="dragging = false"
-                     @drop.prevent="onDrop"
-                     @click.self="$refs.file.click()">
-                    <input x-ref="file" type="file" name="xmls[]"
-                           accept=".xml" multiple required class="hidden" @change="onPick">
-                    <div x-show="!submitting" class="space-y-2 pointer-events-none">
-                        <div class="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto">
-                            <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                            </svg>
+            <div class="panel-body">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
+                    <div>
+                        <span class="s-label">Tipo de XML</span>
+                        <div class="seg">
+                            <button type="button" class="seg-btn" :class="{ active: xmlType === 'sii' }"
+                                    @click="xmlType = 'sii'">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400" x-show="xmlType === 'sii'"></span>
+                                SII (E-Factura)
+                            </button>
+                            <button type="button" class="seg-btn" :class="{ active: xmlType === 'comfrut' }"
+                                    @click="xmlType = 'comfrut'">
+                                <span class="w-1.5 h-1.5 rounded-full bg-violet-400" x-show="xmlType === 'comfrut'"></span>
+                                Comfrut
+                            </button>
                         </div>
-                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Arrastra tus XML aquí</p>
-                        <p class="text-xs text-gray-400">Puedes subir varios a la vez · .xml</p>
-                    </div>
-                    <div x-show="submitting" x-cloak class="space-y-1 pointer-events-none">
-                        <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
-                            Importando <span x-text="files.length"></span> XML…
+                        <p class="hint mt-4">
+                            Duplicados se ignoran automáticamente.
+                            Detecta <strong>Tipo 46</strong> del SII y facturas Comfrut.
                         </p>
-                        <div class="pbar w-48 mx-auto">
-                            <div class="pbar-fill" style="width:100%;background:#7c3aed"></div>
-                        </div>
                     </div>
+
+                    <form :action="formAction" method="POST" enctype="multipart/form-data"
+                          class="flex flex-col gap-4" @submit="onSubmit">
+                        @csrf
+                        {{-- Dropzone --}}
+                        <div class="dz dz-violet" :class="{ 'is-drag': dragging }"
+                             @dragover.prevent="dragging = true"
+                             @dragleave.prevent="dragging = false"
+                             @drop.prevent="onDrop"
+                             @click.self="$refs.file.click()">
+                            <input x-ref="file" type="file" :name="xmlType === 'comfrut' ? 'xml[]' : 'xmls[]'"
+                                   accept=".xml" multiple required class="hidden" @change="onPick">
+                            <div x-show="!submitting" class="space-y-2 pointer-events-none">
+                                <div class="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto">
+                                    <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                    </svg>
+                                </div>
+                                <p class="text-[13px] font-semibold text-gray-800 dark:text-gray-100 uppercase tracking-tight">Arrastra tus XML aquí</p>
+                                <p class="text-xs text-gray-400">Varios · .xml</p>
+                            </div>
+                            <div x-show="submitting" x-cloak class="space-y-1 pointer-events-none">
+                                <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
+                                    Importando <span x-text="files.length"></span> XML…
+                                </p>
+                                <div class="pbar w-32 mx-auto">
+                                    <div class="pbar-fill" style="width:100%;background:#7c3aed"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary btn-violet"
+                                :disabled="files.length === 0 || submitting">
+                            <span x-text="submitting ? 'Importando…' : 'Importar ' + files.length + ' XML'"></span>
+                        </button>
+                    </form>
                 </div>
 
                 {{-- File list --}}
@@ -439,44 +507,21 @@
                         <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
                             <span x-text="files.length"></span> archivo(s) · <span x-text="totalSize"></span>
                         </span>
-                        <button type="button" class="btn-ghost" @click="clearAll" :disabled="submitting">Limpiar todo</button>
+                        <button type="button" class="btn-ghost" @click="clearAll" :disabled="submitting">Limpiar</button>
                     </div>
-                    <div class="max-h-44 overflow-y-auto">
+                    <div class="max-h-32 overflow-y-auto">
                         <template x-for="(f, idx) in files" :key="f._key">
                             <div class="fitem">
                                 <div class="min-w-0 flex items-center gap-2">
-                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0
-                                                 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">XML</span>
-                                    <div class="min-w-0">
-                                        <p class="text-[13px] font-medium text-gray-800 dark:text-gray-200 truncate" x-text="f.name"></p>
-                                        <p class="text-[11px] text-gray-400" x-text="fmt(f.size)"></p>
-                                    </div>
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 uppercase">XML</span>
+                                    <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" x-text="f.name"></p>
                                 </div>
-                                <button type="button" class="btn-ghost shrink-0"
-                                        @click.stop="removeAt(idx)" :disabled="submitting">✕</button>
+                                <button type="button" class="btn-ghost shrink-0" @click.stop="removeAt(idx)" :disabled="submitting">✕</button>
                             </div>
                         </template>
                     </div>
                 </div>
-
-                <p class="hint">
-                    Duplicados se ignoran automáticamente.
-                    Detecta <strong>Tipo 46</strong> del SII.
-                </p>
-
-                <button type="submit" class="btn-primary btn-violet mt-auto"
-                        :disabled="files.length === 0 || submitting">
-                    <svg x-show="!submitting" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                    </svg>
-                    <svg x-show="submitting" x-cloak class="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                    </svg>
-                    <span x-text="submitting ? 'Importando…' : 'Importar XML (' + files.length + ')'"></span>
-                </button>
-            </form>
+            </div>
         </div>
 
     </div>{{-- /grid --}}
@@ -575,8 +620,12 @@ function excelUploader() {
     return {
         dragging: false, submitting: false, file: null, excelType: 'vt',
         get formAction() {
-            return ({ vt:"{{ route('excel.import.qc') }}", rfp:"{{ route('excel.import.rfp') }}", agrak:"{{ route('agrak.import') }}" })[this.excelType]
-                ?? "{{ route('excel.import.qc') }}";
+            return ({ 
+                vt:"{{ route('excel.import.qc') }}", 
+                rfp:"{{ route('excel.import.rfp') }}", 
+                agrak:"{{ route('agrak.import') }}",
+                odoo:"{{ route('excel_out_transfers.import') }}"
+            })[this.excelType] ?? "{{ route('excel.import.qc') }}";
         },
         onPick(e) { this.file = e.target.files[0] || null; },
         onDrop(e) {
@@ -594,7 +643,13 @@ function excelUploader() {
 /* ── 3 · XML uploader ── */
 function xmlUploader() {
     return {
-        dragging: false, submitting: false, files: [],
+        dragging: false, submitting: false, files: [], xmlType: 'sii',
+        get formAction() {
+            return ({
+                sii: "{{ route('pdf.import.xml') }}",
+                comfrut: "{{ route('guias.comfrut.import') }}"
+            })[this.xmlType] ?? "{{ route('pdf.import.xml') }}";
+        },
         get totalSize() { return fmt(this.files.reduce((s,f) => s+(f.size||0), 0)); },
         onPick(e) { this.files = mergeFiles(this.files, Array.from(e.target.files||[])); syncInput(this.$refs.file, this.files); },
         onDrop(e) {

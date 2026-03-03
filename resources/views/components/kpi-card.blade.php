@@ -20,7 +20,23 @@
     'loading'  => false,
     'badge'    => null,
     'badgeDir' => 'neu',
+    'pct'      => null,
 ])
+
+@php
+    if (isset($pct)) {
+        if ($pct > 0) {
+            $badgeDir = 'up';
+            $badge = '+'.number_format($pct, 1, ',', '.').'% prev';
+        } elseif ($pct < 0) {
+            $badgeDir = 'down';
+            $badge = number_format($pct, 1, ',', '.').'% prev';
+        } else {
+            $badgeDir = 'neu';
+            $badge = '0% prev';
+        }
+    }
+@endphp
 
 <div class="kpi-card">
     <div>
@@ -41,10 +57,16 @@
         @endif
 
         @if($badge)
-            <span class="kpi-badge kpi-badge-{{ $badgeDir }}">
-                @if($badgeDir === 'up') ▲ @elseif($badgeDir === 'down') ▼ @endif
+            <div class="mt-2 flex items-center gap-1.5 text-xs font-semibold {{ $badgeDir === 'up' ? 'text-emerald-600 dark:text-emerald-400' : ($badgeDir === 'down' ? 'text-red-500' : 'text-gray-400') }}">
+                @if($badgeDir === 'up')
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                @elseif($badgeDir === 'down')
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"></path></svg>
+                @else
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14"></path></svg>
+                @endif
                 {{ $badge }}
-            </span>
+            </div>
         @endif
     </div>
 
