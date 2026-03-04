@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\PurchaseReplyPdfAutofillService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,11 @@ use Google\Service\Gmail\ModifyMessageRequest;
 
 class CheckCotizacionReplies extends Command
 {
+    public function __construct(private PurchaseReplyPdfAutofillService $autofillService)
+    {
+        parent::__construct();
+    }
+
     protected $signature = 'cotizaciones:check-replies
                             {--all : Leer también correos ya leídos (no solo unread)}';
     protected $description = 'Lee respuestas de proveedores en Gmail y las registra automáticamente en cotizaciones';
@@ -178,7 +184,7 @@ class CheckCotizacionReplies extends Command
             /* ─────────────────────────────────────
              | 10. GUARDAR RESPUESTA EN BD
              ───────────────────────────────────── */
-            $db->table('purchase_order_replies')->insert([
+            $replyId = $db->table('purchase_order_replies')->insertGetId([
                 'purchase_order_id' => $order->id,
                 'supplier_id'       => $supplierId,
                 'supplier_name'     => $supplierName,
@@ -194,8 +200,19 @@ class CheckCotizacionReplies extends Command
                 'updated_at'        => now(),
             ]);
 
+            $autofill = $this->autofillService->autofillFromStoredAttachment(
+                $db,
+                $order,
+                (int) $replyId,
+                $pdfPath
+            );
+
             $this->markRead($service, $msg->getId());
-            $this->info("   ✅ {$orderNumber} ← {$supplierName} ({$senderEmail})");
+            if ($autofill['ok']) {
+                $this->info("   ✅ {$orderNumber} ← {$supplierName} ({$senderEmail}) | items: {$autofill['matched']}");
+            } else {
+                $this->info("   ✅ {$orderNumber} ← {$supplierName} ({$senderEmail})");
+            }
             $imported++;
         }
 

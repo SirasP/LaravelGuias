@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PurchaseReplyPdfAutofillService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -11,6 +12,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PurchaseOrderController extends Controller
 {
+    public function __construct(private PurchaseReplyPdfAutofillService $autofillService)
+    {
+    }
+
     private const DEFAULT_NOTES_TEMPLATE = "Estimado/a {PROVEEDOR},\n\nJunto con saludar, enviamos cotización para su revisión y confirmación.\n\nPor favor indicar plazo de entrega y condiciones.\n\nSaludos cordiales.";
 
     public function index()
@@ -876,7 +881,45 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        $hasManualItemPrices = !empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''));
+        if ($pdfPath && !$hasManualItemPrices) {
+            $autofill = $this->autofillService->autofillFromStoredAttachment(
+                $db,
+                $order,
+                (int) $replyId,
+                $pdfPath
+            );
+
+            if ($autofill['ok']) {
+                return back()->with('success', 'Respuesta registrada y autocompletada desde PDF.');
+            }
+        }
+
         return back()->with('success', 'Respuesta de ' . $request->input('supplier_name') . ' registrada.');
+    }
+
+    public function autofillReplyFromPdf(int $id, int $replyId)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $order = $db->table('purchase_orders')->where('id', $id)->firstOrFail();
+        $reply = $db->table('purchase_order_replies')
+            ->where('id', $replyId)
+            ->where('purchase_order_id', $id)
+            ->firstOrFail();
+
+        $result = $this->autofillService->autofillFromStoredAttachment(
+            $db,
+            $order,
+            (int) $replyId,
+            $reply->pdf_path
+        );
+
+        if (!$result['ok']) {
+            return back()->with('warning', $result['message']);
+        }
+
+        return back()->with('success', $result['message']);
     }
 
     public function updateReply(Request $request, int $id, int $replyId)

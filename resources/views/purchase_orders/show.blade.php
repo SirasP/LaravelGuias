@@ -523,6 +523,20 @@
                                                                     </p>
                                                                 </iframe>
                                                             </div>
+                                                            <div class="flex items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 dark:border-sky-800 dark:bg-sky-900/20">
+                                                                <p class="text-[11px] text-sky-700 dark:text-sky-300 leading-tight">
+                                                                    Lectura automática de PDF:
+                                                                    @if($rItems->count() > 0)
+                                                                        <strong>{{ $rItems->count() }} ítem(s) detectado(s)</strong>.
+                                                                    @else
+                                                                        sin datos detectados todavía.
+                                                                    @endif
+                                                                </p>
+                                                                <a href="{{ route('purchase_orders.autofill_reply', [$order->id, $reply->id]) }}"
+                                                                    class="shrink-0 px-2.5 py-1.5 text-[11px] font-bold rounded-md bg-sky-600 hover:bg-sky-700 text-white transition">
+                                                                    Autocompletar desde PDF
+                                                                </a>
+                                                            </div>
                                                             @elseif($fileUrl && $isImage)
                                                             <div>
                                                                 <p class="f-label">Cotización del proveedor</p>

@@ -515,5 +515,6 @@ Route::middleware(['auth', 'role:admin'])
         Route::patch('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'updateReply'])->whereNumber('id')->whereNumber('rid')->name('update_reply');
         Route::delete('/{id}/respuesta/{rid}', [PurchaseOrderController::class, 'deleteReply'])->whereNumber('id')->whereNumber('rid')->name('delete_reply');
         Route::patch('/{id}/item/{itemId}', [PurchaseOrderController::class, 'updateItem'])->whereNumber('id')->whereNumber('itemId')->name('update_item');
+        Route::get('/{id}/respuesta/{rid}/autofill', [PurchaseOrderController::class, 'autofillReplyFromPdf'])->whereNumber('id')->whereNumber('rid')->name('autofill_reply');
         Route::get('/adjunto/{rid}', [PurchaseOrderController::class, 'serveAttachment'])->whereNumber('rid')->name('attachment');
     });
