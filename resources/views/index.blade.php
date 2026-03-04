@@ -12,6 +12,87 @@
     };
 </script>
 
+<style>
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .au { animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both; }
+    .d1 { animation-delay: .04s; }
+    .d2 { animation-delay: .08s; }
+    .d3 { animation-delay: .12s; }
+    .d4 { animation-delay: .16s; }
+    .d5 { animation-delay: .20s; }
+    .d6 { animation-delay: .24s; }
+
+    /* Glass Cards */
+    .t-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+    }
+    .dark .t-card {
+        background: rgba(22, 28, 44, 0.6);
+        border-color: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Table Premium Styles */
+    .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .dt thead tr {
+        background: rgba(248, 250, 252, 0.5);
+        border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    }
+    .dark .dt thead tr {
+        background: rgba(15, 23, 42, 0.4);
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+    .dt th {
+        padding: 14px 16px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .dark .dt th { color: #94a3b8; }
+    .dt td {
+        padding: 16px;
+        border-bottom: 1px solid rgba(241, 245, 249, 0.5);
+        color: #334155;
+        transition: all 0.2s;
+    }
+    .dark .dt td {
+        border-bottom-color: rgba(255, 255, 255, 0.03);
+        color: #cbd5e1;
+    }
+    .dt tbody tr:hover td {
+        background: rgba(248, 250, 252, 0.8);
+    }
+    .dark .dt tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .dt th.r, .dt td.r { text-align: right; }
+
+    /* Ajuste para kg-card */
+    .kg-card {
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 16px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .dark .kg-card {
+        background: rgba(30, 41, 59, 0.5);
+        border-color: rgba(255,255,255,0.05);
+    }
+</style>
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between w-full">
@@ -79,8 +160,7 @@
         $kgProm = (float) ($kgPromedioAgrak ?? 2.5);
     @endphp
 
-    <div class="premium-bg min-h-screen">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 premium-content">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {{-- ══ SECCIÓN ODOO ══ --}}
         <div class="au d1">
@@ -218,7 +298,7 @@
             <x-section-label dot="bg-indigo-500">Empresas · kilos informados por centros</x-section-label>
 
             {{-- Desktop --}}
-            <div class="hidden lg:block bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/60 overflow-hidden">
+            <div class="hidden lg:block t-card au d5">
                 <table class="dt">
                     <thead>
                         <tr>
@@ -270,9 +350,9 @@
             </div>
 
             {{-- Mobile --}}
-            <div class="lg:hidden space-y-2">
+            <div class="lg:hidden space-y-2 au d5">
                 @forelse($kilosPorContacto as $row)
-                    <div class="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/60 p-4">
+                    <div class="t-card p-4">
                         <div class="flex items-start justify-between mb-3">
                             <a href="{{ route('centros.detalle', ['contacto' => $row->contacto]) }}"
                                class="font-bold text-sm text-indigo-600 dark:text-indigo-400 hover:underline leading-snug">{{ $row->contacto }}</a>

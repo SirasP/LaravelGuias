@@ -90,94 +90,21 @@
 
 <style>
     [x-cloak] { display:none !important; }
-
-    @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-    .au { animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both }
-    .d1 { animation-delay:.04s } .d2 { animation-delay:.08s } .d3 { animation-delay:.12s }
-
-    .page-bg       { background:#f1f5f9; min-height:100% }
-    .dark .page-bg { background:#0d1117 }
-
-    /* Card */
-    .t-card        { background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden }
-    .dark .t-card  { background:#161c2c; border-color:#1e2a3b }
-
-    /* Table */
-    .dt { width:100%; border-collapse:collapse; font-size:13px }
-    .dt thead tr { background:#f8fafc; border-bottom:1px solid #f1f5f9 }
-    .dark .dt thead tr { background:#111827; border-bottom-color:#1e2a3b }
-    .dt th { padding:10px 14px; text-align:left; font-size:10px; font-weight:700;
-             letter-spacing:.08em; text-transform:uppercase; color:#94a3b8; white-space:nowrap }
-    .dt th.r { text-align:right }
-    .dt td { padding:11px 14px; border-bottom:1px solid #f8fafc; color:#334155; vertical-align:middle }
-    .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
-    .dt tbody tr:last-child td { border-bottom:none }
-    .dt tbody tr:hover td { background:#f8fafc }
-    .dark .dt tbody tr:hover td { background:#1a2436 }
-
-    /* Mobile card */
-    .m-card       { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px 16px }
-    .dark .m-card { background:#161c2c; border-color:#1e2a3b }
-
-    /* Qty pills */
-    .qty { display:inline-flex; align-items:center; padding:2px 9px; border-radius:999px;
-           font-size:11px; font-weight:700; white-space:nowrap }
-    .qty-blue   { background:#dbeafe; color:#1d4ed8 }
-    .qty-purple { background:#f3e8ff; color:#7c3aed }
-    .qty-amber  { background:#fef3c7; color:#b45309 }
-    .qty-empty  { background:#f1f5f9; color:#94a3b8 }
-    .dark .qty-blue   { background:rgba(59,130,246,.15); color:#93c5fd }
-    .dark .qty-purple { background:rgba(139,92,246,.15); color:#c4b5fd }
-    .dark .qty-amber  { background:rgba(245,158,11,.15); color:#fcd34d }
-    .dark .qty-empty  { background:rgba(255,255,255,.06); color:#475569 }
-
-    /* Buttons */
-    .btn-sm       { display:inline-flex; align-items:center; gap:4px; padding:4px 10px;
-                    border-radius:8px; font-size:11px; font-weight:600; transition:background .15s }
-    .btn-indigo   { background:#eef2ff; color:#4f46e5 }
-    .btn-indigo:hover { background:#e0e7ff }
-    .dark .btn-indigo { background:rgba(99,102,241,.15); color:#a5b4fc }
-    .dark .btn-indigo:hover { background:rgba(99,102,241,.25) }
-
-    /* Guía badge */
-    .guia-badge { font-family:monospace; font-weight:700; font-size:13px;
-                  color:#4f46e5 }
+    .qty { display:inline-flex; align-items:center; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap }
+    .qty-blue   { background:#dbeafe; color:#1d4ed8 } .dark .qty-blue   { background:rgba(59,130,246,.15); color:#93c5fd }
+    .qty-purple { background:#f3e8ff; color:#7c3aed } .dark .qty-purple { background:rgba(139,92,246,.15); color:#c4b5fd }
+    .qty-amber  { background:#fef3c7; color:#b45309 } .dark .qty-amber  { background:rgba(245,158,11,.15); color:#fcd34d }
+    .qty-empty  { background:#f1f5f9; color:#94a3b8 } .dark .qty-empty  { background:rgba(255,255,255,.06); color:#475569 }
+    .guia-badge { font-family:monospace; font-weight:700; font-size:13px; color:#4f46e5 }
     .dark .guia-badge { color:#a5b4fc }
-
-    /* Patente */
-    .pat-badge { display:inline-block; font-family:monospace; font-weight:700; font-size:11px;
-                 padding:2px 6px; border-radius:5px; background:#f1f5f9; color:#475569;
-                 text-transform:uppercase }
-    .dark .pat-badge { background:rgba(255,255,255,.06); color:#94a3b8 }
-
-    /* Stat pill */
-    .stat-pill { display:inline-flex; align-items:center; gap:4px; padding:5px 12px;
-                 border-radius:10px; font-size:12px; font-weight:600;
-                 background:#eef2ff; color:#4338ca }
+    .stat-pill { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border-radius:10px; font-size:12px; font-weight:600; background:#eef2ff; color:#4338ca }
     .dark .stat-pill { background:rgba(99,102,241,.15); color:#a5b4fc }
-
-    /* Flash */
-    .flash-ok { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px;
-                padding:12px 16px; font-size:13px; color:#15803d;
-                display:flex; align-items:center; gap:8px }
-    .dark .flash-ok { background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.25); color:#34d399 }
-
-    /* Mobile search */
-    .mob-search { position:relative }
-    .mob-search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%);
-                      width:14px; height:14px; pointer-events:none; color:#9ca3af }
-    .mob-search input { width:100%; padding:10px 10px 10px 36px; border-radius:12px;
-                        border:1px solid #e2e8f0; background:#fff; font-size:14px; outline:none }
-    .dark .mob-search input { background:#161c2c; border-color:#1e2a3b; color:#f1f5f9 }
-
-    /* Empty state */
-    .empty-icon { width:48px; height:48px; border-radius:16px; background:#f1f5f9;
-                  display:flex; align-items:center; justify-content:center; margin:0 auto 12px }
+    .empty-icon { width:48px; height:48px; border-radius:16px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; margin:0 auto 12px }
     .dark .empty-icon { background:rgba(255,255,255,.06) }
 </style>
 
 <div class="page-bg" x-data="comfrutIndex({{ $rowsJson }})">
-<div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+<div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
 
     {{-- Flash --}}
     @if(session('ok'))

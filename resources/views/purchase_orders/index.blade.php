@@ -153,7 +153,9 @@
                                         <span class="font-black font-mono text-sm text-gray-900 dark:text-gray-100 tracking-tight">{{ $o->order_number }}</span>
                                         <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                                     </div>
-                                    @if($names->count() > 0)
+                                    @if($o->status === 'order' && $o->supplier_name)
+                                        <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">{{ $o->supplier_name }}</p>
+                                    @elseif($names->count() > 0)
                                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                             {{ $names->join(' · ') }}
                                         </p>
@@ -206,7 +208,12 @@
                                             <span class="font-black text-gray-900 dark:text-gray-100 font-mono tracking-tight">{{ $o->order_number }}</span>
                                         </td>
                                         <td>
-                                            @if($names->count() > 0)
+                                            @if($o->status === 'order' && $o->supplier_name)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                    {{ $o->supplier_name }}
+                                                </span>
+                                            @elseif($names->count() > 0)
                                                 <div class="flex flex-wrap gap-1">
                                                     @foreach($names as $sn)
                                                         <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">{{ $sn }}</span>

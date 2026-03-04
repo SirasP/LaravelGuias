@@ -63,87 +63,23 @@
     {{-- ── Navigation ─────────────────────────────────────── --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 sidebar-scroll" :class="expanded ? 'px-2.5' : 'px-1.5'">
         @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'viewer']))
-        {{-- ─── SECCIÓN: DOCUMENTOS ─── --}}
+        {{-- ─── SECCIÓN: RECEPCIÓN ─── --}}
         <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1">
-            <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Documentos</p>
+            <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Recepción</p>
         </div>
         <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
-        {{-- Guías Recepcionadas --}}
-        @php $pdfActive = request()->routeIs('pdf.index'); @endphp
-        <a href="{{ route('pdf.index') }}" @click="mobileOpen = false"
-            class="flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
-            :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
-            :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                {{ $pdfActive ? 'bg-indigo-100 dark:bg-indigo-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
-                <svg class="w-[18px] h-[18px] transition-colors {{ $pdfActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-            </div>
-            <span x-show="expanded" class="text-sm font-medium truncate {{ $pdfActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400' }}">Guías PDF</span>
-            <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
-                Guías PDF
-                <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
-            </div>
-        </a>
-
-        {{-- Guías ODOO --}}
-        @php $odooActive = request()->routeIs('excel_out_transfers.index'); @endphp
-        <a href="{{ route('excel_out_transfers.index') }}" @click="mobileOpen = false"
-            class="flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
-            :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
-            :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                {{ $odooActive ? 'bg-violet-100 dark:bg-violet-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
-                <svg class="w-[18px] h-[18px] transition-colors {{ $odooActive ? 'text-violet-600 dark:text-violet-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
-                </svg>
-            </div>
-            <span x-show="expanded" class="text-sm font-medium truncate {{ $odooActive ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400' }}">Guías ODOO</span>
-            <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
-                Guías ODOO
-                <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
-            </div>
-        </a>
-
-        {{-- Agrak --}}
-        @php $agrakActive = request()->routeIs('agrak.index'); @endphp
-        <a href="{{ route('agrak.index') }}" @click="mobileOpen = false"
-            class="flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
-            :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
-            :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                {{ $agrakActive ? 'bg-emerald-100 dark:bg-emerald-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
-                <svg class="w-[18px] h-[18px] transition-colors {{ $agrakActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-            </div>
-            <span x-show="expanded" class="text-sm font-medium truncate {{ $agrakActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-600 dark:text-gray-400' }}">Agrak</span>
-            <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
-                Agrak
-                <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
-            </div>
-        </a>
-
-        {{-- XML Recepcionadas --}}
-        @php $xmlActive = request()->routeIs('guias.comfrut.index'); @endphp
-        <a href="{{ route('guias.comfrut.index') }}" @click="mobileOpen = false"
-            class="flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
-            :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
-            :style="!expanded ? 'margin:0 auto; width:48px' : ''">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
-                {{ $xmlActive ? 'bg-sky-100 dark:bg-sky-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
-                <svg class="w-[18px] h-[18px] transition-colors {{ $xmlActive ? 'text-sky-600 dark:text-sky-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-            </div>
-            <span x-show="expanded" class="text-sm font-medium truncate {{ $xmlActive ? 'text-sky-700 dark:text-sky-300' : 'text-gray-600 dark:text-gray-400' }}">XML Recepcionadas</span>
-            <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
-                XML Recepcionadas
-                <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
-            </div>
-        </a>
+        {{-- Documentos (colapsable) --}}
+        @php $docsActive = request()->routeIs('pdf.*') || request()->routeIs('excel_out_transfers.*') || request()->routeIs('agrak.*') || request()->routeIs('guias.comfrut.*'); @endphp
+        <x-nav-item id="docs" label="Documentos" iconBgColor="indigo" :active="$docsActive">
+            <x-slot name="icon">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </x-slot>
+            <x-nav-sublink href="{{ route('pdf.index') }}" :active="request()->routeIs('pdf.index') || request()->routeIs('pdf.import.*')" color="indigo">Doc. Recibidos Centros</x-nav-sublink>
+            <x-nav-sublink href="{{ route('excel_out_transfers.index') }}" :active="request()->routeIs('excel_out_transfers.*')" color="indigo">Match</x-nav-sublink>
+            <x-nav-sublink href="{{ route('agrak.index') }}" :active="request()->routeIs('agrak.*')" color="indigo">Agrak</x-nav-sublink>
+            <x-nav-sublink href="{{ route('guias.comfrut.index') }}" :active="request()->routeIs('guias.comfrut.*')" color="indigo">XML Gmail Transporte</x-nav-sublink>
+        </x-nav-item>
 
         {{-- IMPORTAR TODO (Admin Direct Link) --}}
         @if(auth()->check() && auth()->user()->role === 'admin')
@@ -404,10 +340,7 @@
 
             detectCurrentSection() {
                 const sections = [
-                    { name: 'docs', active: @json(request()->routeIs('pdf.*')) },
-                    { name: 'odoo', active: @json(request()->routeIs('excel_out_transfers.*')) },
-                    { name: 'agrak', active: @json(request()->routeIs('agrak.*')) },
-                    { name: 'xml', active: @json(request()->routeIs('guias.*')) },
+                    { name: 'docs', active: @json(request()->routeIs('pdf.*') || request()->routeIs('excel_out_transfers.*') || request()->routeIs('agrak.*') || request()->routeIs('guias.comfrut.*')) },
                     { name: 'dteprov', active: @json(request()->routeIs('gmail.dtes.*')) },
                     { name: 'oc', active: @json(request()->routeIs('purchase_orders.*')) },
                     { name: 'dteinv', active: @json(request()->routeIs('gmail.inventory.*') && !request()->routeIs('gmail.inventory.sii.status')) },

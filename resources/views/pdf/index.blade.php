@@ -80,268 +80,21 @@
     @endphp
 
     <style>
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(8px)
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0)
-            }
-        }
-
-        .au {
-            animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both
-        }
-
-        .d1 {
-            animation-delay: .04s
-        }
-
-        .d2 {
-            animation-delay: .08s
-        }
-
-        .d3 {
-            animation-delay: .12s
-        }
-
-        .d4 {
-            animation-delay: .16s
-        }
-
-        .page-bg {
-            background: #f8fafc;
-            min-height: 100vh;
-        }
-
-        .dark .page-bg {
-            background: #090e1a;
-        }
-
-        /* Glass Cards */
-        .t-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
-            overflow: hidden;
-        }
-
-        .dark .t-card {
-            background: rgba(22, 28, 44, 0.6);
-            border-color: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Table Premium Styles */
-        .dt thead tr {
-            background: rgba(248, 250, 252, 0.5);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-        }
-
-        .dark .dt thead tr {
-            background: rgba(15, 23, 42, 0.4);
-            border-bottom-color: rgba(255, 255, 255, 0.05);
-        }
-
-        .dt th {
-            padding: 14px 16px;
-            font-size: 11px;
-            color: #64748b;
-        }
-
-        .dark .dt th {
-            color: #94a3b8;
-        }
-
-        .dt td {
-            padding: 16px;
-            border-bottom: 1px solid rgba(241, 245, 249, 0.5);
-            color: #334155;
-            transition: all 0.2s;
-        }
-
-        .dark .dt td {
-            border-bottom-color: rgba(255, 255, 255, 0.03);
-            color: #cbd5e1;
-        }
-
-        .dt tbody tr:hover td {
-            background: rgba(248, 250, 252, 0.8);
-        }
-
-        .dark .dt tbody tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        /* Mobile Premium Card */
-        .m-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 18px;
-            padding: 16px;
-            box-shadow: 0 8px 20px -8px rgba(0,0,0,0.05);
-        }
-
-        .dark .m-card {
-            background: rgba(22, 28, 44, 0.6);
-            border-color: rgba(255, 255, 255, 0.08);
-        }
-
-        /* Botones acción */
-        .btn-sm {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            transition: background .15s
-        }
-
-        .btn-indigo {
-            background: #eef2ff;
-            color: #4f46e5
-        }
-
-        .btn-indigo:hover {
-            background: #e0e7ff
-        }
-
-        .btn-gray {
-            background: #f1f5f9;
-            color: #475569
-        }
-
-        .btn-gray:hover {
-            background: #e2e8f0
-        }
-
-        .dark .btn-indigo {
-            background: rgba(99, 102, 241, .15);
-            color: #a5b4fc
-        }
-
-        .dark .btn-indigo:hover {
-            background: rgba(99, 102, 241, .25)
-        }
-
-        .dark .btn-gray {
-            background: rgba(255, 255, 255, .06);
-            color: #94a3b8
-        }
-
-        .dark .btn-gray:hover {
-            background: rgba(255, 255, 255, .1)
-        }
-
-        /* Template pills */
-        .tpl {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .04em;
-            white-space: nowrap
-        }
-
-        .tpl-QC {
-            background: #dcfce7;
-            color: #15803d
-        }
-
-        .dark .tpl-QC {
-            background: rgba(16, 185, 129, .15);
-            color: #34d399
-        }
-
-        .tpl-MP {
-            background: #dbeafe;
-            color: #1d4ed8
-        }
-
-        .dark .tpl-MP {
-            background: rgba(59, 130, 246, .15);
-            color: #93c5fd
-        }
-
-        .tpl-SANCO {
-            background: #f3e8ff;
-            color: #7c3aed
-        }
-
-        .dark .tpl-SANCO {
-            background: rgba(139, 92, 246, .15);
-            color: #c4b5fd
-        }
-
-        .tpl-RFP {
-            background: #e0e7ff;
-            color: #4338ca
-        }
-
-        .dark .tpl-RFP {
-            background: rgba(99, 102, 241, .15);
-            color: #a5b4fc
-        }
-
-        .tpl-VT {
-            background: #fef3c7;
-            color: #b45309
-        }
-
-        .dark .tpl-VT {
-            background: rgba(245, 158, 11, .15);
-            color: #fcd34d
-        }
-
-        .tpl-LIQ {
-            background: #ffe4e6;
-            color: #be123c
-        }
-
-        .dark .tpl-LIQ {
-            background: rgba(244, 63, 94, .15);
-            color: #fda4af
-        }
-
-        .tpl-GRR {
-            background: #e0f2fe;
-            color: #0369a1
-        }
-
-        .dark .tpl-GRR {
-            background: rgba(14, 165, 233, .15);
-            color: #7dd3fc
-        }
-
-        .tpl-XML {
-            background: #f1f5f9;
-            color: #475569
-        }
-
-        .dark .tpl-XML {
-            background: rgba(255, 255, 255, .06);
-            color: #94a3b8
-        }
-
-        .tpl-unknown {
-            background: #f8fafc;
-            color: #94a3b8
-        }
+        [x-cloak] { display: none !important; }
+        .tpl { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.04em; white-space:nowrap }
+        .tpl-QC { background:#dcfce7; color:#15803d } .dark .tpl-QC { background:rgba(16,185,129,.15); color:#34d399 }
+        .tpl-MP { background:#dbeafe; color:#1d4ed8 } .dark .tpl-MP { background:rgba(59,130,246,.15); color:#93c5fd }
+        .tpl-SANCO { background:#f3e8ff; color:#7c3aed } .dark .tpl-SANCO { background:rgba(139,92,246,.15); color:#c4b5fd }
+        .tpl-RFP { background:#e0e7ff; color:#4338ca } .dark .tpl-RFP { background:rgba(99,102,241,.15); color:#a5b4fc }
+        .tpl-VT { background:#fef3c7; color:#b45309 } .dark .tpl-VT { background:rgba(245,158,11,.15); color:#fcd34d }
+        .tpl-LIQ_COMPUAGRO { background:#ffe4e6; color:#be123c } .dark .tpl-LIQ_COMPUAGRO { background:rgba(244,63,94,.15); color:#fda4af }
+        .tpl-GUIA_RECEPCION_RESUMEN { background:#e0f2fe; color:#0369a1 } .dark .tpl-GUIA_RECEPCION_RESUMEN { background:rgba(14,165,233,.15); color:#7dd3fc }
+        .tpl-XML_SII_46 { background:#f1f5f9; color:#475569 } .dark .tpl-XML_SII_46 { background:rgba(255,255,255,.06); color:#94a3b8 }
+        .tpl-unknown { background:#f8fafc; color:#94a3b8 }
     </style>
 
-    <div class="page-bg premium-bg" x-data="pdfIndex({{ $rowsJson }})">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 premium-content">
+    <div class="page-bg">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4" x-data="pdfIndex({{ $rowsJson }})">
 
             {{-- Buscador móvil --}}
             <div class="sm:hidden au d1">
@@ -490,7 +243,7 @@
             <div class="hidden lg:block au d3" data-turbo="false">{{ $imports->links() }}</div>
 
             {{-- ── CARDS MÓVIL ─────────────────────────────── --}}
-            <div class="lg:hidden space-y-2 au d2">
+            <div class="lg:hidden space-y-3 au d2">
                 <template x-for="r in filtered" :key="r.id">
                     <div class="m-card">
                         <div class="flex items-start justify-between gap-2 mb-2.5">
@@ -617,6 +370,7 @@
 
         </div>
     </div>
+    </div>
 
     <script>
         document.addEventListener('alpine:init', () => {
@@ -651,9 +405,9 @@
                         'tpl-SANCO': tpl === 'SANCO',
                         'tpl-RFP': tpl === 'RFP',
                         'tpl-VT': tpl === 'VT',
-                        'tpl-LIQ': tpl === 'LIQ_COMPUAGRO',
-                        'tpl-GRR': tpl === 'GUIA_RECEPCION_RESUMEN',
-                        'tpl-XML': tpl === 'XML_SII_46',
+                        'tpl-LIQ_COMPUAGRO': tpl === 'LIQ_COMPUAGRO',
+                        'tpl-GUIA_RECEPCION_RESUMEN': tpl === 'GUIA_RECEPCION_RESUMEN',
+                        'tpl-XML_SII_46': tpl === 'XML_SII_46',
                         'tpl-unknown': !['QC', 'MP', 'SANCO', 'RFP', 'VT',
                             'LIQ_COMPUAGRO', 'GUIA_RECEPCION_RESUMEN',
                             'XML_SII_46'].includes(tpl),

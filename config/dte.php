@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'dev_mode' => (bool) env('DTE_DEV_MODE', true),
+
     'storage_disk' => env('DTE_STORAGE_DISK', 'local'),
 
     'caf_disk' => env('DTE_CAF_DISK', 'local'),
@@ -24,8 +26,8 @@ return [
 
     'envio' => [
         'rut_receptor' => env('DTE_ENVIO_RUT_RECEPTOR', '60803000-K'),
-        'fecha_resolucion' => env('DTE_ENVIO_FECHA_RESOL', '2024-01-01'),
-        'numero_resolucion' => env('DTE_ENVIO_NRO_RESOL', '0'),
+        'fecha_resolucion' => env('DTE_ENVIO_FECHA_RESOL', ''),
+        'numero_resolucion' => env('DTE_ENVIO_NRO_RESOL', ''),
     ],
 
     'signature' => [

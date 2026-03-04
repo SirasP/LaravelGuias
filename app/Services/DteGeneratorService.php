@@ -20,6 +20,11 @@ class DteGeneratorService
      * @param  array{
      *   movement_id:int,
      *   destinatario:string,
+     *   receptor_rut:?string,
+     *   receptor_giro:?string,
+     *   receptor_direccion:?string,
+     *   receptor_comuna:?string,
+     *   receptor_ciudad:?string,
      *   receptor_email:?string,
      *   folio:?int,
      *   caf_path:?string,
@@ -35,6 +40,11 @@ class DteGeneratorService
     {
         $movementId = (int) ($data['movement_id'] ?? 0);
         $destinatario = trim((string) ($data['destinatario'] ?? ''));
+        $receptorRut = trim((string) ($data['receptor_rut'] ?? ''));
+        $receptorGiro = trim((string) ($data['receptor_giro'] ?? ''));
+        $receptorDireccion = trim((string) ($data['receptor_direccion'] ?? ''));
+        $receptorComuna = trim((string) ($data['receptor_comuna'] ?? ''));
+        $receptorCiudad = trim((string) ($data['receptor_ciudad'] ?? ''));
         $receptorEmail = trim((string) ($data['receptor_email'] ?? ''));
         $folioInput = (int) ($data['folio'] ?? 0);
         $cafPath = isset($data['caf_path']) ? trim((string) $data['caf_path']) : null;
@@ -51,7 +61,7 @@ class DteGeneratorService
         }
 
         $emisor = $this->mockEmisor();
-        $receptor = $this->buildReceptor($destinatario, $receptorEmail);
+        $receptor = $this->buildReceptor($destinatario, $receptorRut, $receptorGiro, $receptorDireccion, $receptorComuna, $receptorCiudad, $receptorEmail);
         $caf = $this->cafService->loadForTipoDte(33, $cafPath);
 
         $isDevCaf = (bool) ($caf['is_dev'] ?? false);
@@ -230,6 +240,16 @@ class DteGeneratorService
 
     private function mockEmisor(): array
     {
+        $fchResol = trim((string) config('dte.envio.fecha_resolucion', ''));
+        $nroResol = trim((string) config('dte.envio.numero_resolucion', ''));
+
+        if ($fchResol === '') {
+            throw new RuntimeException('DTE_ENVIO_FECHA_RESOL no está configurado. Configura la fecha de resolución del SII en .env');
+        }
+        if ($nroResol === '') {
+            throw new RuntimeException('DTE_ENVIO_NRO_RESOL no está configurado. Configura el número de resolución del SII en .env');
+        }
+
         return [
             'RUTEmisor' => (string) config('dte.emisor.rut', '76000000-0'),
             'RznSoc' => (string) config('dte.emisor.razon_social', 'EMPRESA DEMO SPA'),
@@ -240,20 +260,31 @@ class DteGeneratorService
             'CiudadOrigen' => (string) config('dte.emisor.ciudad', 'SANTIAGO'),
             'RutEnvia' => (string) config('dte.emisor.rut_envia', '76000000-0'),
             'RutReceptor' => (string) config('dte.envio.rut_receptor', '60803000-K'),
-            'FchResol' => (string) config('dte.envio.fecha_resolucion', '2024-01-01'),
-            'NroResol' => (string) config('dte.envio.numero_resolucion', '0'),
+            'FchResol' => $fchResol,
+            'NroResol' => $nroResol,
         ];
     }
 
-    private function buildReceptor(string $destinatario, string $email): array
-    {
+    private function buildReceptor(
+        string $destinatario,
+        string $rut,
+        string $giro,
+        string $direccion,
+        string $comuna,
+        string $ciudad,
+        string $email
+    ): array {
+        if ($rut === '') {
+            throw new RuntimeException('RUT del receptor es obligatorio para generar DTE. Asigna un contacto con RUT a la venta.');
+        }
+
         return [
-            'RUTRecep' => '66666666-6',
+            'RUTRecep' => $rut,
             'RznSocRecep' => mb_strtoupper($destinatario, 'UTF-8'),
-            'GiroRecep' => 'CLIENTE',
-            'DirRecep' => 'SIN DIRECCION',
-            'CmnaRecep' => 'SANTIAGO',
-            'CiudadRecep' => 'SANTIAGO',
+            'GiroRecep' => $giro !== '' ? $giro : 'CLIENTE',
+            'DirRecep' => $direccion !== '' ? $direccion : 'SIN DIRECCION',
+            'CmnaRecep' => $comuna !== '' ? $comuna : 'SANTIAGO',
+            'CiudadRecep' => $ciudad !== '' ? $ciudad : 'SANTIAGO',
             'CorreoRecep' => $email,
         ];
     }
@@ -310,14 +341,29 @@ class DteGeneratorService
 
     private function buildCafBackedFolio(int $movementId, int $folioDesde, int $folioHasta): int
     {
-        $rangeSize = ($folioHasta - $folioDesde) + 1;
-        if ($rangeSize <= 0) {
+        if ($folioHasta < $folioDesde) {
             throw new RuntimeException('Rango CAF inválido para cálculo de folio.');
         }
 
-        $offset = max($movementId - 1, 0) % $rangeSize;
+        $db = \Illuminate\Support\Facades\DB::connection('fuelcontrol');
 
-        return $folioDesde + $offset;
+        $lastUsed = (int) $db->table('gmail_inventory_movements')
+            ->whereNotNull('dte_folio')
+            ->where('dte_folio', '>=', $folioDesde)
+            ->where('dte_folio', '<=', $folioHasta)
+            ->max('dte_folio');
+
+        $nextFolio = $lastUsed > 0 ? $lastUsed + 1 : $folioDesde;
+
+        if ($nextFolio > $folioHasta) {
+            throw new RuntimeException("Folios agotados en rango CAF ({$folioDesde}-{$folioHasta}). Sube un nuevo archivo CAF.");
+        }
+
+        $db->table('gmail_inventory_movements')
+            ->where('id', $movementId)
+            ->update(['dte_folio' => $nextFolio, 'updated_at' => now()]);
+
+        return $nextFolio;
     }
 
     private function buildDevFolio(int $movementId): int

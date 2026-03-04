@@ -7,7 +7,6 @@ use App\Services\GmailDteInventoryService;
 use App\Services\SiiClientService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class InventoryExitController extends Controller
@@ -33,7 +32,8 @@ class InventoryExitController extends Controller
             'tipo_salida'          => 'nullable|string|in:Venta,EPP,Salida',
             'notas'                => 'nullable|string|max:1000',
             'enviar_factura'       => 'nullable|boolean',
-            'correo_factura'       => 'nullable|string|email|max:200',
+            'correo_factura'       => 'required_if:enviar_factura,1|nullable|string|email|max:200',
+            'contact_id'           => 'nullable|integer',
             'items'                => 'required|array|min:1',
             'items.*.product_id'   => 'required|integer',
             'items.*.quantity'     => 'required|numeric|gt:0',
@@ -48,14 +48,6 @@ class InventoryExitController extends Controller
 
         if (!empty(array_diff($productIds, $existingIds))) {
             return back()->withInput()->withErrors(['items' => 'Uno o más productos no son válidos.']);
-        }
-
-        if (
-            ($validated['tipo_salida'] ?? null) === 'Venta'
-            && (int) ($validated['enviar_factura'] ?? 0) === 1
-            && trim((string) ($validated['correo_factura'] ?? '')) === ''
-        ) {
-            return back()->withInput()->withErrors(['correo_factura' => 'Debes indicar un correo para enviar la factura.']);
         }
 
         try {
@@ -95,9 +87,22 @@ class InventoryExitController extends Controller
                     ->values()
                     ->all();
 
+                $contact = null;
+                if (!empty($validated['contact_id'])) {
+                    $contact = $this->db()
+                        ->table('gmail_inventory_contacts')
+                        ->where('id', (int) $validated['contact_id'])
+                        ->first();
+                }
+
                 $dteXmlPath = $dteGenerator->generateFacturaXmlForExit([
                     'movement_id' => (int) $result['movement_id'],
                     'destinatario' => (string) $validated['destinatario'],
+                    'receptor_rut' => $contact->rut ?? '',
+                    'receptor_giro' => $contact->giro ?? '',
+                    'receptor_direccion' => $contact->direccion ?? '',
+                    'receptor_comuna' => $contact->comuna ?? '',
+                    'receptor_ciudad' => $contact->comuna ?? '',
                     'receptor_email' => trim((string) ($validated['correo_factura'] ?? '')),
                     'items' => $dteItems,
                 ]);
@@ -105,25 +110,17 @@ class InventoryExitController extends Controller
                 $envio = $siiClientService->enviarDte($dteXmlPath);
                 $siiTrackId = (string) ($envio['track_id'] ?? '');
 
-                $movementUpdate = ['updated_at' => now()];
-                $columns = [
-                    'dte_xml_path' => $dteXmlPath,
-                    'sii_track_id' => $siiTrackId !== '' ? $siiTrackId : null,
-                    'sii_estado' => (string) ($envio['sii_estado'] ?? 'ENVIADO'),
-                    'sii_ultimo_envio_xml' => (string) ($envio['response_xml'] ?? ''),
-                    'sii_enviado_at' => now(),
-                ];
-
-                foreach ($columns as $col => $val) {
-                    if (Schema::connection('fuelcontrol')->hasColumn('gmail_inventory_movements', $col)) {
-                        $movementUpdate[$col] = $val;
-                    }
-                }
-
                 $this->db()
                     ->table('gmail_inventory_movements')
                     ->where('id', (int) $result['movement_id'])
-                    ->update($movementUpdate);
+                    ->update([
+                        'dte_xml_path' => $dteXmlPath,
+                        'sii_track_id' => $siiTrackId !== '' ? $siiTrackId : null,
+                        'sii_estado' => (string) ($envio['sii_estado'] ?? 'ENVIADO'),
+                        'sii_ultimo_envio_xml' => (string) ($envio['response_xml'] ?? ''),
+                        'sii_enviado_at' => now(),
+                        'updated_at' => now(),
+                    ]);
             }
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['items' => $e->getMessage()]);

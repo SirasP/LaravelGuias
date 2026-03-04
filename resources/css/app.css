@@ -194,15 +194,51 @@
 
     /* ── Chart Cards ────────────────────────────────────────────── */
     .chart-card {
-        background: #fff;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
         overflow: hidden;
     }
 
     .dark .chart-card {
-        background: #161c2c;
-        border-color: #1e2a3b;
+        background: rgba(22, 28, 44, 0.6);
+        border-color: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ── Card Styles (Glassmorphism Standard) ──────────────────── */
+    .t-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+    }
+
+    .dark .t-card {
+        background: rgba(22, 28, 44, 0.6);
+        border-color: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+    }
+
+    .m-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.05);
+    }
+
+    .dark .m-card {
+        background: rgba(22, 28, 44, 0.6);
+        border-color: rgba(255, 255, 255, 0.08);
     }
 
     .chart-header {
@@ -248,22 +284,28 @@
     }
 
     .dt thead tr {
-        border-bottom: 1px solid #f1f5f9;
+        background: rgba(248, 250, 252, 0.5);
+        border-bottom: 1px solid rgba(226, 232, 240, 0.5);
     }
 
     .dark .dt thead tr {
-        border-bottom-color: #1e2a3b;
+        background: rgba(15, 23, 42, 0.4);
+        border-bottom-color: rgba(255, 255, 255, 0.05);
     }
 
     .dt th {
-        padding: 10px 16px;
+        padding: 14px 16px;
         text-align: left;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: .08em;
         text-transform: uppercase;
-        color: #94a3b8;
+        color: #64748b;
         white-space: nowrap;
+    }
+
+    .dark .dt th {
+        color: #94a3b8;
     }
 
     .dt th.r {
@@ -271,13 +313,14 @@
     }
 
     .dt td {
-        padding: 11px 16px;
-        border-bottom: 1px solid #f8fafc;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(241, 245, 249, 0.5);
         color: #334155;
+        transition: all 0.2s;
     }
 
     .dark .dt td {
-        border-bottom-color: #1a2232;
+        border-bottom-color: rgba(255, 255, 255, 0.03);
         color: #cbd5e1;
     }
 
@@ -286,23 +329,24 @@
     }
 
     .dt tbody tr {
-        transition: background .1s;
+        transition: background .15s ease;
     }
 
     .dt tbody tr:hover td {
-        background: #f8fafc;
+        background: rgba(248, 250, 252, 0.8);
     }
 
     .dark .dt tbody tr:hover td {
-        background: #1a2436;
+        background: rgba(255, 255, 255, 0.02);
     }
 
     /* ── Kg adjustment card ─────────────────────────────────────── */
     .kg-card {
-        background: #fafafa;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 16px 20px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 16px;
+        padding: 12px 20px;
         display: flex;
         align-items: center;
         gap: 16px;
@@ -310,8 +354,8 @@
     }
 
     .dark .kg-card {
-        background: #161c2c;
-        border-color: #1e2a3b;
+        background: rgba(30, 41, 59, 0.5);
+        border-color: rgba(255, 255, 255, 0.05);
     }
 
     /* ── Skeleton loader ─────────────────────────────────────────── */
@@ -358,6 +402,224 @@
 
     .sidebar-scroll::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
+    }
+
+    /* ── Page Background ──────────────────────────────────────────── */
+    .page-bg {
+        background: #f1f5f9;
+        min-height: 100%;
+    }
+
+    .dark .page-bg {
+        background: #0d1117;
+    }
+
+    /* ── Small Buttons ────────────────────────────────────────────── */
+    .btn-sm {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 12px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        transition: background .15s, transform .1s;
+        white-space: nowrap;
+    }
+
+    .btn-sm:active {
+        transform: scale(.97);
+    }
+
+    .btn-indigo {
+        background: #eef2ff;
+        color: #4f46e5;
+    }
+
+    .btn-indigo:hover {
+        background: #e0e7ff;
+    }
+
+    .dark .btn-indigo {
+        background: rgba(99, 102, 241, .15);
+        color: #a5b4fc;
+    }
+
+    .dark .btn-indigo:hover {
+        background: rgba(99, 102, 241, .25);
+    }
+
+    .btn-gray {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .btn-gray:hover {
+        background: #e2e8f0;
+    }
+
+    .dark .btn-gray {
+        background: rgba(255, 255, 255, .06);
+        color: #94a3b8;
+    }
+
+    .dark .btn-gray:hover {
+        background: rgba(255, 255, 255, .1);
+    }
+
+    /* ── Flash Messages ──────────────────────────────────────────── */
+    .flash-ok {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #15803d;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dark .flash-ok {
+        background: rgba(16, 185, 129, .1);
+        border-color: rgba(16, 185, 129, .25);
+        color: #34d399;
+    }
+
+    /* ── Mobile Search ───────────────────────────────────────────── */
+    .mob-search {
+        position: relative;
+    }
+
+    .mob-search svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        color: #9ca3af;
+        pointer-events: none;
+    }
+
+    .mob-search input {
+        width: 100%;
+        padding: 10px 10px 10px 36px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        font-size: 14px;
+        outline: none;
+        transition: border-color .15s;
+    }
+
+    .mob-search input:focus {
+        border-color: #6366f1;
+    }
+
+    .dark .mob-search input {
+        background: #161c2c;
+        border-color: #1e2a3b;
+        color: #f1f5f9;
+    }
+
+    .dark .mob-search input:focus {
+        border-color: #4f46e5;
+    }
+
+    /* ── Filter Selects & Buttons ────────────────────────────────── */
+    .flt-select {
+        padding: 6px 26px 6px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        transition: border-color .15s;
+        outline: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+    }
+
+    .flt-select:focus {
+        border-color: #6366f1;
+    }
+
+    .dark .flt-select {
+        background-color: #161c2c;
+        border-color: #1e2a3b;
+        color: #94a3b8;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    }
+
+    .flt-btn {
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+    .flt-apply {
+        background: #4f46e5;
+        color: #fff;
+    }
+
+    .flt-apply:hover {
+        background: #4338ca;
+    }
+
+    .flt-clear {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .flt-clear:hover {
+        background: #e2e8f0;
+    }
+
+    .dark .flt-clear {
+        background: rgba(255, 255, 255, .06);
+        color: #94a3b8;
+    }
+
+    .dark .flt-clear:hover {
+        background: rgba(255, 255, 255, .1);
+    }
+
+    /* ── Monospace Badges ────────────────────────────────────────── */
+    .mono-badge {
+        font-family: monospace;
+        font-weight: 700;
+        font-size: 13px;
+        color: #4f46e5;
+    }
+
+    .dark .mono-badge {
+        color: #a5b4fc;
+    }
+
+    .pat-badge {
+        display: inline-block;
+        font-family: monospace;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 5px;
+        background: #f1f5f9;
+        color: #475569;
+        text-transform: uppercase;
+    }
+
+    .dark .pat-badge {
+        background: rgba(255, 255, 255, .06);
+        color: #94a3b8;
     }
 
     /* ── Premium Backgrounds ────────────────────────────────────── */

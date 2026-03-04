@@ -50,10 +50,10 @@ class GmailInventoryController extends Controller
             'pfxPath' => $pfxPath,
             'pfxExists' => $pfxExists,
             'isRealMode' => $isRealMode,
-            'seedUrl' => (string) config('dte.sii.endpoints.seed'),
-            'tokenUrl' => (string) config('dte.sii.endpoints.token'),
-            'recepcionUrl' => (string) config('dte.sii.endpoints.recepcion'),
-            'estadoUrl' => (string) config('dte.sii.endpoints.estado'),
+            'seedUrl' => config('dte.sii.endpoints.seed') ? true : false,
+            'tokenUrl' => config('dte.sii.endpoints.token') ? true : false,
+            'recepcionUrl' => config('dte.sii.endpoints.recepcion') ? true : false,
+            'estadoUrl' => config('dte.sii.endpoints.estado') ? true : false,
             'lowStockEmails'    => implode(', ', $settings->getLowStockEmails()),
             'hasPfxPassword'    => $settings->getDtePfxPassword() !== null,
             'fuelMinimoDiesel'  => $settings->getFuelMinimo('diesel'),
@@ -82,7 +82,7 @@ class GmailInventoryController extends Controller
 
         $pwd = (string) ($validated['dte_signature_pfx_password'] ?? '');
         if ($pwd !== '') {
-            $settings->set('dte_signature_pfx_password', $pwd);
+            $settings->setDtePfxPassword($pwd);
         }
 
         if (isset($validated['fuel_minimo_diesel'])) {

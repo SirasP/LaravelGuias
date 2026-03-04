@@ -70,8 +70,10 @@
                 @endisset
 
                 {{-- Main content --}}
-                <main class="flex-1 overflow-y-auto">
-                    {{ $slot }}
+                <main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#090e1a] premium-bg">
+                    <div class="premium-content">
+                        {{ $slot }}
+                    </div>
                 </main>
 
             </div>

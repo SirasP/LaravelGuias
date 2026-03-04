@@ -124,7 +124,11 @@
                         @foreach(['Seed' => $seedUrl, 'Token' => $tokenUrl, 'Recepción' => $recepcionUrl, 'Estado' => $estadoUrl] as $key => $val)
                         <div class="flex gap-2 text-[11px]">
                             <span class="w-16 font-semibold text-gray-600 dark:text-gray-300 shrink-0">{{ $key }}</span>
-                            <span class="font-mono text-gray-400 dark:text-gray-500 break-all">{{ $val ?: '—' }}</span>
+                            @if($val)
+                                <span class="font-mono text-emerald-500 dark:text-emerald-400">Configurado</span>
+                            @else
+                                <span class="font-mono text-red-400 dark:text-red-500">No configurado</span>
+                            @endif
                         </div>
                         @endforeach
                     </div>

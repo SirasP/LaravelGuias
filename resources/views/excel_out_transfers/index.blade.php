@@ -4,263 +4,97 @@
     HEADER
     ═══════════════════════════════════════ --}}
     <x-slot name="header">
-        <div class="flex items-center justify-between gap-3 w-full">
+        <div class="flex items-center gap-3 w-full">
 
-            {{-- Título + stats --}}
-            <div class="flex items-center gap-4 min-w-0">
-                <div class="hidden sm:block">
-                    <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">Match ODOO</h2>
-
-                </div>
+            {{-- Título (desktop) --}}
+            <div class="hidden sm:block shrink-0">
+                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Match ODOO</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Transferencias</p>
             </div>
+            <div class="hidden sm:block h-5 w-px bg-gray-200 dark:bg-gray-700 shrink-0"></div>
 
-            {{-- Buscador desktop --}}
-            <form method="GET" class="hidden lg:flex items-center gap-2 flex-1 max-w-xl">
+            {{-- Buscador centrado (desktop) --}}
+            <form method="GET" class="hidden sm:flex items-center gap-2 flex-1 max-w-xl">
                 <div class="relative flex-1">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
                     </svg>
-                    <input name="q" value="{{ $q }}" placeholder="Contacto, guía, patente…" class="w-full pl-9 pr-3 py-2 text-sm rounded-xl
+                    <input name="q" value="{{ $q }}" placeholder="Contacto, guía, patente…"
+                        class="w-full pl-9 pr-3 py-2 text-sm rounded-xl
                               border border-gray-200 dark:border-gray-700
-                              bg-white dark:bg-gray-900
-                              text-gray-900 dark:text-gray-100
-                              focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition">
+                              bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100
+                              focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition placeholder-gray-400">
                 </div>
 
-                <select name="exists" class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200
-                           focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                <select name="exists" class="flt-select">
                     <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
                     <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
                     <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
                 </select>
 
-                <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-xl
-                           bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900
-                           hover:bg-gray-700 dark:hover:bg-white transition">
-                    Buscar
-                </button>
+                <button type="submit" class="flt-btn flt-apply">Buscar</button>
 
                 @if($q || ($exists ?? '') !== '')
-                    <a href="{{ route('excel_out_transfers.index') }}"
-                        class="px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700
-                                          text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                        Limpiar
-                    </a>
+                    <a href="{{ route('excel_out_transfers.index') }}" class="flt-btn flt-clear">Limpiar</a>
                 @endif
             </form>
 
-            {{-- Descargar Excel --}}
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl
-   bg-emerald-600 hover:bg-emerald-700 active:scale-95
-   text-white transition-all shadow-md shadow-emerald-300/40
-   dark:shadow-emerald-900/40">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {{-- Exportar Excel --}}
+            <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
+                class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
+                      bg-emerald-600 hover:bg-emerald-700 active:scale-95
+                      text-white transition shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Exportar Excel
+                <span class="hidden sm:inline">Exportar Excel</span>
             </a>
 
         </div>
     </x-slot>
 
-    {{-- ═══════════════════════════════════════
-    ESTILOS
-    ═══════════════════════════════════════ --}}
     <style>
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(8px)
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0)
-            }
-        }
-
-        .au {
-            animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both;
-        }
-
-        .d1 {
-            animation-delay: .04s
-        }
-
-        .d2 {
-            animation-delay: .08s
-        }
-
-        .d3 {
-            animation-delay: .1s
-        }
-
-        .page-wrap {
-            background: #f1f5f9;
-            min-height: 100%;
-        }
-
-        .dark .page-wrap {
-            background: #0d1117;
-        }
-
-        /* Table card */
-        .t-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .dark .t-card {
-            background: #161c2c;
-            border-color: #1e2a3b;
-        }
-
-        /* Table */
-        .dt {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .dt thead tr {
-            border-bottom: 1px solid #f1f5f9;
-            background: #f8fafc;
-        }
-
-        .dark .dt thead tr {
-            border-bottom-color: #1e2a3b;
-            background: #111827;
-        }
-
-        .dt th {
-            padding: 11px 16px;
-            text-align: left;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-            color: #94a3b8;
-            white-space: nowrap;
-        }
-
-        .dt td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f8fafc;
-            color: #334155;
-            vertical-align: middle;
-        }
-
-        .dark .dt td {
-            border-bottom-color: #1a2232;
-            color: #cbd5e1;
-        }
-
-        .dt tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .dt tbody tr {
-            transition: background .1s;
-        }
-
-        .dt tbody tr:hover td {
-            background: #f8fafc;
-        }
-
-        .dark .dt tbody tr:hover td {
-            background: #1a2436;
-        }
-
-        /* Badges */
-        .badge-match {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .badge-nomatch {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
-            background: #f1f5f9;
-            color: #64748b;
-        }
-
-        .dark .badge-match {
-            background: rgba(16, 185, 129, .15);
-            color: #34d399;
-        }
-
-        .dark .badge-nomatch {
-            background: rgba(148, 163, 184, 0.1);
-            color: #94a3b8;
-        }
-
-        /* Mobile cards */
-        .m-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 14px 16px;
-        }
-
-        .dark .m-card {
-            background: #161c2c;
-            border-color: #1e2a3b;
-        }
-
-        /* Import report */
-        .ir-badge-imported {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .ir-badge-duplicate {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .ir-badge-skip {
-            background: #f1f5f9;
-            color: #64748b;
-        }
-
-        .dark .ir-badge-imported {
-            background: rgba(16, 185, 129, .15);
-            color: #34d399;
-        }
-
-        .dark .ir-badge-duplicate {
-            background: rgba(245, 158, 11, .15);
-            color: #fcd34d;
-        }
-
-        .dark .ir-badge-skip {
-            background: rgba(255, 255, 255, .05);
-            color: #475569;
-        }
+        [x-cloak] { display: none !important; }
+        .badge-match { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; background:#dcfce7; color:#15803d }
+        .badge-nomatch { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; background:#f1f5f9; color:#64748b }
+        .dark .badge-match { background:rgba(16,185,129,.15); color:#34d399 }
+        .dark .badge-nomatch { background:rgba(148,163,184,0.1); color:#94a3b8 }
+        .ir-badge-imported { background:#dcfce7; color:#15803d } .dark .ir-badge-imported { background:rgba(16,185,129,.15); color:#34d399 }
+        .ir-badge-duplicate { background:#fef3c7; color:#92400e } .dark .ir-badge-duplicate { background:rgba(245,158,11,.15); color:#fcd34d }
+        .ir-badge-skip { background:#f1f5f9; color:#64748b } .dark .ir-badge-skip { background:rgba(255,255,255,.05); color:#475569 }
     </style>
 
-    <div class="page-wrap premium-bg">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-2 premium-content">
+    <div class="page-bg">
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            {{-- Buscador móvil --}}
+            <div class="sm:hidden au d1">
+                <form method="GET" class="space-y-2">
+                    <div class="mob-search">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input name="q" value="{{ $q }}" type="text" inputmode="search" placeholder="Contacto, guía, patente…">
+                    </div>
+                    <div class="flex gap-2">
+                        <select name="exists" class="flt-select flex-1">
+                            <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
+                            <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
+                            <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
+                        </select>
+                        <button type="submit" class="flt-btn flt-apply">Buscar</button>
+                        @if($q || ($exists ?? '') !== '')
+                            <a href="{{ route('excel_out_transfers.index') }}" class="flt-btn flt-clear">Limpiar</a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+
             {{-- Stats Grid (KPI Cards) --}}
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 au d1">
                 <x-kpi-card 
                     label="Total Transferencias" 
                     value="{{ $total }}"

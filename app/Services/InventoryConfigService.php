@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -63,8 +64,22 @@ class InventoryConfigService
 
     public function getDtePfxPassword(): ?string
     {
-        $pwd = trim((string) ($this->get('dte_signature_pfx_password', '') ?? ''));
-        return $pwd === '' ? null : $pwd;
+        $raw = trim((string) ($this->get('dte_signature_pfx_password', '') ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($raw);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            // Legacy: password stored as plaintext, re-encrypt on next save
+            return $raw;
+        }
+    }
+
+    public function setDtePfxPassword(string $password): void
+    {
+        $this->set('dte_signature_pfx_password', Crypt::encryptString($password));
     }
 
     public function getFuelMinimo(string $producto): float

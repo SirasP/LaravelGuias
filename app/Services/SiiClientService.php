@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Services\InventoryConfigService;
 use RuntimeException;
 
 class SiiClientService
@@ -145,6 +146,12 @@ class SiiClientService
         $this->assertHttpOk($response, 'RecepcionDTE');
         $raw = (string) $response->body();
 
+        Log::info('SII RecepcionDTE response', [
+            'status' => $response->status(),
+            'xml_path' => $xmlPath,
+            'body_length' => strlen($raw),
+        ]);
+
         $trackId = $this->extractFirstTagValue($raw, 'TRACKID');
         if ($trackId === '') {
             $trackId = $this->extractFirstTagValue($raw, 'TRACK_ID');
@@ -200,6 +207,11 @@ class SiiClientService
         if ($estado === '') {
             $estado = $this->extractFirstTagValue($xml, 'GLOSA');
         }
+
+        Log::info('SII consultarEstado response', [
+            'track_id' => $trackId,
+            'estado' => $estado,
+        ]);
 
         return [
             'track_id' => $trackId,
@@ -298,7 +310,8 @@ class SiiClientService
     {
         $disk = (string) config('dte.signature.disk', 'local');
         $path = trim((string) config('dte.signature.pfx_path', ''));
-        $pass = (string) config('dte.signature.pfx_password', '');
+        $settings = app(InventoryConfigService::class);
+        $pass = $settings->getDtePfxPassword() ?? (string) config('dte.signature.pfx_password', '');
 
         if ($path === '' || !Storage::disk($disk)->exists($path)) {
             throw new RuntimeException('Certificado .pfx no encontrado para firma de semilla.');
@@ -319,6 +332,20 @@ class SiiClientService
         $privateKey = openssl_pkey_get_private($privateKeyPem);
         if ($privateKey === false) {
             throw new RuntimeException('No se pudo cargar llave privada desde .pfx para semilla.');
+        }
+
+        $certData = openssl_x509_parse($certPem);
+        if (is_array($certData) && isset($certData['validTo_time_t'])) {
+            $expiresAt = (int) $certData['validTo_time_t'];
+            if ($expiresAt < time()) {
+                throw new RuntimeException(
+                    'El certificado PFX expiró el ' . date('d/m/Y', $expiresAt) . '. Sube un certificado vigente.'
+                );
+            }
+            $daysLeft = (int) (($expiresAt - time()) / 86400);
+            if ($daysLeft <= 30) {
+                Log::warning("Certificado PFX expira en {$daysLeft} días (el " . date('d/m/Y', $expiresAt) . ").");
+            }
         }
 
         return [$privateKey, $certPem];
@@ -437,13 +464,18 @@ class SiiClientService
 
     private function isDevMode(): bool
     {
-        $disk = (string) config('dte.signature.disk', 'local');
-        $path = trim((string) config('dte.signature.pfx_path', ''));
-
-        if ($path === '') {
+        if (config('dte.dev_mode') === true) {
             return true;
         }
 
-        return !Storage::disk($disk)->exists($path);
+        $disk = (string) config('dte.signature.disk', 'local');
+        $path = trim((string) config('dte.signature.pfx_path', ''));
+
+        if ($path === '' || !Storage::disk($disk)->exists($path)) {
+            Log::warning('SII: PFX no encontrado, operando en modo desarrollo. Configura DTE_DEV_MODE=false y sube el certificado para producción.');
+            return true;
+        }
+
+        return false;
     }
 }

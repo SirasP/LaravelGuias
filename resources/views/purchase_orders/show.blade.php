@@ -123,7 +123,10 @@
                     <div class="panel au d1">
                         <div class="px-5 py-4">
                             @php
-                                $headerSuppliers = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                                $isConfirmedOrder = $order->status === 'order' && $order->supplier_id;
+                                $headerSuppliers = $isConfirmedOrder
+                                    ? collect([$order->supplier_name])
+                                    : $recipients->pluck('supplier_name')->filter()->unique()->values();
                                 $statusClass = match($order->status) {
                                     'sent'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
                                     'order' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -862,18 +865,39 @@
                     {{-- Info de la orden --}}
                     <div class="panel">
                         <div class="sidebar-section">
-                            @php
-                                $allSupplierNames = $recipients->pluck('supplier_name')->filter()->unique()->values();
-                            @endphp
-                            <p class="section-label">{{ $allSupplierNames->count() > 1 ? 'Proveedores' : 'Proveedor' }}</p>
-                            @if($allSupplierNames->count() > 0)
-                                <div class="space-y-1">
-                                    @foreach($allSupplierNames as $sn)
-                                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $sn }}</p>
-                                    @endforeach
+                            @if($isConfirmedOrder)
+                                <p class="section-label">Proveedor confirmado</p>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40">
+                                        <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </span>
+                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $order->supplier_name }}</p>
                                 </div>
+                                @php
+                                    $otherSuppliers = $recipients->pluck('supplier_name')->filter()->unique()->reject(fn($n) => $n === $order->supplier_name)->values();
+                                @endphp
+                                @if($otherSuppliers->count() > 0)
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mt-3 mb-1">También cotizaron</p>
+                                    @foreach($otherSuppliers as $sn)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 leading-tight">{{ $sn }}</p>
+                                    @endforeach
+                                @endif
                             @else
-                                <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $order->supplier_name }}</p>
+                                @php
+                                    $allSupplierNames = $recipients->pluck('supplier_name')->filter()->unique()->values();
+                                @endphp
+                                <p class="section-label">{{ $allSupplierNames->count() > 1 ? 'Proveedores cotizados' : 'Proveedor' }}</p>
+                                @if($allSupplierNames->count() > 0)
+                                    <div class="space-y-1">
+                                        @foreach($allSupplierNames as $sn)
+                                            <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $sn }}</p>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ $order->supplier_name }}</p>
+                                @endif
                             @endif
                         </div>
                         <div class="sidebar-section">
