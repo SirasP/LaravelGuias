@@ -94,7 +94,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                 </div>
-                <span x-show="expanded" class="text-sm font-bold truncate {{ $importActive ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400' }}">Importar TODO</span>
+                <span x-show="expanded" class="text-sm font-bold truncate {{ $importActive ? 'text-violet-700 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400' }}">Importar</span>
                 <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
                     Importar TODO
                     <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
