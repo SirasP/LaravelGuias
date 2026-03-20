@@ -179,13 +179,24 @@ class MovimientoController extends Controller
         // El historial para la tabla (reverso para ver lo más reciente primero)
         $historialTable = $historial->reverse();
 
+        // Promedio de frecuencia (días entre cargas)
+        $avgDays = null;
+        if ($historial->count() > 1) {
+            $primera = \Carbon\Carbon::parse($historial->first()['fecha']);
+            $ultima = \Carbon\Carbon::parse($historial->last()['fecha']);
+            $diasTotales = $primera->diffInDays($ultima);
+            $avgDays = $diasTotales / ($historial->count() - 1);
+        }
+
         return view('fuelcontrol.movimientos.detalle', compact(
             'movimiento',
             'historialTable',
             'labels',
             'dataRendimiento',
             'dataLitros',
-            'unidad'
+            'unidad',
+            'esMaquinaria',
+            'avgDays'
         ));
     }
 

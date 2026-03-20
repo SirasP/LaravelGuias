@@ -61,13 +61,17 @@
 
                     {{-- Stats Rápidas --}}
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 text-center">
+                        <div class="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 text-center flex flex-col justify-center">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Frecuencia</p>
+                            @if($avgDays)
+                                <p class="text-lg font-black text-indigo-600 dark:text-indigo-400">cada {{ round($avgDays, 1) }} <small class="text-[10px] font-bold">días</small></p>
+                            @else
+                                <p class="text-lg font-black text-gray-400 italic text-sm">N/A</p>
+                            @endif
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 text-center flex flex-col justify-center">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cargas</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100">{{ $historialTable->count() }}</p>
-                        </div>
-                        <div class="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 text-center">
-                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Litros Total</p>
-                            <p class="text-xl font-black text-gray-900 dark:text-gray-100">{{ number_format($historialTable->sum(fn($h) => abs($h['cantidad'])), 0, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>
@@ -76,8 +80,8 @@
                 <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/50">
                         <div class="flex items-center justify-between mb-6">
                         <div>
-                            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">Consumo Histórico</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Rendimiento en {{ $unidad }} por cada carga</p>
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">{{ $esMaquinaria ? 'Consumo' : 'Rendimiento' }} Histórico</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $esMaquinaria ? 'Combustible consumido' : 'Rendimiento de combustible' }} en {{ $unidad }} por cada carga</p>
                         </div>
                         <div class="flex items-center gap-2">
                              <div class="flex items-center gap-1.5">
@@ -99,46 +103,49 @@
                     <span class="text-[11px] text-gray-400">Ordenado por fecha descendiente</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left">
                         <thead>
-                            <tr class="bg-gray-50 dark:bg-gray-900/50">
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Combustible</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Litos</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Odómetro</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{{ $unidad == 'L/h' ? 'H. Tramo' : 'Km Tramo' }}</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Consumo</th>
+                            <tr class="border-b border-gray-100 dark:border-gray-700">
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Combustible</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Carga</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Odo / Horas</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Recorrido</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Frecuencia</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{{ $esMaquinaria ? 'Consumo' : 'Rendimiento' }} ({{ $unidad }})</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
-                            @foreach($historialTable as $h)
-                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                                    <td class="px-6 py-4 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                                        {{ \Carbon\Carbon::parse($h['fecha'])->format('d-m-Y H:i') }}
+                            @foreach($historialTable as $row)
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                                    <td class="px-6 py-4 text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                                        {{ \Carbon\Carbon::parse($row['fecha'])->format('d-m-Y H:i') }}
                                     </td>
                                     <td class="px-6 py-4">
-                                        <span class="text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-tighter">{{ $h['producto'] }}</span>
+                                        <span class="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">
+                                            {{ $row['producto'] }}
+                                        </span>
                                     </td>
-                                    <td class="px-6 py-4 text-right tabular-nums text-xs font-bold text-rose-600">
-                                        {{ number_format(abs($h['cantidad']), 2, ',', '.') }} L
+                                    <td class="px-6 py-4 text-right tabular-nums text-xs font-bold text-gray-900 dark:text-gray-100">
+                                        {{ number_format(abs($row['cantidad']), 2) }} L
                                     </td>
-                                    <td class="px-6 py-4 text-right tabular-nums text-xs font-medium text-gray-600 dark:text-gray-400">
-                                        {{ number_format($h['odo_usado'], 0, ',', '.') }}
+                                    <td class="px-6 py-4 text-right tabular-nums text-xs font-bold text-gray-900 dark:text-gray-100">
+                                        {{ number_format($row['odo_usado'], 1) }}
                                     </td>
-                                    <td class="px-6 py-4 text-right tabular-nums text-xs font-bold text-indigo-600">
-                                        @if($h['dif'])
-                                            +{{ number_format($h['dif'], 1, ',', '.') }} <small class="font-normal opacity-70">{{ $unidad == 'L/h' ? 'h' : 'km' }}</small>
-                                        @else
-                                            —
-                                        @endif
+                                    <td class="px-6 py-4 text-right tabular-nums text-xs text-gray-500">
+                                        {{ $row['dif'] ? number_format($row['dif'], 1) . ' ' . ($unidad == 'L/h' ? 'h' : 'km') : '—' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-xs text-gray-500 italic">
+                                        {{ $row['frecuencia'] ?? 'Primera' }}
                                     </td>
                                     <td class="px-6 py-4 text-right tabular-nums">
-                                        @if($h['rendimiento'])
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-[10px] font-black text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/30">
-                                                {{ number_format($h['rendimiento'], 2, ',', '.') }} {{ $unidad }}
+                                        @if($row['rendimiento'])
+                                            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                                {{ number_format($row['rendimiento'], 2) }}
+                                                <span class="text-[10px] font-bold ml-0.5">{{ $unidad }}</span>
                                             </span>
                                         @else
-                                            <span class="text-[10px] text-gray-400 italic">N/A</span>
+                                            <span class="text-xs text-gray-300 italic">No disponible</span>
                                         @endif
                                     </td>
                                 </tr>
