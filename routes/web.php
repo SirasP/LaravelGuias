@@ -365,8 +365,8 @@ Route::middleware(['auth'])
 
         Route::get('/productos', [ProductoController::class, 'index'])
             ->name('productos');
-        Route::get('/productos/{id}/auditoria', [ProductoController::class, 'auditoria'])
-            ->name('productos.auditoria');
+        Route::get('/productos/{id}/auditoria', [ProductoController::class, 'auditoria'])->name('productos.auditoria');
+        Route::get('/productos/{id}/auditoria/export', [ProductoController::class, 'exportAuditoria'])->name('productos.auditoria.export');
         Route::get('/productos/crear', [ProductoController::class, 'create'])
             ->name('productos.create');
         Route::post('/productos', [ProductoController::class, 'store'])

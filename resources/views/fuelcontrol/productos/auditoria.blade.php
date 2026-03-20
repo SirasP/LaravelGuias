@@ -1,18 +1,24 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between w-full">
-            <div class="flex items-center gap-4">
-                <a href="{{ route('fuelcontrol.productos') }}" class="group flex items-center justify-center w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300">
-                    <svg class="w-5 h-5 text-gray-500 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </a>
-                <div>
-                    <h2 class="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight leading-none">Auditoría de Flujo</h2>
-                    <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider mt-1.5">{{ $producto->nombre }} / Control de Odómetros</p>
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-4">
+                    <a href="{{ route('fuelcontrol.productos') }}" class="group flex items-center justify-center w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </a>
+                    <div>
+                        <h2 class="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight leading-none">Auditoría de Flujo</h2>
+                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider mt-1.5">{{ $producto->nombre }} / Control de Odómetros</p>
+                    </div>
                 </div>
+                <a href="{{ route('fuelcontrol.productos.auditoria.export', $producto->id) }}" class="px-5 py-2.5 rounded-xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Exportar Reporte
+                </a>
             </div>
-        </div>
     </x-slot>
 
     @php
@@ -183,9 +189,9 @@
                                 Favor de revisar si existieron cargas de emergencia no registradas o intervenciones en la bomba de despacho.
                             </p>
                         </div>
-                        <button onclick="window.print()" class="px-8 py-4 rounded-[1.5rem] bg-black text-white text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
+                        <a href="{{ route('fuelcontrol.productos.auditoria.export', $producto->id) }}" class="px-8 py-4 rounded-[1.5rem] bg-black text-white text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl flex items-center justify-center">
                             Exportar Reporte
-                        </button>
+                        </a>
                     </div>
                 </div>
             @endif

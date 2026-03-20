@@ -186,6 +186,19 @@ class ProductoController extends Controller
      */
     public function auditoria($id)
     {
+        $data = $this->getAuditData($id);
+        $producto = $data['producto'];
+        $auditData = $data['auditData']->reverse();
+        $isDiesel = $data['isDiesel'];
+
+        return view('fuelcontrol.productos.auditoria', compact('producto', 'auditData', 'isDiesel'));
+    }
+
+    /**
+     * Centralizar lógica de obtención de datos para auditoría
+     */
+    private function getAuditData($id)
+    {
         $producto = DB::connection('fuelcontrol')
             ->table('productos')
             ->where('id', $id)
@@ -215,10 +228,9 @@ class ProductoController extends Controller
             $diferencia = 0;
 
             if ($odo > 0 && !is_null($prevOdo)) {
-                // Para Diesel, validamos que el odómetro de la bomba sea consistente
                 if ($isDiesel && $cantidad < 0) {
                     $esperado = (float) $prevOdo + abs($cantidad);
-                    if (abs($odo - $esperado) > 0.1) { // Tolerancia de 0.1L
+                    if (abs($odo - $esperado) > 0.1) {
                         $descuadrado = true;
                         $diferencia = $odo - $esperado;
                     }
@@ -242,8 +254,75 @@ class ProductoController extends Controller
             }
         }
 
-        $auditData = $auditData->reverse(); // Reciente arriba
+        return [
+            'producto' => $producto,
+            'auditData' => $auditData,
+            'isDiesel' => $isDiesel
+        ];
+    }
 
-        return view('fuelcontrol.productos.auditoria', compact('producto', 'auditData', 'isDiesel'));
+    /**
+     * Exportar auditoría a Excel
+     */
+    public function exportAuditoria($id): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $data = $this->getAuditData($id);
+        $producto = $data['producto'];
+        $auditData = $data['auditData']->reverse();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Auditoria de Flujo');
+
+        // Encabezados
+        $sheet->mergeCells('A1:G1');
+        $sheet->setCellValue('A1', 'FuelControl - Auditoría de Flujo: ' . strtoupper($producto->nombre));
+        $sheet->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+
+        $headers = ['Fecha / Hora', 'Operación', 'Cantidad (L)', 'Secuencia Bomba', 'Anterior', 'Estado', 'Diferencia (L)'];
+        $sheet->fromArray($headers, null, 'A4');
+
+        $row = 5;
+        foreach ($auditData as $item) {
+            $sheet->setCellValue("A{$row}", \Carbon\Carbon::parse($item['fecha'])->format('d-m-Y H:i'));
+            $sheet->setCellValue("B{$row}", strtoupper($item['tipo']));
+            $sheet->setCellValue("C{$row}", abs($item['cantidad']));
+            $sheet->setCellValue("D{$row}", $item['odometro']);
+            $sheet->setCellValue("E{$row}", $item['prev_odo']);
+            $sheet->setCellValue("F{$row}", $item['descuadrado'] ? 'DESCUADRADO' : ($item['odometro'] > 0 ? 'OK' : 'N/A'));
+            $sheet->setCellValue("G{$row}", $item['diferencia']);
+
+            // Estilo si hay error
+            if ($item['descuadrado']) {
+                $sheet->getStyle("A{$row}:G{$row}")->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('FECACA'); // rose-200
+            }
+
+            $row++;
+        }
+
+        // Estilos generales
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A4:G4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:G4')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('1E293B'); // dark
+        $sheet->getStyle('A4:G4')->getFont()->getColor()->setRGB('FFFFFF');
+
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'auditoria_' . str_replace(' ', '_', strtolower($producto->nombre)) . '_' . now()->format('Ymd_His') . '.xlsx';
+
+        return new \Symfony\Component\HttpFoundation\StreamedResponse(function () use ($spreadsheet) {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 }
