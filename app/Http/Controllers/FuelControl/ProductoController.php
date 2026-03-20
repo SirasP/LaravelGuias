@@ -181,4 +181,69 @@ class ProductoController extends Controller
             ->with('warning', 'No hay XML pendientes para este producto');
     }
 
+    /**
+     * Auditoría de odómetros de bomba (especialmente Diesel)
+     */
+    public function auditoria($id)
+    {
+        $producto = DB::connection('fuelcontrol')
+            ->table('productos')
+            ->where('id', $id)
+            ->first();
+
+        abort_if(!$producto, 404, 'Producto no encontrado');
+
+        $isDiesel = str_contains(strtolower($producto->nombre), 'diesel');
+
+        $movimientos = DB::connection('fuelcontrol')
+            ->table('movimientos')
+            ->where('producto_id', $id)
+            ->where(function ($q) {
+                $q->whereNull('estado')->orWhere('estado', 'aprobado');
+            })
+            ->orderBy('fecha_movimiento')
+            ->orderBy('id')
+            ->get();
+
+        $auditData = collect();
+        $prevOdo = null;
+
+        foreach ($movimientos as $m) {
+            $odo = (float) $m->odometro_bomba;
+            $cantidad = (float) $m->cantidad;
+            $descuadrado = false;
+            $diferencia = 0;
+
+            if ($odo > 0 && !is_null($prevOdo)) {
+                // Para Diesel, validamos que el odómetro de la bomba sea consistente
+                if ($isDiesel && $cantidad < 0) {
+                    $esperado = (float) $prevOdo + abs($cantidad);
+                    if (abs($odo - $esperado) > 0.1) { // Tolerancia de 0.1L
+                        $descuadrado = true;
+                        $diferencia = $odo - $esperado;
+                    }
+                }
+            }
+
+            $auditData->push([
+                'id' => $m->id,
+                'fecha' => $m->fecha_movimiento,
+                'cantidad' => $cantidad,
+                'odometro' => $odo,
+                'prev_odo' => $prevOdo,
+                'descuadrado' => $descuadrado,
+                'diferencia' => $diferencia,
+                'tipo' => $m->tipo,
+                'usuario' => $m->usuario ?? 'N/A'
+            ]);
+
+            if ($odo > 0) {
+                $prevOdo = $odo;
+            }
+        }
+
+        $auditData = $auditData->reverse(); // Reciente arriba
+
+        return view('fuelcontrol.productos.auditoria', compact('producto', 'auditData', 'isDiesel'));
+    }
 }

@@ -219,7 +219,13 @@
                                             <div class="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-[10px] font-bold text-orange-600 dark:text-orange-400 shrink-0">
                                                 {{ strtoupper(substr($p->nombre, 0, 1)) }}
                                             </div>
-                                            <span class="font-semibold text-gray-800 dark:text-gray-100">{{ ucfirst($p->nombre) }}</span>
+                                            @if(str_contains(strtolower($p->nombre), 'diesel'))
+                                                <a href="{{ route('fuelcontrol.productos.auditoria', $p->id) }}" class="font-semibold text-gray-800 dark:text-gray-100 hover:text-indigo-600 hover:underline transition">
+                                                    {{ ucfirst($p->nombre) }}
+                                                </a>
+                                            @else
+                                                <span class="font-semibold text-gray-800 dark:text-gray-100">{{ ucfirst($p->nombre) }}</span>
+                                            @endif
                                         </div>
                                     </td>
                                     <td class="text-right font-bold tabular-nums text-gray-800 dark:text-gray-100">{{ number_format($p->cantidad, 2) }}</td>
@@ -269,7 +275,13 @@
                                     {{ strtoupper(substr($p->nombre, 0, 1)) }}
                                 </div>
                                 <div>
-                                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ ucfirst($p->nombre) }}</p>
+                                    @if(str_contains(strtolower($p->nombre), 'diesel'))
+                                        <a href="{{ route('fuelcontrol.productos.auditoria', $p->id) }}" class="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 hover:underline">
+                                            {{ ucfirst($p->nombre) }}
+                                        </a>
+                                    @else
+                                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ ucfirst($p->nombre) }}</p>
+                                    @endif
                                     <span class="badge-pill {{ $badgeClass }} text-[10px]">{{ $estado }}</span>
                                 </div>
                             </div>

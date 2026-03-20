@@ -363,9 +363,10 @@ Route::middleware(['auth'])
         Route::get('/export/vehiculos.xlsx', [FuelDashboard::class, 'exportVehiculosExcel'])
             ->name('export.vehiculos.xlsx');
 
-        /* PRODUCTOS */
         Route::get('/productos', [ProductoController::class, 'index'])
             ->name('productos');
+        Route::get('/productos/{id}/auditoria', [ProductoController::class, 'auditoria'])
+            ->name('productos.auditoria');
         Route::get('/productos/crear', [ProductoController::class, 'create'])
             ->name('productos.create');
         Route::post('/productos', [ProductoController::class, 'store'])
