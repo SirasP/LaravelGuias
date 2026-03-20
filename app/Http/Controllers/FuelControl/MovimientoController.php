@@ -16,9 +16,12 @@ class MovimientoController extends Controller
         $query = DB::connection('fuelcontrol')
             ->table('movimientos as m')
             ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
             ->select(
                 'm.*',
-                'p.nombre as producto_nombre'
+                'p.nombre as producto_nombre',
+                'v.patente as vehiculo_patente',
+                'v.descripcion as vehiculo_descripcion'
             );
 
         // 🔎 FILTRO POR ESTADO
@@ -77,6 +80,93 @@ class MovimientoController extends Controller
             ->get();
 
         return view('fuelcontrol.movimientos.index', compact('movimientos', 'productos'));
+    }
+    
+    /**
+     * Vista de detalle completa (Odómetros, Historial, Gráficos)
+     */
+    public function detalle($id)
+    {
+        $db = DB::connection('fuelcontrol');
+
+        $movimiento = $db->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+            ->select(
+                'm.*',
+                'p.nombre as producto_nombre',
+                'v.patente',
+                'v.descripcion as vehiculo_descripcion',
+                'v.tipo as vehiculo_tipo'
+            )
+            ->where('m.id', $id)
+            ->first();
+
+        if (!$movimiento || !$movimiento->vehiculo_id) {
+            return redirect()->route('fuelcontrol.movimientos')->with('error', 'Vehículo no encontrado');
+        }
+
+        // Historial completo del vehículo
+        $historialRaw = $db->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->where('m.vehiculo_id', $movimiento->vehiculo_id)
+            ->where(function ($q) {
+                $q->whereNull('m.estado')->orWhere('m.estado', 'aprobado');
+            })
+            ->select('m.*', 'p.nombre as producto_nombre')
+            ->orderBy('m.fecha_movimiento')
+            ->orderBy('m.id')
+            ->get();
+
+        $historial = collect();
+        $prevOdo = null;
+
+        foreach ($historialRaw as $h) {
+            $odo = (float) (($h->odometro ?? 0) > 0 ? $h->odometro : ($h->odometro_bomba ?? 0));
+            $km = null;
+            $kml = null;
+
+            if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
+                $km = $odo - $prevOdo;
+                $litros = abs((float) $h->cantidad);
+                if ($litros > 0) {
+                    $kml = $km / $litros;
+                }
+            }
+
+            $historial->push([
+                'id' => $h->id,
+                'fecha' => $h->fecha_movimiento,
+                'producto' => $h->producto_nombre,
+                'cantidad' => $h->cantidad,
+                'odometro' => $h->odometro,
+                'odometro_bomba' => $h->odometro_bomba,
+                'odo_usado' => $odo,
+                'km' => $km,
+                'kml' => $kml
+            ]);
+
+            if ($odo > 0) {
+                $prevOdo = $odo;
+            }
+        }
+
+        // Datos para el gráfico (últimos 15 movimientos con kml)
+        $chartData = $historial->whereNotNull('kml')->take(-15);
+        $labels = $chartData->map(fn($item) => \Carbon\Carbon::parse($item['fecha'])->format('d/m'))->values();
+        $dataKml = $chartData->pluck('kml')->values();
+        $dataLitros = $chartData->map(fn($item) => abs($item['cantidad']))->values();
+
+        // El historial para la tabla (reverso para ver lo más reciente primero)
+        $historialTable = $historial->reverse();
+
+        return view('fuelcontrol.movimientos.detalle', compact(
+            'movimiento',
+            'historialTable',
+            'labels',
+            'dataKml',
+            'dataLitros'
+        ));
     }
 
 
