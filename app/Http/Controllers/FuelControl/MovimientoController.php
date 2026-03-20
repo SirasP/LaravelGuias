@@ -106,6 +106,10 @@ class MovimientoController extends Controller
             return redirect()->route('fuelcontrol.movimientos')->with('error', 'Vehículo no encontrado');
         }
 
+        // Clasificación: ¿Es maquinaria? (usa Horas en lugar de Km)
+        $esMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto|bomba/i', $movimiento->vehiculo_descripcion);
+        $unidad = $esMaquinaria ? 'L/h' : 'km/L';
+
         // Historial completo del vehículo
         $historialRaw = $db->table('movimientos as m')
             ->join('productos as p', 'p.id', '=', 'm.producto_id')
@@ -123,14 +127,18 @@ class MovimientoController extends Controller
 
         foreach ($historialRaw as $h) {
             $odo = (float) (($h->odometro ?? 0) > 0 ? $h->odometro : ($h->odometro_bomba ?? 0));
-            $km = null;
-            $kml = null;
+            $dif = null;
+            $rendimiento = null;
 
             if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
-                $km = $odo - $prevOdo;
+                $dif = $odo - $prevOdo;
                 $litros = abs((float) $h->cantidad);
                 if ($litros > 0) {
-                    $kml = $km / $litros;
+                    if ($esMaquinaria) {
+                        $rendimiento = $litros / $dif; // L/h
+                    } else {
+                        $rendimiento = $dif / $litros; // km/L
+                    }
                 }
             }
 
@@ -142,8 +150,8 @@ class MovimientoController extends Controller
                 'odometro' => $h->odometro,
                 'odometro_bomba' => $h->odometro_bomba,
                 'odo_usado' => $odo,
-                'km' => $km,
-                'kml' => $kml
+                'dif' => $dif,
+                'rendimiento' => $rendimiento
             ]);
 
             if ($odo > 0) {
@@ -151,10 +159,10 @@ class MovimientoController extends Controller
             }
         }
 
-        // Datos para el gráfico (últimos 15 movimientos con kml)
-        $chartData = $historial->whereNotNull('kml')->take(-15);
+        // Datos para el gráfico (últimos 15 movimientos con rendimiento)
+        $chartData = $historial->whereNotNull('rendimiento')->take(-15);
         $labels = $chartData->map(fn($item) => \Carbon\Carbon::parse($item['fecha'])->format('d/m'))->values();
-        $dataKml = $chartData->pluck('kml')->values();
+        $dataRendimiento = $chartData->pluck('rendimiento')->values();
         $dataLitros = $chartData->map(fn($item) => abs($item['cantidad']))->values();
 
         // El historial para la tabla (reverso para ver lo más reciente primero)
@@ -164,8 +172,9 @@ class MovimientoController extends Controller
             'movimiento',
             'historialTable',
             'labels',
-            'dataKml',
-            'dataLitros'
+            'dataRendimiento',
+            'dataLitros',
+            'unidad'
         ));
     }
 

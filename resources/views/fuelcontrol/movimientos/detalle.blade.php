@@ -74,15 +74,15 @@
 
                 {{-- Gráfico de Rendimiento --}}
                 <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/50">
-                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center justify-between mb-6">
                         <div>
-                            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">Rendimiento Histórico</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Kilómetros por litro por cada carga</p>
+                            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">Consumo Histórico</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Rendimiento en {{ $unidad }} por cada carga</p>
                         </div>
                         <div class="flex items-center gap-2">
                              <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span class="text-[10px] font-bold text-gray-400 uppercase">km/L</span>
+                                <span class="text-[10px] font-bold text-gray-400 uppercase">{{ $unidad }}</span>
                              </div>
                         </div>
                     </div>
@@ -106,8 +106,8 @@
                                 <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Combustible</th>
                                 <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Litos</th>
                                 <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Odómetro</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Km Tramo</th>
-                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Rendimiento</th>
+                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{{ $unidad == 'L/h' ? 'H. Tramo' : 'Km Tramo' }}</th>
+                                <th class="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Consumo</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -126,16 +126,16 @@
                                         {{ number_format($h['odo_usado'], 0, ',', '.') }}
                                     </td>
                                     <td class="px-6 py-4 text-right tabular-nums text-xs font-bold text-indigo-600">
-                                        @if($h['km'])
-                                            +{{ number_format($h['km'], 1, ',', '.') }} <small class="font-normal opacity-70">km</small>
+                                        @if($h['dif'])
+                                            +{{ number_format($h['dif'], 1, ',', '.') }} <small class="font-normal opacity-70">{{ $unidad == 'L/h' ? 'h' : 'km' }}</small>
                                         @else
                                             —
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right tabular-nums">
-                                        @if($h['kml'])
+                                        @if($h['rendimiento'])
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-[10px] font-black text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/30">
-                                                {{ number_format($h['kml'], 2, ',', '.') }} km/L
+                                                {{ number_format($h['rendimiento'], 2, ',', '.') }} {{ $unidad }}
                                             </span>
                                         @else
                                             <span class="text-[10px] text-gray-400 italic">N/A</span>
@@ -167,8 +167,8 @@
                     labels: @json($labels),
                     datasets: [
                         {
-                            label: 'km/L',
-                            data: @json($dataKml),
+                            label: '{{ $unidad }}',
+                            data: @json($dataRendimiento),
                             borderColor: '#10b981',
                             backgroundColor: 'rgba(16,185,129,.1)',
                             borderWidth: 3,
@@ -196,7 +196,7 @@
                             cornerRadius: 12,
                             displayColors: false,
                             callbacks: {
-                                label: (ctx) => ` Rendimiento: ${ctx.parsed.y.toLocaleString('es-CL', {minimumFractionDigits: 2})} km/L`,
+                                label: (ctx) => ` Rendimiento: ${ctx.parsed.y.toLocaleString('es-CL', {minimumFractionDigits: 2})} {{ $unidad }}`,
                             }
                         }
                     },
@@ -210,7 +210,7 @@
                             ticks: { 
                                 color: tickColor, 
                                 font: { size: 10 },
-                                callback: (v) => v + ' km/L'
+                                callback: (v) => v + ' {{ $unidad }}'
                             },
                             border: { display: false }
                         }
