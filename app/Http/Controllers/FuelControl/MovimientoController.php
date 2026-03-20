@@ -124,19 +124,28 @@ class MovimientoController extends Controller
 
         $historial = collect();
         $prevOdo = null;
+        $prevFecha = null;
 
         foreach ($historialRaw as $h) {
-            $odo = (float) (($h->odometro ?? 0) > 0 ? $h->odometro : ($h->odometro_bomba ?? 0));
+            // 🔥 Para rendimiento USAR SOLO el odómetro del vehículo (no el de la bomba)
+            $odo = (float) ($h->odometro ?? 0); 
             $dif = null;
             $rendimiento = null;
+            $frecuencia = null;
+
+            if ($prevFecha) {
+                $frecuencia = \Carbon\Carbon::parse($h->fecha_movimiento)->diffForHumans($prevFecha, true);
+            }
 
             if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
                 $dif = $odo - $prevOdo;
                 $litros = abs((float) $h->cantidad);
                 if ($litros > 0) {
                     if ($esMaquinaria) {
+                        // Consumo de maquinaria: Litros consumidos por cada hora de uso
                         $rendimiento = $litros / $dif; // L/h
                     } else {
+                        // Rendimiento de vehículo: Kilómetros recorridos por cada litro
                         $rendimiento = $dif / $litros; // km/L
                     }
                 }
@@ -151,12 +160,14 @@ class MovimientoController extends Controller
                 'odometro_bomba' => $h->odometro_bomba,
                 'odo_usado' => $odo,
                 'dif' => $dif,
-                'rendimiento' => $rendimiento
+                'rendimiento' => $rendimiento,
+                'frecuencia' => $frecuencia
             ]);
 
             if ($odo > 0) {
                 $prevOdo = $odo;
             }
+            $prevFecha = $h->fecha_movimiento;
         }
 
         // Datos para el gráfico (últimos 15 movimientos con rendimiento)
