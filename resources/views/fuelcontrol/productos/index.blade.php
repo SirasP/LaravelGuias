@@ -185,6 +185,63 @@
                             </svg>
                         </div>
                     </div>
+                    {{-- KPI Diesel --}}
+                    <div class="stat-card">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Total Diesel</p>
+                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
+                                {{ number_format($totalDiesel, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
+                            <svg class="w-4.5 h-4.5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Diesel</p>
+                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
+                                {{ number_format($avgDiesel, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                            <svg class="w-4.5 h-4.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {{-- KPI Gasolina --}}
+                    <div class="stat-card">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Total Gasolina</p>
+                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
+                                {{ number_format($totalGasolina, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
+                            <svg class="w-4.5 h-4.5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Gasolina</p>
+                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
+                                {{ number_format($avgGasolina, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
+                            </p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                            <svg class="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                    </div>
                 </div>
             @endif
 

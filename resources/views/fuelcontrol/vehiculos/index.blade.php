@@ -425,23 +425,32 @@
                                     </div>
                                 </div>
                                 <span class="badge-pill {{ $tipoClass }} shrink-0">{{ ucfirst($v->tipo) }}</span>
-                            </div>
-
-                            {{-- Details --}}
-                            <div class="mt-3 flex items-center gap-4 text-[11px] text-gray-400">
-                                <span class="flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    {{ \Carbon\Carbon::parse($v->fecha_registro)->format('d/m/Y') }}
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    {{ $v->usuario }}
-                                </span>
-                            </div>
+                                                    {{-- Details --}}
+                            <div class="mt-3 flex items-center justify-between text-[11px] text-gray-400">
+                                <div class="flex items-center gap-4">
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        {{ \Carbon\Carbon::parse($v->fecha_registro)->format('d/m/Y') }}
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        {{ $v->usuario }}
+                                    </span>
+                                </div>
+                                
+                                @if($v->ultimo_movimiento_id)
+                                    <div class="flex items-center gap-1">
+                                        <svg class="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span class="font-bold text-indigo-600 underline">Detalle</span>
+                                    </div>
+                                @endif
+                            </div>      </div>
 
                             <div class="mt-3 flex items-center justify-between">
                                 <span class="text-[11px] font-semibold {{ $v->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' }}">

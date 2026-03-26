@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between w-full">
             <div class="flex items-center gap-3">
-                <a href="{{ route('fuelcontrol.movimientos') }}" class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                <a href="{{ route('fuelcontrol.vehiculos.index') }}" class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                     <svg class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>

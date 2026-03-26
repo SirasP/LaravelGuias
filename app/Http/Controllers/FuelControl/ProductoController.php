@@ -10,12 +10,63 @@ class ProductoController extends Controller
 {
     public function index()
     {
-        $productos = DB::connection('fuelcontrol')
-            ->table('productos')
+        $db = DB::connection('fuelcontrol');
+
+        $productos = $db->table('productos')
             ->orderBy('nombre')
             ->get();
 
-        return view('fuelcontrol.productos.index', compact('productos'));
+        // IDs de productos Diesel y Gasolina
+        $dieselId = $db->table('productos')->where('nombre', 'like', '%diesel%')->value('id');
+        $gasolinaId = $db->table('productos')->where('nombre', 'like', '%gasolina%')->value('id');
+
+        // Diesel: Total y Promedio
+        $totalDiesel = 0;
+        $avgDiesel = 0;
+        if ($dieselId) {
+            $totalDiesel = $db->table('movimientos')
+                ->where('producto_id', $dieselId)
+                ->where('tipo', 'salida')
+                ->where(function ($q) {
+                    $q->where('estado', 'aprobado')->orWhereNull('estado');
+                })
+                ->sum(DB::raw('ABS(cantidad)'));
+
+            $avgDiesel = $db->table('movimientos')
+                ->where('producto_id', $dieselId)
+                ->where('tipo', 'salida')
+                ->where(function ($q) {
+                    $q->where('estado', 'aprobado')->orWhereNull('estado');
+                })
+                ->avg(DB::raw('ABS(cantidad)')) ?? 0;
+        }
+
+        // Gasolina: Total y Promedio
+        $totalGasolina = 0;
+        $avgGasolina = 0;
+        if ($gasolinaId) {
+            $totalGasolina = $db->table('movimientos')
+                ->where('producto_id', $gasolinaId)
+                ->where('tipo', 'salida')
+                ->where(function ($q) {
+                    $q->where('estado', 'aprobado')->orWhereNull('estado');
+                })
+                ->sum(DB::raw('ABS(cantidad)'));
+
+            $avgGasolina = $db->table('movimientos')
+                ->where('producto_id', $gasolinaId)
+                ->where('tipo', 'salida')
+                ->where(function ($q) {
+                    $q->where('estado', 'aprobado')->orWhereNull('estado');
+                })
+                ->avg(DB::raw('ABS(cantidad)')) ?? 0;
+        }
+
+        return view('fuelcontrol.productos.index', compact(
+            'productos', 
+            'totalDiesel', 'avgDiesel', 
+            'totalGasolina', 'avgGasolina'
+        ));
     }
 
     public function create()
