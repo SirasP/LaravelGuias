@@ -16,50 +16,44 @@ class ProductoController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        // Fechas para cálculos mensuales
+        $inicioMes = now()->startOfMonth();
+        $diaActual = now()->day;
+
         // IDs de productos Diesel y Gasolina
         $dieselId = $db->table('productos')->where('nombre', 'like', '%diesel%')->value('id');
         $gasolinaId = $db->table('productos')->where('nombre', 'like', '%gasolina%')->value('id');
 
-        // Diesel: Total y Promedio
+        // Diesel: Mensual y Diario
         $totalDiesel = 0;
         $avgDiesel = 0;
         if ($dieselId) {
             $totalDiesel = $db->table('movimientos')
                 ->where('producto_id', $dieselId)
                 ->where('tipo', 'salida')
+                ->whereDate('fecha_movimiento', '>=', $inicioMes)
                 ->where(function ($q) {
                     $q->where('estado', 'aprobado')->orWhereNull('estado');
                 })
                 ->sum(DB::raw('ABS(cantidad)'));
 
-            $avgDiesel = $db->table('movimientos')
-                ->where('producto_id', $dieselId)
-                ->where('tipo', 'salida')
-                ->where(function ($q) {
-                    $q->where('estado', 'aprobado')->orWhereNull('estado');
-                })
-                ->avg(DB::raw('ABS(cantidad)')) ?? 0;
+            $avgDiesel = $totalDiesel / $diaActual;
         }
 
-        // Gasolina: Total y Promedio
+        // Gasolina: Mensual y Diario
         $totalGasolina = 0;
         $avgGasolina = 0;
         if ($gasolinaId) {
             $totalGasolina = $db->table('movimientos')
                 ->where('producto_id', $gasolinaId)
                 ->where('tipo', 'salida')
+                ->whereDate('fecha_movimiento', '>=', $inicioMes)
                 ->where(function ($q) {
                     $q->where('estado', 'aprobado')->orWhereNull('estado');
                 })
                 ->sum(DB::raw('ABS(cantidad)'));
 
-            $avgGasolina = $db->table('movimientos')
-                ->where('producto_id', $gasolinaId)
-                ->where('tipo', 'salida')
-                ->where(function ($q) {
-                    $q->where('estado', 'aprobado')->orWhereNull('estado');
-                })
-                ->avg(DB::raw('ABS(cantidad)')) ?? 0;
+            $avgGasolina = $totalGasolina / $diaActual;
         }
 
         return view('fuelcontrol.productos.index', compact(

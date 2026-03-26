@@ -188,7 +188,7 @@
                     {{-- KPI Diesel --}}
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Total Diesel</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Consumo Mes (Diesel)</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                 {{ number_format($totalDiesel, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
                             </p>
@@ -202,7 +202,7 @@
 
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Diesel</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Diario (Diesel)</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                 {{ number_format($avgDiesel, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
                             </p>
@@ -217,7 +217,7 @@
                     {{-- KPI Gasolina --}}
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Total Gasolina</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500 mb-1">Consumo Mes (Gasolina)</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                 {{ number_format($totalGasolina, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
                             </p>
@@ -231,7 +231,7 @@
 
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Gasolina</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1">Promedio Diario (Gasolina)</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                 {{ number_format($avgGasolina, 1) }} <span class="text-xs font-bold text-gray-400">L</span>
                             </p>
