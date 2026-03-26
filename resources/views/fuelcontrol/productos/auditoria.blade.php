@@ -87,6 +87,7 @@
                         <thead>
                             <tr class="bg-gray-50/30 dark:bg-gray-900/30">
                                 <th class="pl-8 pr-4 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sello / Fecha</th>
+                                <th class="px-4 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Máquina</th>
                                 <th class="px-4 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Operación</th>
                                 <th class="px-4 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Cantidad</th>
                                 <th class="px-4 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Secuencia Bomba</th>
@@ -101,6 +102,11 @@
                                         <div class="flex flex-col">
                                             <span class="text-xs font-black text-gray-900 dark:text-gray-200 tabular-nums">{{ \Carbon\Carbon::parse($row['fecha'])->format('d-m-Y') }}</span>
                                             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{{ \Carbon\Carbon::parse($row['fecha'])->format('H:i') }} hrs</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-5">
+                                        <div class="flex flex-col">
+                                            <span class="text-[11px] font-black text-gray-800 dark:text-white uppercase truncate max-w-[150px]">{{ $row['maquina'] }}</span>
                                         </div>
                                     </td>
                                     <td class="px-4 py-5">

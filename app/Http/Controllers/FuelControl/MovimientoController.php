@@ -365,4 +365,41 @@ class MovimientoController extends Controller
 
         return back()->with('success', 'Movimiento registrado correctamente');
     }
+    /**
+     * Listado de ingresos de combustible
+     */
+    public function ingreso(Request $request)
+    {
+        $query = DB::connection('fuelcontrol')
+            ->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+            ->select(
+                'm.*',
+                'p.nombre as producto_nombre',
+                'v.patente',
+                'v.descripcion as vehiculo_descripcion'
+            )
+            ->where('m.tipo', 'entrada');
+
+        $ingresos = $query
+            ->orderByDesc('m.fecha_movimiento')
+            ->paginate(20)
+            ->withQueryString();
+
+        // KPIs de Totales (Basados en Entradas)
+        $total_gasolina = DB::connection('fuelcontrol')->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->where('m.tipo', 'entrada')
+            ->where('p.nombre', 'LIKE', '%gasolina%')
+            ->sum('m.cantidad');
+
+        $total_diesel = DB::connection('fuelcontrol')->table('movimientos as m')
+            ->join('productos as p', 'p.id', '=', 'm.producto_id')
+            ->where('m.tipo', 'entrada')
+            ->where('p.nombre', 'LIKE', '%diesel%')
+            ->sum('m.cantidad');
+
+        return view('fuelcontrol.ingreso.index', compact('ingresos', 'total_gasolina', 'total_diesel'));
+    }
 }

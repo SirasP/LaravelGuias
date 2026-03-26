@@ -408,6 +408,10 @@ Route::middleware(['auth'])
             ->name('movimientos');
         Route::get('/movimientos/{id}/detalle', [MovimientoController::class, 'detalle'])
             ->name('movimientos.detalle');
+
+        /* INGRESOS */
+        Route::get('/ingreso', [MovimientoController::class, 'ingreso'])
+            ->name('ingreso.index');
     });
 
 /*

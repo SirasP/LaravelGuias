@@ -423,11 +423,10 @@
                                     </td>
                                     <td>
                                         @if($m->vehiculo_id)
-                                            <a href="{{ route('fuelcontrol.movimientos.detalle', $m->id) }}" 
-                                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition flex flex-col items-start leading-tight group">
-                                                <span class="uppercase tracking-tighter group-hover:underline">{{ $m->vehiculo_patente ?? 'S/P' }}</span>
+                                            <div class="flex flex-col items-start leading-tight">
+                                                <span class="text-xs font-bold text-gray-800 dark:text-gray-100 uppercase tracking-tighter">{{ $m->vehiculo_patente ?? 'S/P' }}</span>
                                                 <span class="text-[9px] text-gray-400 font-medium truncate max-w-[120px]">{{ $m->vehiculo_descripcion ?? 'Maquinaria' }}</span>
-                                            </a>
+                                            </div>
                                         @else
                                             <span class="text-xs text-gray-300 dark:text-gray-700">—</span>
                                         @endif

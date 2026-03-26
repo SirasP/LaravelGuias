@@ -119,6 +119,7 @@
                 <x-nav-sublink href="{{ route('fuelcontrol.productos') }}" :active="request()->routeIs('fuelcontrol.productos')" color="orange">Productos</x-nav-sublink>
                 <x-nav-sublink href="{{ route('fuelcontrol.vehiculos.index') }}" :active="request()->routeIs('fuelcontrol.vehiculos.*')" color="orange">Vehículos</x-nav-sublink>
                 <x-nav-sublink href="{{ route('fuelcontrol.movimientos') }}" :active="request()->routeIs('fuelcontrol.movimientos')" color="orange">Movimientos</x-nav-sublink>
+                <x-nav-sublink href="{{ route('fuelcontrol.ingreso.index') }}" :active="request()->routeIs('fuelcontrol.ingreso.index')" color="orange">Ingresos</x-nav-sublink>
             </x-nav-item>
         @endif
         @endif

@@ -210,12 +210,14 @@ class ProductoController extends Controller
 
         $movimientos = DB::connection('fuelcontrol')
             ->table('movimientos')
-            ->where('producto_id', $id)
+            ->leftJoin('vehiculos', 'movimientos.vehiculo_id', '=', 'vehiculos.id')
+            ->select('movimientos.*', 'vehiculos.descripcion as vehiculo_nombre', 'vehiculos.patente as vehiculo_patente')
+            ->where('movimientos.producto_id', $id)
             ->where(function ($q) {
-                $q->whereNull('estado')->orWhere('estado', 'aprobado');
+                $q->whereNull('movimientos.estado')->orWhere('movimientos.estado', 'aprobado');
             })
-            ->orderBy('fecha_movimiento')
-            ->orderBy('id')
+            ->orderBy('movimientos.fecha_movimiento')
+            ->orderBy('movimientos.id')
             ->get();
 
         $auditData = collect();
@@ -228,13 +230,23 @@ class ProductoController extends Controller
             $diferencia = 0;
 
             if ($odo > 0 && !is_null($prevOdo)) {
-                if ($isDiesel && $cantidad < 0) {
+                // Consideramos una salida tanto si la cantidad es negativa como si el tipo es 'salida'
+                if ($isDiesel && ($m->tipo === 'salida' || $cantidad < 0)) {
                     $esperado = (float) $prevOdo + abs($cantidad);
                     if (abs($odo - $esperado) > 0.1) {
                         $descuadrado = true;
                         $diferencia = $odo - $esperado;
                     }
                 }
+            }
+
+            // Construcción del nombre de la máquina más robusta
+            $maquinaNombre = 'N/A';
+            if ($m->vehiculo_id) {
+                $parts = [];
+                if ($m->vehiculo_nombre) $parts[] = $m->vehiculo_nombre;
+                if ($m->vehiculo_patente) $parts[] = $m->vehiculo_patente;
+                $maquinaNombre = !empty($parts) ? implode(' - ', $parts) : "Vehículo #{$m->vehiculo_id}";
             }
 
             $auditData->push([
@@ -246,7 +258,8 @@ class ProductoController extends Controller
                 'descuadrado' => $descuadrado,
                 'diferencia' => $diferencia,
                 'tipo' => $m->tipo,
-                'usuario' => $m->usuario ?? 'N/A'
+                'usuario' => $m->usuario ?? 'N/A',
+                'maquina' => $maquinaNombre
             ]);
 
             if ($odo > 0) {
@@ -279,22 +292,23 @@ class ProductoController extends Controller
         $sheet->setCellValue('A1', 'FuelControl - Auditoría de Flujo: ' . strtoupper($producto->nombre));
         $sheet->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
 
-        $headers = ['Fecha / Hora', 'Operación', 'Cantidad (L)', 'Secuencia Bomba', 'Anterior', 'Estado', 'Diferencia (L)'];
+        $headers = ['Fecha / Hora', 'Máquina', 'Operación', 'Cantidad (L)', 'Secuencia Bomba', 'Anterior', 'Estado', 'Diferencia (L)'];
         $sheet->fromArray($headers, null, 'A4');
 
         $row = 5;
         foreach ($auditData as $item) {
             $sheet->setCellValue("A{$row}", \Carbon\Carbon::parse($item['fecha'])->format('d-m-Y H:i'));
-            $sheet->setCellValue("B{$row}", strtoupper($item['tipo']));
-            $sheet->setCellValue("C{$row}", abs($item['cantidad']));
-            $sheet->setCellValue("D{$row}", $item['odometro']);
-            $sheet->setCellValue("E{$row}", $item['prev_odo']);
-            $sheet->setCellValue("F{$row}", $item['descuadrado'] ? 'DESCUADRADO' : ($item['odometro'] > 0 ? 'OK' : 'N/A'));
-            $sheet->setCellValue("G{$row}", $item['diferencia']);
+            $sheet->setCellValue("B{$row}", $item['maquina']);
+            $sheet->setCellValue("C{$row}", strtoupper($item['tipo']));
+            $sheet->setCellValue("D{$row}", abs($item['cantidad']));
+            $sheet->setCellValue("E{$row}", $item['odometro']);
+            $sheet->setCellValue("F{$row}", $item['prev_odo']);
+            $sheet->setCellValue("G{$row}", $item['descuadrado'] ? 'DESCUADRADO' : ($item['odometro'] > 0 ? 'OK' : 'N/A'));
+            $sheet->setCellValue("H{$row}", $item['diferencia']);
 
             // Estilo si hay error
             if ($item['descuadrado']) {
-                $sheet->getStyle("A{$row}:G{$row}")->getFill()
+                $sheet->getStyle("A{$row}:H{$row}")->getFill()
                     ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                     ->getStartColor()->setRGB('FECACA'); // rose-200
             }
@@ -304,13 +318,13 @@ class ProductoController extends Controller
 
         // Estilos generales
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A4:G4')->getFont()->setBold(true);
-        $sheet->getStyle('A4:G4')->getFill()
+        $sheet->getStyle('A4:H4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:H4')->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('1E293B'); // dark
-        $sheet->getStyle('A4:G4')->getFont()->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A4:H4')->getFont()->getColor()->setRGB('FFFFFF');
 
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'H') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

@@ -27,6 +27,15 @@ class VehiculoController extends Controller
 
         // 🔹 Listado (clonar para no romper la query)
         $vehiculos = (clone $baseQuery)
+            ->select('vehiculos.*')
+            ->selectSub(function ($query) {
+                $query->from('movimientos')
+                    ->select('id')
+                    ->whereColumn('vehiculo_id', 'vehiculos.id')
+                    ->orderByDesc('fecha_movimiento')
+                    ->orderByDesc('id')
+                    ->limit(1);
+            }, 'ultimo_movimiento_id')
             ->orderBy('patente')
             ->paginate(10)
             ->withQueryString();

@@ -33,8 +33,6 @@
                     </svg>
                     <span class="hidden sm:inline">Nuevo Vehículo</span>
                 </button>
-    
-
             </div>
         </x-slot>
 
@@ -282,7 +280,10 @@
                                         default => 'badge-gray',
                                     };
                                 @endphp
-                                <tr>
+                                <tr @if($v->ultimo_movimiento_id) 
+                                    onclick="window.location.href='{{ route('fuelcontrol.movimientos.detalle', $v->ultimo_movimiento_id) }}'" 
+                                    class="cursor-pointer"
+                                    @endif>
                                     <td>
                                         <div class="flex items-center gap-3">
                                             <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center {{ $iconColor }}">
@@ -310,7 +311,7 @@
                                             <span class="text-sm">{{ $v->usuario }}</span>
                                         </div>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center" onclick="event.stopPropagation()">
                                         <form method="POST" action="{{ route('fuelcontrol.vehiculos.toggleActive', $v->id) }}"
                                             class="inline-flex items-center gap-2">
                                             @csrf
@@ -325,7 +326,7 @@
                                             </span>
                                         </form>
                                     </td>
-                                    <td>
+                                    <td onclick="event.stopPropagation()">
                                         <div class="flex items-center justify-center gap-1">
                                             <button type="button" @click="
                                                 openShow = true;
@@ -408,7 +409,8 @@
                                 default => 'badge-gray',
                             };
                         @endphp
-                        <div class="m-card">
+                        <div class="m-card @if($v->ultimo_movimiento_id) cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors @endif"
+                             @if($v->ultimo_movimiento_id) onclick="window.location.href='{{ route('fuelcontrol.movimientos.detalle', $v->ultimo_movimiento_id) }}'" @endif>
                             {{-- Header row --}}
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex items-center gap-3 min-w-0">
@@ -445,7 +447,7 @@
                                 <span class="text-[11px] font-semibold {{ $v->is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' }}">
                                     {{ $v->is_active ? 'Activo' : 'Inactivo' }}
                                 </span>
-                                <form method="POST" action="{{ route('fuelcontrol.vehiculos.toggleActive', $v->id) }}">
+                                <form method="POST" action="{{ route('fuelcontrol.vehiculos.toggleActive', $v->id) }}" onclick="event.stopPropagation()">
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="is_active" value="{{ $v->is_active ? 0 : 1 }}">
@@ -457,7 +459,7 @@
                             </div>
 
                             {{-- Actions --}}
-                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-2">
+                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-2" onclick="event.stopPropagation()">
                                 <button type="button" @click="
                                     openShow = true;
                                     showVehiculo = {
