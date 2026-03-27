@@ -27,17 +27,64 @@ class ProductoController extends Controller
         // Diesel: Mensual y Diario
         $totalDiesel = 0;
         $avgDiesel = 0;
+        $fleetDieselAvgLh = 0;
+        $fleetDieselAvgKmL = 0;
+        $totalDieselKm = 0;
+
         if ($dieselId) {
-            $totalDiesel = $db->table('movimientos')
+            $movimientosDiesel = $db->table('movimientos')
                 ->where('producto_id', $dieselId)
                 ->where('tipo', 'salida')
                 ->whereDate('fecha_movimiento', '>=', $inicioMes)
                 ->where(function ($q) {
                     $q->where('estado', 'aprobado')->orWhereNull('estado');
                 })
-                ->sum(DB::raw('ABS(cantidad)'));
+                ->get();
 
+            $totalDiesel = $movimientosDiesel->sum(fn($m) => abs($m->cantidad));
             $avgDiesel = $totalDiesel / $diaActual;
+
+            // Fleet Performance (L/h and km/L)
+            $vehicleStats = $db->table('movimientos as m')
+                ->join('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+                ->where('m.producto_id', $dieselId)
+                ->whereDate('m.fecha_movimiento', '>=', $inicioMes)
+                ->where(function ($q) {
+                    $q->where('m.estado', 'aprobado')->orWhereNull('m.estado');
+                })
+                ->select(
+                    'm.vehiculo_id',
+                    'v.descripcion',
+                    DB::raw('SUM(ABS(m.cantidad)) as total_litros'),
+                    DB::raw('MIN(m.odometro) as min_odo'),
+                    DB::raw('MAX(m.odometro) as max_odo')
+                )
+                ->groupBy('m.vehiculo_id', 'v.descripcion')
+                ->get();
+
+            $totalHours = 0;
+            $litersHours = 0;
+            $totalKm = 0;
+            $litersKm = 0;
+
+            foreach ($vehicleStats as $stat) {
+                $delta = $stat->max_odo - $stat->min_odo;
+                if ($delta <= 0) continue;
+
+                $isMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto\s?bomba|retro|generador|mini/i', $stat->descripcion);
+                
+                if ($isMaquinaria) {
+                    $totalHours += $delta;
+                    $litersHours += $stat->total_litros;
+                } else {
+                    $totalKm += $delta;
+                    $litersKm += $stat->total_litros;
+                }
+            }
+
+            $fleetDieselAvgLh = $totalHours > 0 ? $litersHours / $totalHours : 0;
+            $fleetDieselAvgKmL = $litersKm > 0 ? $totalKm / $litersKm : 0;
+            $totalDieselKm = $totalKm;
         }
 
         // Gasolina: Mensual y Diario
@@ -59,7 +106,8 @@ class ProductoController extends Controller
         return view('fuelcontrol.productos.index', compact(
             'productos', 
             'totalDiesel', 'avgDiesel', 
-            'totalGasolina', 'avgGasolina'
+            'totalGasolina', 'avgGasolina',
+            'fleetDieselAvgLh', 'fleetDieselAvgKmL', 'totalDieselKm'
         ));
     }
 

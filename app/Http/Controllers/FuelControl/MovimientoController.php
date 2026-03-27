@@ -107,8 +107,9 @@ class MovimientoController extends Controller
         }
 
         // Clasificación: ¿Es maquinaria? (usa Horas en lugar de Km)
-        $esMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto|bomba/i', $movimiento->vehiculo_descripcion);
+        $esMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto\s?bomba|retro|generador|mini/i', $movimiento->vehiculo_descripcion);
         $unidad = $esMaquinaria ? 'L/h' : 'km/L';
+        $etiquetaRendimiento = $esMaquinaria ? 'Consumo Horario' : 'Rendimiento';
 
         // Historial completo del vehículo
         $historialRaw = $db->table('movimientos as m')
@@ -196,7 +197,8 @@ class MovimientoController extends Controller
             'dataLitros',
             'unidad',
             'esMaquinaria',
-            'avgDays'
+            'avgDays',
+            'etiquetaRendimiento'
         ));
     }
 

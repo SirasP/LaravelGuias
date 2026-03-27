@@ -80,7 +80,7 @@
                 <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/50">
                         <div class="flex items-center justify-between mb-6">
                         <div>
-                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">{{ $esMaquinaria ? 'Consumo' : 'Rendimiento' }} Histórico</h3>
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">{{ $etiquetaRendimiento }} Histórico</h3>
                                 <p class="text-[11px] text-gray-400 mt-0.5">{{ $esMaquinaria ? 'Combustible consumido' : 'Rendimiento de combustible' }} en {{ $unidad }} por cada carga</p>
                         </div>
                         <div class="flex items-center gap-2">
@@ -112,7 +112,7 @@
                                 <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Odo / Horas</th>
                                 <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Recorrido</th>
                                 <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Frecuencia</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{{ $esMaquinaria ? 'Consumo' : 'Rendimiento' }} ({{ $unidad }})</th>
+                                <th class="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">{{ $etiquetaRendimiento }} ({{ $unidad }})</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
