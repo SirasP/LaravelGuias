@@ -80,7 +80,7 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">{{ $c->comentario }}</td>
+                                <td class="px-4 py-3 font-mono text-xs text-gray-400 dark:text-gray-500 break-all leading-relaxed">{{ $c->getRawOriginal('comentario') }}</td>
                                 <td class="px-4 py-3 text-gray-400 text-xs">
                                     {{ $c->created_at->format('d/m/Y') }}<br>
                                     <span class="text-gray-300 dark:text-gray-500">{{ $c->created_at->format('H:i') }}</span>
