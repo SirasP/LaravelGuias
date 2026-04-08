@@ -214,7 +214,25 @@
                 </div>
             </a>
 
-            @php $configActive = request()->routeIs('gmail.inventory.sii.status') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
+                @php $sugerenciasAdminActive = request()->routeIs('sugerencias.admin'); @endphp
+            <a href="{{ route('sugerencias.admin') }}" @click="mobileOpen = false"
+                class="flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
+                :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
+                :style="!expanded ? 'margin:0 auto; width:48px' : ''">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                    {{ $sugerenciasAdminActive ? 'bg-green-100 dark:bg-green-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
+                    <svg class="w-[18px] h-[18px] transition-colors {{ $sugerenciasAdminActive ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+                    </svg>
+                </div>
+                <span x-show="expanded" class="text-sm font-medium truncate {{ $sugerenciasAdminActive ? 'text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-400' }}">Sugerencias</span>
+                <div x-show="!expanded" class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
+                    Sugerencias
+                    <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
+                </div>
+            </a>
+
+        @php $configActive = request()->routeIs('gmail.inventory.sii.status') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
             <x-nav-item id="config" label="Configuraciones" iconBgColor="indigo" :active="$configActive">
                 <x-slot name="icon">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317a1 1 0 011.35-.936l1.618.708a1 1 0 001.042-.145l1.28-1.024a1 1 0 011.451.19l1.06 1.414a1 1 0 00.94.386l1.619-.27a1 1 0 011.133.966l.087 1.767a1 1 0 00.555.835l1.52.79a1 1 0 01.433 1.37l-.79 1.52a1 1 0 000 .928l.79 1.52a1 1 0 01-.433 1.37l-1.52.79a1 1 0 00-.555.835l-.087 1.767a1 1 0 01-1.133.966l-1.619-.27a1 1 0 00-.94.386l-1.06 1.414a1 1 0 01-1.451.19l-1.28-1.024a1 1 0 00-1.042-.145l-1.618.708a1 1 0 01-1.35-.936l-.24-1.733a1 1 0 00-.666-.796l-1.666-.555a1 1 0 01-.617-1.304l.555-1.666a1 1 0 00-.14-.908l-1.024-1.28a1 1 0 01.19-1.451l1.414-1.06a1 1 0 00.386-.94l-.27-1.619a1 1 0 01.966-1.133l1.767-.087a1 1 0 00.835-.555l.79-1.52a1 1 0 011.37-.433l1.52.79a1 1 0 00.928 0l1.52-.79z" />

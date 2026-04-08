@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NuevoComentarioMail;
 use App\Models\Comentario;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class SugerenciasController extends Controller
 {
@@ -25,10 +27,12 @@ class SugerenciasController extends Controller
             'comentario.max'      => 'El mensaje no puede superar los 1000 caracteres.',
         ]);
 
-        Comentario::create([
+        $comentario = Comentario::create([
             'tipo'       => $request->tipo,
             'comentario' => $request->comentario,
         ]);
+
+        Mail::to('adm.agricolae.h@gmail.com')->send(new NuevoComentarioMail($comentario));
 
         return response()->json([
             'success' => true,
