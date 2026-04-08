@@ -22,7 +22,7 @@ class NuevoComentarioMail extends Mailable
         $tipoCap = ucfirst($this->comentario->tipo);
 
         return new Envelope(
-            from: new Address(config('mail.from.address'), 'Huerto Agrícola EHE'),
+            from: new Address(config('mail.from.address'), 'Reclamos EHE'),
             subject: "{$emoji} Nueva {$tipoCap} – Huerto Agrícola",
         );
     }
