@@ -137,18 +137,25 @@
             btnSubmit.innerHTML = '<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg> Enviando...';
 
             try {
-                const res  = await fetch('{{ route("sugerencias.store") }}', { method: 'POST', body: new FormData(form) });
-                const data = await res.json();
+                const res = await fetch('{{ route("sugerencias.store") }}', { method: 'POST', body: new FormData(form) });
+
+                let data;
+                try {
+                    data = await res.json();
+                } catch {
+                    showAlert('Error ' + res.status + ': respuesta inesperada del servidor.', 'error');
+                    return;
+                }
 
                 if (data.success) {
                     showAlert(data.message, 'success');
                     form.reset();
                     charCount.textContent = '0';
                 } else {
-                    showAlert(data.message || 'Error al enviar.', 'error');
+                    showAlert(data.message || data.error || 'Error al enviar.', 'error');
                 }
-            } catch {
-                showAlert('No se pudo conectar con el servidor.', 'error');
+            } catch (err) {
+                showAlert('Sin conexión con el servidor: ' + err.message, 'error');
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Enviar';
