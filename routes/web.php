@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgrakController;
+use App\Http\Controllers\SugerenciasController;
 use App\Http\Controllers\AgrakExportController;
 use App\Http\Controllers\CamionController;
 use App\Http\Controllers\CentroController;
@@ -23,6 +24,15 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
+
+/*
+|--------------------------------------------------------------------------
+| SUGERENCIAS Y RECLAMOS
+|--------------------------------------------------------------------------
+*/
+Route::get('/sugerencias',       [SugerenciasController::class, 'index'])->name('sugerencias.index');
+Route::post('/sugerencias',      [SugerenciasController::class, 'store'])->name('sugerencias.store');
+Route::get('/sugerencias/admin', [SugerenciasController::class, 'admin'])->middleware('auth')->name('sugerencias.admin');
 
 /*
 |--------------------------------------------------------------------------
