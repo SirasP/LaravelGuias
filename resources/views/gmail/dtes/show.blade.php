@@ -388,7 +388,7 @@
                     </div>
 
                     {{-- Tabs + Líneas --}}
-                    <div class="panel au d2" x-data="{ tab: 'lineas' }">
+                    <div class="panel au d2" x-data="dteTabPanel({{ $document->id }})" x-init="init()">
                         <div class="tabs">
                             <button class="tab" :class="{ active: tab === 'lineas' }"   @click="tab = 'lineas'">Líneas de factura</button>
                             <button class="tab" :class="{ active: tab === 'contable' }" @click="tab = 'contable'">Apuntes contables</button>
@@ -620,15 +620,170 @@
                         </div>
 
                         {{-- Tab: Apuntes contables --}}
-                        <div x-show="tab === 'contable'" x-cloak class="empty-tab">
-                            <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M12 7h.01M15 7h.01M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        <div x-show="tab === 'contable'" x-cloak>
+
+                            {{-- Estado: cargando --}}
+                            <div x-show="apuntes.loading" class="flex flex-col items-center justify-center py-16 gap-3">
+                                <svg class="animate-spin h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                                 </svg>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Consultando Odoo…</p>
                             </div>
-                            <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Sin apuntes contables</p>
-                            <p class="text-xs text-gray-400 max-w-xs">Los asientos se generarán al procesar el pago.</p>
-                        </div>
+
+                            {{-- Estado: error de conexión --}}
+                            <div x-show="apuntes.loaded && apuntes.error" class="p-6">
+                                <div class="rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 flex gap-3 items-start">
+                                    <svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-semibold text-rose-700 dark:text-rose-300">Error al conectar con Odoo</p>
+                                        <p class="text-xs text-rose-600 dark:text-rose-400 mt-0.5" x-text="apuntes.error"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Estado: no encontrado en Odoo --}}
+                            <div x-show="apuntes.loaded && !apuntes.error && !apuntes.found" class="empty-tab">
+                                <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M12 7h.01M15 7h.01M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Sin apuntes contables</p>
+                                <p class="text-xs text-gray-400 max-w-xs" x-text="apuntes.message || 'No se encontró esta factura en Odoo.'"></p>
+                            </div>
+
+                            {{-- Estado: datos encontrados --}}
+                            <div x-show="apuntes.loaded && apuntes.found" class="p-5 space-y-4">
+
+                                {{-- Cabecera del asiento --}}
+                                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3 border-b border-gray-100 dark:border-gray-800">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Asiento</span>
+                                        <span class="text-sm font-mono font-semibold text-gray-700 dark:text-gray-200" x-text="apuntes.move?.name ?? '—'"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Ref.</span>
+                                        <span class="text-sm font-mono text-gray-600 dark:text-gray-300" x-text="apuntes.move?.ref ?? '—'"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Proveedor</span>
+                                        <span class="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[220px]" x-text="apuntes.move?.partner ?? '—'"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Fecha</span>
+                                        <span class="text-sm text-gray-600 dark:text-gray-300" x-text="apuntes.move?.invoice_date ?? '—'"></span>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <template x-if="apuntes.move?.state === 'posted'">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                                                Confirmado
+                                            </span>
+                                        </template>
+                                        <template x-if="apuntes.move?.state === 'draft'">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
+                                                Borrador
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- Tabla desktop --}}
+                                <div class="hidden lg:block overflow-x-auto">
+                                    <table class="dt">
+                                        <thead>
+                                            <tr>
+                                                <th class="w-24">Cuenta</th>
+                                                <th>Nombre cuenta</th>
+                                                <th>Descripción</th>
+                                                <th class="text-right">Debe</th>
+                                                <th class="text-right pr-5">Haber</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(line, i) in apuntes.lines" :key="i">
+                                                <tr>
+                                                    <td class="font-mono text-xs text-indigo-600 dark:text-indigo-400 whitespace-nowrap" x-text="line.account_code"></td>
+                                                    <td>
+                                                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight" x-text="line.account_name_es"></p>
+                                                        <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-tight" x-text="line.account_name_en !== line.account_name_es ? line.account_name_en : ''"></p>
+                                                    </td>
+                                                    <td class="text-sm text-gray-600 dark:text-gray-400 max-w-[240px] truncate" x-text="line.description"></td>
+                                                    <td class="text-right whitespace-nowrap">
+                                                        <span x-show="line.debit > 0" class="tabular-nums text-sm font-semibold text-gray-700 dark:text-gray-200"
+                                                              x-text="'$ ' + line.debit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                                        <span x-show="line.debit === 0" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
+                                                    </td>
+                                                    <td class="text-right pr-5 whitespace-nowrap">
+                                                        <span x-show="line.credit > 0" class="tabular-nums text-sm font-semibold text-gray-700 dark:text-gray-200"
+                                                              x-text="'$ ' + line.credit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                                        <span x-show="line.credit === 0" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                                <td colspan="3" class="py-2 pl-4 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</td>
+                                                <td class="text-right py-2 font-black tabular-nums text-indigo-600 dark:text-indigo-400"
+                                                    x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.debit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></td>
+                                                <td class="text-right pr-5 py-2 font-black tabular-nums text-indigo-600 dark:text-indigo-400"
+                                                    x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.credit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+
+                                {{-- Tarjetas mobile --}}
+                                <div class="lg:hidden space-y-2">
+                                    <template x-for="(line, i) in apuntes.lines" :key="i">
+                                        <div class="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 space-y-1">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="min-w-0">
+                                                    <p class="text-xs font-mono text-indigo-600 dark:text-indigo-400" x-text="line.account_code"></p>
+                                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight truncate" x-text="line.account_name_es"></p>
+                                                    <p class="text-xs text-gray-400 truncate" x-text="line.description"></p>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-4 pt-1">
+                                                <div x-show="line.debit > 0" class="flex gap-1.5 items-baseline">
+                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Debe</span>
+                                                    <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200"
+                                                          x-text="'$ ' + line.debit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                                </div>
+                                                <div x-show="line.credit > 0" class="flex gap-1.5 items-baseline">
+                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Haber</span>
+                                                    <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200"
+                                                          x-text="'$ ' + line.credit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    {{-- Total mobile --}}
+                                    <div class="rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-3 flex justify-between items-center">
+                                        <span class="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</span>
+                                        <div class="flex gap-5">
+                                            <div class="flex gap-1.5 items-baseline">
+                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Debe</span>
+                                                <span class="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400"
+                                                      x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.debit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                            </div>
+                                            <div class="flex gap-1.5 items-baseline">
+                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Haber</span>
+                                                <span class="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400"
+                                                      x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.credit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>{{-- /found --}}
+
+                        </div>{{-- /tab contable --}}
 
                         {{-- Tab: Otra información --}}
                         <div x-show="tab === 'info'" x-cloak class="p-5">
@@ -1006,6 +1161,61 @@
     </div>
 
     <script>
+    /**
+     * Componente principal del panel de tabs del DTE.
+     * Extiende la gestión de tabs para incluir la carga lazy de apuntes contables.
+     */
+    function dteTabPanel(docId) {
+        return {
+            tab: 'lineas',
+            apuntes: {
+                loaded:  false,
+                loading: false,
+                error:   null,
+                found:   false,
+                message: null,
+                move:    null,
+                lines:   [],
+            },
+
+            init() {
+                // Carga apuntes la primera vez que el usuario cambia al tab contable
+                this.$watch('tab', (val) => {
+                    if (val === 'contable' && !this.apuntes.loaded && !this.apuntes.loading) {
+                        this._loadApuntes();
+                    }
+                });
+            },
+
+            _loadApuntes() {
+                this.apuntes.loading = true;
+                this.apuntes.error   = null;
+
+                fetch(`/gmail/dtes/${docId}/apuntes`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error || (!data.found && data.message && data.message.startsWith('Error'))) {
+                        this.apuntes.error = data.message || data.error || 'Error desconocido';
+                    } else {
+                        this.apuntes.found   = data.found   ?? false;
+                        this.apuntes.move    = data.move    ?? null;
+                        this.apuntes.lines   = data.lines   ?? [];
+                        this.apuntes.message = data.message ?? null;
+                    }
+                    this.apuntes.loaded  = true;
+                    this.apuntes.loading = false;
+                })
+                .catch(err => {
+                    this.apuntes.error   = err.message || 'Error de red';
+                    this.apuntes.loaded  = true;
+                    this.apuntes.loading = false;
+                });
+            },
+        };
+    }
+
     function openConfirm(options) {
         window.dispatchEvent(new CustomEvent('confirm-dialog', { detail: options }));
     }

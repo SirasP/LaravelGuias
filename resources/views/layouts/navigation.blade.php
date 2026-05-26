@@ -133,7 +133,7 @@
 
             @php $dteProvActive = request()->routeIs('gmail.dtes.*'); @endphp
             {{-- DTE PROVEEDOR --}}
-            @php $dteProvActive = request()->routeIs('gmail.dtes.*'); @endphp
+            @php $dteProvActive = request()->routeIs('gmail.dtes.*') || request()->routeIs('odoo.*'); @endphp
             <x-nav-item id="dteprov" label="Facturas P." iconBgColor="cyan" :active="$dteProvActive">
                 <x-slot name="icon">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -144,6 +144,7 @@
                 <x-nav-sublink href="{{ route('gmail.dtes.facturas.list') }}" :active="request()->routeIs('gmail.dtes.facturas.list') || request()->routeIs('gmail.dtes.show') || request()->routeIs('gmail.dtes.print')" color="cyan">Facturas</x-nav-sublink>
                 <x-nav-sublink href="{{ route('gmail.dtes.boletas.list') }}" :active="request()->routeIs('gmail.dtes.boletas.list')" color="cyan">Boletas</x-nav-sublink>
                 <x-nav-sublink href="{{ route('gmail.dtes.guias.list') }}" :active="request()->routeIs('gmail.dtes.guias.list')" color="cyan">Guías</x-nav-sublink>
+                <x-nav-sublink href="{{ route('odoo.analytics.index') }}" :active="request()->routeIs('odoo.analytics.*')" color="cyan">Cuentas Analíticas</x-nav-sublink>
             </x-nav-item>
         @endif
 
@@ -377,6 +378,7 @@
                 if (path.startsWith('/gmail/dtes')) return 'dteprov';
                 if (path.startsWith('/gmail/inventario') || path.startsWith('/gmail/inventory')) return 'dteinv';
                 if (path.startsWith('/fuelcontrol')) return 'fuel';
+                if (path.startsWith('/odoo')) return 'dteprov';
                 return null;
             },
 

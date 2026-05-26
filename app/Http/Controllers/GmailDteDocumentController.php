@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OdooAccountMove;
+use App\Models\OdooAccountMoveLine;
 use App\Services\GmailDteInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -235,6 +237,59 @@ class GmailDteDocumentController extends Controller
         [$document, $lines] = $this->getDocumentWithLines($id);
 
         return view('gmail.dtes.print', compact('document', 'lines'));
+    }
+
+    /**
+     * API: retorna los apuntes contables del DTE leyendo desde MySQL local.
+     * Los datos fueron sincronizados previamente desde Odoo con el comando odoo:sync-moves.
+     */
+    public function apuntesContables(int $id)
+    {
+        $document = DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->firstOrFail();
+
+        $folio = trim((string) ($document->folio ?? ''));
+
+        if ($folio === '') {
+            return response()->json(['found' => false, 'lines' => [], 'move' => null,
+                'message' => 'El documento no tiene folio registrado.']);
+        }
+
+        // Buscar la factura de proveedor en nuestra tabla local (sincronizada desde Odoo)
+        $move = OdooAccountMove::where('ref', $folio)->first()
+            ?? OdooAccountMove::where('ref', 'like', "%{$folio}%")->first();
+
+        if (! $move) {
+            return response()->json(['found' => false, 'lines' => [], 'move' => null,
+                'message' => "No se encontró la factura con folio «{$folio}» en la base de datos local. Ejecuta odoo:sync-moves para sincronizar."]);
+        }
+
+        $lines = OdooAccountMoveLine::where('move_odoo_id', $move->odoo_id)
+            ->orderBy('id')
+            ->get()
+            ->map(fn($l) => [
+                'account_code'    => $l->account_code,
+                'account_name_es' => $l->account_name_es ?: $l->account_name,
+                'account_name_en' => $l->account_name,
+                'description'     => $l->name ?: '—',
+                'debit'           => (float) $l->debit,
+                'credit'          => (float) $l->credit,
+            ])->values();
+
+        return response()->json([
+            'found' => true,
+            'move'  => [
+                'name'         => $move->name,
+                'ref'          => $move->ref,
+                'state'        => $move->state,
+                'partner'      => $move->partner_name,
+                'invoice_date' => $move->invoice_date,
+                'amount_total' => (float) $move->amount_total,
+            ],
+            'lines' => $lines,
+        ]);
     }
 
     public function markPaid(int $id)

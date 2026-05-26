@@ -438,6 +438,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/dtes/guias/listado', [GmailDteDocumentController::class, 'guiasList'])->name('dtes.guias.list');
     Route::get('/dtes/stock-products', [GmailDteDocumentController::class, 'stockProductsApi'])->name('dtes.stock_products');
     Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])->whereNumber('id')->name('dtes.stock_review');
+    Route::get('/dtes/{id}/apuntes', [GmailDteDocumentController::class, 'apuntesContables'])->whereNumber('id')->name('dtes.apuntes');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])->whereNumber('id')->name('dtes.print');
     Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])->whereNumber('id')->name('dtes.add_stock');
     Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])->whereNumber('id')->name('dtes.add_stock_mapping');
@@ -534,4 +535,21 @@ Route::middleware(['auth', 'role:admin'])
         Route::patch('/{id}/item/{itemId}', [PurchaseOrderController::class, 'updateItem'])->whereNumber('id')->whereNumber('itemId')->name('update_item');
         Route::get('/{id}/respuesta/{rid}/autofill', [PurchaseOrderController::class, 'autofillReplyFromPdf'])->whereNumber('id')->whereNumber('rid')->name('autofill_reply');
         Route::get('/adjunto/{rid}', [PurchaseOrderController::class, 'serveAttachment'])->whereNumber('rid')->name('attachment');
+    });
+
+/*
+|--------------------------------------------------------------------------
+| ODOO — Integración contable (solo ADMIN)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('odoo')
+    ->name('odoo.')
+    ->group(function () {
+        Route::get('/analitica', [\App\Http\Controllers\Odoo\AnalyticController::class, 'index'])
+            ->name('analytics.index');
+        Route::post('/analitica/cuenta', [\App\Http\Controllers\Odoo\AnalyticController::class, 'storeAccount'])
+            ->name('analytics.account.store');
+        Route::post('/analitica/plan', [\App\Http\Controllers\Odoo\AnalyticController::class, 'storePlan'])
+            ->name('analytics.plan.store');
     });
