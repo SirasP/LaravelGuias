@@ -53,109 +53,237 @@
     @endphp
 
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+        [x-cloak] { display:none !important }
+
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .au { animation: fadeUp .35s ease both; }
-        .d1 { animation-delay: .06s; }
-        .d2 { animation-delay: .12s; }
-        .d3 { animation-delay: .18s; }
+        .au { animation: fadeUp .4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .d1 { animation-delay: .04s; }
+        .d2 { animation-delay: .08s; }
+        .d3 { animation-delay: .12s; }
 
-        .page-bg { background:#f1f5f9; min-height:100% }
-        .dark .page-bg { background:#0d1117 }
+        .page-bg { 
+            background:#f8fafc; 
+            min-height:100%; 
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .dark .page-bg { background:#090d16 }
 
-        .panel { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
-        .dark .panel { background:#161c2c; border-color:#1e2a3b }
+        /* Premium Panels & Hover Lifts */
+        .panel { 
+            background:#fff; 
+            border:1px solid rgba(226,232,240,0.8); 
+            border-radius:20px; 
+            overflow:hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark .panel { 
+            background:#111827; 
+            border-color:#1f2937;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+        }
+        .panel:hover {
+            box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.04), 0 4px 8px -4px rgba(0, 0, 0, 0.04);
+        }
 
+        /* Segmented Control / Sliding Pills Toolbar */
         .panel-toolbar {
-            padding: 12px 16px;
+            padding: 10px 16px;
+            background: #fff;
             border-bottom: 1px solid #f1f5f9;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
         }
-        .dark .panel-toolbar { border-bottom-color: #1e2a3b }
+        .dark .panel-toolbar { 
+            background: #111827;
+            border-bottom-color: #1f2937; 
+        }
 
+        /* Pill buttons */
         .f-btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 6px 12px;
-            border-radius: 10px;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 12px;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             border: 1px solid transparent;
             cursor: pointer;
-            transition: all .15s;
+            transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
             background: #f1f5f9;
             color: #64748b;
         }
-        .f-btn:hover { background: #e2e8f0; color: #334155 }
-        .dark .f-btn { background: #1e2a3b; color: #94a3b8 }
-        .dark .f-btn:hover { background: #273244 }
-        .f-btn.active-all    { background: #6366f1; color: #fff; border-color: #6366f1 }
-        .f-btn.active-sinpagar { background: #f43f5e; color: #fff; border-color: #f43f5e }
-        .f-btn.active-pendiente { background: #f59e0b; color: #fff; border-color: #f59e0b }
-        .f-btn.active-pagado { background: #10b981; color: #fff; border-color: #10b981 }
+        .f-btn:hover { 
+            background: #e2e8f0; 
+            color: #1e293b;
+        }
+        .dark .f-btn { 
+            background: #1f2937; 
+            color: #94a3b8; 
+        }
+        .dark .f-btn:hover { 
+            background: #374151; 
+            color: #f9fafb;
+        }
+        
+        .f-btn.active-all    { background: #4f46e5; color: #fff; border-color: #4f46e5; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.15); }
+        .f-btn.active-sinpagar { background: #f43f5e; color: #fff; border-color: #f43f5e; box-shadow: 0 4px 6px -1px rgba(244, 63, 94, 0.15); }
+        .f-btn.active-pendiente { background: #f59e0b; color: #fff; border-color: #f59e0b; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.15); }
+        .f-btn.active-pagado { background: #10b981; color: #fff; border-color: #10b981; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.15); }
 
-        .dt { width:100%; border-collapse:collapse; font-size:13px }
-        .dt thead tr { background:#f8fafc; border-bottom: 2px solid #f1f5f9 }
-        .dark .dt thead tr { background:#111827; border-bottom-color:#1e2a3b }
+        /* Premium high density lists */
+        .dt { width:100%; border-collapse:separate; border-spacing:0; font-size:13px }
+        .dt thead tr { background:#f8fafc; border-bottom: 2px solid #edf2f7 }
+        .dark .dt thead tr { background:#182235; border-bottom-color:#243249 }
         .dt th {
-            padding: 11px 14px;
+            padding: 12px 16px;
             text-align: left;
             font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .07em;
+            font-weight: 850;
+            letter-spacing: .08em;
             text-transform: uppercase;
-            color: #94a3b8;
+            color: #64748b;
             white-space: nowrap;
         }
-        .dt td { padding: 13px 14px; border-bottom: 1px solid #f8fafc; color: #334155; vertical-align: middle }
-        .dark .dt td { border-bottom-color: #1a2232; color: #cbd5e1 }
+        .dt td { 
+            padding: 13px 16px; 
+            border-bottom: 1px solid #f1f5f9; 
+            color: #334155; 
+            vertical-align: middle;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark .dt td { border-bottom-color: #1f2937; color: #cbd5e1 }
         .dt tbody tr:last-child td { border-bottom: none }
-        .dt tbody tr:hover td { background: #f8fafc; cursor: pointer }
-        .dark .dt tbody tr:hover td { background: #1a2436 }
+        
+        .dt tbody tr {
+            transition: all 0.2s ease;
+        }
+        .dt tbody tr:hover td { 
+            background: #f8fafc; 
+            cursor: pointer; 
+            transform: translateX(4px);
+        }
+        .dark .dt tbody tr:hover td { 
+            background: #161f30; 
+        }
 
+        /* Search input styling */
         .f-input {
             width: 100%;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             background: #fff;
-            padding: 9px 12px;
+            padding: 9px 14px;
             font-size: 13px;
-            color: #111827;
+            color: #1e293b;
             outline: none;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
         }
-        .f-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12) }
-        .dark .f-input { border-color: #1e2a3b; background: #0d1117; color: #f1f5f9 }
+        .f-input:focus { 
+            border-color: #4f46e5; 
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+        }
+        .dark .f-input { 
+            border-color: #1f2937; 
+            background: #0d1117; 
+            color: #cbd5e1; 
+        }
+        .dark .f-input:focus {
+            border-color: #818cf8; 
+            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+        }
 
-        .chip { display:inline-flex; align-items:center; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:700; white-space:nowrap }
+        /* Breathing neon glows for payment states */
+        @keyframes pulseGlowGreen {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.15); }
+            50% { box-shadow: 0 0 8px 3px rgba(16, 185, 129, 0.35); }
+        }
+        @keyframes pulseGlowRed {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.15); }
+            50% { box-shadow: 0 0 8px 3px rgba(244, 63, 94, 0.35); }
+        }
 
+        .chip { 
+            display:inline-flex; 
+            align-items:center; 
+            border-radius:999px; 
+            padding:4px 12px; 
+            font-size:11px; 
+            font-weight:800; 
+            white-space:nowrap;
+            letter-spacing: .02em;
+        }
+        .chip[class*="emerald"] {
+            animation: pulseGlowGreen 3s infinite;
+        }
+        .chip[class*="rose"] {
+            animation: pulseGlowRed 3s infinite;
+        }
+
+        /* Invoice Mobile Cards */
         .m-card {
             background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 14px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 16px;
+            padding: 16px;
             display: block;
-            transition: box-shadow .15s, border-color .15s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+            transition: all .25s ease;
         }
-        .m-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.08); border-color: #c7d2fe }
-        .dark .m-card { background: #161c2c; border-color: #1e2a3b }
+        .m-card:hover { 
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -4px rgba(15, 23, 42, 0.05); 
+            border-color: #c7d2fe;
+            transform: translateY(-1px);
+        }
+        .dark .m-card { background: #111827; border-color: #1f2937 }
         .dark .m-card:hover { border-color: #3730a3 }
 
         .table-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch }
         .dt-wide { min-width: 1100px; table-layout: auto }
 
-        .amt-main { font-size: 13px; font-weight: 800; color: #111827; font-variant-numeric: tabular-nums }
-        .dark .amt-main { color: #f1f5f9 }
+        .amt-main { font-size: 13px; font-weight: 800; color: #1e293b; font-variant-numeric: tabular-nums }
+        .dark .amt-main { color: #cbd5e1 }
         .amt-sub { font-size: 11px; color: #94a3b8; font-variant-numeric: tabular-nums }
 
-        .tipo-badge { display:inline-flex; align-items:center; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:800; letter-spacing:.04em }
+        .tipo-badge { 
+            display:inline-flex; 
+            align-items:center; 
+            border-radius:6px; 
+            padding:3px 8px; 
+            font-size:10px; 
+            font-weight:900; 
+            letter-spacing:.04em 
+        }
+
+        /* Custom Sleek Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 99px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 
     <div class="page-bg" x-data="{ filter: 'todos' }">

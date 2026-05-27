@@ -24,28 +24,30 @@ class MantencionApiController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
 
+        // Obtenemos los productos que tienen lotes en Taller Mecánico
+        // junto con su stock disponible (suma de lotes ABIERTO en esa bodega)
         $products = DB::connection('fuelcontrol')
             ->table('gmail_inventory_products as p')
+            ->join(
+                DB::connection('fuelcontrol')->raw('(
+                    SELECT product_id,
+                           COALESCE(SUM(CASE WHEN estado = \'ABIERTO\' THEN cantidad_disponible ELSE 0 END), 0) AS stock_disponible
+                    FROM gmail_inventory_lots
+                    WHERE bodega_id = ' . self::BODEGA_TALLER . '
+                    GROUP BY product_id
+                ) AS lotes_taller'),
+                'lotes_taller.product_id',
+                '=',
+                'p.id'
+            )
             ->select([
                 'p.id',
                 'p.nombre',
                 'p.codigo',
                 'p.unidad',
                 'p.stock_minimo',
-                DB::raw('COALESCE((
-                    SELECT SUM(l.cantidad_disponible)
-                    FROM gmail_inventory_lots l
-                    WHERE l.product_id = p.id
-                      AND l.bodega_id = ' . self::BODEGA_TALLER . '
-                      AND l.estado = \'ABIERTO\'
-                ), 0) AS stock_disponible'),
+                'lotes_taller.stock_disponible',
             ])
-            ->whereExists(function ($sub) {
-                $sub->selectRaw('1')
-                    ->from('gmail_inventory_lots')
-                    ->whereColumn('product_id', 'p.id')
-                    ->where('bodega_id', self::BODEGA_TALLER);
-            })
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qb) use ($q) {
                     $qb->where('p.nombre', 'like', "%{$q}%")

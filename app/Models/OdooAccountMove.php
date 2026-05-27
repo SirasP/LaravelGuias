@@ -11,10 +11,13 @@ class OdooAccountMove extends Model
         'odoo_id',
         'name',
         'ref',
+        'folio',
         'move_type',
         'state',
+        'payment_state',
         'partner_odoo_id',
         'partner_name',
+        'partner_vat',
         'invoice_date',
         'amount_total',
     ];

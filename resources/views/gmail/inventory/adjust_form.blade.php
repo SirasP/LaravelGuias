@@ -132,6 +132,22 @@
                 <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 mb-4 space-y-4">
                     <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200">Detalle del ajuste</h3>
 
+                    {{-- Bodega destino (solo aplica a incrementos) --}}
+                    <div x-show="direccion === 'POSITIVO'" x-cloak>
+                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                            Bodega de destino
+                        </label>
+                        <select name="bodega_id"
+                            class="w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-4 py-2.5 focus:outline-none focus:border-orange-400 transition">
+                            @foreach($bodegas as $bod)
+                                <option value="{{ $bod->id }}" {{ $bod->es_principal ? 'selected' : '' }}>
+                                    {{ $bod->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">El stock ajustado quedará asignado a esta bodega.</p>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                             Cantidad a ajustar

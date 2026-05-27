@@ -88,17 +88,26 @@
                 @elseif($inventoryStatus !== 'ingresado')
                     <form id="doc-stock-form" method="POST" action="{{ route('gmail.dtes.add_stock', $document->id) }}" class="contents">
                         @csrf
+                        {{-- bodega_id se inyecta por JS al confirmar --}}
+                        <input type="hidden" name="bodega_id" id="doc-stock-bodega-id">
                         <button type="button"
                             @click="openConfirm({
                                 title: 'Agregar stock',
-                                message: 'Se ingresarán las líneas de esta factura al inventario.',
+                                message: 'Selecciona la bodega de destino para este ingreso.',
                                 confirmLabel: 'Agregar',
                                 type: 'confirm',
-                                callback: () => startStockAddReview(
-                                    '{{ route('gmail.dtes.stock_review', $document->id) }}',
-                                    '{{ route('gmail.dtes.stock_products') }}',
-                                    'doc-stock-form'
-                                )
+                                selectLabel: 'Bodega de destino',
+                                selectOptions: window.__stockBodegas,
+                                selectDefault: window.__stockBodegaDefault,
+                                callback: (bodegaId) => {
+                                    document.getElementById('doc-stock-bodega-id').value = bodegaId ?? '';
+                                    startStockAddReview(
+                                        '{{ route('gmail.dtes.stock_review', $document->id) }}',
+                                        '{{ route('gmail.dtes.stock_products') }}',
+                                        'doc-stock-form',
+                                        bodegaId
+                                    );
+                                }
                             })"
                             class="hdr-btn hdr-violet">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
@@ -197,63 +206,141 @@
     @endphp
 
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
         [x-cloak] { display:none !important }
 
         @keyframes fadeUp {
-            from { opacity:0; transform:translateY(8px) }
+            from { opacity:0; transform:translateY(12px) }
             to   { opacity:1; transform:translateY(0) }
         }
-        .au { animation:fadeUp .35s ease both }
-        .d1 { animation-delay:.06s }
-        .d2 { animation-delay:.12s }
-        .d3 { animation-delay:.18s }
+        .au { animation:fadeUp .4s cubic-bezier(0.16, 1, 0.3, 1) both }
+        .d1 { animation-delay:.04s }
+        .d2 { animation-delay:.08s }
+        .d3 { animation-delay:.12s }
 
-        .page-bg { background:#f1f5f9; min-height:100% }
-        .dark .page-bg { background:#0d1117 }
+        .page-bg { 
+            background:#f8fafc; 
+            min-height:100%; 
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .dark .page-bg { background:#090d16 }
 
-        .panel { background:#fff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden }
-        .dark .panel { background:#161c2c; border-color:#1e2a3b }
+        /* Premium Card Panels */
+        .panel { 
+            background:#fff; 
+            border:1px solid rgba(226,232,240,0.8); 
+            border-radius:20px; 
+            overflow:hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark .panel { 
+            background:#111827; 
+            border-color:#1f2937;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+        }
+        .panel:hover {
+            box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.04), 0 4px 8px -4px rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
+        }
+        .dark .panel:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+        }
 
         .section-label {
-            font-size:10px; font-weight:700; text-transform:uppercase;
-            letter-spacing:.07em; color:#94a3b8; margin-bottom:10px;
+            font-size:10px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.08em; color:#94a3b8; margin-bottom:10px;
+        }
+        .dark .section-label { color:#64748b; }
+
+        /* Status & Action Badges with breathing glows */
+        @keyframes pulseGlowGreen {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.15); }
+            50% { box-shadow: 0 0 8px 3px rgba(16, 185, 129, 0.35); }
+        }
+        @keyframes pulseGlowRed {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.15); }
+            50% { box-shadow: 0 0 8px 3px rgba(244, 63, 94, 0.35); }
         }
 
-        .chip { display:inline-flex; align-items:center; border-radius:999px; padding:3px 10px; font-size:11px; font-weight:700 }
+        .chip { 
+            display:inline-flex; 
+            align-items:center; 
+            border-radius:999px; 
+            padding:4px 12px; 
+            font-size:11px; 
+            font-weight:800;
+            letter-spacing: .02em;
+        }
+        .chip[class*="emerald"] {
+            animation: pulseGlowGreen 3s infinite;
+        }
+        .chip[class*="rose"] {
+            animation: pulseGlowRed 3s infinite;
+        }
 
         .tipo-badge {
-            display:inline-flex; align-items:center; border-radius:6px;
-            padding:2px 8px; font-size:11px; font-weight:800; letter-spacing:.04em
+            display:inline-flex; align-items:center; border-radius:8px;
+            padding:3px 10px; font-size:11px; font-weight:900; letter-spacing:.06em
         }
 
-        /* Tabla líneas */
-        .dt { width:100%; border-collapse:collapse; font-size:13px; min-width:820px }
+        /* Tabla de líneas premium con interacciones suaves */
+        .dt { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; min-width:820px }
         .dt thead { position:sticky; top:0; z-index:1 }
         .dt thead tr { background:#f8fafc }
-        .dark .dt thead tr { background:#0f1623 }
+        .dark .dt thead tr { background:#182235; }
         .dt th {
-            padding:9px 14px; text-align:left; font-size:10px; font-weight:700;
-            letter-spacing:.07em; text-transform:uppercase; color:#94a3b8; white-space:nowrap;
-            box-shadow:inset 0 -2px 0 #e2e8f0;
+            padding:12px 16px; text-align:left; font-size:10px; font-weight:850;
+            letter-spacing:.08em; text-transform:uppercase; color:#64748b; white-space:nowrap;
+            border-bottom: 2px solid #edf2f7;
         }
-        .dark .dt th { box-shadow:inset 0 -2px 0 #1e2a3b }
-        .dt td { padding:11px 14px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle }
-        .dark .dt td { border-bottom-color:#1a2232; color:#cbd5e1 }
+        .dark .dt th { border-bottom-color:#243249; color:#9ca3af; }
+        .dt td { 
+            padding:14px 16px; 
+            border-bottom:1px solid #f1f5f9; 
+            color:#334155; 
+            vertical-align:middle; 
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        .dark .dt td { border-bottom-color:#1f2937; color:#cbd5e1 }
         .dt tbody tr:last-child td { border-bottom:none }
-        .dt tbody tr:hover td { background:#f5f7ff }
-        .dark .dt tbody tr:hover td { background:rgba(255,255,255,.018) }
-        .amt-col { background:rgba(99,102,241,.04); border-left:1px solid #eef2ff; font-weight:800; color:#1e293b }
-        .dark .amt-col { background:rgba(99,102,241,.08); border-left-color:#1e2a3b; color:#e2e8f0 }
-        .dt tbody tr:hover .amt-col { background:rgba(99,102,241,.09) }
-        .dark .dt tbody tr:hover .amt-col { background:rgba(99,102,241,.14) }
-        .row-num {
-            display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center;
-            border-radius:999px; background:#f1f5f9; color:#94a3b8; font-size:10px; font-weight:700;
+        
+        .dt tbody tr {
+            transition: all 0.2s ease;
         }
-        .dark .row-num { background:#1e2a3b; color:#64748b }
+        .dt tbody tr:hover td { 
+            background:#f8fafc; 
+            transform: translateX(4px);
+        }
+        .dark .dt tbody tr:hover td { 
+            background:#161f30; 
+        }
+        
+        /* Resaltado premium columna de importes */
+        .amt-col { 
+            background:rgba(99,102,241,0.02); 
+            border-left:1px solid #edf2f7; 
+            font-weight:800; 
+            color:#4f46e5; 
+            font-variant-numeric: tabular-nums;
+        }
+        .dark .amt-col { 
+            background:rgba(99,102,241,0.04); 
+            border-left-color:#243249; 
+            color:#818cf8; 
+        }
+        .dt tbody tr:hover .amt-col { background:rgba(99,102,241,0.06) }
+        .dark .dt tbody tr:hover .amt-col { background:rgba(99,102,241,0.1) }
+        
+        .row-num {
+            display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center;
+            border-radius:999px; background:#f1f5f9; color:#94a3b8; font-size:10px; font-weight:800;
+        }
+        .dark .row-num { background:#1f2937; color:#64748b; }
 
-        /* Tax pills */
-        .tax-pill { display:inline-flex; align-items:center; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700 }
+        /* Impuestos */
+        .tax-pill { display:inline-flex; align-items:center; border-radius:8px; padding:3px 10px; font-size:11px; font-weight:800 }
         .tp-iva    { background:#eef2ff; color:#4338ca }
         .tp-exento { background:#ecfdf5; color:#059669 }
         .tp-imp    { background:#fff7ed; color:#c2410c }
@@ -261,65 +348,216 @@
         .dark .tp-iva    { background:#1e1b4b; color:#a5b4fc }
         .dark .tp-exento { background:#022c22; color:#6ee7b7 }
         .dark .tp-imp    { background:#431407; color:#fdba74 }
-        .dark .tp-other  { background:#1e2a3b; color:#94a3b8 }
+        .dark .tp-other  { background:#1f2937; color:#94a3b8 }
 
-        /* Tabs */
-        .tabs { display:flex; gap:4px; padding:10px 14px 0; border-bottom:1px solid #edf2f7; overflow-x:auto; white-space:nowrap }
-        .dark .tabs { border-bottom-color:#1e2a3b }
-        .tab {
-            border:1px solid #e2e8f0; border-bottom:none; border-radius:9px 9px 0 0;
-            background:#f8fafc; color:#64748b; font-size:12px; font-weight:700; padding:7px 13px;
-            cursor:pointer; transition:background .12s, color .12s; white-space:nowrap;
+        /* Modern Sliding Pill Tabs */
+        .tabs { 
+            display:flex; 
+            gap:6px; 
+            padding:8px; 
+            margin: 16px 16px 6px;
+            background:#f1f5f9; 
+            border-radius:14px; 
+            overflow-x:auto; 
+            white-space:nowrap 
         }
-        .dark .tab { border-color:#273244; background:#111827; color:#94a3b8 }
-        .tab.active { background:#fff; color:#1e293b; border-bottom-color:#fff }
-        .dark .tab.active { background:#161c2c; color:#e2e8f0; border-bottom-color:#161c2c }
+        .dark .tabs { background:#0f1623; }
+        .tab {
+            border:none; 
+            border-radius:10px;
+            background:transparent; 
+            color:#64748b; 
+            font-size:12px; 
+            font-weight:800; 
+            padding:8px 16px;
+            cursor:pointer; 
+            transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+            white-space:nowrap;
+        }
+        .dark .tab { color:#94a3b8 }
+        .tab:hover {
+            color:#1e293b;
+        }
+        .dark .tab:hover {
+            color:#f8fafc;
+        }
+        .tab.active { 
+            background:#fff; 
+            color:#4f46e5; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+        .dark .tab.active { 
+            background:#1e2a3b; 
+            color:#818cf8; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
 
-        /* Empty tab */
+        /* Empty state */
         .empty-tab { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:52px 24px; gap:12px; color:#94a3b8; text-align:center }
 
-        /* Sidebar */
-        .sidebar-section { padding:16px 18px; border-bottom:1px solid #f1f5f9 }
-        .dark .sidebar-section { border-bottom-color:#1e2a3b }
+        /* Receipt Style Sidebar Sections */
+        .sidebar-section { padding:20px 24px; border-bottom:1px dashed #e2e8f0; }
+        .dark .sidebar-section { border-bottom-color:#2d3748; }
         .sidebar-section:last-child { border-bottom:none }
 
-        .info-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:4px 0; font-size:13px }
-        .info-k { color:#64748b; font-weight:600; white-space:nowrap; flex-shrink:0 }
-        .dark .info-k { color:#94a3b8 }
-        .info-v { color:#1e293b; font-weight:700; text-align:right; min-width:0; word-break:break-all }
-        .dark .info-v { color:#e2e8f0 }
+        /* PHYSICAL INVOICE TICKET EFFECT (Radial Notch Cutouts) */
+        .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child {
+            position: relative;
+            overflow: visible !important;
+        }
+        .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::before,
+        .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::after {
+            content: '';
+            position: absolute;
+            bottom: 74px; /* Alineado exactamente sobre la línea punteada dashed */
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #f8fafc;
+            border: 1px solid rgba(226,232,240,0.8);
+            z-index: 10;
+        }
+        .dark .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::before,
+        .dark .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::after {
+            background: #090d16;
+            border-color: #1f2937;
+        }
+        .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::before {
+            left: -9px;
+            box-shadow: inset -3px 0 3px -1px rgba(0,0,0,0.04);
+        }
+        .w-full.xl\:w-72.2xl\:w-80 > .panel:first-child::after {
+            right: -9px;
+            box-shadow: inset 3px 0 3px -1px rgba(0,0,0,0.04);
+        }
 
-        .total-row { display:flex; justify-content:space-between; align-items:center; gap:8px }
-        .total-label { font-size:13px; color:#64748b; font-weight:600 }
+        .info-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:5px 0; font-size:13px }
+        .info-k { color:#64748b; font-weight:700; white-space:nowrap; flex-shrink:0 }
+        .dark .info-k { color:#94a3b8 }
+        .info-v { color:#1e293b; font-weight:800; text-align:right; min-width:0; word-break:break-all }
+        .dark .info-v { color:#cbd5e1 }
+
+        .total-row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:2px 0 }
+        .total-label { font-size:13px; color:#64748b; font-weight:700 }
         .dark .total-label { color:#94a3b8 }
-        .total-val { font-size:13px; font-weight:700; color:#334155; font-variant-numeric:tabular-nums }
+        .total-val { font-size:13px; font-weight:800; color:#334155; font-variant-numeric:tabular-nums }
         .dark .total-val { color:#cbd5e1 }
 
         /* Mobile line card */
-        .line-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px }
-        .dark .line-card { background:#111827; border-color:#1e2a3b }
+        .line-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:14px }
+        .dark .line-card { background:#1f2937; border-color:#374151 }
 
-        /* Header action buttons */
+        /* Premium Actions Buttons */
         .hdr-btn {
-            display:inline-flex; align-items:center; gap:5px;
-            padding:7px 11px; border-radius:10px; font-size:12px; font-weight:700;
-            border:none; cursor:pointer; transition:all .13s; text-decoration:none; white-space:nowrap;
+            display:inline-flex; 
+            align-items:center; 
+            gap:6px;
+            padding:8px 14px; 
+            border-radius:12px; 
+            font-size:12px; 
+            font-weight:800;
+            border:none; 
+            cursor:pointer; 
+            transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            text-decoration:none; 
+            white-space:nowrap;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
-        .hdr-emerald { background:#059669; color:#fff }
-        .hdr-emerald:hover { background:#047857 }
-        .hdr-sky     { background:#0284c7; color:#fff }
-        .hdr-sky:hover     { background:#0369a1 }
-        .hdr-violet  { background:#7c3aed; color:#fff }
-        .hdr-violet:hover  { background:#6d28d9 }
-        .hdr-indigo  { background:#4f46e5; color:#fff }
-        .hdr-indigo:hover  { background:#4338ca }
-        .hdr-rose    { background:#e11d48; color:#fff }
-        .hdr-rose:hover    { background:#be123c }
-        .hdr-gray    { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0 }
-        .hdr-gray:hover    { background:#e2e8f0 }
-        .dark .hdr-gray    { background:#1e2a3b; color:#94a3b8; border-color:#273244 }
-        .dark .hdr-gray:hover { background:#273244 }
-        .hdr-btn:active { transform:scale(.97) }
+        .hdr-btn:active { transform:scale(.96) }
+        
+        .hdr-emerald { 
+            background:#10b981; 
+            color:#fff; 
+        }
+        .hdr-emerald:hover { 
+            background:#059669; 
+            box-shadow: 0 4px 10px -1px rgba(16, 185, 129, 0.25);
+        }
+        .hdr-sky { 
+            background:#0ea5e9; 
+            color:#fff; 
+        }
+        .hdr-sky:hover { 
+            background:#0284c7; 
+            box-shadow: 0 4px 10px -1px rgba(14, 165, 233, 0.25);
+        }
+        .hdr-violet { 
+            background:#8b5cf6; 
+            color:#fff; 
+        }
+        .hdr-violet:hover { 
+            background:#7c3aed; 
+            box-shadow: 0 4px 10px -1px rgba(139, 92, 246, 0.25);
+        }
+        .hdr-indigo { 
+            background:#6366f1; 
+            color:#fff; 
+        }
+        .hdr-indigo:hover { 
+            background:#4f46e5; 
+            box-shadow: 0 4px 10px -1px rgba(99, 102, 241, 0.25);
+        }
+        .hdr-rose { 
+            background:#f43f5e; 
+            color:#fff; 
+        }
+        .hdr-rose:hover { 
+            background:#e11d48; 
+            box-shadow: 0 4px 10px -1px rgba(244, 63, 94, 0.25);
+        }
+        .hdr-gray { 
+            background:#f8fafc; 
+            color:#475569; 
+            border:1px solid #e2e8f0; 
+        }
+        .hdr-gray:hover { 
+            background:#f1f5f9; 
+            color:#1e293b;
+        }
+        .dark .hdr-gray { 
+            background:#1f2937; 
+            color:#cbd5e1; 
+            border-color:#374151; 
+        }
+        .dark .hdr-gray:hover { 
+            background:#374151; 
+            color:#f9fafb;
+        }
+
+        /* FUTURISTIC FROSTED GLASS EDIT MODAL */
+        .fixed.inset-0.z-50 > div.bg-white, 
+        .fixed.inset-0.z-50 > div.bg-white.dark\:bg-gray-900 {
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        }
+        .dark .fixed.inset-0.z-50 > div.bg-white, 
+        .dark .fixed.inset-0.z-50 > div.bg-white.dark\:bg-gray-900 {
+            background: rgba(17, 24, 39, 0.82) !important;
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        /* Custom Sleek Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 99px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 
     <div class="page-bg">
@@ -656,72 +894,85 @@
                             </div>
 
                             {{-- Estado: datos encontrados --}}
-                            <div x-show="apuntes.loaded && apuntes.found" class="p-5 space-y-4">
-
-                                {{-- Cabecera del asiento --}}
-                                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3 border-b border-gray-100 dark:border-gray-800">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Asiento</span>
-                                        <span class="text-sm font-mono font-semibold text-gray-700 dark:text-gray-200" x-text="apuntes.move?.name ?? '—'"></span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Ref.</span>
-                                        <span class="text-sm font-mono text-gray-600 dark:text-gray-300" x-text="apuntes.move?.ref ?? '—'"></span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Proveedor</span>
-                                        <span class="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[220px]" x-text="apuntes.move?.partner ?? '—'"></span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Fecha</span>
-                                        <span class="text-sm text-gray-600 dark:text-gray-300" x-text="apuntes.move?.invoice_date ?? '—'"></span>
-                                    </div>
-                                    <div class="ml-auto">
-                                        <template x-if="apuntes.move?.state === 'posted'">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                                                Confirmado
-                                            </span>
-                                        </template>
-                                        <template x-if="apuntes.move?.state === 'draft'">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
-                                                Borrador
-                                            </span>
-                                        </template>
-                                    </div>
-                                </div>
+                            <div x-show="apuntes.loaded && apuntes.found">
 
                                 {{-- Tabla desktop --}}
                                 <div class="hidden lg:block overflow-x-auto">
                                     <table class="dt">
                                         <thead>
                                             <tr>
-                                                <th class="w-24">Cuenta</th>
-                                                <th>Nombre cuenta</th>
-                                                <th>Descripción</th>
-                                                <th class="text-right">Debe</th>
-                                                <th class="text-right pr-5">Haber</th>
+                                                <th class="w-40">Cuenta</th>
+                                                <th>Etiqueta</th>
+                                                <th>Dist. analítica</th>
+                                                <th class="text-right">Débito</th>
+                                                <th class="text-right">Crédito</th>
+                                                <th>Impuestos</th>
+                                                <th class="w-8"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="(line, i) in apuntes.lines" :key="i">
                                                 <tr>
-                                                    <td class="font-mono text-xs text-indigo-600 dark:text-indigo-400 whitespace-nowrap" x-text="line.account_code"></td>
-                                                    <td>
-                                                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight" x-text="line.account_name_es"></p>
-                                                        <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-tight" x-text="line.account_name_en !== line.account_name_es ? line.account_name_en : ''"></p>
+                                                    {{-- Cuenta: código + nombre --}}
+                                                    <td class="whitespace-nowrap">
+                                                        <p class="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 leading-tight" x-text="line.account_code"></p>
+                                                        <p class="text-xs text-gray-600 dark:text-gray-400 leading-tight mt-0.5" x-text="line.account_name_es"></p>
                                                     </td>
-                                                    <td class="text-sm text-gray-600 dark:text-gray-400 max-w-[240px] truncate" x-text="line.description"></td>
+                                                    {{-- Etiqueta --}}
+                                                    <td class="text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate" x-text="line.description !== '—' ? line.description : ''"></td>
+                                                    {{-- Distribución analítica --}}
+                                                    <td class="max-w-[160px]">
+                                                        <template x-if="line.analytic && line.analytic.length">
+                                                            <div class="flex flex-wrap gap-1">
+                                                                <template x-for="(a, ai) in line.analytic" :key="ai">
+                                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap"
+                                                                          :class="analyticBadgeClass(a.plan)">
+                                                                        <span x-text="a.name"></span>
+                                                                        <span x-show="a.pct < 100" class="opacity-60" x-text="a.pct + '%'"></span>
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="!line.analytic || !line.analytic.length">
+                                                            <span class="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                                        </template>
+                                                    </td>
+                                                    {{-- Débito --}}
                                                     <td class="text-right whitespace-nowrap">
                                                         <span x-show="line.debit > 0" class="tabular-nums text-sm font-semibold text-gray-700 dark:text-gray-200"
                                                               x-text="'$ ' + line.debit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
-                                                        <span x-show="line.debit === 0" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
+                                                        <span x-show="!line.debit" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
                                                     </td>
-                                                    <td class="text-right pr-5 whitespace-nowrap">
+                                                    {{-- Crédito --}}
+                                                    <td class="text-right whitespace-nowrap">
                                                         <span x-show="line.credit > 0" class="tabular-nums text-sm font-semibold text-gray-700 dark:text-gray-200"
                                                               x-text="'$ ' + line.credit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
-                                                        <span x-show="line.credit === 0" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
+                                                        <span x-show="!line.credit" class="text-gray-300 dark:text-gray-600 text-sm">—</span>
+                                                    </td>
+                                                    {{-- Impuestos --}}
+                                                    <td>
+                                                        <template x-if="line.taxes && line.taxes.length">
+                                                            <div class="flex flex-wrap gap-1">
+                                                                <template x-for="(t, ti) in line.taxes" :key="ti">
+                                                                    <span class="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 whitespace-nowrap" x-text="t"></span>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="!line.taxes || !line.taxes.length">
+                                                            <span class="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                                        </template>
+                                                    </td>
+                                                    {{-- Acción editar (solo borrador) --}}
+                                                    <td class="pr-3 w-8 text-right">
+                                                        <template x-if="apuntes.isDraft">
+                                                            <button @click="openEditLine(line)"
+                                                                class="text-gray-300 hover:text-indigo-500 dark:text-gray-600 dark:hover:text-indigo-400 transition-colors"
+                                                                title="Editar línea">
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                                </svg>
+                                                            </button>
+                                                        </template>
                                                     </td>
                                                 </tr>
                                             </template>
@@ -731,32 +982,48 @@
                                                 <td colspan="3" class="py-2 pl-4 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</td>
                                                 <td class="text-right py-2 font-black tabular-nums text-indigo-600 dark:text-indigo-400"
                                                     x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.debit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></td>
-                                                <td class="text-right pr-5 py-2 font-black tabular-nums text-indigo-600 dark:text-indigo-400"
+                                                <td class="text-right py-2 font-black tabular-nums text-indigo-600 dark:text-indigo-400"
                                                     x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.credit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></td>
+                                                <td colspan="2"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
 
                                 {{-- Tarjetas mobile --}}
-                                <div class="lg:hidden space-y-2">
+                                <div class="lg:hidden space-y-2 p-3">
                                     <template x-for="(line, i) in apuntes.lines" :key="i">
-                                        <div class="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 space-y-1">
-                                            <div class="flex items-start justify-between gap-2">
-                                                <div class="min-w-0">
-                                                    <p class="text-xs font-mono text-indigo-600 dark:text-indigo-400" x-text="line.account_code"></p>
-                                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight truncate" x-text="line.account_name_es"></p>
-                                                    <p class="text-xs text-gray-400 truncate" x-text="line.description"></p>
-                                                </div>
+                                        <div class="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 space-y-2">
+                                            {{-- Cuenta --}}
+                                            <div class="flex items-start gap-2">
+                                                <span class="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap" x-text="line.account_code"></span>
+                                                <span class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight" x-text="line.account_name_es"></span>
                                             </div>
-                                            <div class="flex gap-4 pt-1">
+                                            {{-- Etiqueta --}}
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate" x-show="line.description !== '—'" x-text="line.description"></p>
+                                            {{-- Distribución analítica --}}
+                                            <div x-show="line.analytic && line.analytic.length" class="flex flex-wrap gap-1">
+                                                <template x-for="(a, ai) in line.analytic" :key="ai">
+                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium"
+                                                          :class="analyticBadgeClass(a.plan)"
+                                                          x-text="a.name + (a.pct < 100 ? ' · '+a.pct+'%' : '')"></span>
+                                                </template>
+                                            </div>
+                                            {{-- Impuestos --}}
+                                            <div x-show="line.taxes && line.taxes.length" class="flex flex-wrap gap-1">
+                                                <template x-for="(t, ti) in line.taxes" :key="ti">
+                                                    <span class="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" x-text="t"></span>
+                                                </template>
+                                            </div>
+                                            {{-- Débito / Crédito --}}
+                                            <div class="flex gap-4 pt-0.5">
                                                 <div x-show="line.debit > 0" class="flex gap-1.5 items-baseline">
-                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Debe</span>
+                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Débito</span>
                                                     <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200"
                                                           x-text="'$ ' + line.debit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
                                                 </div>
                                                 <div x-show="line.credit > 0" class="flex gap-1.5 items-baseline">
-                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Haber</span>
+                                                    <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-400">Crédito</span>
                                                     <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200"
                                                           x-text="'$ ' + line.credit.toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
                                                 </div>
@@ -768,12 +1035,12 @@
                                         <span class="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</span>
                                         <div class="flex gap-5">
                                             <div class="flex gap-1.5 items-baseline">
-                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Debe</span>
+                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Débito</span>
                                                 <span class="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400"
                                                       x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.debit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
                                             </div>
                                             <div class="flex gap-1.5 items-baseline">
-                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Haber</span>
+                                                <span class="text-[11px] font-semibold uppercase text-gray-400">Crédito</span>
                                                 <span class="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400"
                                                       x-text="'$ ' + apuntes.lines.reduce((s,l) => s+l.credit, 0).toLocaleString('es-CL', {minimumFractionDigits:0})"></span>
                                             </div>
@@ -784,6 +1051,156 @@
                             </div>{{-- /found --}}
 
                         </div>{{-- /tab contable --}}
+
+                        {{-- Modal: editar apunte contable — teleportado al <body> para escapar del transform del panel --}}
+                        <template x-teleport="body">
+                        <div x-show="editModal.open" x-cloak
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                             @keydown.escape.window="editModal.open = false">
+
+                            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="editModal.open = false"></div>
+
+                            {{-- Panel del modal — ocupa toda la altura disponible para evitar scroll externo --}}
+                            <div class="relative z-10 w-full max-w-xl flex flex-col bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
+                                 style="max-height: 90vh"
+                                 @click.stop>
+
+                                {{-- Header fijo --}}
+                                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">Editar apunte contable</h3>
+                                        <p class="text-xs text-gray-400 mt-0.5" x-text="editModal.line ? editModal.line.account_code + ' · ' + editModal.line.account_name_es : ''"></p>
+                                    </div>
+                                    <button @click="editModal.open = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+
+                                {{-- Contenido scrollable —— sin dropdowns flotantes adentro --}}
+                                <div class="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+
+                                    {{-- ① Cuenta contable --}}
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Cuenta contable</label>
+
+                                        {{-- Buscador --}}
+                                        <input type="text" x-model="editModal.accountSearch"
+                                               @input="editModal.accountPicked = null"
+                                               placeholder="Buscar por código o nombre…"
+                                               class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+
+                                        {{-- Lista inline — no flotante --}}
+                                        <div x-show="editModal.accountSearch && !editModal.accountPicked"
+                                             class="mt-1 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                            <div class="max-h-44 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
+                                                <template x-for="acc in filteredAccounts()" :key="acc.odoo_id">
+                                                    <div @click="pickAccount(acc)"
+                                                         class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+                                                        <span class="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 shrink-0" x-text="acc.code"></span>
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300 truncate" x-text="acc.label.replace(acc.code + ' ', '')"></span>
+                                                    </div>
+                                                </template>
+                                                <div x-show="filteredAccounts().length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Sin resultados</div>
+                                            </div>
+                                        </div>
+
+                                        {{-- Seleccionado --}}
+                                        <div x-show="editModal.accountPicked"
+                                             class="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
+                                            <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            <span class="text-sm text-indigo-700 dark:text-indigo-300 truncate" x-text="editModal.accountPicked?.label ?? ''"></span>
+                                        </div>
+                                    </div>
+
+                                    {{-- ② Distribución analítica --}}
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Distribución analítica</label>
+
+                                        {{-- Chips de cuentas ya seleccionadas + campo % --}}
+                                        <div x-show="editModal.analyticRows.length > 0" class="space-y-1.5 mb-3">
+                                            <template x-for="(row, idx) in editModal.analyticRows" :key="row._key">
+                                                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                                                    {{-- Dot color por plan --}}
+                                                    <span class="w-2 h-2 rounded-full shrink-0"
+                                                          :class="{
+                                                            'bg-sky-500':    (row.plan||'').toLowerCase().includes('project') || (row.plan||'').toLowerCase().includes('proyecto'),
+                                                            'bg-violet-500': (row.plan||'').toLowerCase().includes('centros'),
+                                                            'bg-orange-500': (row.plan||'').toLowerCase().includes('maquinaria'),
+                                                            'bg-emerald-500':(row.plan||'').toLowerCase().includes('plantación') || (row.plan||'').toLowerCase().includes('plantacion'),
+                                                            'bg-teal-500':   (row.plan||'').toLowerCase().includes('operacional') || (row.plan||'').toLowerCase().includes('cosecha'),
+                                                            'bg-yellow-500': (row.plan||'').toLowerCase().includes('construc'),
+                                                            'bg-gray-400':   true,
+                                                          }"></span>
+                                                    {{-- Nombre + plan --}}
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" x-text="row.name"></p>
+                                                        <p class="text-[11px] text-gray-400 truncate" x-text="row.plan"></p>
+                                                    </div>
+                                                    {{-- % --}}
+                                                    <div class="flex items-center gap-1 shrink-0">
+                                                        <input type="number" x-model="row.pct" min="0" max="100"
+                                                               class="w-16 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-violet-400"/>
+                                                        <span class="text-xs text-gray-400">%</span>
+                                                    </div>
+                                                    {{-- Quitar --}}
+                                                    <button @click="removeAnalyticRow(idx)" type="button"
+                                                            class="text-gray-300 hover:text-rose-500 dark:text-gray-600 dark:hover:text-rose-400 transition-colors shrink-0">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        {{-- Buscador para agregar cuentas analíticas --}}
+                                        <div class="border border-dashed border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                                            <div class="px-3 pt-3 pb-2">
+                                                <input type="text" x-model="editModal.analyticSearch"
+                                                       placeholder="Buscar y agregar cuenta analítica…"
+                                                       class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"/>
+                                            </div>
+                                            {{-- Lista inline sin flotante --}}
+                                            <div class="max-h-44 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800/50">
+                                                <template x-for="acc in filteredAnalytic()" :key="acc.odoo_id">
+                                                    <div @click="addAnalytic(acc)"
+                                                         class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/20">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0"></span>
+                                                        <div class="flex-1 min-w-0">
+                                                            <span class="text-sm text-gray-700 dark:text-gray-300" x-text="acc.name"></span>
+                                                            <span class="text-[11px] text-gray-400 ml-1.5" x-text="acc.plan_name"></span>
+                                                        </div>
+                                                        <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                    </div>
+                                                </template>
+                                                <div x-show="filteredAnalytic().length === 0 && editModal.catalogLoaded"
+                                                     class="px-3 py-2 text-sm text-gray-400 italic">Sin resultados</div>
+                                                <div x-show="!editModal.catalogLoaded"
+                                                     class="px-3 py-2 text-sm text-gray-400">Cargando catálogo…</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>{{-- /contenido --}}
+
+                                {{-- Footer fijo --}}
+                                <div class="flex justify-end gap-2 px-5 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shrink-0 rounded-b-2xl">
+                                    <button @click="editModal.open = false" type="button"
+                                            class="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        Cancelar
+                                    </button>
+                                    <button @click="saveEditLine()" type="button"
+                                            :disabled="editModal.saving"
+                                            class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50 flex items-center gap-2">
+                                        <svg x-show="editModal.saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                        </svg>
+                                        <span x-text="editModal.saving ? 'Guardando…' : 'Guardar'"></span>
+                                    </button>
+                                </div>
+
+                            </div>{{-- /panel --}}
+                        </div>{{-- /overlay --}}
+                        </template>{{-- /x-teleport --}}
 
                         {{-- Tab: Otra información --}}
                         <div x-show="tab === 'info'" x-cloak class="p-5">
@@ -1086,14 +1503,20 @@
             confirmLabel: 'Confirmar',
             type: 'danger',
             _cb: null,
+            selectLabel: '',
+            selectOptions: [],
+            selectedValue: null,
         }"
         x-on:confirm-dialog.window="
-            title        = $event.detail.title        ?? '¿Estás seguro?';
-            message      = $event.detail.message      ?? '';
-            confirmLabel = $event.detail.confirmLabel ?? 'Confirmar';
-            type         = $event.detail.type         ?? 'danger';
-            _cb          = $event.detail.callback     ?? null;
-            show         = true;
+            title         = $event.detail.title         ?? '¿Estás seguro?';
+            message       = $event.detail.message       ?? '';
+            confirmLabel  = $event.detail.confirmLabel  ?? 'Confirmar';
+            type          = $event.detail.type          ?? 'danger';
+            _cb           = $event.detail.callback      ?? null;
+            selectLabel   = $event.detail.selectLabel   ?? '';
+            selectOptions = $event.detail.selectOptions ?? [];
+            selectedValue = $event.detail.selectDefault ?? (selectOptions.length > 0 ? selectOptions[0].value : null);
+            show          = true;
         "
         x-show="show" x-cloak
         @keydown.escape.window="show = false"
@@ -1138,6 +1561,19 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed" x-text="message" x-show="message"></p>
                     </div>
                 </div>
+
+                {{-- Select opcional dentro del modal --}}
+                <template x-if="selectOptions.length > 0">
+                    <div class="mt-4">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5" x-text="selectLabel"></label>
+                        <select x-model="selectedValue"
+                            class="w-full text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-400 transition cursor-pointer">
+                            <template x-for="opt in selectOptions" :key="opt.value">
+                                <option :value="opt.value" x-text="opt.label"></option>
+                            </template>
+                        </select>
+                    </div>
+                </template>
             </div>
 
             <div class="px-5 pb-5 flex gap-2 justify-end">
@@ -1147,7 +1583,7 @@
                     Cancelar
                 </button>
                 <button type="button"
-                    @click="show = false; if (_cb) _cb()"
+                    @click="show = false; if (_cb) _cb(selectedValue)"
                     class="px-4 py-2 text-xs font-bold rounded-xl text-white transition"
                     :class="{
                         'bg-rose-600 hover:bg-rose-700': type === 'danger',
@@ -1161,6 +1597,40 @@
     </div>
 
     <script>
+    // Bodegas disponibles para el ingreso de stock (generado server-side)
+    window.__stockBodegas = @json($bodegas->map(fn($b) => ['value' => $b->id, 'label' => $b->nombre]));
+    window.__stockBodegaDefault = {{ $bodegas->firstWhere('es_principal', true)->id ?? $bodegas->first()?->id ?? 'null' }};
+    </script>
+    <script>
+    /**
+     * Color de badge según el plan analítico al que pertenece la cuenta.
+     * Tailwind necesita ver los strings completos en el template para no purgarlos.
+     * Colores definidos:
+     *   sky      → Proyecto / Project
+     *   violet   → Centros de costo
+     *   orange   → Maquinaria
+     *   emerald  → Plantación
+     *   teal     → Operacional / Costo cosecha
+     *   yellow   → Construcción
+     *   gray     → resto
+     */
+    function analyticBadgeClass(plan) {
+        const p = (plan || '').toLowerCase();
+        if (p.includes('project') || p.includes('proyecto'))
+            return 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 ring-1 ring-inset ring-sky-200 dark:ring-sky-800';
+        if (p.includes('centros de costo') || p.includes('centro de costo'))
+            return 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 ring-1 ring-inset ring-violet-200 dark:ring-violet-800';
+        if (p.includes('maquinaria') || p.includes('maquinas'))
+            return 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-inset ring-orange-200 dark:ring-orange-800';
+        if (p.includes('plantación') || p.includes('plantacion'))
+            return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-800';
+        if (p.includes('construc'))
+            return 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 ring-1 ring-inset ring-yellow-200 dark:ring-yellow-800';
+        if (p.includes('cosecha') || p.includes('operacional') || p.includes('licencias') || p.includes('sistemas'))
+            return 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 ring-1 ring-inset ring-teal-200 dark:ring-teal-800';
+        return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 ring-1 ring-inset ring-gray-200 dark:ring-gray-700';
+    }
+
     /**
      * Componente principal del panel de tabs del DTE.
      * Extiende la gestión de tabs para incluir la carga lazy de apuntes contables.
@@ -1203,6 +1673,7 @@
                         this.apuntes.move    = data.move    ?? null;
                         this.apuntes.lines   = data.lines   ?? [];
                         this.apuntes.message = data.message ?? null;
+                        this.apuntes.isDraft = data.is_draft ?? false;
                     }
                     this.apuntes.loaded  = true;
                     this.apuntes.loading = false;
@@ -1213,6 +1684,123 @@
                     this.apuntes.loading = false;
                 });
             },
+
+            // ── Modal edición de apunte ──────────────────────────────────────────
+            editModal: {
+                open:           false,
+                saving:         false,
+                line:           null,
+                accountSearch:  '',
+                accountPicked:  null,
+                analyticSearch: '',
+                analyticRows:   [],     // [{_key, accId, name, plan, pct}]
+                catalogLoaded:  false,
+                accounts:       [],
+                analyticAccts:  [],
+            },
+
+            openEditLine(line) {
+                const em = this.editModal;
+                em.line           = line;
+                em.accountSearch  = line.account_code + ' ' + line.account_name_es;
+                em.accountPicked  = { odoo_id: line.account_odoo_id, code: line.account_code, label: em.accountSearch };
+                em.analyticSearch = '';
+                em.analyticRows   = (line.analytic || []).map((a, i) => ({
+                    _key: i, accId: a.id, name: a.name, plan: a.plan, pct: a.pct
+                }));
+                em.saving = false;
+                em.open   = true;
+
+                if (! em.catalogLoaded) {
+                    fetch('/gmail/dtes/apuntes/catalogo', { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(d => {
+                            em.accounts      = d.accounts  || [];
+                            em.analyticAccts = d.analytic  || [];
+                            em.catalogLoaded = true;
+                        });
+                }
+            },
+
+            filteredAccounts() {
+                const q = this.editModal.accountSearch.toLowerCase();
+                if (! q) return this.editModal.accounts.slice(0, 40);
+                return this.editModal.accounts.filter(a => a.label.toLowerCase().includes(q)).slice(0, 40);
+            },
+
+            pickAccount(acc) {
+                this.editModal.accountPicked = acc;
+                this.editModal.accountSearch = acc.label;
+            },
+
+            // Analítica: lista filtrada excluyendo los ya seleccionados
+            filteredAnalytic() {
+                const q    = this.editModal.analyticSearch.toLowerCase();
+                const used = new Set(this.editModal.analyticRows.map(r => r.accId));
+                return this.editModal.analyticAccts
+                    .filter(a => ! used.has(a.odoo_id))
+                    .filter(a => ! q || a.name.toLowerCase().includes(q) || (a.plan_name || '').toLowerCase().includes(q))
+                    .slice(0, 50);
+            },
+
+            addAnalytic(acc) {
+                this.editModal.analyticRows.push({
+                    _key: Date.now(), accId: acc.odoo_id, name: acc.name, plan: acc.plan_name, pct: 100
+                });
+                this.editModal.analyticSearch = '';
+            },
+
+            removeAnalyticRow(idx) {
+                this.editModal.analyticRows.splice(idx, 1);
+            },
+
+            async saveEditLine() {
+                const em = this.editModal;
+                em.saving = true;
+
+                const dist = {};
+                for (const row of em.analyticRows) {
+                    if (row.accId) dist[String(row.accId)] = Number(row.pct);
+                }
+
+                try {
+                    const res = await fetch(`/gmail/dtes/${docId}/apuntes/${em.line.line_id}`, {
+                        method:  'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept':       'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                            'X-HTTP-Method-Override': 'PATCH',
+                        },
+                        body: JSON.stringify({
+                            account_odoo_id:       em.accountPicked?.odoo_id ?? null,
+                            analytic_distribution: Object.keys(dist).length ? dist : null,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        const idx = this.apuntes.lines.findIndex(l => l.line_id === em.line.line_id);
+                        if (idx >= 0) {
+                            const l = this.apuntes.lines[idx];
+                            if (em.accountPicked) {
+                                l.account_odoo_id = em.accountPicked.odoo_id;
+                                l.account_code    = em.accountPicked.code;
+                                l.account_name_es = em.accountPicked.label.replace(em.accountPicked.code + ' ', '');
+                            }
+                            l.analytic = em.analyticRows
+                                .filter(r => r.accId)
+                                .map(r => ({ id: r.accId, name: r.name, plan: r.plan, pct: Number(r.pct) }));
+                        }
+                        em.open = false;
+                    } else {
+                        alert(data.error || 'Error al guardar.');
+                    }
+                } catch (e) {
+                    alert('Error de red: ' + e.message);
+                } finally {
+                    em.saving = false;
+                }
+            },
         };
     }
 
@@ -1220,7 +1808,7 @@
         window.dispatchEvent(new CustomEvent('confirm-dialog', { detail: options }));
     }
 
-    async function startStockAddReview(reviewUrl, productsUrl, submitFormId) {
+    async function startStockAddReview(reviewUrl, productsUrl, submitFormId, bodegaId) {
         try {
             const response = await fetch(reviewUrl, { headers: { 'Accept': 'application/json' } });
             const data = await response.json();
@@ -1234,10 +1822,12 @@
             }
 
             if (!Array.isArray(data.unresolved) || data.unresolved.length === 0) {
+                // Ingresar directo: bodega_id ya está en el <select> dentro del form
                 document.getElementById(submitFormId)?.submit();
                 return;
             }
 
+            // Hay líneas sin resolver → abrir modal de mapeo pasando la bodega seleccionada
             window.dispatchEvent(new CustomEvent('stock-matcher-open', {
                 detail: {
                     rows: data.unresolved,
@@ -1245,6 +1835,7 @@
                     submitUrl: '{{ route('gmail.dtes.add_stock_mapping', $document->id) }}',
                     createProductUrl: '{{ route('gmail.inventory.api.products.create') }}',
                     csrf: '{{ csrf_token() }}',
+                    bodegaId: bodegaId ? Number(bodegaId) : null,
                 }
             }));
         } catch (error) {
@@ -1262,6 +1853,7 @@
             createProductUrl: '',
             submitUrl: '',
             csrf: '',
+            bodegaId: null,
             allProducts: [],
             submitting: false,
 
@@ -1291,6 +1883,7 @@
                 this.createProductUrl = detail?.createProductUrl || '';
                 this.submitUrl = detail?.submitUrl || '';
                 this.csrf = detail?.csrf || '';
+                this.bodegaId = detail?.bodegaId || null;
                 this.open = true;
 
                 try {
@@ -1308,6 +1901,7 @@
                 this.open = false;
                 this.rows = [];
                 this.submitting = false;
+                this.bodegaId = null;
             },
 
             onSearch(row) {
@@ -1457,6 +2051,15 @@
                     skipInput.value = String(r.line_id);
                     form.appendChild(skipInput);
                 });
+
+                // Incluir bodega seleccionada
+                if (this.bodegaId) {
+                    const bodegaInput = document.createElement('input');
+                    bodegaInput.type = 'hidden';
+                    bodegaInput.name = 'bodega_id';
+                    bodegaInput.value = String(this.bodegaId);
+                    form.appendChild(bodegaInput);
+                }
 
                 document.body.appendChild(form);
                 form.submit();

@@ -15,7 +15,12 @@ class InventoryAdjustController extends Controller
 
     public function adjustCreate()
     {
-        return view('gmail.inventory.adjust_form');
+        $bodegas = DB::table('bodegas')
+            ->orderByDesc('es_principal')
+            ->orderBy('nombre')
+            ->get(['id', 'codigo', 'nombre', 'es_principal']);
+
+        return view('gmail.inventory.adjust_form', compact('bodegas'));
     }
 
     public function adjustStore(Request $request, GmailDteInventoryService $service)
@@ -26,12 +31,15 @@ class InventoryAdjustController extends Controller
             'direccion'  => 'required|in:POSITIVO,NEGATIVO',
             'motivo'     => 'required|string|max:100',
             'notas'      => 'nullable|string|max:1000',
+            'bodega_id'  => 'nullable|integer',
         ]);
 
         $exists = $this->db()->table('gmail_inventory_products')->where('id', $validated['product_id'])->exists();
         if (!$exists) {
             return back()->withInput()->withErrors(['product_id' => 'Producto no válido.']);
         }
+
+        $bodegaId = isset($validated['bodega_id']) ? (int) $validated['bodega_id'] : null;
 
         try {
             $result = $service->processAdjustment(
@@ -40,7 +48,8 @@ class InventoryAdjustController extends Controller
                         $validated['direccion'],
                         $validated['motivo'],
                 auth()->id(),
-                $validated['notas'] ?? null
+                $validated['notas'] ?? null,
+                $bodegaId
             );
         } catch (\RuntimeException $e) {
             return back()->withInput()->withErrors(['quantity' => $e->getMessage()]);

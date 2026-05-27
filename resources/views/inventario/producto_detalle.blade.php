@@ -130,6 +130,25 @@
                     <span style="font-size:13px;font-weight:600;color:#94a3b8"> {{ $producto->unidad }}</span>
                 </p>
                 <p class="kpi-sub">{{ $lotes->count() }} lote{{ $lotes->count() !== 1 ? 's' : '' }} activo{{ $lotes->count() !== 1 ? 's' : '' }} en cola FIFO</p>
+
+                {{-- Desglose por bodega --}}
+                @if($stockPorBodegaProducto->isNotEmpty())
+                    <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-1">
+                        @foreach($stockPorBodegaProducto as $row)
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                    <svg class="w-2.5 h-2.5 shrink-0 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                                    </svg>
+                                    {{ $bodegaNames->get($row->bodega_id, 'Bodega #'.$row->bodega_id) }}
+                                </span>
+                                <span class="text-[10px] font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                    {{ number_format((float)$row->total, 2, ',', '.') }}
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             @if(auth()->user()->canSeeValues())
@@ -257,6 +276,7 @@
                             <th class="col-hide-sm">Antigüedad</th>
                             <th>Proveedor</th>
                             <th class="col-hide-sm">N° Factura</th>
+                            <th class="col-hide-sm">Bodega</th>
                             <th class="text-right col-hide-sm">Ingresado</th>
                             <th class="text-right col-hide-sm">Consumido</th>
                             <th class="text-right">Disponible</th>
@@ -317,6 +337,20 @@
                                     <span class="text-gray-400">—</span>
                                 @endif
                             </td>
+                            <td class="col-hide-sm">
+                                @if($lote->bodega_id)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold
+                                                 bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300
+                                                 border border-violet-200 dark:border-violet-800">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                                        </svg>
+                                        {{ $bodegaNames->get($lote->bodega_id, '#'.$lote->bodega_id) }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 text-xs">—</span>
+                                @endif
+                            </td>
                             <td class="text-right tabular-nums text-gray-500 col-hide-sm">
                                 {{ number_format((float)$lote->cantidad_ingresada, 2, ',', '.') }}
                             </td>
@@ -344,7 +378,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="bg-gray-50 dark:bg-gray-900/40">
-                            <td colspan="7" class="px-4 py-3 text-xs font-black uppercase tracking-wider text-gray-500">Total</td>
+                            <td colspan="8" class="px-4 py-3 text-xs font-black uppercase tracking-wider text-gray-500">Total</td>
                             <td class="px-4 py-3 text-right font-black tabular-nums text-emerald-700 dark:text-emerald-400">
                                 {{ number_format($stockTotal, 2, ',', '.') }}
                             </td>

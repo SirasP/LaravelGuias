@@ -341,14 +341,15 @@ class GmailInventoryController extends Controller
     {
         $validated = $request->validate([
             'id'       => 'nullable|integer|exists:fuelcontrol.gmail_inventory_contacts,id',
-            'rut'      => 'nullable|string|max:50',
-            'nombre'   => 'required|string|max:255',
-            'giro'     => 'nullable|string|max:255',
-            'direccion'=> 'nullable|string|max:255',
-            'comuna'   => 'nullable|string|max:100',
-            'tipo'     => 'required|string|in:PROVEEDOR,CLIENTE,INTERNO',
-            'email'    => 'nullable|email|max:255',
+            'tipo'     => 'required|string|in:cliente,trabajador,destinatario',
+            'nombre'   => 'required|string|max:200',
+            'rut'      => 'nullable|string|max:30',
+            'empresa'  => 'nullable|string|max:200',
+            'cargo'    => 'nullable|string|max:100',
+            'area'     => 'nullable|string|max:100',
             'telefono' => 'nullable|string|max:50',
+            'email'    => 'nullable|email|max:200',
+            'notas'    => 'nullable|string|max:1000',
         ]);
 
         if (empty($validated['id'])) {

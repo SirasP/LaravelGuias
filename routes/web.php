@@ -393,6 +393,8 @@ Route::middleware(['auth'])
         /* XML */
         Route::get('/xml/{movimiento}', [FuelDashboard::class, 'show'])
             ->name('xml.show');
+        Route::get('/xml/dte/{id}', [FuelDashboard::class, 'showDte'])
+            ->name('xml.dte.show');
         Route::post('/xml/{movimiento}/aprobar', [FuelDashboard::class, 'aprobar'])
             ->name('xml.aprobar');
         Route::post('/xml/{movimiento}/rechazar', [FuelDashboard::class, 'rechazar'])
@@ -422,6 +424,8 @@ Route::middleware(['auth'])
         /* INGRESOS */
         Route::get('/ingreso', [MovimientoController::class, 'ingreso'])
             ->name('ingreso.index');
+        Route::post('/ingreso/dte/{id}', [MovimientoController::class, 'ingresarDesdeDte'])
+            ->name('ingreso.dte.store');
     });
 
 /*
@@ -439,6 +443,8 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/dtes/stock-products', [GmailDteDocumentController::class, 'stockProductsApi'])->name('dtes.stock_products');
     Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])->whereNumber('id')->name('dtes.stock_review');
     Route::get('/dtes/{id}/apuntes', [GmailDteDocumentController::class, 'apuntesContables'])->whereNumber('id')->name('dtes.apuntes');
+    Route::get('/dtes/apuntes/catalogo', [GmailDteDocumentController::class, 'apuntesEditCatalog'])->name('dtes.apuntes.catalog');
+    Route::match(['patch','post'], '/dtes/{id}/apuntes/{lineId}', [GmailDteDocumentController::class, 'updateApunte'])->whereNumber('id')->whereNumber('lineId')->name('dtes.apuntes.update');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])->whereNumber('id')->name('dtes.print');
     Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])->whereNumber('id')->name('dtes.add_stock');
     Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])->whereNumber('id')->name('dtes.add_stock_mapping');

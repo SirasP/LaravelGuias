@@ -228,11 +228,24 @@ class GmailLeerXml extends Command
                         $nombre   = strtoupper((string) $detalle->NmbItem);
                         $cantidad = (float) $detalle->QtyItem;
 
-                        $productoNombre = match (true) {
-                            str_contains($nombre, 'DIESEL')   => 'Diesel',
-                            str_contains($nombre, 'GASOLINA') => 'Gasolina',
-                            default                            => null,
-                        };
+                        // Excluir herramientas, repuestos, aceites y bidones que no son combustible real
+                        $exclusiones = ['FILTRO', 'JUEGO', 'JGO', 'COMPRESIMETRO', 'ACEITE', 'ADITIVO', 'BOMBA', 'MANGUERA', 'BIDON', 'LIMPIADOR', 'INYECTOR', 'TAPA', 'SERVICIO', 'FLETE', 'HERRAMIENTA', 'EQUIPO'];
+                        $esExcluido = false;
+                        foreach ($exclusiones as $ex) {
+                            if (str_contains($nombre, $ex)) {
+                                $esExcluido = true;
+                                break;
+                            }
+                        }
+
+                        $productoNombre = null;
+                        if (!$esExcluido) {
+                            $productoNombre = match (true) {
+                                str_contains($nombre, 'DIESEL')   => 'Diesel',
+                                str_contains($nombre, 'GASOLINA') => 'Gasolina',
+                                default                            => null,
+                            };
+                        }
 
                         if (!$productoNombre || $cantidad <= 0) {
                             continue;

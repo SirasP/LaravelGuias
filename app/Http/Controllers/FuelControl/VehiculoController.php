@@ -25,6 +25,14 @@ class VehiculoController extends Controller
             $q->where('tipo', $request->tipo);
         });
 
+        $baseQuery->when($request->filled('status'), function ($q) use ($request) {
+            if ($request->status === 'active') {
+                $q->where('is_active', true);
+            } elseif ($request->status === 'inactive') {
+                $q->where('is_active', false);
+            }
+        });
+
         // 🔹 Listado (clonar para no romper la query)
         $vehiculos = (clone $baseQuery)
             ->select('vehiculos.*')

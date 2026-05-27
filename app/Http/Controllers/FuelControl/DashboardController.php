@@ -612,6 +612,33 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function showDte($dteId)
+    {
+        $dte = DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $dteId)
+            ->firstOrFail();
+
+        $ruta = 'xml/' . $dte->xml_filename;
+
+        if (!Storage::disk('local')->exists($ruta)) {
+            abort(404, 'Archivo XML no encontrado');
+        }
+
+        $contenidoXml = Storage::disk('local')->get($ruta);
+
+        $movimiento = DB::connection('fuelcontrol')
+            ->table('movimientos')
+            ->where('xml_path', $dte->xml_filename)
+            ->first();
+
+        return view('fuelcontrol.xml.modal', [
+            'xml' => $contenidoXml,
+            'movimiento' => $movimiento,
+            'dte' => $dte
+        ]);
+    }
+
     public function aprobar($movimientoId)
     {
         $db = DB::connection('fuelcontrol');

@@ -16,6 +16,7 @@
 
             <form method="GET" class="hidden lg:block w-full lg:max-w-xl lg:justify-self-center">
                 <div class="flex gap-2">
+                    @if($bodegaId !== null)<input type="hidden" name="bodega_id" value="{{ $bodegaId }}">@endif
                     <input type="text" name="q" value="{{ $q }}" class="f-input"
                         placeholder="Buscar por producto, codigo o unidad...">
                     <button type="submit"
@@ -23,8 +24,19 @@
                 </div>
             </form>
 
-            <div class="hidden lg:flex items-center justify-end text-xs text-gray-400">
-                {{ $products->total() }} productos
+            <div class="hidden lg:flex items-center justify-end gap-2">
+                <button type="button" @click="$store.invBodega.modalOpen = true; $store.invBodega.forcedOpen = true"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl
+                           border transition
+                           {{ $bodegaId !== null
+                               ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                               : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-violet-400 hover:text-violet-600' }}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                    </svg>
+                    <span x-text="$store.invBodega.label"></span>
+                </button>
+                <span class="text-xs text-gray-400">{{ $products->total() }} productos</span>
             </div>
         </div>
     </x-slot>
@@ -181,44 +193,108 @@
         }
     </style>
 
-    <div class="page-bg">
+    @php
+        $listaBodegaUrl = route('gmail.inventory.list');
+    @endphp
+    <script>
+        window.__bodegaNames    = @json($bodegas->pluck('nombre', 'id'));
+        window.__bodegaListUrl  = '{{ $listaBodegaUrl }}';
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('invBodega', {
+                modalOpen: false,
+                selected: {{ $bodegaId !== null ? $bodegaId : 'null' }},
+                forcedOpen: false,
+                names: window.__bodegaNames,
+                get label() {
+                    if (this.selected === null) return 'Todas las bodegas';
+                    return this.names[this.selected] ?? 'Bodega';
+                }
+            });
+        });
+    </script>
+
+    <div class="page-bg"
+         x-data="{
+             onBodegaSelect(id) {
+                 $store.invBodega.selected = id;
+                 $store.invBodega.modalOpen = false;
+                 const url = new URL(window.__bodegaListUrl, window.location.origin);
+                 @if($q !== '') url.searchParams.set('q', '{{ addslashes($q) }}'); @endif
+                 @if($estado !== '') url.searchParams.set('estado', '{{ $estado }}'); @endif
+                 @if($stock !== '') url.searchParams.set('stock', '{{ $stock }}'); @endif
+                 if (id !== null) url.searchParams.set('bodega_id', id);
+                 window.location.href = url.toString();
+             }
+         }"
+         @bodega-selected.window="onBodegaSelect($event.detail.id)">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            {{-- Búsqueda mobile --}}
             <form method="GET" class="lg:hidden">
                 <div class="flex gap-2">
                     <input type="text" name="q" value="{{ $q }}" class="f-input"
                         placeholder="Buscar por producto, codigo o unidad...">
+                    @if($bodegaId !== null)<input type="hidden" name="bodega_id" value="{{ $bodegaId }}">@endif
                     <button type="submit"
                         class="px-4 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">Buscar</button>
                 </div>
             </form>
 
+            {{-- Chips de filtro (Activos, Con stock, etc.) --}}
+            @php
+                $base = array_filter(['q' => $q, 'bodega_id' => $bodegaId]);
+                $isNone = $estado === '' && $stock === '';
+            @endphp
             <div class="flex flex-wrap gap-2 au d1">
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === '' && $stock === '' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+
+                {{-- Todos: limpia todo --}}
+                <a href="{{ route('gmail.inventory.list', $base) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isNone ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700 hover:border-violet-400 hover:text-violet-600 dark:hover:text-violet-400' }}">
                     Todos ({{ $products->total() }})
                 </a>
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => 'activos', 'stock' => $stock])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === 'activos' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+
+                {{-- Activos: solo estado=activos, limpia stock --}}
+                @php $isActivos = $estado === 'activos' && $stock === ''; @endphp
+                <a href="{{ $isActivos ? route('gmail.inventory.list', $base) : route('gmail.inventory.list', array_merge($base, ['estado' => 'activos'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isActivos ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400' }}">
                     Activos ({{ $totalActivos }})
                 </a>
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => 'inactivos', 'stock' => $stock])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $estado === 'inactivos' ? 'bg-gray-700 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+
+                {{-- Inactivos: solo estado=inactivos, limpia stock --}}
+                @php $isInactivos = $estado === 'inactivos' && $stock === ''; @endphp
+                <a href="{{ $isInactivos ? route('gmail.inventory.list', $base) : route('gmail.inventory.list', array_merge($base, ['estado' => 'inactivos'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isInactivos ? 'bg-gray-700 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700 hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-400' }}">
                     Inactivos ({{ $totalInactivos }})
                 </a>
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'con_stock'])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'con_stock' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+
+                {{-- Con stock: solo stock=con_stock, limpia estado --}}
+                @php $isConStock = $stock === 'con_stock' && $estado === ''; @endphp
+                <a href="{{ $isConStock ? route('gmail.inventory.list', $base) : route('gmail.inventory.list', array_merge($base, ['stock' => 'con_stock'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isConStock ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:text-cyan-600 dark:hover:text-cyan-400' }}">
                     Con stock ({{ $totalConStock }})
                 </a>
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'sin_stock'])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'sin_stock' ? 'bg-amber-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700' }}">
+
+                {{-- Sin stock: solo stock=sin_stock, limpia estado --}}
+                @php $isSinStock = $stock === 'sin_stock' && $estado === ''; @endphp
+                <a href="{{ $isSinStock ? route('gmail.inventory.list', $base) : route('gmail.inventory.list', array_merge($base, ['stock' => 'sin_stock'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isSinStock ? 'bg-amber-600 text-white' : 'bg-white text-gray-700 border border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-700 hover:border-amber-400 hover:text-amber-600 dark:hover:text-amber-400' }}">
                     Sin stock ({{ $totalSinStock }})
                 </a>
+
                 @if($totalBajoMinimo > 0)
-                <a href="{{ route('gmail.inventory.list', array_filter(['q' => $q, 'estado' => $estado, 'stock' => 'bajo_minimo'])) }}"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition {{ $stock === 'bajo_minimo' ? 'bg-orange-600 text-white' : 'bg-white text-orange-600 border border-orange-200 dark:bg-orange-900/10 dark:text-orange-400 dark:border-orange-800' }}">
+                {{-- Bajo mínimo: solo stock=bajo_minimo, limpia estado --}}
+                @php $isBajoMinimo = $stock === 'bajo_minimo' && $estado === ''; @endphp
+                <a href="{{ $isBajoMinimo ? route('gmail.inventory.list', $base) : route('gmail.inventory.list', array_merge($base, ['stock' => 'bajo_minimo'])) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition
+                           {{ $isBajoMinimo ? 'bg-orange-600 text-white' : 'bg-white text-orange-600 border border-orange-200 dark:bg-orange-900/10 dark:text-orange-400 dark:border-orange-800' }}">
                     ⚠ Bajo mínimo ({{ $totalBajoMinimo }})
                 </a>
                 @endif
+
             </div>
 
             @if($products->count() > 0)
@@ -262,7 +338,15 @@
                             </div>
 
                             @php
-                                $bajoMinimo = $p->stock_minimo !== null && (float)$p->stock_actual < (float)$p->stock_minimo;
+                                $bodegas_p       = $stockPorBodega->get($p->id, collect());
+                                // Stock a mostrar en la tarjeta: de la bodega filtrada o global
+                                $stockMostrar    = $bodegaId !== null
+                                    ? (float) ($bodegas_p->firstWhere('bodega_id', $bodegaId)?->total ?? 0)
+                                    : (float) $p->stock_actual;
+                                $bajoMinimo      = $p->stock_minimo !== null && (float)$p->stock_actual < (float)$p->stock_minimo;
+                                $stockLabel      = $bodegaId !== null
+                                    ? 'Stock en bodega'
+                                    : 'Stock total';
                             @endphp
                             <div class="mt-4 grid grid-cols-2 gap-3">
                                 <div>
@@ -270,10 +354,10 @@
                                     <p class="vv">{{ $p->unidad }}</p>
                                 </div>
                                 <div>
-                                    <p class="kv">Stock actual</p>
-                                    <p class="vv flex items-center gap-1 {{ (float) $p->stock_actual <= 0 ? 'text-amber-600 dark:text-amber-400' : ($bajoMinimo ? 'text-orange-500 dark:text-orange-400' : '') }}">
-                                        {{ number_format((float) $p->stock_actual, 4, ',', '.') }}
-                                        @if($bajoMinimo)
+                                    <p class="kv">{{ $stockLabel }}</p>
+                                    <p class="vv flex items-center gap-1 {{ $stockMostrar <= 0 ? 'text-amber-600 dark:text-amber-400' : ($bajoMinimo && $bodegaId === null ? 'text-orange-500 dark:text-orange-400' : '') }}">
+                                        {{ number_format($stockMostrar, 4, ',', '.') }}
+                                        @if($bajoMinimo && $bodegaId === null)
                                             <span class="text-[9px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1 py-0.5 rounded border border-orange-200 dark:border-orange-800">min</span>
                                         @endif
                                     </p>
@@ -298,6 +382,25 @@
                                 </div>
                                 @endif
                             </div>
+
+                            {{-- Desglose por bodega (solo cuando NO hay filtro activo) --}}
+                            @if($bodegaId === null && $bodegas_p->isNotEmpty() && $bodegas_p->count() > 1)
+                                <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-1">
+                                    @foreach($bodegas_p as $row)
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                                                <svg class="w-3 h-3 shrink-0 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                                                </svg>
+                                                {{ $bodegaNames->get($row->bodega_id, 'Bodega #'.$row->bodega_id) }}
+                                            </span>
+                                            <span class="text-[11px] font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                                {{ number_format((float) $row->total, 2, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -317,5 +420,6 @@
             <div>{{ $products->links() }}</div>
         </div>
 
+        @include('gmail.inventory._bodega_modal')
     </div>
 </x-app-layout>

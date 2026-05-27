@@ -94,6 +94,14 @@
                 box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
                 transition: transform .15s;
             }
+
+            .tab-filter { display: flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 4px; width: fit-content; }
+            .dark .tab-filter { background: #161c2c; border-color: #1e2a3b; }
+            .tab-item { padding: 6px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #64748b; transition: all .2s; }
+            .tab-item:hover { color: #1e293b; background: #f8fafc; }
+            .dark .tab-item:hover { color: #f1f5f9; background: #1e2a3b; }
+            .tab-item.active { background: #ea580c; color: #fff; box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2); }
+            .dark .tab-item.active { background: #ea580c; color: #fff; }
         </style>
 
         <div class="page-bg">
@@ -197,6 +205,24 @@
                     </div>
                 @endif
 
+                {{-- Tabs Filter --}}
+                <div class="flex items-center justify-between gap-4 au d1">
+                    <div class="tab-filter">
+                        <a href="{{ route('fuelcontrol.vehiculos.index', request()->except(['status', 'page'])) }}" 
+                           class="tab-item {{ !request('status') ? 'active' : '' }}">
+                            Todos
+                        </a>
+                        <a href="{{ route('fuelcontrol.vehiculos.index', array_merge(request()->except('page'), ['status' => 'active'])) }}" 
+                           class="tab-item {{ request('status') === 'active' ? 'active' : '' }}">
+                            Activos
+                        </a>
+                        <a href="{{ route('fuelcontrol.vehiculos.index', array_merge(request()->except('page'), ['status' => 'inactive'])) }}" 
+                           class="tab-item {{ request('status') === 'inactive' ? 'active' : '' }}">
+                            Inactivos
+                        </a>
+                    </div>
+                </div>
+
                 {{-- Search bar --}}
                 <div class="panel au d1">
                     <div class="p-4">
@@ -224,8 +250,8 @@
                                     </svg>
                                     Buscar
                                 </button>
-
-                                @if(request('search') || request('tipo'))
+                                
+                                @if(request('search') || request('tipo') || request('status'))
                                     <a href="{{ route('fuelcontrol.vehiculos.index') }}"
                                         class="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl
                                                bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300
@@ -370,7 +396,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                         </svg>
                                         <p class="text-sm font-medium text-gray-400">
-                                            @if(request('search') || request('tipo'))
+                                            @if(request('search') || request('tipo') || request('status'))
                                                 No se encontraron vehículos
                                             @else
                                                 No hay vehículos registrados
@@ -504,7 +530,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                             <p class="text-sm font-medium text-gray-400">
-                                @if(request('search') || request('tipo'))
+                                @if(request('search') || request('tipo') || request('status'))
                                     No se encontraron vehículos
                                 @else
                                     No hay vehículos registrados

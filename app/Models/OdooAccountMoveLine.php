@@ -18,12 +18,14 @@ class OdooAccountMoveLine extends Model
         'debit',
         'credit',
         'analytic_distribution',
+        'taxes',
     ];
 
     protected $casts = [
         'debit'                 => 'float',
         'credit'                => 'float',
         'analytic_distribution' => 'array',
+        'taxes'                 => 'array',
     ];
 
     public function move(): BelongsTo

@@ -71,12 +71,23 @@ class ProductosController extends Controller
             ->select(
                 'l.id', 'l.ingresado_el', 'l.costo_unitario',
                 'l.cantidad_ingresada', 'l.cantidad_disponible', 'l.cantidad_salida',
-                'l.document_id',
+                'l.document_id', 'l.bodega_id',
                 'd.folio', 'd.proveedor_nombre as proveedor',
                 'd.proveedor_rut', 'd.fecha_factura', 'd.tipo_dte'
             )
             ->orderBy('l.ingresado_el', 'asc')
             ->get();
+
+        // Stock por bodega para este producto
+        $stockPorBodegaProducto = $db->table('gmail_inventory_lots')
+            ->where('product_id', $id)
+            ->where('estado', 'ABIERTO')
+            ->whereNotNull('bodega_id')
+            ->selectRaw('bodega_id, SUM(cantidad_disponible) as total')
+            ->groupBy('bodega_id')
+            ->get();
+
+        $bodegaNames = \Illuminate\Support\Facades\DB::table('bodegas')->pluck('nombre', 'id');
 
         // ── Historial de precios (todos los lotes con costo, incluidos cerrados) ──
         $historialPrecios = $db->table('gmail_inventory_lots as l')
@@ -118,7 +129,8 @@ class ProductosController extends Controller
         return view('inventario.producto_detalle', compact(
             'producto', 'lotes', 'historialPrecios',
             'movimientos', 'stockTotal', 'valorTotal', 'costoPromedio',
-            'ultimoPrecio', 'variacion'
+            'ultimoPrecio', 'variacion',
+            'stockPorBodegaProducto', 'bodegaNames'
         ));
     }
 

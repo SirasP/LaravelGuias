@@ -1,9 +1,17 @@
 <div class="text-left">
 
     @php
-        $estado = $movimiento->estado ?? 'pendiente';
+        $estado = isset($movimiento) && $movimiento ? ($movimiento->estado ?? 'pendiente') : 'pendiente_ingreso';
 
         $estadoConfig = match ($estado) {
+            'pendiente_ingreso' => [
+                'bg' => 'bg-amber-50 dark:bg-amber-950/20',
+                'border' => 'border-amber-500',
+                'text' => 'text-amber-700 dark:text-amber-450',
+                'icon' => '📥',
+                'titulo' => 'Factura no ingresada en FuelControl',
+                'descripcion' => 'Esta factura de combustible no ha sido cargada en el stock de FuelControl.'
+            ],
             'pendiente' => [
                 'bg' => 'bg-yellow-50 dark:bg-yellow-900/20',
                 'border' => 'border-yellow-600',
@@ -41,13 +49,26 @@
 
     <!-- Badge de Estado -->
     <div
-        class="mb-6 p-4 rounded-lg {{ $estadoConfig['bg'] }} border-l-4 {{ $estadoConfig['border'] }} {{ $estadoConfig['text'] }}">
-        <div class="flex items-start gap-3">
-            <span class="text-2xl flex-shrink-0">{{ $estadoConfig['icon'] }}</span>
-            <div class="flex-1">
-                <h3 class="font-bold text-base mb-1">{{ $estadoConfig['titulo'] }}</h3>
-                <p class="text-sm opacity-90">{{ $estadoConfig['descripcion'] }}</p>
+        class="mb-6 p-4 rounded-2xl {{ $estadoConfig['bg'] }} border-l-4 {{ $estadoConfig['border'] }} {{ $estadoConfig['text'] }} shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl flex-shrink-0">{{ $estadoConfig['icon'] }}</span>
+                <div class="flex-1">
+                    <h3 class="font-bold text-base mb-1">{{ $estadoConfig['titulo'] }}</h3>
+                    <p class="text-sm opacity-90 leading-relaxed">{{ $estadoConfig['descripcion'] }}</p>
+                </div>
             </div>
+            @if($estado === 'pendiente_ingreso' && isset($dte))
+                <div class="flex-shrink-0">
+                    <button onclick="reconciliarDte({{ $dte->id }})" 
+                            class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition shadow-md hover:scale-105 active:scale-95 flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0" />
+                        </svg>
+                        Ingresar a Stock
+                    </button>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -327,33 +348,35 @@
                         </div>
                         <div class="p-4 bg-white dark:bg-gray-800">
                             <table class="w-full">
-                                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-
+                                <tbody class="divide-y">
                                     @php
-                                        // Cálculos de impuestos
-                                        $iefTotal = 0;
-                                        $impuestoTotal = 0;
+                                         // Cálculos de impuestos
+                                         $iefTotal = 0;
+                                         $impuestoTotal = 0;
 
-                                        foreach ($detalles as $d) {
-                                            $nsChildren = $d->children('http://www.sii.cl/SiiDte');
-                                            if (isset($nsChildren->Subcantidad)) {
-                                                foreach ($nsChildren->Subcantidad as $sub) {
-                                                    $subNs = $sub->children('http://www.sii.cl/SiiDte');
-                                                    if ((string) $subNs->SubCod === 'IEF') {
-                                                        $qtyLitros = (float) $nsChildren->QtyItem;
-                                                        $valorPorLitro = (float) $subNs->SubQty;
-                                                        $iefTotal += ($qtyLitros * $valorPorLitro);
-                                                    }
-                                                }
-                                            }
-                                        }
+                                         foreach ($detalles as $d) {
+                                             $nsChildren = $d->children('http://www.sii.cl/SiiDte');
+                                             if (isset($nsChildren->Subcantidad)) {
+                                                 foreach ($nsChildren->Subcantidad as $sub) {
+                                                     $subNs = $sub->children('http://www.sii.cl/SiiDte');
+                                                     if ((string) $subNs->SubCod === 'IEF') {
+                                                         $qtyLitros = (float) $nsChildren->QtyItem;
+                                                         $valorPorLitro = (float) $subNs->SubQty;
+                                                         $iefTotal += ($qtyLitros * $valorPorLitro);
+                                                     }
+                                                 }
+                                             }
+                                         }
 
-                                        $imptoReten = $xmlObj->xpath('//sii:ImptoReten[sii:TipoImp=35]');
-                                        if (!empty($imptoReten)) {
-                                            $impuestoTotal = (float) $imptoReten[0]->MontoImp;
-                                        }
+                                         // Buscar impuestos TipoImp=35 (Gasolina) y TipoImp=28 (Diesel)
+                                         $imptoReten = $xmlObj->xpath('//sii:ImptoReten[sii:TipoImp=35] | //sii:ImptoReten[sii:TipoImp=28]');
+                                         if (!empty($imptoReten)) {
+                                             foreach ($imptoReten as $node) {
+                                                 $impuestoTotal += (float) $node->MontoImp;
+                                             }
+                                         }
 
-                                        $ievFepp = $impuestoTotal - $iefTotal;
+                                         $ievFepp = max(0, $impuestoTotal - $iefTotal);
                                     @endphp
 
                                     @if(isset($totales->MntNeto))
@@ -383,32 +406,44 @@
                                                 ${{ number_format((float) ($totales->IVA ?? 0), 0, ',', '.') }}
                                             </td>
                                         </tr>
-                                    @endif
+                                        @if($iefTotal > 0)
+                                         <tr>
+                                             <td class="py-3 text-sm font-semibold text-orange-700 dark:text-orange-400">
+                                                 IEF
+                                                 <span class="text-xs block text-gray-500">Imp. Esp. Combustibles (Fijo)</span>
+                                             </td>
+                                             <td
+                                                 class="py-3 text-right font-mono text-sm text-orange-700 dark:text-orange-400 font-bold">
+                                                 ${{ number_format($iefTotal, 0, ',', '.') }}
+                                             </td>
+                                         </tr>
+                                     @endif
 
-                                    @if($iefTotal > 0)
-                                        <tr>
-                                            <td class="py-3 text-sm font-semibold text-orange-700 dark:text-orange-400">
-                                                IEF
-                                                <span class="text-xs block text-gray-500">Imp. Esp. Combustibles</span>
-                                            </td>
-                                            <td
-                                                class="py-3 text-right font-mono text-sm text-orange-700 dark:text-orange-400 font-bold">
-                                                ${{ number_format($iefTotal, 0, ',', '.') }}
-                                            </td>
-                                        </tr>
-                                    @endif
+                                     @if($ievFepp > 0)
+                                         <tr>
+                                             <td class="py-3 text-sm font-semibold text-purple-700 dark:text-purple-400">
+                                                 IEV / FEPP
+                                                 <span class="text-xs block text-gray-500">Imp. Esp. Combustibles (Variable)</span>
+                                             </td>
+                                             <td
+                                                 class="py-3 text-right font-mono text-sm text-purple-700 dark:text-purple-400 font-bold">
+                                                 ${{ number_format($ievFepp, 0, ',', '.') }}
+                                             </td>
+                                         </tr>
+                                     @endif
 
-                                    @if($ievFepp > 0)
-                                        <tr>
-                                            <td class="py-3 text-sm font-semibold text-purple-700 dark:text-purple-400">
-                                                IEV / FEPP
-                                                <span class="text-xs block text-gray-500">Fondo Est. Petróleo</span>
-                                            </td>
-                                            <td
-                                                class="py-3 text-right font-mono text-sm text-purple-700 dark:text-purple-400 font-bold">
-                                                ${{ number_format($ievFepp, 0, ',', '.') }}
-                                            </td>
-                                        </tr>
+                                     @if($iefTotal == 0 && $impuestoTotal > 0)
+                                         <tr>
+                                             <td class="py-3 text-sm font-semibold text-orange-700 dark:text-orange-400">
+                                                 Impuesto Específico
+                                                 <span class="text-xs block text-gray-500">Imp. Esp. Combustibles (Consolidado)</span>
+                                             </td>
+                                             <td
+                                                 class="py-3 text-right font-mono text-sm text-orange-700 dark:text-orange-400 font-bold">
+                                                 ${{ number_format($impuestoTotal, 0, ',', '.') }}
+                                             </td>
+                                         </tr>
+                                     @endif
                                     @endif
 
                                     <tr class="border-t-2 border-gray-800 dark:border-gray-600">
@@ -663,6 +698,77 @@
 </div>
 
 <script>
+    async function reconciliarDte(id) {
+        const result = await Swal.fire({
+            title: '¿Registrar ingreso de stock?',
+            text: "Esta acción procesará el XML, extraerá los litros de combustible e incrementará directamente el stock del estanque correspondiente en FuelControl.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#d97706',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, registrar ingreso',
+            cancelButtonText: 'Cancelar',
+            background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#f9fafb',
+            color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Ingresando stock...',
+                text: 'Por favor espere mientras procesamos el documento.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#f9fafb',
+                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937',
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const response = await fetch(`/fuelcontrol/ingreso/dte/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: '¡Ingreso Exitoso!',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#f9fafb',
+                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                    });
+                    window.location.reload();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al ingresar',
+                        text: data.error || 'Ocurrió un error inesperado.',
+                        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#f9fafb',
+                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de comunicación',
+                    text: 'No se pudo contactar al servidor para procesar la transacción.',
+                    background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#f9fafb',
+                    color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                });
+            }
+        }
+    }
+
     function switchTab(tab) {
         // Ocultar todos los contenidos
         document.querySelectorAll('.tab-content').forEach(content => {

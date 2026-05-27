@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 class OdooSyncMoves extends Command
 {
     protected $signature   = 'odoo:sync-moves';
-    protected $description = 'Sincroniza facturas de proveedor (account.move) y sus apuntes contables desde Odoo a MySQL local';
+    protected $description = 'Sincroniza todos los documentos contables (account.move) y sus apuntes desde Odoo a MySQL local';
 
     private string $url;
     private string $db;
@@ -38,7 +38,9 @@ class OdooSyncMoves extends Command
         $this->info("✓ Login OK (UID: {$this->uid})");
 
         $this->syncMoves();
+        $this->syncPartnerVats();
         $this->syncMoveLines();
+        $this->removeDeletedMoves();
 
         $this->info('');
         $this->info('✅ Sincronización completada.');
@@ -54,52 +56,144 @@ class OdooSyncMoves extends Command
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
-    // Sincronizar facturas de proveedor (account.move)
+    // Sincronizar todos los account.move (todas las tipos)
     // ──────────────────────────────────────────────────────────────────────────────
     private function syncMoves(): void
     {
-        $this->info('Sincronizando facturas de proveedor...');
+        // Tipos a sincronizar (excluimos 'entry' — son asientos internos sin folio DTE)
+        $moveTypes = ['in_invoice', 'out_invoice', 'in_refund', 'out_refund'];
 
-        $offset = 0;
-        $limit  = 100;
-        $total  = 0;
+        foreach ($moveTypes as $moveType) {
+            $this->info("Sincronizando {$moveType}...");
 
-        do {
-            $records = $this->odooExecute('account.move', 'search_read',
-                [[['move_type', '=', 'in_invoice']]],
-                [
-                    'fields'  => ['id', 'name', 'ref', 'move_type', 'state', 'partner_id', 'invoice_date', 'amount_total'],
-                    'limit'   => $limit,
-                    'offset'  => $offset,
-                    'order'   => 'id asc',
-                ]
-            );
+            $offset = 0;
+            $limit  = 100;
+            $total  = 0;
 
-            foreach ($records as $rec) {
-                OdooAccountMove::updateOrCreate(
-                    ['odoo_id' => $rec['id']],
+            do {
+                $records = $this->odooExecute('account.move', 'search_read',
+                    [[['move_type', '=', $moveType]]],
                     [
-                        'name'            => $rec['name'] ?? null,
-                        'ref'             => $rec['ref']  ?: null,
-                        'move_type'       => $rec['move_type'],
-                        'state'           => $rec['state'],
-                        'partner_odoo_id' => is_array($rec['partner_id']) ? $rec['partner_id'][0] : null,
-                        'partner_name'    => is_array($rec['partner_id']) ? $rec['partner_id'][1] : null,
-                        'invoice_date'    => $rec['invoice_date'] ?: null,
-                        'amount_total'    => (float) ($rec['amount_total'] ?? 0),
+                        'fields'  => ['id', 'name', 'ref', 'move_type', 'state', 'payment_state', 'partner_id', 'invoice_date', 'amount_total'],
+                        'limit'   => $limit,
+                        'offset'  => $offset,
+                        'order'   => 'id asc',
                     ]
                 );
+
+                foreach ($records as $rec) {
+                    // Extraer folio numérico del name: "FAC 106723" → 106723
+                    $folio = null;
+                    if (! empty($rec['name'])) {
+                        $parts = explode(' ', trim($rec['name']));
+                        $last  = end($parts);
+                        if (ctype_digit($last)) {
+                            $folio = (int) $last;
+                        }
+                    }
+
+                    OdooAccountMove::updateOrCreate(
+                        ['odoo_id' => $rec['id']],
+                        [
+                            'name'            => $rec['name'] ?? null,
+                            'ref'             => $rec['ref']  ?: null,
+                            'folio'           => $folio,
+                            'move_type'       => $rec['move_type'],
+                            'state'           => $rec['state'],
+                            'payment_state'   => $rec['payment_state'] ?? 'not_paid',
+                            'partner_odoo_id' => is_array($rec['partner_id']) ? $rec['partner_id'][0] : null,
+                            'partner_name'    => is_array($rec['partner_id']) ? $rec['partner_id'][1] : null,
+                            'invoice_date'    => $rec['invoice_date'] ?: null,
+                            'amount_total'    => (float) ($rec['amount_total'] ?? 0),
+                        ]
+                    );
+                }
+
+                $count   = count($records);
+                $total  += $count;
+                $offset += $limit;
+
+                $this->line("  → {$total} registros procesados...");
+
+            } while ($count === $limit);
+
+            $this->info("  ✓ {$total} {$moveType} sincronizados");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Sincronizar RUT (VAT) de los partners a odoo_account_moves
+    // ──────────────────────────────────────────────────────────────────────────────
+    private function syncPartnerVats(): void
+    {
+        $this->info('Sincronizando RUT de proveedores...');
+
+        // Traer todos los partner_odoo_id únicos que no tienen VAT aún
+        $partnerIds = OdooAccountMove::whereNotNull('partner_odoo_id')
+            ->whereNull('partner_vat')
+            ->pluck('partner_odoo_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($partnerIds)) {
+            $this->line('  ✓ RUT de partners ya sincronizados');
+            return;
+        }
+
+        $this->line('  → Consultando ' . count($partnerIds) . ' partners a Odoo...');
+
+        // Traer en chunks de 200
+        $vatMap = [];
+        foreach (array_chunk($partnerIds, 200) as $chunk) {
+            $partners = $this->odooExecute('res.partner', 'search_read',
+                [[['id', 'in', $chunk]]],
+                ['fields' => ['id', 'vat'], 'limit' => 200]
+            );
+            foreach ($partners as $p) {
+                if (! empty($p['vat'])) {
+                    // Normalizar RUT: quitar puntos, guiones y espacios
+                    $vatMap[$p['id']] = strtoupper(preg_replace('/[.\-\s]/', '', $p['vat']));
+                }
             }
+        }
 
-            $count   = count($records);
-            $total  += $count;
-            $offset += $limit;
+        // Actualizar en MySQL
+        $updated = 0;
+        foreach ($vatMap as $partnerId => $vat) {
+            OdooAccountMove::where('partner_odoo_id', $partnerId)
+                ->update(['partner_vat' => $vat]);
+            $updated++;
+        }
 
-            $this->line("  → {$total} facturas procesadas...");
+        $this->info("  ✓ RUT actualizado para {$updated} partners");
+    }
 
-        } while ($count === $limit);
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Eliminar de MySQL los moves que ya no existen en Odoo
+    // ──────────────────────────────────────────────────────────────────────────────
+    private function removeDeletedMoves(): void
+    {
+        $this->info('Verificando registros eliminados en Odoo...');
 
-        $this->info("  ✓ {$total} facturas de proveedor sincronizadas");
+        $localIds = OdooAccountMove::pluck('odoo_id')->toArray();
+        if (empty($localIds)) return;
+
+        // Pedir a Odoo solo los IDs que SÍ existen
+        $existingIds = $this->odooExecute('account.move', 'search',
+            [[['id', 'in', $localIds], ['move_type', 'in', ['in_invoice','out_invoice','in_refund','out_refund']]]],
+            ['limit' => 5000]
+        );
+
+        $toDelete = array_diff($localIds, $existingIds);
+
+        if (! empty($toDelete)) {
+            OdooAccountMove::whereIn('odoo_id', $toDelete)->delete();
+            OdooAccountMoveLine::whereIn('move_odoo_id', $toDelete)->delete();
+            $this->warn("  ✗ Eliminados " . count($toDelete) . " registros que ya no existen en Odoo");
+        } else {
+            $this->line("  ✓ Sin registros huérfanos");
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────────
@@ -114,13 +208,16 @@ class OdooSyncMoves extends Command
             ->pluck('name_es', 'odoo_id')
             ->toArray();
 
-        // IDs de los moves que ya tenemos localmente
+        // IDs de los moves que ya tenemos localmente (todos los tipos)
         $moveIds = OdooAccountMove::pluck('odoo_id')->toArray();
 
         if (empty($moveIds)) {
             $this->warn('  No hay facturas sincronizadas. Ejecuta primero syncMoves.');
             return;
         }
+
+        // Pre-cargar nombres de impuestos desde Odoo para este sync
+        $taxNamesMap = $this->fetchTaxNames();
 
         $offset = 0;
         $limit  = 200;
@@ -133,7 +230,8 @@ class OdooSyncMoves extends Command
                     ['display_type', 'not in', ['line_section', 'line_note']],
                 ]],
                 [
-                    'fields'  => ['id', 'move_id', 'account_id', 'name', 'debit', 'credit', 'analytic_distribution'],
+                    'fields'  => ['id', 'move_id', 'account_id', 'name', 'debit', 'credit',
+                                  'analytic_distribution', 'tax_ids'],
                     'limit'   => $limit,
                     'offset'  => $offset,
                     'order'   => 'id asc',
@@ -159,6 +257,12 @@ class OdooSyncMoves extends Command
                     ? $rec['analytic_distribution']
                     : null;
 
+                // Resolver nombres de impuestos desde el mapa pre-cargado
+                $taxIds   = is_array($rec['tax_ids']) ? $rec['tax_ids'] : [];
+                $taxNames = array_values(array_filter(
+                    array_map(fn($tid) => $taxNamesMap[$tid] ?? null, $taxIds)
+                ));
+
                 OdooAccountMoveLine::updateOrCreate(
                     ['odoo_id' => $rec['id']],
                     [
@@ -171,6 +275,7 @@ class OdooSyncMoves extends Command
                         'debit'                 => (float) ($rec['debit']  ?? 0),
                         'credit'                => (float) ($rec['credit'] ?? 0),
                         'analytic_distribution' => $analytic,
+                        'taxes'                 => empty($taxNames) ? null : $taxNames,
                     ]
                 );
             }
@@ -184,6 +289,24 @@ class OdooSyncMoves extends Command
         } while ($count === $limit);
 
         $this->info("  ✓ {$total} apuntes contables sincronizados");
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Obtener mapa id→nombre de todos los impuestos en Odoo
+    // ──────────────────────────────────────────────────────────────────────────────
+    private function fetchTaxNames(): array
+    {
+        $this->info('  Cargando impuestos desde Odoo...');
+        $taxes = $this->odooExecute('account.tax', 'search_read',
+            [[]],
+            ['fields' => ['id', 'name'], 'limit' => 500]
+        );
+        $map = [];
+        foreach ($taxes as $t) {
+            $map[(int) $t['id']] = $t['name'];
+        }
+        $this->line('  → ' . count($map) . ' impuestos cargados');
+        return $map;
     }
 
     // ──────────────────────────────────────────────────────────────────────────────

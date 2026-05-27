@@ -404,4 +404,152 @@ class MovimientoController extends Controller
 
         return view('fuelcontrol.ingreso.index', compact('ingresos', 'total_gasolina', 'total_diesel'));
     }
+
+    /**
+     * Registrar ingreso a stock desde una factura DTE de combustible pendiente
+     */
+    public function ingresarDesdeDte(Request $request, $id)
+    {
+        $db = DB::connection('fuelcontrol');
+        
+        // 1. Obtener la factura
+        $dte = $db->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->first();
+            
+        if (!$dte) {
+            return response()->json(['error' => 'Factura no encontrada'], 404);
+        }
+        
+        // Evitar doble proceso
+        $alreadyMatched = $db->table('movimientos')
+            ->where('xml_path', $dte->xml_filename)
+            ->exists();
+            
+        if ($alreadyMatched) {
+            return response()->json(['error' => 'Esta factura ya fue ingresada a stock'], 400);
+        }
+        
+        // 2. Parsea el XML
+        $ruta = 'xml/' . $dte->xml_filename;
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($ruta)) {
+            return response()->json(['error' => 'Archivo XML físico no encontrado en el servidor'], 404);
+        }
+        
+        $xmlContent = \Illuminate\Support\Facades\Storage::disk('local')->get($ruta);
+        
+        try {
+            libxml_use_internal_errors(true);
+            $xml = simplexml_load_string($xmlContent);
+            if (!$xml) {
+                return response()->json(['error' => 'El archivo XML contiene un formato inválido'], 400);
+            }
+            $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
+            
+            $detalles = $xml->xpath('//sii:Detalle') ?? [];
+            $fuelDetails = [];
+            
+            foreach ($detalles as $detalle) {
+                $nombre = strtoupper((string) $detalle->NmbItem);
+                $cantidad = (float) $detalle->QtyItem;
+                
+                // Excluir herramientas, repuestos, aceites y bidones que no son combustible real
+                $exclusiones = ['FILTRO', 'JUEGO', 'JGO', 'COMPRESIMETRO', 'ACEITE', 'ADITIVO', 'BOMBA', 'MANGUERA', 'BIDON', 'LIMPIADOR', 'INYECTOR', 'TAPA', 'SERVICIO', 'FLETE', 'HERRAMIENTA', 'EQUIPO'];
+                $esExcluido = false;
+                foreach ($exclusiones as $ex) {
+                    if (str_contains($nombre, $ex)) {
+                        $esExcluido = true;
+                        break;
+                    }
+                }
+                
+                $productoNombre = null;
+                if (!$esExcluido) {
+                    $productoNombre = match (true) {
+                        str_contains($nombre, 'DIESEL')   => 'Diesel',
+                        str_contains($nombre, 'GASOLINA') => 'Gasolina',
+                        default                            => null,
+                    };
+                }
+                
+                if ($productoNombre && $cantidad > 0) {
+                    $fuelDetails[] = [
+                        'producto' => $productoNombre,
+                        'cantidad' => $cantidad
+                    ];
+                }
+            }
+            
+            if (empty($fuelDetails)) {
+                return response()->json(['error' => 'No se encontraron líneas de Diesel o Gasolina en esta factura'], 400);
+            }
+            
+            // Iniciar transacción
+            $db->beginTransaction();
+            
+            $movimientoIds = [];
+            
+            foreach ($fuelDetails as $fuel) {
+                $productoNombre = $fuel['producto'];
+                $cantidad = $fuel['cantidad'];
+                
+                $producto = $db->table('productos')->where('nombre', $productoNombre)->first();
+                if (!$producto) {
+                    throw new \Exception("El producto '{$productoNombre}' no está registrado en FuelControl.");
+                }
+                
+                // Actualizar stock del producto
+                $db->table('productos')
+                    ->where('id', $producto->id)
+                    ->increment('cantidad', $cantidad);
+                    
+                // Generar hash único
+                $hash = hash('sha256', implode('|', [
+                    $dte->gmail_message_id ?? 'reconciliation', $dte->xml_filename, $productoNombre, $cantidad
+                ]));
+                
+                // Insertar movimiento
+                $movimientoId = $db->table('movimientos')->insertGetId([
+                    'producto_id'      => $producto->id,
+                    'vehiculo_id'      => null,
+                    'cantidad'         => $cantidad,
+                    'tipo'             => 'entrada',
+                    'origen'           => 'xml_estanque',
+                    'referencia'       => $dte->xml_filename,
+                    'requiere_revision'=> 0,
+                    'estado'           => 'aprobado',
+                    'xml_path'         => $dte->xml_filename,
+                    'usuario'          => 'manual_reconcile',
+                    'fecha_movimiento' => $dte->fecha_factura,
+                    'hash_unico'       => $hash,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+                
+                $movimientoIds[] = $movimientoId;
+            }
+            
+            // Actualizar estado del DTE
+            $db->table('gmail_dte_documents')
+                ->where('id', $id)
+                ->update([
+                    'inventory_status' => 'combustible',
+                    'updated_at' => now()
+                ]);
+                
+            $db->commit();
+            
+            return response()->json([
+                'ok' => true,
+                'message' => 'Ingreso registrado correctamente en stock',
+                'movements' => $movimientoIds
+            ]);
+            
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            return response()->json([
+                'error' => 'Error al procesar el ingreso: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

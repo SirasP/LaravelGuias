@@ -14,7 +14,18 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <a href="{{ route('gmail.inventory.list') }}"
+                {{-- Botón bodega --}}
+                <button type="button" @click="$store.invBodega.modalOpen = true; $store.invBodega.forcedOpen = true"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition
+                           {{ $bodegaId !== null
+                               ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                               : 'bg-white dark:bg-gray-900 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20' }}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                    </svg>
+                    <span x-text="$store.invBodega.label"></span>
+                </button>
+                <a href="{{ route('gmail.inventory.list', $bodegaId ? ['bodega_id' => $bodegaId] : []) }}"
                     class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white transition">
                     Ver listado
                 </a>
@@ -67,14 +78,48 @@
         }
     </style>
 
-    <div class="page-bg">
+    @php
+        $bodegaMap     = $bodegas->pluck('nombre', 'id');
+        $indexBaseUrl  = route('gmail.inventory.index');
+    @endphp
+    <script>
+        window.__bodegaNames    = @json($bodegaMap);
+        window.__bodegaIndexUrl = '{{ $indexBaseUrl }}';
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('invBodega', {
+                modalOpen: false,
+                selected: {{ $bodegaId !== null ? $bodegaId : 'null' }},
+                forcedOpen: false,
+                names: window.__bodegaNames,
+                get label() {
+                    if (this.selected === null) return 'Todas las bodegas';
+                    return this.names[this.selected] ?? 'Bodega';
+                }
+            });
+        });
+    </script>
+
+    <div class="page-bg"
+         x-data="{
+             onBodegaSelect(id) {
+                 $store.invBodega.selected = id;
+                 $store.invBodega.modalOpen = false;
+                 const url = new URL(window.__bodegaIndexUrl, window.location.origin);
+                 if (id !== null) url.searchParams.set('bodega_id', id);
+                 window.location.href = url.toString();
+             }
+         }"
+         @bodega-selected.window="onBodegaSelect($event.detail.id)">
         <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+
             <div class="panel">
                 <div class="p-4 sm:p-5 space-y-4">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-2xl font-bold text-violet-700 dark:text-violet-300">Inventario de productos</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Resumen general del inventario DTE</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ $bodegaId !== null ? 'Resumen de ' . $bodegaMap->get($bodegaId, 'bodega') : 'Resumen general del inventario DTE' }}
+                            </p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs uppercase tracking-wide text-gray-400">Total productos</p>
@@ -138,5 +183,8 @@
                 </div>
             </div>
         </div>
+
+        @include('gmail.inventory._bodega_modal')
     </div>
+
 </x-app-layout>

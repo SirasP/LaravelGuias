@@ -129,10 +129,11 @@ class GmailDteInventoryService
         ?int $userId = null,
         array $manualLineProductMap = [],
         bool $learnFromManualMap = true,
-        array $skipLineIds = []
+        array $skipLineIds = [],
+        ?int $bodegaId = null
     ): array
     {
-        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap, $skipLineIds) {
+        return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap, $skipLineIds, $bodegaId) {
             $doc = DB::connection('fuelcontrol')
                 ->table('gmail_dte_documents')
                 ->where('id', $documentId)
@@ -166,6 +167,7 @@ class GmailDteInventoryService
                 ->table('gmail_inventory_movements')
                 ->insertGetId([
                     'document_id' => $documentId,
+                    'bodega_id'   => $bodegaId,
                     'tipo' => 'ENTRADA',
                     'estado' => 'CONTABILIZADO',
                     'ocurrio_el' => $doc->fecha_factura ?? now()->toDateString(),
@@ -265,17 +267,18 @@ class GmailDteInventoryService
                 $lotId = DB::connection('fuelcontrol')
                     ->table('gmail_inventory_lots')
                     ->insertGetId([
-                        'product_id' => $product->id,
-                        'document_id' => $documentId,
-                        'dte_line_id' => $line->id,
-                        'ingresado_el' => $doc->fecha_factura ?? now()->toDateString(),
-                        'costo_unitario' => $unitCost,
+                        'product_id'         => $product->id,
+                        'document_id'        => $documentId,
+                        'bodega_id'          => $bodegaId,
+                        'dte_line_id'        => $line->id,
+                        'ingresado_el'       => $doc->fecha_factura ?? now()->toDateString(),
+                        'costo_unitario'     => $unitCost,
                         'cantidad_ingresada' => $qty,
-                        'cantidad_salida' => 0,
-                        'cantidad_disponible' => $qty,
-                        'estado' => 'ABIERTO',
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'cantidad_salida'    => 0,
+                        'cantidad_disponible'=> $qty,
+                        'estado'             => 'ABIERTO',
+                        'created_at'         => now(),
+                        'updated_at'         => now(),
                     ]);
 
                 $lineCost = $qty * $unitCost;
@@ -529,9 +532,9 @@ class GmailDteInventoryService
      * Ajuste de inventario: positivo (incrementa stock) o negativo (consume FIFO).
      * $direccion: 'POSITIVO' | 'NEGATIVO'
      */
-    public function processAdjustment(int $productId, float $quantity, string $direccion, string $motivo, ?int $userId, ?string $notas): array
+    public function processAdjustment(int $productId, float $quantity, string $direccion, string $motivo, ?int $userId, ?string $notas, ?int $bodegaId = null): array
     {
-        return DB::connection('fuelcontrol')->transaction(function () use ($productId, $quantity, $direccion, $motivo, $userId, $notas) {
+        return DB::connection('fuelcontrol')->transaction(function () use ($productId, $quantity, $direccion, $motivo, $userId, $notas, $bodegaId) {
             $product = DB::connection('fuelcontrol')
                 ->table('gmail_inventory_products')
                 ->where('id', $productId)
@@ -624,6 +627,7 @@ class GmailDteInventoryService
                 $lotId = DB::connection('fuelcontrol')->table('gmail_inventory_lots')->insertGetId([
                     'product_id'          => $productId,
                     'document_id'         => null,
+                    'bodega_id'           => $bodegaId,
                     'ingresado_el'        => now()->toDateTimeString(),
                     'costo_unitario'      => $costoUnitario,
                     'cantidad_ingresada'  => $quantity,
