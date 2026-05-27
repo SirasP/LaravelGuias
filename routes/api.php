@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DocumentosCompraController;
 use App\Http\Controllers\Api\NotificacionesApiController;
+use App\Http\Controllers\Api\MantencionApiController;
 
 Route::prefix('documentos-compra')->group(function () {
     Route::post('/', [DocumentosCompraController::class, 'crear']);
@@ -21,4 +22,11 @@ Route::prefix('combustible')->group(function () {
     Route::get('/stock', [NotificacionesApiController::class, 'stockCombustible']);
     Route::post('/fcm-token', [NotificacionesApiController::class, 'registrarFcmToken']);
     Route::post('/fcm-token/deactivate', [NotificacionesApiController::class, 'desactivarFcmToken']);
+});
+
+// 🔧 API para App Mantención Maquinaria
+Route::prefix('mantencion')->group(function () {
+    Route::get('/repuestos', [MantencionApiController::class, 'repuestos']);
+    Route::post('/fcm-token', [MantencionApiController::class, 'registerFcmToken']);
+    Route::delete('/fcm-token', [MantencionApiController::class, 'deactivateFcmToken']);
 });

@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\OdooAccountMove;
 use App\Models\OdooAccountMoveLine;
+use App\Models\OdooAnalyticAccount;
+use App\Services\FcmNotificationService;
 use App\Services\GmailDteInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class GmailDteDocumentController extends Controller
@@ -15,6 +18,7 @@ class GmailDteDocumentController extends Controller
     private const BOLETA_TYPES = [39, 41];
     private const GUIA_TYPES = [52];
     private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
+    private const BODEGA_TALLER_MECANICO = 2;
 
     public function index()
     {
@@ -229,7 +233,12 @@ class GmailDteDocumentController extends Controller
 
         $canSeeValues = auth()->user()?->canSeeValues() ?? true;
 
-        return view('gmail.dtes.show', compact('document', 'lines', 'canSeeValues'));
+        $bodegas = DB::table('bodegas')
+            ->orderByDesc('es_principal')
+            ->orderBy('nombre')
+            ->get(['id', 'codigo', 'nombre', 'es_principal']);
+
+        return view('gmail.dtes.show', compact('document', 'lines', 'canSeeValues', 'bodegas'));
     }
 
     public function print(int $id)
@@ -258,25 +267,66 @@ class GmailDteDocumentController extends Controller
         }
 
         // Buscar la factura de proveedor en nuestra tabla local (sincronizada desde Odoo)
-        $move = OdooAccountMove::where('ref', $folio)->first()
-            ?? OdooAccountMove::where('ref', 'like', "%{$folio}%")->first();
+        // El folio numérico del DTE se compara contra el campo `folio` extraído de name ("FAC 106723" → 106723)
+        $folioInt = (int) $folio;
+        $move = OdooAccountMove::where('folio', $folioInt)->first()
+            ?? OdooAccountMove::where('ref', $folio)->first();
 
         if (! $move) {
             return response()->json(['found' => false, 'lines' => [], 'move' => null,
-                'message' => "No se encontró la factura con folio «{$folio}» en la base de datos local. Ejecuta odoo:sync-moves para sincronizar."]);
+                'message' => "No se encontró la factura con folio «{$folio}» en la base de datos local. Puede que aún no haya sido registrada en Odoo."]);
         }
 
-        $lines = OdooAccountMoveLine::where('move_odoo_id', $move->odoo_id)
+        $rawLines = OdooAccountMoveLine::where('move_odoo_id', $move->odoo_id)
             ->orderBy('id')
-            ->get()
-            ->map(fn($l) => [
+            ->get();
+
+        // Resolver nombres de cuentas analíticas
+        // La clave en analytic_distribution puede ser "148,65" (varios account IDs separados por coma)
+        // o "1" (un solo account ID). Cada parte es un odoo_id de OdooAnalyticAccount.
+        $analyticIds = $rawLines
+            ->whereNotNull('analytic_distribution')
+            ->flatMap(fn($l) => collect(array_keys($l->analytic_distribution ?? []))
+                ->flatMap(fn($k) => array_map('intval', explode(',', $k)))
+            )->unique()->values()->toArray();
+
+        $analyticNames = OdooAnalyticAccount::whereIn('odoo_id', $analyticIds)
+            ->get(['odoo_id', 'name_es', 'name', 'plan_name'])
+            ->keyBy('odoo_id');
+
+        $isDraft = (string) ($document->workflow_status ?? '') === 'borrador';
+
+        $lines = $rawLines->map(function ($l) use ($analyticNames, $isDraft) {
+            // Distribución analítica: expandir cada clave "148,65" en múltiples badges
+            $analytic = collect($l->analytic_distribution ?? [])
+                ->flatMap(function ($pct, $key) use ($analyticNames) {
+                    // Cada parte de la clave es un account_odoo_id independiente
+                    return collect(array_map('intval', explode(',', $key)))
+                        ->map(function ($accId) use ($pct, $analyticNames) {
+                            $acc  = $analyticNames->get($accId);
+                            $name = $acc ? ($acc->name_es ?: $acc->name) : null;
+                            $plan = $acc ? $acc->plan_name : null;
+                            return $name ? ['id' => $accId, 'name' => $name, 'plan' => $plan, 'pct' => (int) $pct] : null;
+                        })
+                        ->filter();
+                })
+                ->values()
+                ->toArray();
+
+            return [
+                'line_id'         => $l->id,
+                'account_odoo_id' => $l->account_odoo_id,
                 'account_code'    => $l->account_code,
                 'account_name_es' => $l->account_name_es ?: $l->account_name,
                 'account_name_en' => $l->account_name,
                 'description'     => $l->name ?: '—',
                 'debit'           => (float) $l->debit,
                 'credit'          => (float) $l->credit,
-            ])->values();
+                'analytic'        => $analytic,
+                'taxes'           => $l->taxes ?? [],
+                'editable'        => $isDraft,
+            ];
+        })->values();
 
         return response()->json([
             'found' => true,
@@ -288,8 +338,75 @@ class GmailDteDocumentController extends Controller
                 'invoice_date' => $move->invoice_date,
                 'amount_total' => (float) $move->amount_total,
             ],
-            'lines' => $lines,
+            'lines'    => $lines,
+            'is_draft' => $isDraft,
         ]);
+    }
+
+    /**
+     * API: catálogos para el modal de edición (cuentas contables + analíticas).
+     */
+    public function apuntesEditCatalog()
+    {
+        $accounts = \App\Models\OdooAccount::orderBy('code')
+            ->get(['odoo_id', 'code', 'name_es', 'name', 'account_type'])
+            ->map(fn($a) => [
+                'odoo_id' => $a->odoo_id,
+                'code'    => $a->code,
+                'label'   => $a->code . ' ' . ($a->name_es ?: $a->name),
+            ]);
+
+        $analytic = OdooAnalyticAccount::orderBy('plan_complete_name')->orderBy('name_es')
+            ->get(['odoo_id', 'name_es', 'name', 'plan_name', 'plan_complete_name'])
+            ->map(fn($a) => [
+                'odoo_id'   => $a->odoo_id,
+                'name'      => $a->name_es ?: $a->name,
+                'plan_name' => $a->plan_name,
+            ]);
+
+        return response()->json(compact('accounts', 'analytic'));
+    }
+
+    /**
+     * API: actualizar cuenta contable y/o distribución analítica de una línea (solo en borrador).
+     */
+    public function updateApunte(Request $request, int $id, int $lineId)
+    {
+        $document = DB::connection('fuelcontrol')
+            ->table('gmail_dte_documents')
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ((string) ($document->workflow_status ?? '') !== 'borrador') {
+            return response()->json(['error' => 'El documento debe estar en borrador para editar apuntes.'], 403);
+        }
+
+        $validated = $request->validate([
+            'account_odoo_id'       => 'nullable|integer|exists:odoo_accounts,odoo_id',
+            'analytic_distribution' => 'nullable|array',
+        ]);
+
+        $line = OdooAccountMoveLine::findOrFail($lineId);
+
+        $updates = [];
+
+        if (array_key_exists('account_odoo_id', $validated) && $validated['account_odoo_id']) {
+            $acc = \App\Models\OdooAccount::where('odoo_id', $validated['account_odoo_id'])->first();
+            $updates['account_odoo_id'] = $acc->odoo_id;
+            $updates['account_code']    = $acc->code;
+            $updates['account_name']    = $acc->name;
+            $updates['account_name_es'] = $acc->name_es ?: $acc->name;
+        }
+
+        if (array_key_exists('analytic_distribution', $validated)) {
+            $updates['analytic_distribution'] = $validated['analytic_distribution'] ?: null;
+        }
+
+        if (! empty($updates)) {
+            $line->update($updates);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function markPaid(int $id)
@@ -412,13 +529,17 @@ class GmailDteDocumentController extends Controller
         return back()->with('success', 'Documento aceptado.');
     }
 
-    public function addToStock(int $id, GmailDteInventoryService $inventoryService)
+    public function addToStock(Request $request, int $id, GmailDteInventoryService $inventoryService, FcmNotificationService $fcm)
     {
-        $result = $inventoryService->addDocumentToStock($id, auth()->id());
+        $bodegaId = $request->input('bodega_id') ? (int) $request->input('bodega_id') : null;
+
+        $result = $inventoryService->addDocumentToStock($id, auth()->id(), [], true, [], $bodegaId);
 
         if ($result['already_posted']) {
             return back()->with('warning', 'Este documento ya fue ingresado a inventario.');
         }
+
+        $this->notifyMantencionIfTaller($fcm, $bodegaId, $result['movement_id'], $id);
 
         return back()->with('success', "Inventario actualizado. Movimiento #{$result['movement_id']}.");
     }
@@ -475,6 +596,7 @@ class GmailDteDocumentController extends Controller
             'mappings.*.product_id' => ['required', 'integer'],
             'skipped_lines' => ['nullable', 'array'],
             'skipped_lines.*' => ['integer'],
+            'bodega_id' => ['nullable', 'integer'],
         ]);
 
         $lineProductMap = [];
@@ -487,58 +609,148 @@ class GmailDteDocumentController extends Controller
         }
 
         $skipLineIds = array_map('intval', $validated['skipped_lines'] ?? []);
+        $bodegaId = isset($validated['bodega_id']) ? (int) $validated['bodega_id'] : null;
 
-        $result = $inventoryService->addDocumentToStock($id, auth()->id(), $lineProductMap, true, $skipLineIds);
+        $result = $inventoryService->addDocumentToStock($id, auth()->id(), $lineProductMap, true, $skipLineIds, $bodegaId);
 
         if ($result['already_posted']) {
             return back()->with('warning', 'Este documento ya fue ingresado a inventario.');
         }
 
+        $this->notifyMantencionIfTaller(app(FcmNotificationService::class), $bodegaId, $result['movement_id'], $id);
+
         return back()->with('success', "Inventario actualizado. Movimiento #{$result['movement_id']}.");
+    }
+
+    /**
+     * Envía push FCM a la app de mantención si el ingreso fue a Taller Mecánico.
+     */
+    private function notifyMantencionIfTaller(FcmNotificationService $fcm, ?int $bodegaId, int $movementId, int $documentId): void
+    {
+        if ($bodegaId !== self::BODEGA_TALLER_MECANICO) {
+            return;
+        }
+
+        try {
+            $fcm->send(
+                appType: 'mantencion',
+                title:   '📦 Stock actualizado — Taller Mecánico',
+                body:    'Se ingresó nuevo stock. Toca para ver el inventario actualizado.',
+                data: [
+                    'tipo'        => 'stock_ingreso',
+                    'bodega_id'   => (string) $bodegaId,
+                    'movement_id' => (string) $movementId,
+                    'document_id' => (string) $documentId,
+                    'timestamp'   => now()->toIso8601String(),
+                ],
+            );
+        } catch (\Throwable $e) {
+            Log::warning('[FCM Mantención] Error enviando push: ' . $e->getMessage());
+        }
     }
 
     public function inventoryIndex(Request $request)
     {
-        $products = DB::connection('fuelcontrol')
-            ->table('gmail_inventory_products')
-            ->select(['is_active', 'stock_actual', 'costo_promedio', 'unidad'])
-            ->get();
+        $bodegaId = $request->query('bodega_id') !== null
+            ? (int) $request->query('bodega_id')
+            : null;
 
-        $totalProducts = $products->count();
-        $totalActivos = $products->where('is_active', 1)->count();
-        $totalInactivos = $products->where('is_active', 0)->count();
-        $totalConStock = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) > 0)->count();
-        $totalSinStock = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) <= 0)->count();
-        $stockTotalUnidades = $products->sum(fn($p) => (float) ($p->stock_actual ?? 0));
-        $valorInventario = $products->sum(function ($p) {
-            return (float) ($p->stock_actual ?? 0) * (float) ($p->costo_promedio ?? 0);
-        });
+        $bodegas = DB::table('bodegas')->orderByDesc('es_principal')->orderBy('nombre')->get();
 
-        $unidadResumen = $products
-            ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
-            ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
-            ->sortByDesc('cantidad')
-            ->take(6)
-            ->values();
+        if ($bodegaId !== null) {
+            // Todos los productos con cualquier lote en esa bodega (con o sin stock)
+            $productIds = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_lots')
+                ->where('bodega_id', $bodegaId)
+                ->distinct()->pluck('product_id');
+
+            $products = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_products')
+                ->whereIn('id', $productIds)
+                ->select(['id', 'is_active', 'costo_promedio', 'unidad'])
+                ->get();
+
+            // Stock disponible: solo lotes ABIERTOS
+            $stockPorProducto = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_lots')
+                ->where('bodega_id', $bodegaId)
+                ->where('estado', 'ABIERTO')
+                ->selectRaw('product_id, SUM(cantidad_disponible) as stock')
+                ->groupBy('product_id')
+                ->pluck('stock', 'product_id');
+
+            $totalProducts      = $products->count();
+            $totalActivos       = $products->where('is_active', 1)->count();
+            $totalInactivos     = $products->where('is_active', 0)->count();
+            $totalConStock      = $stockPorProducto->filter(fn($s) => (float) $s > 0)->count();
+            $totalSinStock      = max(0, $totalProducts - $totalConStock);
+            $stockTotalUnidades = $stockPorProducto->sum(fn($s) => (float) $s);
+            $valorInventario    = $products->sum(function ($p) use ($stockPorProducto) {
+                return (float) ($stockPorProducto->get($p->id) ?? 0) * (float) ($p->costo_promedio ?? 0);
+            });
+
+            $unidadResumen = $products
+                ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
+                ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
+                ->sortByDesc('cantidad')
+                ->take(6)
+                ->values();
+        } else {
+            // Stats globales
+            $products = DB::connection('fuelcontrol')
+                ->table('gmail_inventory_products')
+                ->select(['is_active', 'stock_actual', 'costo_promedio', 'unidad'])
+                ->get();
+
+            $totalProducts      = $products->count();
+            $totalActivos       = $products->where('is_active', 1)->count();
+            $totalInactivos     = $products->where('is_active', 0)->count();
+            $totalConStock      = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) > 0)->count();
+            $totalSinStock      = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) <= 0)->count();
+            $stockTotalUnidades = $products->sum(fn($p) => (float) ($p->stock_actual ?? 0));
+            $valorInventario    = $products->sum(function ($p) {
+                return (float) ($p->stock_actual ?? 0) * (float) ($p->costo_promedio ?? 0);
+            });
+
+            $unidadResumen = $products
+                ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
+                ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
+                ->sortByDesc('cantidad')
+                ->take(6)
+                ->values();
+        }
 
         return view('gmail.inventory.index', compact(
-            'totalProducts',
-            'totalActivos',
-            'totalInactivos',
-            'totalConStock',
-            'totalSinStock',
-            'stockTotalUnidades',
-            'valorInventario',
-            'unidadResumen'
+            'totalProducts', 'totalActivos', 'totalInactivos',
+            'totalConStock', 'totalSinStock', 'stockTotalUnidades',
+            'valorInventario', 'unidadResumen', 'bodegas', 'bodegaId'
         ));
     }
 
     public function inventoryList(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
-        $estado = trim((string) $request->query('estado', ''));
-        $stock = trim((string) $request->query('stock', ''));
+        $q        = trim((string) $request->query('q', ''));
+        $estado   = trim((string) $request->query('estado', ''));
+        $stock    = trim((string) $request->query('stock', ''));
+        $bodegaId = $request->query('bodega_id') !== null
+            ? (int) $request->query('bodega_id')
+            : null;   // null = todas las bodegas
 
+        // Bodegas disponibles (DB principal)
+        $bodegas     = DB::table('bodegas')->orderByDesc('es_principal')->orderBy('nombre')->get();
+        $bodegaNames = $bodegas->pluck('nombre', 'id');
+
+        // Cantidad de productos con stock en cada bodega (para los chips)
+        $productosPorBodega = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_lots')
+            ->where('estado', 'ABIERTO')
+            ->where('cantidad_disponible', '>', 0)
+            ->whereNotNull('bodega_id')
+            ->selectRaw('bodega_id, COUNT(DISTINCT product_id) as total_productos')
+            ->groupBy('bodega_id')
+            ->pluck('total_productos', 'bodega_id');
+
+        // Query base de productos
         $baseQuery = DB::connection('fuelcontrol')
             ->table('gmail_inventory_products')
             ->when($q !== '', function ($query) use ($q) {
@@ -548,34 +760,100 @@ class GmailDteDocumentController extends Controller
                         ->orWhere('unidad', 'like', "%{$q}%");
                 });
             })
-            ->when($estado === 'activos', fn($query) => $query->where('is_active', 1))
+            ->when($estado === 'activos',   fn($query) => $query->where('is_active', 1))
             ->when($estado === 'inactivos', fn($query) => $query->where('is_active', 0))
-            ->when($stock === 'con_stock', fn($query) => $query->where('stock_actual', '>', 0))
-            ->when($stock === 'sin_stock', fn($query) => $query->where('stock_actual', '<=', 0))
-            ->when($stock === 'bajo_minimo', fn($query) => $query->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo'));
+            // Filtro por bodega: productos que tienen CUALQUIER lote en esa bodega (con o sin stock)
+            ->when($bodegaId !== null, function ($query) use ($bodegaId) {
+                $query->whereExists(function ($sub) use ($bodegaId) {
+                    $sub->selectRaw('1')
+                        ->from('gmail_inventory_lots')
+                        ->whereColumn('product_id', 'gmail_inventory_products.id')
+                        ->where('bodega_id', $bodegaId);
+                });
+            });
 
-        $products = (clone $baseQuery)
-            ->orderBy('nombre')
-            ->paginate(30)
-            ->withQueryString();
+        // Filtros de stock se aplican sobre el stock de la bodega seleccionada o global
+        if ($bodegaId !== null) {
+            // Stock en bodega: subquery de suma por bodega
+            $baseQuery = $baseQuery
+                ->when($stock === 'con_stock', function ($query) use ($bodegaId) {
+                    $query->whereExists(function ($sub) use ($bodegaId) {
+                        $sub->selectRaw('1')->from('gmail_inventory_lots')
+                            ->whereColumn('product_id', 'gmail_inventory_products.id')
+                            ->where('bodega_id', $bodegaId)->where('estado', 'ABIERTO')
+                            ->where('cantidad_disponible', '>', 0);
+                    });
+                })
+                ->when($stock === 'sin_stock', function ($query) use ($bodegaId) {
+                    $query->whereNotExists(function ($sub) use ($bodegaId) {
+                        $sub->selectRaw('1')->from('gmail_inventory_lots')
+                            ->whereColumn('product_id', 'gmail_inventory_products.id')
+                            ->where('bodega_id', $bodegaId)->where('estado', 'ABIERTO')
+                            ->where('cantidad_disponible', '>', 0);
+                    });
+                });
+        } else {
+            $baseQuery = $baseQuery
+                ->when($stock === 'con_stock', fn($q) => $q->where('stock_actual', '>', 0))
+                ->when($stock === 'sin_stock', fn($q) => $q->where('stock_actual', '<=', 0))
+                ->when($stock === 'bajo_minimo', fn($q) => $q->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo'));
+        }
 
-        $totalActivos   = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 1)->count();
-        $totalInactivos = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('is_active', 0)->count();
-        $totalConStock  = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '>', 0)->count();
-        $totalSinStock  = DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('stock_actual', '<=', 0)->count();
-        $totalBajoMinimo = DB::connection('fuelcontrol')->table('gmail_inventory_products')
-            ->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo')->count();
+        $products = (clone $baseQuery)->orderBy('nombre')->paginate(30)->withQueryString();
+
+        // KPI chips — aplicar filtro de bodega si está seleccionada
+        $kpiBase = DB::connection('fuelcontrol')->table('gmail_inventory_products');
+        if ($bodegaId !== null) {
+            // Todos los productos con cualquier lote en esa bodega
+            $kpiBase = $kpiBase->whereExists(function ($sub) use ($bodegaId) {
+                $sub->selectRaw('1')
+                    ->from('gmail_inventory_lots')
+                    ->whereColumn('product_id', 'gmail_inventory_products.id')
+                    ->where('bodega_id', $bodegaId);
+            });
+            $totalActivos  = (clone $kpiBase)->where('is_active', 1)->count();
+            $totalInactivos = (clone $kpiBase)->where('is_active', 0)->count();
+            // Con stock = tiene lote ABIERTO con cantidad > 0 en esa bodega
+            $totalConStock = (clone $kpiBase)->whereExists(function ($sub) use ($bodegaId) {
+                $sub->selectRaw('1')->from('gmail_inventory_lots')
+                    ->whereColumn('product_id', 'gmail_inventory_products.id')
+                    ->where('bodega_id', $bodegaId)
+                    ->where('estado', 'ABIERTO')
+                    ->where('cantidad_disponible', '>', 0);
+            })->count();
+            // Sin stock = tiene lotes en bodega pero ninguno abierto con cantidad > 0
+            $totalSinStock = (clone $kpiBase)->whereNotExists(function ($sub) use ($bodegaId) {
+                $sub->selectRaw('1')->from('gmail_inventory_lots')
+                    ->whereColumn('product_id', 'gmail_inventory_products.id')
+                    ->where('bodega_id', $bodegaId)
+                    ->where('estado', 'ABIERTO')
+                    ->where('cantidad_disponible', '>', 0);
+            })->count();
+            $totalBajoMinimo = 0;
+        } else {
+            $totalActivos    = (clone $kpiBase)->where('is_active', 1)->count();
+            $totalInactivos  = (clone $kpiBase)->where('is_active', 0)->count();
+            $totalConStock   = (clone $kpiBase)->where('stock_actual', '>', 0)->count();
+            $totalSinStock   = (clone $kpiBase)->where('stock_actual', '<=', 0)->count();
+            $totalBajoMinimo = (clone $kpiBase)->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo')->count();
+        }
+
+        // Stock por bodega para los productos visibles en esta página
+        $productIds = $products->pluck('id')->all();
+        $stockPorBodega = DB::connection('fuelcontrol')
+            ->table('gmail_inventory_lots')
+            ->whereIn('product_id', $productIds)
+            ->where('estado', 'ABIERTO')
+            ->whereNotNull('bodega_id')
+            ->selectRaw('product_id, bodega_id, SUM(cantidad_disponible) as total')
+            ->groupBy('product_id', 'bodega_id')
+            ->get()
+            ->groupBy('product_id');
 
         return view('gmail.inventory.list', compact(
-            'products',
-            'q',
-            'estado',
-            'stock',
-            'totalActivos',
-            'totalInactivos',
-            'totalConStock',
-            'totalSinStock',
-            'totalBajoMinimo'
+            'products', 'q', 'estado', 'stock', 'bodegaId',
+            'totalActivos', 'totalInactivos', 'totalConStock', 'totalSinStock', 'totalBajoMinimo',
+            'stockPorBodega', 'bodegaNames', 'bodegas', 'productosPorBodega'
         ));
     }
 
