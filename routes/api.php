@@ -27,6 +27,8 @@ Route::prefix('combustible')->group(function () {
 // 🔧 API para App Mantención Maquinaria
 Route::prefix('mantencion')->group(function () {
     Route::get('/repuestos', [MantencionApiController::class, 'repuestos']);
+    Route::get('/repuestos/{id}/movimientos', [MantencionApiController::class, 'movimientos']);
+    Route::post('/egresos', [MantencionApiController::class, 'registrarEgresos']);
     Route::post('/fcm-token', [MantencionApiController::class, 'registerFcmToken']);
     Route::delete('/fcm-token', [MantencionApiController::class, 'deactivateFcmToken']);
 });
