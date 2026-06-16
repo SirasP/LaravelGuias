@@ -534,7 +534,16 @@
 
         {{-- ══ TABLA DÍA A DÍA ══ --}}
         <div class="au d4">
-            <x-section-label dot="bg-indigo-500">Detalle comparativo por día de cosecha</x-section-label>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <x-section-label dot="bg-indigo-500">Detalle comparativo por día de cosecha</x-section-label>
+                <button onclick="expandTable()" 
+                        class="px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 transition active:scale-95 flex items-center gap-2 text-xs font-bold shadow-sm border border-indigo-200/30 dark:border-indigo-800/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                    </svg>
+                    Ampliar Tabla
+                </button>
+            </div>
             
             <div class="t-card-glow mt-3 overflow-hidden">
                 <div class="overflow-x-auto">
@@ -657,6 +666,26 @@
                 </button>
                 <div class="flex-1 w-full relative mt-4" style="min-height: 0;">
                     <canvas id="modalChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Modal para tabla expandida -->
+    <template x-teleport="body">
+        <div id="tableModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-md p-4 md:p-6" style="z-index: 9999;" onclick="if(event.target === this) closeExpandedTable()">
+            <div class="bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] p-6 md:p-8 flex flex-col relative" style="height: 85vh;" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Detalle comparativo por día de cosecha</h3>
+                        <p class="text-[11px] text-gray-400 mt-0.5">Historial completo día por día</p>
+                    </div>
+                    <button onclick="closeExpandedTable()" class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div class="flex-1 w-full overflow-auto mt-2" style="min-height: 0;" id="modalTableContainer">
+                    <!-- Aquí se clonará la tabla -->
                 </div>
             </div>
         </div>
@@ -1380,6 +1409,34 @@
                 expandedChartInstance.destroy();
                 expandedChartInstance = null;
             }
+        };
+
+        window.expandTable = function() {
+            const originalTable = document.querySelector('.dt');
+            if (!originalTable) return;
+
+            const modal = document.getElementById('tableModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.body.style.overflow = 'hidden';
+
+            const container = document.getElementById('modalTableContainer');
+            container.innerHTML = '';
+            
+            const clonedTable = originalTable.cloneNode(true);
+            container.appendChild(clonedTable);
+        };
+
+        window.closeExpandedTable = function() {
+            const modal = document.getElementById('tableModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+
+            document.body.style.overflow = '';
+            
+            const container = document.getElementById('modalTableContainer');
+            container.innerHTML = '';
         };
 
         document.addEventListener('DOMContentLoaded', initCharts);
