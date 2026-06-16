@@ -15,6 +15,7 @@
         border-radius: 24px;
         box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.05);
         transition: all 0.3s cubic-bezier(.16, 1, .3, 1);
+        overflow: hidden;
     }
     .t-card-glow:hover {
         transform: translateY(-4px);
