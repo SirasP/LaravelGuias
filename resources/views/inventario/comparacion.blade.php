@@ -1,5 +1,5 @@
 <style>
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
     .au { animation: fadeUp .5s cubic-bezier(.16, 1, .3, 1) both; }
     .d1 { animation-delay: .05s; }
     .d2 { animation-delay: .10s; }
