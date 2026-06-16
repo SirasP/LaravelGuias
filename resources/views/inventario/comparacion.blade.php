@@ -322,27 +322,77 @@
             <x-section-label dot="bg-violet-500">Métricas de Campo (Bins Cosechados - Agrak)</x-section-label>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
                 {{-- Bins Acumulados --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Bins Acumulados</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Avance acumulativo día de cosecha a día de cosecha</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="binsCumChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Bins Acumulados</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Avance acumulativo día de cosecha a día de cosecha</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="binsCumChart"></canvas>
+                        </div>
                     </div>
                 </div>
                 {{-- Bins Diarios --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Producción Diaria (Bins)</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Bins cosechados día por día</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="binsDailyChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Producción Diaria (Bins)</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Bins cosechados día por día</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="binsDailyChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -353,27 +403,77 @@
             <x-section-label dot="bg-amber-500">Métricas de Recepción (Kilos en Plantas)</x-section-label>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
                 {{-- Kilos Centros Acumulados --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Kilos Acumulados</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Kilos netos recepcionados acumulados</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="kilosCentrosCumChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Kilos Acumulados</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Kilos netos recepcionados acumulados</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="kilosCentrosCumChart"></canvas>
+                        </div>
                     </div>
                 </div>
                 {{-- Kilos Centros Diarios --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Recepción Diaria (Kilos)</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Kilos netos recepcionados día por día</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="kilosCentrosDailyChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Recepción Diaria (Kilos)</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Kilos netos recepcionados día por día</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="kilosCentrosDailyChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -384,27 +484,77 @@
             <x-section-label dot="bg-blue-500">Métricas de Despacho (Kilos en Odoo)</x-section-label>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
                 {{-- Kilos Odoo Acumulados --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Kilos Acumulados</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Kilos despachados declarados acumulados</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="kilosCumChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Kilos Acumulados</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Kilos despachados declarados acumulados</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="kilosCumChart"></canvas>
+                        </div>
                     </div>
                 </div>
                 {{-- Kilos Odoo Diarios --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Despacho Diario (Kilos)</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Kilos despachados declarados día por día</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="kilosDailyChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Despacho Diario (Kilos)</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Kilos despachados declarados día por día</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="kilosDailyChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -415,27 +565,77 @@
             <x-section-label dot="bg-rose-500">Métricas de Combustible (Cosechadoras - FuelControl)</x-section-label>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
                 {{-- Litros Acumulados --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Combustible Acumulado</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Litros de petróleo consumidos acumulados</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="litrosCumChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Evolución Combustible Acumulado</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Litros de petróleo consumidos acumulados</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="litrosCumChart"></canvas>
+                        </div>
                     </div>
                 </div>
                 {{-- Litros Diarios --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Consumo Diario de Combustible</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Litros de petróleo consumidos día por día</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="litrosDailyChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Consumo Diario de Combustible</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Litros de petróleo consumidos día por día</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="litrosDailyChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -446,27 +646,77 @@
             <x-section-label dot="bg-indigo-500">Distribución de Cosecha (Agrak)</x-section-label>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
                 {{-- Bins por Cuartel --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Bins por Cuartel</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Distribución de bins por cada cuartel cosechado (AGRAK)</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="cuartelesChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Bins por Cuartel</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Distribución de bins por cada cuartel cosechado (AGRAK)</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="cuartelesChart"></canvas>
+                        </div>
                     </div>
                 </div>
                 {{-- Bins por Cosechadora --}}
-                <div class="t-card-glow p-6 flex flex-col">
-                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Cosechadora AGRAK</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Total de bins cosechados por máquina (AGRAK)</p>
+                <div x-data="{ expanded: false }" class="relative">
+                    <template x-teleport="body">
+                        <div x-show="expanded" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60]"
+                             @click="expanded = false"
+                             style="display: none;">
                         </div>
-                    </div>
-                    <div class="h-80 w-full relative">
-                        <canvas id="maquinasChart"></canvas>
+                    </template>
+                    <div :class="expanded ? 'fixed inset-x-4 inset-y-8 md:inset-16 z-[70] p-8 flex flex-col bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden' : 't-card-glow p-6 flex flex-col'"
+                         class="transition-all duration-300">
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Cosechadora AGRAK</h3>
+                                <p class="text-[11px] text-gray-400 mt-0.5">Total de bins cosechados por máquina (AGRAK)</p>
+                            </div>
+                            <button @click="expanded = !expanded" 
+                                    class="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95">
+                                <svg x-show="!expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+                                </svg>
+                                <svg x-show="expanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div :class="expanded ? 'h-[calc(100vh-220px)] md:h-[calc(100vh-200px)]' : 'h-80'" class="w-full relative transition-all duration-300">
+                            <canvas id="maquinasChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
