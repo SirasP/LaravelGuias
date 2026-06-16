@@ -676,6 +676,77 @@ class DashboardController extends Controller
             ];
         }
 
+        // --- BINS POR CUARTEL & COSECHADORA AGRAK ---
+        // Season A Dates
+        list($yStartA, $yEndA) = explode('/', $seasonA);
+        $startA = "{$yStartA}-10-01 00:00:00";
+        $endA = "{$yEndA}-04-30 23:59:59";
+
+        $cuartelA = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$startA, $endA])
+            ->whereNotNull('cuartel')
+            ->whereRaw("TRIM(cuartel) <> ''")
+            ->whereNotNull('codigo_bin')
+            ->select('cuartel', DB::raw('COUNT(DISTINCT codigo_bin) as bins'))
+            ->groupBy('cuartel')
+            ->pluck('bins', 'cuartel')
+            ->toArray();
+
+        $maquinaA = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$startA, $endA])
+            ->whereNotNull('maquina')
+            ->whereRaw("TRIM(maquina) <> ''")
+            ->whereNotNull('codigo_bin')
+            ->select('maquina', DB::raw('COUNT(DISTINCT codigo_bin) as bins'))
+            ->groupBy('maquina')
+            ->pluck('bins', 'maquina')
+            ->toArray();
+
+        // Season B Dates
+        list($yStartB, $yEndB) = explode('/', $seasonB);
+        $startB = "{$yStartB}-10-01 00:00:00";
+        $endB = "{$yEndB}-04-30 23:59:59";
+
+        $cuartelB = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$startB, $endB])
+            ->whereNotNull('cuartel')
+            ->whereRaw("TRIM(cuartel) <> ''")
+            ->whereNotNull('codigo_bin')
+            ->select('cuartel', DB::raw('COUNT(DISTINCT codigo_bin) as bins'))
+            ->groupBy('cuartel')
+            ->pluck('bins', 'cuartel')
+            ->toArray();
+
+        $maquinaB = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$startB, $endB])
+            ->whereNotNull('maquina')
+            ->whereRaw("TRIM(maquina) <> ''")
+            ->whereNotNull('codigo_bin')
+            ->select('maquina', DB::raw('COUNT(DISTINCT codigo_bin) as bins'))
+            ->groupBy('maquina')
+            ->pluck('bins', 'maquina')
+            ->toArray();
+
+        // Align Cuarteles
+        $cuartelLabels = array_unique(array_merge(array_keys($cuartelA), array_keys($cuartelB)));
+        sort($cuartelLabels);
+        $cuartelBinsA = [];
+        $cuartelBinsB = [];
+        foreach ($cuartelLabels as $c) {
+            $cuartelBinsA[] = $cuartelA[$c] ?? 0;
+            $cuartelBinsB[] = $cuartelB[$c] ?? 0;
+        }
+
+        // Align Maquinas
+        $maquinaLabels = array_unique(array_merge(array_keys($maquinaA), array_keys($maquinaB)));
+        sort($maquinaLabels);
+        $maquinaBinsA = [];
+        $maquinaBinsB = [];
+        foreach ($maquinaLabels as $m) {
+            $maquinaBinsA[] = $maquinaA[$m] ?? 0;
+            $maquinaBinsB[] = $maquinaB[$m] ?? 0;
+        }
+
         return view('inventario.comparacion', [
             'seasons' => $availableSeasons,
             'seasonA' => $seasonA,
@@ -710,6 +781,12 @@ class DashboardController extends Controller
             'activeDaysA' => $activeDaysA,
             'activeDaysB' => $activeDaysB,
             'tableRows' => $tableRows,
+            'cuartelLabels' => $cuartelLabels,
+            'cuartelBinsA' => $cuartelBinsA,
+            'cuartelBinsB' => $cuartelBinsB,
+            'maquinaLabels' => $maquinaLabels,
+            'maquinaBinsA' => $maquinaBinsA,
+            'maquinaBinsB' => $maquinaBinsB,
         ]);
     }
 

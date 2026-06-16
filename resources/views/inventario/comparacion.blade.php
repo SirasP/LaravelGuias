@@ -440,6 +440,37 @@
             </div>
         </div>
 
+        {{-- ══ SECCIÓN GRÁFICOS: DISTRIBUCIÓN AGRAK ══ --}}
+        <div class="space-y-4">
+            <x-section-label dot="bg-indigo-500">Distribución de Cosecha (Agrak)</x-section-label>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 au d3">
+                {{-- Bins por Cuartel --}}
+                <div class="t-card-glow p-6 flex flex-col">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Bins por Cuartel</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Distribución de bins por cada cuartel cosechado (AGRAK)</p>
+                        </div>
+                    </div>
+                    <div class="h-80 w-full relative">
+                        <canvas id="cuartelesChart"></canvas>
+                    </div>
+                </div>
+                {{-- Bins por Cosechadora --}}
+                <div class="t-card-glow p-6 flex flex-col">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-100/50 dark:border-gray-800/40">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">Cosechadora AGRAK</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Total de bins cosechados por máquina (AGRAK)</p>
+                        </div>
+                    </div>
+                    <div class="h-80 w-full relative">
+                        <canvas id="maquinasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- ══ TABLA DÍA A DÍA ══ --}}
         <div class="au d4">
             <x-section-label dot="bg-indigo-500">Detalle comparativo por día de cosecha</x-section-label>
@@ -1065,6 +1096,112 @@
                                     color: labelColor, font: { size: 10 },
                                     callback: v => v.toLocaleString('es-CL') + ' L'
                                 }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ── Cuarteles Chart (Vertical Bar Chart) ────────────────────────
+            const cuartelesCtx = document.getElementById('cuartelesChart');
+            if (cuartelesCtx) {
+                new Chart(cuartelesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: @json($cuartelLabels),
+                        datasets: [
+                            {
+                                label: 'Temporada {{ $seasonA }} (Principal)',
+                                data: @json($cuartelBinsA),
+                                backgroundColor: '#8b5cf6dd',
+                                hoverBackgroundColor: '#8b5cf6',
+                                borderRadius: 4,
+                            },
+                            {
+                                label: 'Temporada {{ $seasonB }} (Comparación)',
+                                data: @json($cuartelBinsB),
+                                backgroundColor: '#10b981dd',
+                                hoverBackgroundColor: '#10b981',
+                                borderRadius: 4,
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: dark ? '#cbd5e1' : '#334155', font: { weight: 'bold', size: 11 } } },
+                            tooltip: {
+                                backgroundColor: dark ? '#1a2436' : '#fff',
+                                titleColor: dark ? '#e2e8f0' : '#1e293b',
+                                bodyColor: dark ? '#94a3b8' : '#64748b',
+                                borderColor: dark ? '#1e2a3b' : '#e2e8f0',
+                                borderWidth: 1,
+                                padding: 12,
+                                cornerRadius: 10,
+                                callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString('es-CL')} bins` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, border: { display: false }, ticks: { color: labelColor, font: { size: 10 } } },
+                            y: {
+                                beginAtZero: true,
+                                border: { display: false },
+                                grid: { color: gridColor },
+                                ticks: { color: labelColor, font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ── Maquinas Chart (Vertical Bar Chart) ─────────────────────────
+            const maquinasCtx = document.getElementById('maquinasChart');
+            if (maquinasCtx) {
+                new Chart(maquinasCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: @json($maquinaLabels),
+                        datasets: [
+                            {
+                                label: 'Temporada {{ $seasonA }} (Principal)',
+                                data: @json($maquinaBinsA),
+                                backgroundColor: '#8b5cf6dd',
+                                hoverBackgroundColor: '#8b5cf6',
+                                borderRadius: 4,
+                            },
+                            {
+                                label: 'Temporada {{ $seasonB }} (Comparación)',
+                                data: @json($maquinaBinsB),
+                                backgroundColor: '#10b981dd',
+                                hoverBackgroundColor: '#10b981',
+                                borderRadius: 4,
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: dark ? '#cbd5e1' : '#334155', font: { weight: 'bold', size: 11 } } },
+                            tooltip: {
+                                backgroundColor: dark ? '#1a2436' : '#fff',
+                                titleColor: dark ? '#e2e8f0' : '#1e293b',
+                                bodyColor: dark ? '#94a3b8' : '#64748b',
+                                borderColor: dark ? '#1e2a3b' : '#e2e8f0',
+                                borderWidth: 1,
+                                padding: 12,
+                                cornerRadius: 10,
+                                callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString('es-CL')} bins` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, border: { display: false }, ticks: { color: labelColor, font: { size: 10 } } },
+                            y: {
+                                beginAtZero: true,
+                                border: { display: false },
+                                grid: { color: gridColor },
+                                ticks: { color: labelColor, font: { size: 10 } }
                             }
                         }
                     }
