@@ -577,7 +577,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($tableRows as $row)
+                            @forelse(array_slice($tableRows, 0, 5) as $row)
                                 <tr class="hover:bg-gray-50/80 dark:hover:bg-white/[0.015]">
                                     <td class="c font-bold bg-gray-50/30 dark:bg-slate-900/10 text-gray-500 border-r border-gray-200/50 dark:border-gray-800/30">{{ $row['day'] }}</td>
                                     
@@ -684,8 +684,74 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div class="flex-1 w-full overflow-auto mt-2" style="min-height: 0;" id="modalTableContainer">
-                    <!-- Aquí se clonará la tabla -->
+                <div class="flex-1 w-full overflow-auto mt-2" style="min-height: 0;">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th class="c w-16 bg-gray-50/50 dark:bg-slate-900/60 font-bold border-r border-gray-200/50 dark:border-gray-800/30">Día</th>
+                                <th class="c border-r border-gray-200/50 dark:border-gray-800/30" colspan="4">Temporada {{ $seasonA }} (A)</th>
+                                <th class="c border-r border-gray-200/50 dark:border-gray-800/30" colspan="4">Temporada {{ $seasonB }} (B)</th>
+                                <th class="c" colspan="3">Comparación</th>
+                            </tr>
+                            <tr class="border-b border-gray-150 dark:border-gray-800/60">
+                                <th class="c bg-gray-50/50 dark:bg-slate-900/60 border-r border-gray-200/50 dark:border-gray-800/30 font-bold">#</th>
+                                <th class="border-l border-gray-100 dark:border-gray-800/30">Fecha</th>
+                                <th class="r">Bins</th>
+                                <th class="r">Kilos Centros</th>
+                                <th class="r border-r border-gray-200/50 dark:border-gray-800/30">Combustible</th>
+                                <th>Fecha</th>
+                                <th class="r">Bins</th>
+                                <th class="r">Kilos Centros</th>
+                                <th class="r border-r border-gray-200/50 dark:border-gray-800/30">Combustible</th>
+                                <th class="r">Δ Bins</th>
+                                <th class="r">Δ Kilos</th>
+                                <th class="r">Δ Comb.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($tableRows as $row)
+                                <tr class="hover:bg-gray-50/80 dark:hover:bg-white/[0.015]">
+                                    <td class="c font-bold bg-gray-50/30 dark:bg-slate-900/10 text-gray-500 border-r border-gray-200/50 dark:border-gray-800/30">{{ $row['day'] }}</td>
+                                    <td class="text-gray-600 dark:text-gray-400 font-medium">{{ $row['dateA'] }}</td>
+                                    <td class="text-right font-semibold">{{ $row['binsA'] !== null ? number_format($row['binsA'], 0, ',', '.') : '—' }}</td>
+                                    <td class="text-right font-black text-amber-600 dark:text-amber-400">{{ $row['kilosCentrosA'] !== null ? number_format($row['kilosCentrosA'], 0, ',', '.') . ' kg' : '—' }}</td>
+                                    <td class="text-right font-semibold text-rose-600 dark:text-rose-400 border-r border-gray-200/50 dark:border-gray-800/30">{{ $row['litrosA'] !== null ? number_format($row['litrosA'], 1, ',', '.') . ' L' : '—' }}</td>
+                                    <td class="text-gray-500">{{ $row['dateB'] }}</td>
+                                    <td class="text-right font-medium text-gray-500">{{ $row['binsB'] !== null ? number_format($row['binsB'], 0, ',', '.') : '—' }}</td>
+                                    <td class="text-right font-bold text-gray-500">{{ $row['kilosCentrosB'] !== null ? number_format($row['kilosCentrosB'], 0, ',', '.') . ' kg' : '—' }}</td>
+                                    <td class="text-right font-medium text-gray-500 border-r border-gray-200/50 dark:border-gray-800/30">{{ $row['litrosB'] !== null ? number_format($row['litrosB'], 1, ',', '.') . ' L' : '—' }}</td>
+                                    <td class="text-right font-semibold">
+                                        @if($row['binsA'] !== null && $row['binsB'] !== null)
+                                            @php $binsDiff = $row['binsA'] - $row['binsB']; @endphp
+                                            <span class="diff-badge {{ $binsDiff >= 0 ? 'diff-up' : 'diff-down' }}">{{ $binsDiff >= 0 ? '+' : '' }}{{ $binsDiff }}</span>
+                                        @else
+                                            <span class="text-gray-300 dark:text-gray-700">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-right font-bold">
+                                        @if($row['kilosCentrosA'] !== null && $row['kilosCentrosB'] !== null)
+                                            @php $kilosDiff = $row['kilosCentrosA'] - $row['kilosCentrosB']; @endphp
+                                            <span class="diff-badge {{ $kilosDiff >= 0 ? 'diff-up' : 'diff-down' }}">{{ $kilosDiff >= 0 ? '+' : '' }}{{ number_format($kilosDiff, 0, ',', '.') }} kg</span>
+                                        @else
+                                            <span class="text-gray-300 dark:text-gray-700">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-right font-bold">
+                                        @if($row['litrosA'] !== null && $row['litrosB'] !== null)
+                                            @php $litrosDiff = $row['litrosA'] - $row['litrosB']; @endphp
+                                            <span class="diff-badge {{ $litrosDiff >= 0 ? 'diff-up' : 'diff-down' }}">{{ $litrosDiff >= 0 ? '+' : '' }}{{ number_format($litrosDiff, 1, ',', '.') }} L</span>
+                                        @else
+                                            <span class="text-gray-300 dark:text-gray-700">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="12" class="text-center py-16 text-gray-400">No hay registros</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1412,31 +1478,17 @@
         };
 
         window.expandTable = function() {
-            const originalTable = document.querySelector('.dt');
-            if (!originalTable) return;
-
             const modal = document.getElementById('tableModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-
             document.body.style.overflow = 'hidden';
-
-            const container = document.getElementById('modalTableContainer');
-            container.innerHTML = '';
-            
-            const clonedTable = originalTable.cloneNode(true);
-            container.appendChild(clonedTable);
         };
 
         window.closeExpandedTable = function() {
             const modal = document.getElementById('tableModal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-
             document.body.style.overflow = '';
-            
-            const container = document.getElementById('modalTableContainer');
-            container.innerHTML = '';
         };
 
         document.addEventListener('DOMContentLoaded', initCharts);
