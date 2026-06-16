@@ -650,11 +650,11 @@
 
     <!-- Modal para gráficos expandidos -->
     <div id="chartModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-md p-4 md:p-6" onclick="if(event.target === this) closeExpandedChart()">
-        <div class="bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] h-[75vh] md:h-[80vh] p-6 md:p-8 flex flex-col relative" onclick="event.stopPropagation()">
+        <div class="bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] p-6 md:p-8 flex flex-col relative" style="height: 75vh;" onclick="event.stopPropagation()">
             <button onclick="closeExpandedChart()" class="absolute top-4 right-4 p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition active:scale-95 z-10">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <div class="flex-1 w-full relative mt-4">
+            <div class="flex-1 w-full relative mt-4" style="min-height: 0;">
                 <canvas id="modalChartCanvas"></canvas>
             </div>
         </div>
