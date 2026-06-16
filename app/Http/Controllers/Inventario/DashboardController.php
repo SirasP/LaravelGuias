@@ -344,6 +344,7 @@ class DashboardController extends Controller
             ->map(fn($v) => (int) $v);
 
         $maquinasAgrak = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
             ->whereNotNull('maquina')
             ->whereNotNull('codigo_bin')
             ->whereRaw("TRIM(codigo_bin) <> ''")
@@ -362,6 +363,7 @@ class DashboardController extends Controller
 
         // CHART BINS POR CUARTEL AGRAK
         $binsPorCuartel = DB::table('agrak_registros')
+            ->whereDate('fecha_registro', '>=', $from)
             ->select(
                 'etiquetas_cuartel',
                 DB::raw('COUNT(DISTINCT codigo_bin) as total_bins')

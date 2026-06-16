@@ -70,7 +70,7 @@
         <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
 
         {{-- Documentos (colapsable) --}}
-        @php $docsActive = request()->routeIs('pdf.*') || request()->routeIs('excel_out_transfers.*') || request()->routeIs('agrak.*') || request()->routeIs('guias.comfrut.*'); @endphp
+        @php $docsActive = request()->routeIs('pdf.*') || request()->routeIs('excel_out_transfers.*') || request()->routeIs('agrak.*') || request()->routeIs('guias.comfrut.*') || request()->routeIs('dashboard.comparacion'); @endphp
         <x-nav-item id="docs" label="Documentos" iconBgColor="indigo" :active="$docsActive">
             <x-slot name="icon">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -79,6 +79,7 @@
             <x-nav-sublink href="{{ route('excel_out_transfers.index') }}" :active="request()->routeIs('excel_out_transfers.*')" color="indigo">Match</x-nav-sublink>
             <x-nav-sublink href="{{ route('agrak.index') }}" :active="request()->routeIs('agrak.*')" color="indigo">Agrak</x-nav-sublink>
             <x-nav-sublink href="{{ route('guias.comfrut.index') }}" :active="request()->routeIs('guias.comfrut.*')" color="indigo">XML Gmail Transporte</x-nav-sublink>
+            <x-nav-sublink href="{{ route('dashboard.comparacion') }}" :active="request()->routeIs('dashboard.comparacion')" color="indigo">Comparar Cosechas</x-nav-sublink>
         </x-nav-item>
 
         {{-- IMPORTAR TODO (Admin Direct Link) --}}

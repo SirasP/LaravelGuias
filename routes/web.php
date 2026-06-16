@@ -19,6 +19,7 @@ use App\Http\Controllers\Inventario\DtesController;
 use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,10 @@ Route::get('/sugerencias/admin', [SugerenciasController::class, 'admin'])->middl
 Route::get('/', [InventarioDashboard::class, 'index'])
     ->middleware('auth')
     ->name('index');
+
+Route::get('/comparacion', [InventarioDashboard::class, 'comparacion'])
+    ->middleware('auth')
+    ->name('dashboard.comparacion');
 
 /*
 |--------------------------------------------------------------------------
@@ -541,6 +546,14 @@ Route::middleware(['auth', 'role:admin'])
         Route::patch('/{id}/item/{itemId}', [PurchaseOrderController::class, 'updateItem'])->whereNumber('id')->whereNumber('itemId')->name('update_item');
         Route::get('/{id}/respuesta/{rid}/autofill', [PurchaseOrderController::class, 'autofillReplyFromPdf'])->whereNumber('id')->whereNumber('rid')->name('autofill_reply');
         Route::get('/adjunto/{rid}', [PurchaseOrderController::class, 'serveAttachment'])->whereNumber('rid')->name('attachment');
+
+        // ===== Recepción de mercadería (OC → Recepción → Factura) =====
+        Route::get('/{id}/recepciones/crear', [ReceptionController::class, 'create'])->whereNumber('id')->name('receptions.create');
+        Route::post('/{id}/recepciones', [ReceptionController::class, 'store'])->whereNumber('id')->name('receptions.store');
+        Route::get('/recepciones/{id}', [ReceptionController::class, 'show'])->whereNumber('id')->name('receptions.show');
+        Route::post('/recepciones/{id}/confirmar', [ReceptionController::class, 'confirm'])->whereNumber('id')->name('receptions.confirm');
+        Route::post('/recepciones/{id}/factura', [ReceptionController::class, 'matchInvoice'])->whereNumber('id')->name('receptions.match_invoice');
+        Route::delete('/recepciones/{id}/factura', [ReceptionController::class, 'unmatchInvoice'])->whereNumber('id')->name('receptions.unmatch_invoice');
     });
 
 /*

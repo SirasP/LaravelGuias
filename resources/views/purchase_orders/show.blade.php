@@ -167,6 +167,70 @@
                         </div>
                     </div>
 
+                    {{-- ── Recepción de mercadería (OC → Recepción → Factura) ── --}}
+                    @php
+                        $fcDb = \Illuminate\Support\Facades\DB::connection('fuelcontrol');
+                        $recepciones = $fcDb->table('recepciones')
+                            ->where('purchase_order_id', $order->id)
+                            ->orderByDesc('id')
+                            ->get();
+                        $recStatus = $order->reception_status ?? null;
+                        $recBadge = match($recStatus) {
+                            'recibida' => ['Recibida', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'],
+                            'parcial'  => ['Recepción parcial', 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'],
+                            default    => ['Sin recepción', 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'],
+                        };
+                    @endphp
+                    <div class="panel au d2">
+                        <div class="px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Recepción de mercadería</h3>
+                                <span class="chip {{ $recBadge[1] }}">{{ $recBadge[0] }}</span>
+                            </div>
+                            @if($order->status === 'order' && $recStatus !== 'recibida')
+                                <a href="{{ route('purchase_orders.receptions.create', $order->id) }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                    Recibir mercadería
+                                </a>
+                            @endif
+                        </div>
+                        @if($recepciones->isEmpty())
+                            <div class="px-5 py-4 text-xs text-gray-400">
+                                @if($order->status === 'order')
+                                    Aún no hay recepciones para esta orden.
+                                @else
+                                    Confirma la orden como compra para poder recibir mercadería.
+                                @endif
+                            </div>
+                        @else
+                            <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                                @foreach($recepciones as $r)
+                                    @php
+                                        $rEstadoClass = match($r->estado) {
+                                            'CONFIRMADA' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                                            'ANULADA'    => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+                                            default      => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                                        };
+                                    @endphp
+                                    <a href="{{ route('purchase_orders.receptions.show', $r->id) }}"
+                                       class="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Recepción #{{ $r->id }}</span>
+                                            <span class="chip {{ $rEstadoClass }}">{{ $r->estado }}</span>
+                                            @if($r->gmail_document_id)
+                                                <span class="chip bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Factura vinculada</span>
+                                            @endif
+                                        </div>
+                                        <span class="text-xs text-gray-400 shrink-0">
+                                            {{ $r->fecha_recepcion ? \Illuminate\Support\Carbon::parse($r->fecha_recepcion)->format('d/m/Y') : '' }}
+                                        </span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
                     {{-- Tabla de productos --}}
                     <div class="panel au d2">
                         <div class="px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">

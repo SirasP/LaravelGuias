@@ -151,6 +151,17 @@ class GmailDteInventoryService
                 ];
             }
 
+            // Guard: si la factura ya ingresó stock vía una Recepción confirmada, no duplicar.
+            if (!empty($doc->recepcion_id)) {
+                $recEstado = DB::connection('fuelcontrol')
+                    ->table('recepciones')->where('id', $doc->recepcion_id)->value('estado');
+                if ($recEstado === 'CONFIRMADA') {
+                    throw new RuntimeException(
+                        "Esta factura ya ingresó stock vía Recepción #{$doc->recepcion_id}; no se puede ingresar de nuevo."
+                    );
+                }
+            }
+
             $lines = DB::connection('fuelcontrol')
                 ->table('gmail_dte_document_lines')
                 ->where('document_id', $documentId)

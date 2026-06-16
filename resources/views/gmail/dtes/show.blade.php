@@ -611,6 +611,27 @@
                                 <span class="chip {{ $inventoryStatus === 'ingresado' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }}">
                                     {{ $inventoryStatus === 'ingresado' ? 'Stock ingresado' : 'Stock pendiente' }}
                                 </span>
+                                {{-- Vínculo a Orden de Compra / Recepción (aditivo) --}}
+                                @php
+                                    $vinOc = null;
+                                    if (($document->recepcion_id ?? null) || ($document->purchase_order_id ?? null)) {
+                                        $fcDb = \Illuminate\Support\Facades\DB::connection('fuelcontrol');
+                                        $vinOc = $document->purchase_order_id
+                                            ? $fcDb->table('purchase_orders')->where('id', $document->purchase_order_id)->value('order_number')
+                                            : null;
+                                    }
+                                @endphp
+                                @if($document->recepcion_id ?? null)
+                                    <a href="{{ route('purchase_orders.receptions.show', $document->recepcion_id) }}"
+                                       class="chip bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:underline">
+                                        Recepción #{{ $document->recepcion_id }}{{ $vinOc ? ' · OC '.$vinOc : '' }}
+                                    </a>
+                                @elseif($document->purchase_order_id ?? null)
+                                    <a href="{{ route('purchase_orders.show', $document->purchase_order_id) }}"
+                                       class="chip bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:underline">
+                                        OC {{ $vinOc ?? ('#'.$document->purchase_order_id) }}
+                                    </a>
+                                @endif
                                 @if($document->fecha_factura)
                                     <span class="text-[11px] text-gray-400">
                                         Emitida el {{ $document->fecha_factura }}

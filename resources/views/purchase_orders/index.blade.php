@@ -231,6 +231,11 @@
                                         </td>
                                         <td>
                                             <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
+                                            @if(($o->reception_status ?? null) === 'recibida')
+                                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ml-1">Recibida</span>
+                                            @elseif(($o->reception_status ?? null) === 'parcial')
+                                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 ml-1">Parcial</span>
+                                            @endif
                                         </td>
                                         <td class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ \Carbon\Carbon::parse($o->created_at)->format('d/m/Y H:i') }}
