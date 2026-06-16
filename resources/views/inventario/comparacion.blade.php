@@ -577,7 +577,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse(array_slice($tableRows, 0, 5) as $row)
+                            @forelse(array_slice($tableRows, -5) as $row)
                                 <tr class="hover:bg-gray-50/80 dark:hover:bg-white/[0.015]">
                                     <td class="c font-bold bg-gray-50/30 dark:bg-slate-900/10 text-gray-500 border-r border-gray-200/50 dark:border-gray-800/30">{{ $row['day'] }}</td>
                                     
