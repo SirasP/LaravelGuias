@@ -163,11 +163,11 @@
                 </div>
                 <div class="mt-5 space-y-2.5">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-xs font-bold text-gray-400">Temp. A:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonA }}:</span>
                         <span class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{{ number_format($totalBinsA, 0, ',', '.') }}</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-                        <span class="text-xs font-bold text-gray-400">Temp. B:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonB }}:</span>
                         <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ number_format($totalBinsB, 0, ',', '.') }}</span>
                     </div>
                 </div>
@@ -177,7 +177,7 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $binsDiff >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400' }}">
                             {{ $binsDiff >= 0 ? '▲ +' : '▼ ' }}{{ number_format($binsDiff, 1) }}%
                         </span>
-                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. B</span>
+                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. {{ $seasonB }}</span>
                     </div>
                 @endif
             </div>
@@ -195,11 +195,11 @@
                 </div>
                 <div class="mt-5 space-y-2.5">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-xs font-bold text-gray-400">Temp. A:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonA }}:</span>
                         <span class="text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{{ number_format($totalKilosCentrosA, 1, ',', '.') }}</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-                        <span class="text-xs font-bold text-gray-400">Temp. B:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonB }}:</span>
                         <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ number_format($totalKilosCentrosB, 1, ',', '.') }}</span>
                     </div>
                 </div>
@@ -209,7 +209,7 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $kilosCentrosDiff >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400' }}">
                             {{ $kilosCentrosDiff >= 0 ? '▲ +' : '▼ ' }}{{ number_format($kilosCentrosDiff, 1) }}%
                         </span>
-                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. B</span>
+                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. {{ $seasonB }}</span>
                     </div>
                 @endif
             </div>
@@ -227,11 +227,11 @@
                 </div>
                 <div class="mt-5 space-y-2.5">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-xs font-bold text-gray-400">Temp. A:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonA }}:</span>
                         <span class="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">{{ number_format($totalKilosA, 1, ',', '.') }}</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-                        <span class="text-xs font-bold text-gray-400">Temp. B:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonB }}:</span>
                         <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ number_format($totalKilosB, 1, ',', '.') }}</span>
                     </div>
                 </div>
@@ -241,7 +241,7 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $kilosDiff >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400' }}">
                             {{ $kilosDiff >= 0 ? '▲ +' : '▼ ' }}{{ number_format($kilosDiff, 1) }}%
                         </span>
-                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. B</span>
+                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. {{ $seasonB }}</span>
                     </div>
                 @endif
             </div>
@@ -261,11 +261,11 @@
                 </div>
                 <div class="mt-5 space-y-2.5">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-xs font-bold text-gray-400">Temp. A:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonA }}:</span>
                         <span class="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">{{ number_format($totalLitrosA, 1, ',', '.') }} L</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-                        <span class="text-xs font-bold text-gray-400">Temp. B:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonB }}:</span>
                         <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ number_format($totalLitrosB, 1, ',', '.') }} L</span>
                     </div>
                 </div>
@@ -275,12 +275,12 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $litrosDiff >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400' }}">
                             {{ $litrosDiff >= 0 ? '▲ +' : '▼ ' }}{{ number_format($litrosDiff, 1) }}%
                         </span>
-                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. B</span>
+                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. {{ $seasonB }}</span>
                     </div>
                 @else
                     <div class="mt-4 flex items-center justify-between">
                         <span class="text-gray-300 dark:text-gray-700 font-bold">—</span>
-                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. B</span>
+                        <span class="text-[10px] text-gray-400 uppercase font-black">vs Temp. {{ $seasonB }}</span>
                     </div>
                 @endif
             </div>
@@ -298,11 +298,11 @@
                 </div>
                 <div class="mt-5 space-y-2.5">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-xs font-bold text-gray-400">Temp. A:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonA }}:</span>
                         <span class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{{ $activeDaysA }}</span>
                     </div>
                     <div class="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-                        <span class="text-xs font-bold text-gray-400">Temp. B:</span>
+                        <span class="text-xs font-bold text-gray-400">Temp. {{ $seasonB }}:</span>
                         <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ $activeDaysB }}</span>
                     </div>
                 </div>
