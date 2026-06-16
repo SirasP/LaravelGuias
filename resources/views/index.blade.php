@@ -95,13 +95,23 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between w-full">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-4">
             <div>
                 <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Dashboard</h2>
                 <x-breadcrumbs :items="[
                     ['label' => 'Inicio'],
                     ['label' => 'Resumen últimos 120 días'],
                 ]" />
+            </div>
+            <div>
+                <a href="{{ route('dashboard.comparacion') }}" 
+                   class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl
+                          bg-indigo-600 hover:bg-indigo-700 text-white transition active:scale-95 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Comparar Cosechas
+                </a>
             </div>
         </div>
     </x-slot>

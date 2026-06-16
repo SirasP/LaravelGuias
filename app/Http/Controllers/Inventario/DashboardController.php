@@ -557,6 +557,300 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function comparacion(Request $request)
+    {
+        $availableSeasons = $this->getAvailableSeasons();
 
+        // Detect the latest season that actually contains records in the DB
+        $maxAgrak = DB::table('agrak_registros')->max('fecha_registro');
+        $maxOdoo = DB::table('excel_out_transfers')->max('fecha_prevista');
 
+        $latestSeasonWithData = '2025/2026'; // Fallback default
+        if ($maxAgrak || $maxOdoo) {
+            $maxDateStr = $maxAgrak ?: Carbon::parse($maxOdoo)->format('Y-m-d');
+            if ($maxAgrak && $maxOdoo) {
+                $maxDateStr = max($maxAgrak, Carbon::parse($maxOdoo)->format('Y-m-d'));
+            }
+            $carbon = Carbon::parse($maxDateStr);
+            $year = $carbon->year;
+            if ($carbon->month >= 10) {
+                $latestSeasonWithData = $year . '/' . ($year + 1);
+            } else {
+                $latestSeasonWithData = ($year - 1) . '/' . $year;
+            }
+        }
+
+        // Season A defaults to the latest season that has data in the DB
+        $seasonA = $request->input('season_a', $latestSeasonWithData);
+
+        // Season B defaults to the NEXT (upcoming) season
+        list($yL, $yL2) = explode('/', $latestSeasonWithData);
+        $nextSeason = ($yL + 1) . '/' . ($yL + 2);
+        $seasonB = $request->input('season_b', $nextSeason);
+
+        $seriesA = [];
+        $seriesB = [];
+
+        if ($seasonA) {
+            $seriesA = $this->getSeasonData($seasonA);
+        }
+        if ($seasonB) {
+            $seriesB = $this->getSeasonData($seasonB);
+        }
+
+        $maxDays = max(count($seriesA), count($seriesB));
+        $chartLabels = [];
+        for ($i = 1; $i <= $maxDays; $i++) {
+            $chartLabels[] = "Día {$i}";
+        }
+
+        $binsA_cum = collect($seriesA)->pluck('cum_bins')->toArray();
+        $binsB_cum = collect($seriesB)->pluck('cum_bins')->toArray();
+
+        $kilosA_cum = collect($seriesA)->pluck('cum_kilos')->toArray();
+        $kilosB_cum = collect($seriesB)->pluck('cum_kilos')->toArray();
+
+        $kilosCentrosA_cum = collect($seriesA)->pluck('cum_kilos_centros')->toArray();
+        $kilosCentrosB_cum = collect($seriesB)->pluck('cum_kilos_centros')->toArray();
+
+        $litrosA_cum = collect($seriesA)->pluck('cum_litros')->toArray();
+        $litrosB_cum = collect($seriesB)->pluck('cum_litros')->toArray();
+
+        $binsA_daily = collect($seriesA)->pluck('bins')->toArray();
+        $binsB_daily = collect($seriesB)->pluck('bins')->toArray();
+
+        $kilosA_daily = collect($seriesA)->pluck('kilos')->toArray();
+        $kilosB_daily = collect($seriesB)->pluck('kilos')->toArray();
+
+        $kilosCentrosA_daily = collect($seriesA)->pluck('kilos_centros')->toArray();
+        $kilosCentrosB_daily = collect($seriesB)->pluck('kilos_centros')->toArray();
+
+        $litrosA_daily = collect($seriesA)->pluck('litros')->toArray();
+        $litrosB_daily = collect($seriesB)->pluck('litros')->toArray();
+
+        // KPIs
+        $totalBinsA = count($seriesA) > 0 ? end($seriesA)['cum_bins'] : 0;
+        $totalBinsB = count($seriesB) > 0 ? end($seriesB)['cum_bins'] : 0;
+
+        $totalKilosA = count($seriesA) > 0 ? end($seriesA)['cum_kilos'] : 0;
+        $totalKilosB = count($seriesB) > 0 ? end($seriesB)['cum_kilos'] : 0;
+
+        $totalKilosCentrosA = count($seriesA) > 0 ? end($seriesA)['cum_kilos_centros'] : 0;
+        $totalKilosCentrosB = count($seriesB) > 0 ? end($seriesB)['cum_kilos_centros'] : 0;
+
+        $totalLitrosA = count($seriesA) > 0 ? end($seriesA)['cum_litros'] : 0;
+        $totalLitrosB = count($seriesB) > 0 ? end($seriesB)['cum_litros'] : 0;
+
+        $totalBandejasA = count($seriesA) > 0 ? end($seriesA)['cum_bandejas'] : 0;
+        $totalBandejasB = count($seriesB) > 0 ? end($seriesB)['cum_bandejas'] : 0;
+
+        $activeDaysA = count($seriesA);
+        $activeDaysB = count($seriesB);
+
+        $tableRows = [];
+        for ($i = 0; $i < $maxDays; $i++) {
+            $rowA = $seriesA[$i] ?? null;
+            $rowB = $seriesB[$i] ?? null;
+            $tableRows[] = [
+                'day' => $i + 1,
+                // Season A
+                'dateA' => $rowA ? Carbon::parse($rowA['date'])->format('d-m-Y') : '—',
+                'binsA' => $rowA ? $rowA['bins'] : null,
+                'cumBinsA' => $rowA ? $rowA['cum_bins'] : null,
+                'kilosA' => $rowA ? $rowA['kilos'] : null,
+                'cumKilosA' => $rowA ? $rowA['cum_kilos'] : null,
+                'kilosCentrosA' => $rowA ? $rowA['kilos_centros'] : null,
+                'cumKilosCentrosA' => $rowA ? $rowA['cum_kilos_centros'] : null,
+                'litrosA' => $rowA ? $rowA['litros'] : null,
+                'cumLitrosA' => $rowA ? $rowA['cum_litros'] : null,
+                // Season B
+                'dateB' => $rowB ? Carbon::parse($rowB['date'])->format('d-m-Y') : '—',
+                'binsB' => $rowB ? $rowB['bins'] : null,
+                'cumBinsB' => $rowB ? $rowB['cum_bins'] : null,
+                'kilosB' => $rowB ? $rowB['kilos'] : null,
+                'cumKilosB' => $rowB ? $rowB['cum_kilos'] : null,
+                'kilosCentrosB' => $rowB ? $rowB['kilos_centros'] : null,
+                'cumKilosCentrosB' => $rowB ? $rowB['cum_kilos_centros'] : null,
+                'litrosB' => $rowB ? $rowB['litros'] : null,
+                'cumLitrosB' => $rowB ? $rowB['cum_litros'] : null,
+            ];
+        }
+
+        return view('inventario.comparacion', [
+            'seasons' => $availableSeasons,
+            'seasonA' => $seasonA,
+            'seasonB' => $seasonB,
+            'chartLabels' => $chartLabels,
+            'binsA_cum' => $binsA_cum,
+            'binsB_cum' => $binsB_cum,
+            'kilosA_cum' => $kilosA_cum,
+            'kilosB_cum' => $kilosB_cum,
+            'kilosCentrosA_cum' => $kilosCentrosA_cum,
+            'kilosCentrosB_cum' => $kilosCentrosB_cum,
+            'litrosA_cum' => $litrosA_cum,
+            'litrosB_cum' => $litrosB_cum,
+            'binsA_daily' => $binsA_daily,
+            'binsB_daily' => $binsB_daily,
+            'kilosA_daily' => $kilosA_daily,
+            'kilosB_daily' => $kilosB_daily,
+            'kilosCentrosA_daily' => $kilosCentrosA_daily,
+            'kilosCentrosB_daily' => $kilosCentrosB_daily,
+            'litrosA_daily' => $litrosA_daily,
+            'litrosB_daily' => $litrosB_daily,
+            'totalBinsA' => $totalBinsA,
+            'totalBinsB' => $totalBinsB,
+            'totalKilosA' => $totalKilosA,
+            'totalKilosB' => $totalKilosB,
+            'totalKilosCentrosA' => $totalKilosCentrosA,
+            'totalKilosCentrosB' => $totalKilosCentrosB,
+            'totalLitrosA' => $totalLitrosA,
+            'totalLitrosB' => $totalLitrosB,
+            'totalBandejasA' => $totalBandejasA,
+            'totalBandejasB' => $totalBandejasB,
+            'activeDaysA' => $activeDaysA,
+            'activeDaysB' => $activeDaysB,
+            'tableRows' => $tableRows,
+        ]);
+    }
+
+    private function getAvailableSeasons()
+    {
+        $startYear = 2024;
+        $currentYear = Carbon::now()->year;
+        // Include up to next year in case we are in transition or starting early
+        $endYear = $currentYear + 1;
+        $seasons = [];
+        for ($y = $startYear; $y <= $endYear; $y++) {
+            $seasons[] = $y . '/' . ($y + 1);
+        }
+        return array_reverse($seasons);
+    }
+
+    private function getSeasonData($season)
+    {
+        list($startYear, $endYear) = explode('/', $season);
+        $seasonStart = "{$startYear}-10-01 00:00:00";
+        $seasonEnd = "{$endYear}-04-30 23:59:59";
+
+        $agrakDates = DB::table('agrak_registros')
+            ->whereBetween('fecha_registro', [$seasonStart, $seasonEnd])
+            ->whereNotNull('codigo_bin')
+            ->selectRaw('fecha_registro as fecha, COUNT(DISTINCT codigo_bin) as bins, SUM(numero_bandejas_palet) as bandejas')
+            ->groupBy('fecha_registro')
+            ->orderBy('fecha_registro', 'ASC')
+            ->get()
+            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+
+        $odooDates = DB::table('excel_out_transfers as t')
+            ->leftJoin(DB::raw("
+                (
+                    SELECT
+                        excel_out_transfer_id,
+                        MAX(CAST(REPLACE(JSON_UNQUOTE(JSON_EXTRACT(raw, '$.L')), ',', '') AS DECIMAL(18,3))) AS kilos_odoo
+                    FROM excel_out_transfer_lines
+                    WHERE JSON_EXTRACT(raw, '$.L') IS NOT NULL
+                    GROUP BY excel_out_transfer_id
+                ) odoo
+            "), 'odoo.excel_out_transfer_id', '=', 't.id')
+            ->leftJoin(DB::raw("
+                (
+                    SELECT
+                        p.guia_no,
+                        MAX(
+                            CAST(
+                                JSON_UNQUOTE(
+                                    COALESCE(
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total_kgs'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.recepcion.total_kgs'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.kgs_recibido'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.total.kgs'),
+                                        JSON_EXTRACT(JSON_UNQUOTE(p.meta), '$.subtotal.kgs')
+                                    )
+                                ) AS DECIMAL(18,3)
+                            )
+                        ) AS kilos_centro
+                    FROM pdf_imports p
+                    GROUP BY p.guia_no
+                ) centros
+            "), DB::raw('CAST(centros.guia_no AS CHAR)'), '=', DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')"))
+            ->where('t.estado', 'Realizado')
+            ->whereNotNull('t.guia_entrega')
+            ->whereRaw("TRIM(t.guia_entrega) <> ''")
+            ->whereNotNull('t.patente')
+            ->whereRaw("TRIM(t.patente) <> ''")
+            ->whereNotNull('t.chofer')
+            ->whereRaw("TRIM(t.chofer) <> ''")
+            ->whereBetween('t.fecha_prevista', [$seasonStart, $seasonEnd])
+            ->selectRaw('DATE(t.fecha_prevista) as fecha, SUM(odoo.kilos_odoo) as kilos, SUM(COALESCE(centros.kilos_centro, 0)) as kilos_centros')
+            ->groupBy(DB::raw('DATE(t.fecha_prevista)'))
+            ->orderBy('fecha', 'ASC')
+            ->get()
+            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+
+        // Query harvester fuel control daily litres
+        $fuelDates = DB::connection('fuelcontrol')
+            ->table('movimientos as m')
+            ->join('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
+            ->where('v.patente', 'Cosechadora')
+            ->where('m.tipo', 'salida')
+            ->where(function ($q) {
+                $q->whereNull('m.estado')
+                  ->orWhere('m.estado', 'aprobado');
+            })
+            ->whereBetween('m.fecha_movimiento', [$seasonStart, $seasonEnd])
+            ->selectRaw('DATE(m.fecha_movimiento) as fecha, SUM(ABS(m.cantidad)) as litros')
+            ->groupBy(DB::raw('DATE(m.fecha_movimiento)'))
+            ->orderBy('fecha', 'ASC')
+            ->get()
+            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+
+        $allDates = collect(array_merge(
+            $agrakDates->keys()->toArray(),
+            $odooDates->keys()->toArray(),
+            $fuelDates->keys()->toArray()
+        ))->unique()->sort()->values();
+
+        $series = [];
+        $cumBins = 0;
+        $cumKilos = 0;
+        $cumKilosCentros = 0;
+        $cumBandejas = 0;
+        $cumLitros = 0;
+
+        foreach ($allDates as $index => $date) {
+            $dayNum = $index + 1;
+            $agrak = $agrakDates->get($date);
+            $odoo = $odooDates->get($date);
+            $fuel = $fuelDates->get($date);
+
+            $bins = $agrak ? (int) $agrak->bins : 0;
+            $bandejas = $agrak ? (int) $agrak->bandejas : 0;
+            $kilos = $odoo ? (float) $odoo->kilos : 0.0;
+            $kilosCentros = $odoo ? (float) $odoo->kilos_centros : 0.0;
+            $litros = $fuel ? (float) $fuel->litros : 0.0;
+
+            $cumBins += $bins;
+            $cumBandejas += $bandejas;
+            $cumKilos += $kilos;
+            $cumKilosCentros += $kilosCentros;
+            $cumLitros += $litros;
+
+            $series[] = [
+                'day' => $dayNum,
+                'date' => $date,
+                'bins' => $bins,
+                'bandejas' => $bandejas,
+                'kilos' => $kilos,
+                'kilos_centros' => $kilosCentros,
+                'litros' => $litros,
+                'cum_bins' => $cumBins,
+                'cum_bandejas' => $cumBandejas,
+                'cum_kilos' => $cumKilos,
+                'cum_kilos_centros' => $cumKilosCentros,
+                'cum_litros' => $cumLitros,
+            ];
+        }
+
+        return $series;
+    }
 }
