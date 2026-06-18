@@ -4,55 +4,28 @@
     HEADER
     ═══════════════════════════════════════ --}}
     <x-slot name="header">
-        <div class="flex items-center gap-3 w-full">
-
-            {{-- Título (desktop) --}}
-            <div class="hidden sm:block shrink-0">
-                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Match ODOO</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Transferencias</p>
-            </div>
-            <div class="hidden sm:block h-5 w-px bg-gray-200 dark:bg-gray-700 shrink-0"></div>
-
-            {{-- Buscador centrado (desktop) --}}
-            <form method="GET" class="hidden sm:flex items-center gap-2 flex-1 max-w-xl">
-                <div class="relative flex-1">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
-                    </svg>
-                    <input name="q" value="{{ $q }}" placeholder="Contacto, guía, patente…"
-                        class="w-full pl-9 pr-3 py-2 text-sm rounded-xl
-                              border border-gray-200 dark:border-gray-700
-                              bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                              focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition placeholder-gray-400">
+        <div class="flex items-center justify-between w-full gap-4">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">Match ODOO</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Transferencias</p>
                 </div>
+            </div>
 
-                <select name="exists" class="flt-select">
-                    <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
-                    <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
-                    <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
-                </select>
-
-                <button type="submit" class="flt-btn flt-apply">Buscar</button>
-
-                @if($q || ($exists ?? '') !== '')
-                    <a href="{{ route('excel_out_transfers.index') }}" class="flt-btn flt-clear">Limpiar</a>
-                @endif
-            </form>
-
-            {{-- Exportar Excel --}}
-            <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
-                class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl
-                      bg-emerald-600 hover:bg-emerald-700 active:scale-95
-                      text-white transition shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span class="hidden sm:inline">Exportar Excel</span>
-            </a>
-
+            {{-- Acciones principales --}}
+            <div class="flex items-center gap-2 shrink-0">
+                {{-- Exportar Excel --}}
+                <a href="{{ route('excel_out_transfers.export', request()->query()) }}"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl
+                          bg-emerald-600 hover:bg-emerald-700 active:scale-95
+                          text-white transition shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Exportar Excel</span>
+                </a>
+            </div>
         </div>
     </x-slot>
 
@@ -68,45 +41,21 @@
     </style>
 
     <div class="page-bg">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
-            {{-- Buscador móvil --}}
-            <div class="sm:hidden au d1">
-                <form method="GET" class="space-y-2">
-                    <div class="mob-search">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
-                        </svg>
-                        <input name="q" value="{{ $q }}" type="text" inputmode="search" placeholder="Contacto, guía, patente…">
-                    </div>
-                    <div class="flex gap-2">
-                        <select name="exists" class="flt-select flex-1">
-                            <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos</option>
-                            <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
-                            <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
-                        </select>
-                        <button type="submit" class="flt-btn flt-apply">Buscar</button>
-                        @if($q || ($exists ?? '') !== '')
-                            <a href="{{ route('excel_out_transfers.index') }}" class="flt-btn flt-clear">Limpiar</a>
-                        @endif
-                    </div>
-                </form>
-            </div>
+        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
             {{-- Stats Grid (KPI Cards) --}}
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 au d1">
                 <x-kpi-card 
                     label="Total Transferencias" 
-                    value="{{ $total }}"
+                    value="{{ number_format($total, 0, ',', '.') }}"
                     iconBg="bg-indigo-50 dark:bg-indigo-900/20"
-                    :trend="0"
                 >
                     <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2"></path></svg>
                 </x-kpi-card>
 
                 <x-kpi-card 
                     label="Con Match ODOO" 
-                    value="{{ $matched }}"
+                    value="{{ number_format($matched, 0, ',', '.') }}"
                     iconBg="bg-emerald-50 dark:bg-emerald-900/20"
                     :pct="$total > 0 ? ($matched / $total * 100) : 0"
                 >
@@ -115,7 +64,7 @@
 
                 <x-kpi-card 
                     label="Sin Match" 
-                    value="{{ $unmatched }}"
+                    value="{{ number_format($unmatched, 0, ',', '.') }}"
                     iconBg="bg-rose-50 dark:bg-rose-900/20"
                     :pct="$total > 0 ? -($unmatched / $total * 100) : 0"
                 >
@@ -123,6 +72,64 @@
                 </x-kpi-card>
             </div>
 
+            {{-- Panel de Control / Filtros (Buscador + Cosecha + Match) --}}
+            <div class="t-card p-4 sm:p-5 space-y-4 au d1">
+                <form method="GET" action="{{ route('excel_out_transfers.index') }}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    
+                    {{-- Buscador --}}
+                    <div class="relative flex-1">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                        </svg>
+                        <input name="q" value="{{ $q }}" type="text" autocomplete="off" placeholder="Contacto, guía, patente…" 
+                            class="w-full pl-9 pr-8 py-2.5 text-sm rounded-xl
+                                  border border-gray-200 dark:border-gray-700
+                                  bg-white dark:bg-gray-900
+                                  text-gray-900 dark:text-gray-100
+                                  focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                                  outline-none transition placeholder-gray-400 shadow-sm">
+                        @if($q)
+                            <a href="{{ route('excel_out_transfers.index', request()->except('q')) }}"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </a>
+                        @endif
+                    </div>
+
+                    {{-- Selectores y Botones --}}
+                    <div class="flex gap-2">
+                        {{-- Estado Match --}}
+                        <select name="exists" class="flt-select flex-1 sm:flex-initial" onchange="this.form.submit()">
+                            <option value="" {{ ($exists ?? '') === '' ? 'selected' : '' }}>Todos los match</option>
+                            <option value="1" {{ ($exists ?? '') === '1' ? 'selected' : '' }}>Con match</option>
+                            <option value="0" {{ ($exists ?? '') === '0' ? 'selected' : '' }}>Sin match</option>
+                        </select>
+
+                        {{-- Cosecha --}}
+                        <select name="season" class="flt-select flex-1 sm:flex-initial" onchange="this.form.submit()">
+                            <option value="" {{ ($season ?? '') === '' ? 'selected' : '' }}>Todas las cosechas</option>
+                            @foreach($availableSeasons as $s)
+                                <option value="{{ $s }}" {{ ($season ?? '') == $s ? 'selected' : '' }}>{{ $s }}</option>
+                            @endforeach
+                        </select>
+
+                        <button type="submit" class="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition active:scale-95 shadow-sm">
+                            Buscar
+                        </button>
+
+                        @if($q || ($exists ?? '') !== '' || ($season ?? '') !== '')
+                            <a href="{{ route('excel_out_transfers.index') }}" class="flt-btn flt-clear flex items-center justify-center whitespace-nowrap">
+                                Limpiar
+                            </a>
+                        @endif
+                    </div>
+                </form>
+            </div>
 
             {{-- Flash ok --}}
             @if(session('ok'))

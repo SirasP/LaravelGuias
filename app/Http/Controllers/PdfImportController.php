@@ -532,9 +532,41 @@ class PdfImportController extends Controller
     {
         $q = trim((string) $request->get('q', ''));
         $model = trim((string) $request->get('model', ''));
+        $season = $request->get('season');
 
         $orderBy = $request->get('order_by', 'doc_fecha');
         $dir = $request->get('dir', 'desc');
+
+        // Obtener temporadas disponibles dinámicamente desde la BD (cosechas tipo 2025/2026)
+        $availableSeasons = PdfImport::query()
+            ->whereNotNull('created_at')
+            ->selectRaw("DISTINCT IF(MONTH(created_at) >= 6, CONCAT(YEAR(created_at), '/', YEAR(created_at) + 1), CONCAT(YEAR(created_at) - 1, '/', YEAR(created_at))) as season")
+            ->pluck('season')
+            ->toArray();
+
+        // Asegurar que la temporada actual y la siguiente (próxima cosecha) estén en el selector
+        $now = now();
+        $currentYear = $now->year;
+        $currentMonth = $now->month;
+        if ($currentMonth >= 6) {
+            $currentSeason = $currentYear . '/' . ($currentYear + 1);
+            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+        } else {
+            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
+            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+        }
+
+        if (!in_array($currentSeason, $availableSeasons)) {
+            $availableSeasons[] = $currentSeason;
+        }
+        if (!in_array($nextSeason, $availableSeasons)) {
+            $availableSeasons[] = $nextSeason;
+        }
+
+        // Ordenar temporadas descendentemente
+        usort($availableSeasons, function ($a, $b) {
+            return strcmp($b, $a);
+        });
 
         // ✅ Query base (AQUÍ estaba el problema antes)
         $query = PdfImport::with('lines');
@@ -546,6 +578,15 @@ class PdfImportController extends Controller
             } else {
                 $query->where('template', $model);
             }
+        }
+
+        // ===== Filtro por cosecha =====
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('created_at', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
         }
 
         // ===== Búsqueda global =====
@@ -560,6 +601,7 @@ class PdfImportController extends Controller
                 // 👇 si es texto → búsqueda amplia
                 else {
                     $w->where('original_name', 'like', "%{$q}%")
+                        ->orWhere('productor', 'like', "%{$q}%")
                         ->orWhere('doc_fecha', 'like', "%{$q}%")
                         ->orWhere('template', 'like', "%{$q}%");
                 }
@@ -580,9 +622,19 @@ class PdfImportController extends Controller
         // fallback seguro
         $query->orderBy('id', 'desc');
 
+        // Clonar consulta para obtener estadísticas rápidas antes de paginar
+        $totalImports = (clone $query)->count();
+        $xmlImports = (clone $query)->where('template', 'XML_SII_46')->count();
+        $sancoImports = (clone $query)->where('template', 'SANCO')->count();
+        $qcImports = (clone $query)->where('template', 'QC')->count();
+
         $imports = $query->paginate(15)->withQueryString();
 
-        return view('pdf.index', compact('imports', 'q', 'model', 'orderBy', 'dir'));
+        return view('pdf.index', compact(
+            'imports', 'q', 'model', 'orderBy', 'dir', 
+            'availableSeasons', 'season',
+            'totalImports', 'xmlImports', 'sancoImports', 'qcImports'
+        ));
     }
 
 
@@ -747,17 +799,46 @@ class PdfImportController extends Controller
 
     public function exportXlsx(Request $request)
     {
-        $q = PdfImport::query()->latest('id');
+        $q = PdfImport::query();
 
-        if ($request->filled('template')) {
-            $tpl = $request->input('template');
-            if ($tpl === '—')
+        // Filtro por modelo (soporta 'template' y 'model')
+        $model = $request->get('model') ?? $request->get('template');
+        if ($model !== null && $model !== '') {
+            if ($model === '—') {
                 $q->whereNull('template');
-            else
-                $q->where('template', $tpl);
+            } else {
+                $q->where('template', $model);
+            }
+        }
+
+        // Filtro por búsqueda global 'q'
+        $search = trim((string) $request->get('q', ''));
+        if ($search !== '') {
+            $q->where(function ($w) use ($search) {
+                if (ctype_digit($search)) {
+                    $w->where('guia_no', $search)
+                        ->orWhere('id', $search);
+                } else {
+                    $w->where('original_name', 'like', "%{$search}%")
+                        ->orWhere('doc_fecha', 'like', "%{$search}%")
+                        ->orWhere('template', 'like', "%{$search}%");
+                }
+            });
+        }
+
+        // Filtro por cosecha
+        $season = $request->get('season');
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $q->whereBetween('created_at', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
         }
 
         $q->whereNotNull('guia_no')->where('guia_no', '!=', '');
+
+        $q->orderBy('doc_fecha', 'desc')->orderBy('id', 'desc');
 
         $imports = $q->get();
 

@@ -20,8 +20,40 @@ class ExcelOutTransferController extends Controller
     {
         $q = trim((string) $request->get('q', ''));
         $exists = $request->get('exists'); // '1' | '0' | null
+        $season = $request->get('season');
         $orderBy = $request->get('order_by', 'fecha_prevista');
         $dir = $request->get('dir', 'desc');
+
+        // Obtener temporadas disponibles dinámicamente desde la BD (cosechas tipo 2025/2026)
+        $availableSeasons = ExcelOutTransfer::query()
+            ->whereNotNull('fecha_prevista')
+            ->selectRaw("DISTINCT IF(MONTH(fecha_prevista) >= 6, CONCAT(YEAR(fecha_prevista), '/', YEAR(fecha_prevista) + 1), CONCAT(YEAR(fecha_prevista) - 1, '/', YEAR(fecha_prevista))) as season")
+            ->pluck('season')
+            ->toArray();
+
+        // Asegurar que la temporada actual y la siguiente (próxima cosecha) estén en el selector
+        $now = now();
+        $currentYear = $now->year;
+        $currentMonth = $now->month;
+        if ($currentMonth >= 6) {
+            $currentSeason = $currentYear . '/' . ($currentYear + 1);
+            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+        } else {
+            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
+            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+        }
+
+        if (!in_array($currentSeason, $availableSeasons)) {
+            $availableSeasons[] = $currentSeason;
+        }
+        if (!in_array($nextSeason, $availableSeasons)) {
+            $availableSeasons[] = $nextSeason;
+        }
+
+        // Ordenar temporadas descendentemente
+        usort($availableSeasons, function ($a, $b) {
+            return strcmp($b, $a);
+        });
 
         // ============================
         // QUERY BASE (SIN GUÍAS VACÍAS)
@@ -66,6 +98,17 @@ class ExcelOutTransferController extends Controller
                     ->orWhere('referencia', 'like', "%{$q}%")
                     ->orWhere('archivo_dte', 'like', "%{$q}%");
             });
+        }
+
+        // ============================
+        // FILTRO POR COSECHA / TEMPORADA
+        // ============================
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('fecha_prevista', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
         }
 
         // ============================
@@ -115,6 +158,14 @@ class ExcelOutTransferController extends Controller
             });
         }
 
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $baseCountQuery->whereBetween('fecha_prevista', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
+        }
+
         $total = (clone $baseCountQuery)->count();
 
         $matched = (clone $baseCountQuery)
@@ -138,7 +189,9 @@ class ExcelOutTransferController extends Controller
             'dir',
             'total',
             'matched',
-            'unmatched'
+            'unmatched',
+            'availableSeasons',
+            'season'
         ));
     }
 
@@ -870,6 +923,15 @@ THEN CAST(
             $query->whereNotNull('p.id');
         if ($exists === '0')
             $query->whereNull('p.id');
+
+        $season = $request->get('season');
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('e.fecha_prevista', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
+        }
 
         if ($orderBy === 'exists_guia') {
             $query->orderByRaw("CASE WHEN p.id IS NULL THEN 0 ELSE 1 END {$dir}")

@@ -16,21 +16,88 @@ class ComfrutGuiaController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
+        $season = $request->get('season');
 
-        $guias = ComfrutGuia::query()
-            ->when($q, function ($query) use ($q) {
-                $query->where('guia_numero', 'like', "%{$q}%")
+        // Obtener temporadas disponibles dinámicamente desde la BD (cosechas tipo 2025/2026)
+        $availableSeasons = ComfrutGuia::query()
+            ->whereNotNull('created_at')
+            ->selectRaw("DISTINCT IF(MONTH(created_at) >= 6, CONCAT(YEAR(created_at), '/', YEAR(created_at) + 1), CONCAT(YEAR(created_at) - 1, '/', YEAR(created_at))) as season")
+            ->pluck('season')
+            ->toArray();
+
+        // Asegurar que la temporada actual y la siguiente (próxima cosecha) estén en el selector
+        $now = now();
+        $currentYear = $now->year;
+        $currentMonth = $now->month;
+        if ($currentMonth >= 6) {
+            $currentSeason = $currentYear . '/' . ($currentYear + 1);
+            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+        } else {
+            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
+            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+        }
+
+        if (!in_array($currentSeason, $availableSeasons)) {
+            $availableSeasons[] = $currentSeason;
+        }
+        if (!in_array($nextSeason, $availableSeasons)) {
+            $availableSeasons[] = $nextSeason;
+        }
+
+        // Ordenar temporadas descendentemente
+        usort($availableSeasons, function ($a, $b) {
+            return strcmp($b, $a);
+        });
+
+        $query = ComfrutGuia::query();
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('guia_numero', 'like', "%{$q}%")
                     ->orWhere('productor', 'like', "%{$q}%")
                     ->orWhere('patente', 'like', "%{$q}%");
-            })
-            ->orderByDesc('fecha_guia')
+            });
+        }
+
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('created_at', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
+        }
+
+        // Clonar consulta para obtener estadísticas antes de paginar y ordenar
+        $totalBandejas = \App\Models\ComfrutGuiaDetalle::whereIn('comfrut_guia_id', (clone $query)->select('id'))
+            ->where(function ($w) {
+                $w->where('nombre_item', 'like', '%BANDEJ%')
+                  ->orWhere('nombre_item', 'like', '%BDJA%');
+            })->sum('cantidad');
+
+        $totalPallets = \App\Models\ComfrutGuiaDetalle::whereIn('comfrut_guia_id', (clone $query)->select('id'))
+            ->where(function ($w) {
+                $w->where('nombre_item', 'like', '%PALLET%')
+                  ->orWhere('nombre_item', 'like', '%PALE%');
+            })->sum('cantidad');
+
+        $uniqueProducers = (clone $query)->distinct('productor')->count('productor');
+
+        // Carga ansiosa para evitar N+1
+        $query->with('detalles');
+
+        $guias = $query->orderByDesc('fecha_guia')
             ->paginate(20)
             ->withQueryString();
 
         return view('guias.comfrut.index', [
             'guias' => $guias,
             'q' => $q,
+            'season' => $season,
+            'availableSeasons' => $availableSeasons,
             'total' => $guias->total(),
+            'totalBandejas' => $totalBandejas,
+            'totalPallets' => $totalPallets,
+            'uniqueProducers' => $uniqueProducers,
         ]);
     }
     public function importForm()
@@ -162,12 +229,27 @@ class ComfrutGuiaController extends Controller
     public function exportExcelPhpSpreadsheet(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
+        $season = $request->get('season');
 
-        $guias = ComfrutGuia::with('detalles')
-            ->when($q, fn($query) => $query->where('guia_numero', 'like', "%{$q}%")
-                ->orWhere('productor', 'like', "%{$q}%")
-                ->orWhere('patente', 'like', "%{$q}%"))
-            ->get();
+        $query = ComfrutGuia::with('detalles');
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('guia_numero', 'like', "%{$q}%")
+                    ->orWhere('productor', 'like', "%{$q}%")
+                    ->orWhere('patente', 'like', "%{$q}%");
+            });
+        }
+
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('created_at', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
+        }
+
+        $guias = $query->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

@@ -16,7 +16,39 @@ class AgrakController extends Controller
         $campo = trim((string) $request->get('campo', ''));
         $cuartel = trim((string) $request->get('cuartel', ''));
         $especie = trim((string) $request->get('especie', ''));
+        $season = $request->get('season');
         $view = $request->get('view', 'list'); // list | group
+
+        // Obtener temporadas disponibles dinámicamente desde la BD (cosechas tipo 2025/2026)
+        $availableSeasons = AgrakRegistro::query()
+            ->whereNotNull('created_at')
+            ->selectRaw("DISTINCT IF(MONTH(created_at) >= 6, CONCAT(YEAR(created_at), '/', YEAR(created_at) + 1), CONCAT(YEAR(created_at) - 1, '/', YEAR(created_at))) as season")
+            ->pluck('season')
+            ->toArray();
+
+        // Asegurar que la temporada actual y la siguiente (próxima cosecha) estén en el selector
+        $now = now();
+        $currentYear = $now->year;
+        $currentMonth = $now->month;
+        if ($currentMonth >= 6) {
+            $currentSeason = $currentYear . '/' . ($currentYear + 1);
+            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+        } else {
+            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
+            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+        }
+
+        if (!in_array($currentSeason, $availableSeasons)) {
+            $availableSeasons[] = $currentSeason;
+        }
+        if (!in_array($nextSeason, $availableSeasons)) {
+            $availableSeasons[] = $nextSeason;
+        }
+
+        // Ordenar temporadas descendentemente
+        usort($availableSeasons, function ($a, $b) {
+            return strcmp($b, $a);
+        });
 
         /* ======================================================
          |  VISTA AGRUPADA: VIAJES POR CAMIÓN (gap de tiempo)
@@ -32,6 +64,14 @@ class AgrakController extends Controller
                 $base->where('cuartel', $cuartel);
             if ($especie !== '')
                 $base->where('especie', $especie);
+
+            if ($season && str_contains($season, '/')) {
+                [$startYear, $endYear] = explode('/', $season);
+                $base->whereBetween('created_at', [
+                    "{$startYear}-06-01 00:00:00",
+                    "{$endYear}-05-31 23:59:59"
+                ]);
+            }
 
             if ($q !== '') {
                 $base->where(function ($w) use ($q) {
@@ -143,6 +183,8 @@ class AgrakController extends Controller
                 'campo' => $campo,
                 'cuartel' => $cuartel,
                 'especie' => $especie,
+                'season' => $season,
+                'availableSeasons' => $availableSeasons,
                 'campos' => $campos,
                 'cuarteles' => $cuarteles,
                 'especies' => $especies,
@@ -164,6 +206,14 @@ class AgrakController extends Controller
             $query->where('cuartel', $cuartel);
         if ($especie !== '')
             $query->where('especie', $especie);
+
+        if ($season && str_contains($season, '/')) {
+            [$startYear, $endYear] = explode('/', $season);
+            $query->whereBetween('created_at', [
+                "{$startYear}-06-01 00:00:00",
+                "{$endYear}-05-31 23:59:59"
+            ]);
+        }
 
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
@@ -210,7 +260,7 @@ class AgrakController extends Controller
         $cuarteles = AgrakRegistro::select('cuartel')->whereNotNull('cuartel')->distinct()->orderBy('cuartel')->pluck('cuartel');
         $especies = AgrakRegistro::select('especie')->whereNotNull('especie')->distinct()->orderBy('especie')->pluck('especie');
 
-        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies', 'stats'));
+        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies', 'stats', 'availableSeasons', 'season'));
     }
 
     public function show(int $id)
