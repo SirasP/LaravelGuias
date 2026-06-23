@@ -46,4 +46,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'webfleet' => [
+        'base_url' => env('WEBFLEET_BASE_URL', 'https://csv.webfleet.com/extern'),
+        'account' => env('WEBFLEET_ACCOUNT'),
+        'username' => env('WEBFLEET_USERNAME'),
+        'password' => env('WEBFLEET_PASSWORD'),
+        'api_key' => env('WEBFLEET_API_KEY'),
+    ],
+
 ];

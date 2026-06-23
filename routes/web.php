@@ -21,6 +21,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Webfleet\WebfleetController;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -182,6 +183,19 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+/*
+|--------------------------------------------------------------------------
+| WEBFLEET
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('webfleet')
+    ->name('webfleet.')
+    ->group(function () {
+        Route::get('/', [WebfleetController::class, 'index'])->name('index');
+        Route::get('/viajes', [WebfleetController::class, 'trips'])->name('trips');
+    });
 
 /*
 |--------------------------------------------------------------------------

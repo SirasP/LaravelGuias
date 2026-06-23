@@ -125,6 +125,23 @@
         @endif
         @endif
 
+        @if(auth()->check() && auth()->user()->role === 'admin')
+            {{-- ─── SECCIÓN: INTEGRACIONES ─── --}}
+            <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
+                <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Integraciones</p>
+            </div>
+            <div x-show="!expanded" class="mx-auto w-6 border-t border-gray-200 dark:border-gray-800 my-2.5"></div>
+
+            @php $webfleetActive = request()->routeIs('webfleet.*'); @endphp
+            <x-nav-item id="webfleet" label="Webfleet" iconBgColor="sky" :active="$webfleetActive">
+                <x-slot name="icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h10zM13 9h4l4 4v3h-8V9z" />
+                </x-slot>
+                <x-nav-sublink href="{{ route('webfleet.index') }}" :active="request()->routeIs('webfleet.index')" color="sky">Panel</x-nav-sublink>
+            </x-nav-item>
+        @endif
+
         @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
             {{-- ─── SECCIÓN: FACTURAS PROVEEDOR (admin + bodeguero) ─── --}}
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
