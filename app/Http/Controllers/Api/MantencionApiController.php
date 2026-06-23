@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\ProductVolumeDetector;
 use Illuminate\Support\Facades\DB;
 
 class MantencionApiController extends Controller
@@ -12,20 +13,21 @@ class MantencionApiController extends Controller
     /** Bodega Taller Mecánico (fijo) */
     private const BODEGA_TALLER = 2;
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // REPUESTOS
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * GET /api/mantencion/repuestos
      *
-     * Devuelve el stock actual de Taller Mecánico:
-     * - Todos los productos que tienen al menos un lote en bodega_id=2
-     * - stock_disponible = suma de cantidad_disponible en lotes ABIERTO de esa bodega
-     * - Ordenados por nombre
+     * Devuelve el stock actual de Taller Mecánico.
+     * Si existe una conversión para el producto, incluye factor y unidad_consumo
+     * para que la app muestre litros en lugar de tambores.
      */
     public function repuestos(Request $request): JsonResponse
     {
         $q = trim((string) $request->query('q', ''));
 
-        // Obtenemos los productos que tienen lotes en Taller Mecánico
-        // junto con su stock disponible (suma de lotes ABIERTO en esa bodega)
         $products = DB::connection('fuelcontrol')
             ->table('gmail_inventory_products as p')
             ->join(
@@ -57,6 +59,58 @@ class MantencionApiController extends Controller
             ->orderBy('p.nombre')
             ->get();
 
+        // ── Conversiones manuales ya guardadas ──────────────────────────────────
+        $productIds   = $products->pluck('id');
+        $conversiones = DB::table('inventory_conversions')
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy('product_id');
+
+        // ── Auto-detectar conversiones que aún no existen ───────────────────
+        // Solo intentamos en productos sin conversión y cuya unidad sea "Unidades"
+        // (o variantes), ya que los líquidos en Odoo suelen estar como unidades sueltas.
+        $sinConversion = $products->filter(
+            fn($p) => !$conversiones->has($p->id)
+        );
+
+        if ($sinConversion->isNotEmpty()) {
+            $autoDetectados = ProductVolumeDetector::detectMany($sinConversion);
+
+            if (!empty($autoDetectados)) {
+                $ahora = now();
+                foreach ($autoDetectados as $det) {
+                    // Solo guardar si no existe ya (evitar sobreescribir manuales)
+                    $existe = DB::table('inventory_conversions')
+                        ->where('product_id', $det['product_id'])
+                        ->exists();
+
+                    if (!$existe) {
+                        DB::table('inventory_conversions')->insert([
+                            'product_id'     => $det['product_id'],
+                            'nombre'         => $det['nombre'],
+                            'factor'         => $det['factor'],
+                            'unidad_consumo' => $det['unidad_consumo'],
+                            'unidad_compra'  => $det['unidad_compra'],
+                            'auto_detected'  => true,
+                            'created_at'     => $ahora,
+                            'updated_at'     => $ahora,
+                        ]);
+                        $conversiones->put($det['product_id'], (object) $det);
+                    }
+                }
+            }
+        }
+
+        // ── Mezclar conversiones en cada producto ────────────────────────────
+        $products = $products->map(function ($p) use ($conversiones) {
+            $conv = $conversiones->get($p->id);
+            $p->factor         = $conv ? (float) $conv->factor        : null;
+            $p->unidad_consumo = $conv ? $conv->unidad_consumo        : null;
+            $p->unidad_compra  = $conv ? $conv->unidad_compra         : null;
+            $p->auto_detected  = $conv ? (bool)  $conv->auto_detected : false;
+            return $p;
+        });
+
         return response()->json([
             'ok'           => true,
             'bodega'       => 'Taller Mecánico',
@@ -67,46 +121,74 @@ class MantencionApiController extends Controller
         ]);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONVERSIONES
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * POST /api/mantencion/fcm-token
-     *
-     * Registra o actualiza el token FCM del dispositivo para la app de mantención.
-     * Body: { fcm_token, device_type, device_name? }
-     *
-     * No requiere user_id — todos los tokens de mantencion reciben el mismo push.
+     * GET /api/mantencion/conversiones
+     * Lista todas las conversiones configuradas.
      */
-    public function registerFcmToken(Request $request): JsonResponse
+    public function conversiones(): JsonResponse
     {
-        $validated = $request->validate([
-            'fcm_token'   => 'required|string',
-            'device_type' => 'required|in:android,ios',
-            'device_name' => 'nullable|string|max:255',
-        ]);
+        $rows = DB::table('inventory_conversions')
+            ->orderBy('nombre')
+            ->get();
 
-        DB::connection('fuelcontrol')
-            ->table('device_tokens')
-            ->updateOrInsert(
-                ['fcm_token' => $validated['fcm_token']],
-                [
-                    'user_id'     => 0,          // No aplica para esta app
-                    'device_type' => $validated['device_type'],
-                    'device_name' => $validated['device_name'] ?? null,
-                    'app_type'    => 'mantencion',
-                    'active'      => true,
-                    'updated_at'  => now(),
-                ]
-            );
-
-        return response()->json([
-            'ok'      => true,
-            'message' => 'Token FCM registrado para app mantención.',
-        ]);
+        return response()->json(['ok' => true, 'data' => $rows]);
     }
 
     /**
-     * GET /api/mantencion/repuestos/{id}/movimientos
+     * POST /api/mantencion/conversiones
+     * Crea o actualiza la conversión de un producto.
      *
-     * Historial de movimientos de un producto en Taller Mecánico.
+     * Body: { product_id, factor, unidad_consumo, unidad_compra?, nombre? }
+     * Ejemplo: { product_id: 42, factor: 208, unidad_consumo: "Ltrs", unidad_compra: "tambor" }
+     */
+    public function upsertConversion(Request $request): JsonResponse
+    {
+        $v = $request->validate([
+            'product_id'    => 'required|integer|min:1',
+            'factor'        => 'required|numeric|min:0.0001',
+            'unidad_consumo'=> 'required|string|max:20',
+            'unidad_compra' => 'nullable|string|max:40',
+            'nombre'        => 'nullable|string|max:200',
+        ]);
+
+        DB::table('inventory_conversions')->updateOrInsert(
+            ['product_id' => $v['product_id']],
+            [
+                'nombre'        => $v['nombre'] ?? null,
+                'factor'        => $v['factor'],
+                'unidad_consumo'=> $v['unidad_consumo'],
+                'unidad_compra' => $v['unidad_compra'] ?? null,
+                'updated_at'    => now(),
+                'created_at'    => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true, 'message' => 'Conversión guardada.']);
+    }
+
+    /**
+     * DELETE /api/mantencion/conversiones/{product_id}
+     * Elimina la conversión de un producto (vuelve a unidad nativa de Odoo).
+     */
+    public function deleteConversion(int $productId): JsonResponse
+    {
+        DB::table('inventory_conversions')->where('product_id', $productId)->delete();
+
+        return response()->json(['ok' => true, 'message' => 'Conversión eliminada.']);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MOVIMIENTOS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/mantencion/repuestos/{id}/movimientos
+     * Historial de movimientos de un producto.
+     * Incluye factor de conversión si está configurado.
      */
     public function movimientos(int $id): JsonResponse
     {
@@ -141,7 +223,6 @@ class MantencionApiController extends Controller
             ->limit(50)
             ->get();
 
-        // Stock actual en Taller Mecánico
         $stockActual = DB::connection('fuelcontrol')
             ->table('gmail_inventory_lots')
             ->where('product_id', $id)
@@ -149,28 +230,32 @@ class MantencionApiController extends Controller
             ->where('estado', 'ABIERTO')
             ->sum('cantidad_disponible');
 
+        // Incluir conversión si existe
+        $conv = DB::table('inventory_conversions')->where('product_id', $id)->first();
+
         return response()->json([
-            'ok'          => true,
-            'producto'    => $product,
-            'stock_actual'=> (float) $stockActual,
-            'movimientos' => $movimientos,
+            'ok'           => true,
+            'producto'     => $product,
+            'stock_actual' => (float) $stockActual,
+            'factor'       => $conv ? (float) $conv->factor        : null,
+            'unidad_consumo'=> $conv ? $conv->unidad_consumo        : null,
+            'unidad_compra' => $conv ? $conv->unidad_compra         : null,
+            'movimientos'  => $movimientos,
         ]);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EGRESOS
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * POST /api/mantencion/egresos
      *
-     * Registra una salida de stock (FIFO) para cada insumo usado en una mantención.
+     * Registra salida de stock (FIFO).
+     * Si el producto tiene conversión, la cantidad viene en unidad de consumo (Ltrs)
+     * y se convierte automáticamente a la unidad de Odoo antes de descontar.
      *
-     * Body JSON:
-     * {
-     *   "equipo":   "Tractor John Deere",   // opcional
-     *   "notas":    "Mantención preventiva", // opcional
-     *   "items": [
-     *     { "product_id": 5, "cantidad": 2 },
-     *     { "product_id": 9, "cantidad": 1 }
-     *   ]
-     * }
+     * Body: { equipo?, notas?, items: [{ product_id, cantidad }] }
      */
     public function registrarEgresos(Request $request): JsonResponse
     {
@@ -182,13 +267,20 @@ class MantencionApiController extends Controller
             'notas'              => 'nullable|string|max:1000',
         ]);
 
-        $db     = DB::connection('fuelcontrol');
-        $notas  = trim(($validated['equipo'] ?? '') . ' — ' . ($validated['notas'] ?? 'Mantención'));
+        $db    = DB::connection('fuelcontrol');
+        $notas = trim(($validated['equipo'] ?? '') . ' — ' . ($validated['notas'] ?? 'Mantención'));
+
+        // Cargar conversiones para todos los productos del request
+        $productIds = collect($validated['items'])->pluck('product_id')->unique();
+        $conversiones = DB::table('inventory_conversions')
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy('product_id');
+
         $errors = [];
 
-        $db->transaction(function () use ($db, $validated, $notas, &$errors) {
+        $db->transaction(function () use ($db, $validated, $notas, $conversiones, &$errors) {
 
-            // Crear cabecera del movimiento (una por llamada)
             $movementId = $db->table('gmail_inventory_movements')->insertGetId([
                 'tipo'           => 'SALIDA',
                 'tipo_salida'    => 'MANTENCION',
@@ -204,22 +296,35 @@ class MantencionApiController extends Controller
             $cantidadTotalMovimiento = 0;
 
             foreach ($validated['items'] as $item) {
-                $productId     = (int) $item['product_id'];
-                $cantidadNecesaria = (float) $item['cantidad'];
+                $productId           = (int)   $item['product_id'];
+                $cantidadSolicitada  = (float) $item['cantidad']; // en unidad de consumo (Ltrs, etc.)
 
-                // Lotes ABIERTO en Taller Mecánico, orden FIFO
+                // Convertir a unidad de Odoo si hay conversión configurada
+                $conv = $conversiones->get($productId);
+                $cantidadNecesaria = ($conv && $conv->factor > 0)
+                    ? round($cantidadSolicitada / $conv->factor, 6)
+                    : $cantidadSolicitada;
+
                 $lotes = $db->table('gmail_inventory_lots')
                     ->where('product_id', $productId)
                     ->where('bodega_id', self::BODEGA_TALLER)
                     ->where('estado', 'ABIERTO')
                     ->where('cantidad_disponible', '>', 0)
-                    ->orderBy('id')           // FIFO
+                    ->orderBy('id') // FIFO
                     ->get();
 
                 $stockTotal = $lotes->sum('cantidad_disponible');
 
                 if ($stockTotal < $cantidadNecesaria) {
-                    $errors[] = "Producto #{$productId}: stock insuficiente ({$stockTotal} disponible, se pidieron {$cantidadNecesaria})";
+                    // Mostrar mensaje en unidad entendible
+                    $stockMostrar = $conv
+                        ? round($stockTotal * $conv->factor, 2) . ' ' . $conv->unidad_consumo
+                        : "{$stockTotal}";
+                    $pedidoMostrar = $conv
+                        ? "{$cantidadSolicitada} {$conv->unidad_consumo}"
+                        : "{$cantidadSolicitada}";
+
+                    $errors[] = "Producto #{$productId}: stock insuficiente ({$stockMostrar} disponible, se pidieron {$pedidoMostrar})";
                     throw new \Exception('stock_insuficiente');
                 }
 
@@ -231,7 +336,6 @@ class MantencionApiController extends Controller
                     $deducir = min($pendiente, $lote->cantidad_disponible);
                     $nueva   = $lote->cantidad_disponible - $deducir;
 
-                    // Actualizar lote
                     $db->table('gmail_inventory_lots')
                         ->where('id', $lote->id)
                         ->update([
@@ -241,17 +345,16 @@ class MantencionApiController extends Controller
                             'updated_at'          => now(),
                         ]);
 
-                    // Línea del movimiento
                     $costoUnitario = $lote->costo_unitario ?? 0;
                     $db->table('gmail_inventory_movement_lines')->insert([
-                        'movement_id'   => $movementId,
-                        'lot_id'        => $lote->id,
-                        'product_id'    => $productId,
-                        'cantidad'      => $deducir,
-                        'costo_unitario'=> $costoUnitario,
-                        'costo_total'   => round($deducir * $costoUnitario, 6),
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
+                        'movement_id'    => $movementId,
+                        'lot_id'         => $lote->id,
+                        'product_id'     => $productId,
+                        'cantidad'       => $deducir,   // en unidad Odoo (tambores)
+                        'costo_unitario' => $costoUnitario,
+                        'costo_total'    => round($deducir * $costoUnitario, 6),
+                        'created_at'     => now(),
+                        'updated_at'     => now(),
                     ]);
 
                     $pendiente -= $deducir;
@@ -260,7 +363,6 @@ class MantencionApiController extends Controller
                 $cantidadTotalMovimiento += $cantidadNecesaria;
             }
 
-            // Actualizar totales del movimiento
             $db->table('gmail_inventory_movements')
                 ->where('id', $movementId)
                 ->update(['cantidad_total' => $cantidadTotalMovimiento, 'updated_at' => now()]);
@@ -273,12 +375,35 @@ class MantencionApiController extends Controller
         return response()->json(['ok' => true, 'message' => 'Egresos registrados correctamente.']);
     }
 
-    /**
-     * DELETE /api/mantencion/fcm-token
-     *
-     * Desactiva el token (logout / desinstalación).
-     * Body: { fcm_token }
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // FCM TOKENS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function registerFcmToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'fcm_token'   => 'required|string',
+            'device_type' => 'required|in:android,ios',
+            'device_name' => 'nullable|string|max:255',
+        ]);
+
+        DB::connection('fuelcontrol')
+            ->table('device_tokens')
+            ->updateOrInsert(
+                ['fcm_token' => $validated['fcm_token']],
+                [
+                    'user_id'     => 0,
+                    'device_type' => $validated['device_type'],
+                    'device_name' => $validated['device_name'] ?? null,
+                    'app_type'    => 'mantencion',
+                    'active'      => true,
+                    'updated_at'  => now(),
+                ]
+            );
+
+        return response()->json(['ok' => true, 'message' => 'Token FCM registrado para app mantención.']);
+    }
+
     public function deactivateFcmToken(Request $request): JsonResponse
     {
         $validated = $request->validate([
