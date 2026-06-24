@@ -159,7 +159,7 @@
                                     </div>
                                     <p class="text-gray-700 dark:text-gray-300 font-semibold">{{ $msg }}</p>
                                     <div class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center justify-between gap-3 pt-0.5">
-                                        <span class="truncate max-w-[150px]">{{ $event['postext'] }}</span>
+                                        <span class="truncate max-w-[150px]">{{ $event['postext'] ?? 'Sin dirección' }}</span>
                                         @if(isset($event['latitude_mdeg']) && isset($event['longitude_mdeg']))
                                             <button type="button"
                                                 onclick="focusEvent({{ $event['latitude_mdeg'] }}, {{ $event['longitude_mdeg'] }}, {{ $index }})"

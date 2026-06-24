@@ -178,11 +178,11 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         <div class="font-semibold">{{ \Carbon\Carbon::parse($trip['start_time'])->format('H:i') }} hrs</div>
-                                        <div class="text-[10px] text-gray-400 max-w-[200px] truncate" title="{{ $trip['start_postext'] }}">{{ $trip['start_postext'] }}</div>
+                                        <div class="text-[10px] text-gray-400 max-w-[200px] truncate" title="{{ $trip['start_postext'] ?? 'Sin dirección' }}">{{ $trip['start_postext'] ?? 'Sin dirección' }}</div>
                                     </td>
                                     <td class="px-4 py-3">
                                         <div class="font-semibold">{{ \Carbon\Carbon::parse($trip['end_time'])->format('H:i') }} hrs</div>
-                                        <div class="text-[10px] text-gray-400 max-w-[200px] truncate" title="{{ $trip['end_postext'] }}">{{ $trip['end_postext'] }}</div>
+                                        <div class="text-[10px] text-gray-400 max-w-[200px] truncate" title="{{ $trip['end_postext'] ?? 'Sin dirección' }}">{{ $trip['end_postext'] ?? 'Sin dirección' }}</div>
                                     </td>
                                     <td class="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
                                         {{ number_format(($trip['distance'] ?? 0) / 1000, 2, ',', '.') }} km
@@ -334,8 +334,8 @@
                             <div class="font-bold text-gray-900 border-b pb-1">${t.objectname}</div>
                             <div><b>Horario:</b> ${startTime} - ${endTime}</div>
                             <div><b>Distancia:</b> ${distKm} km</div>
-                            <div><b>Origen:</b> ${t.start_postext_short ?? t.start_postext}</div>
-                            <div><b>Destino:</b> ${t.end_postext_short ?? t.end_postext}</div>
+                            <div><b>Origen:</b> ${t.start_postext_short ?? (t.start_postext ?? 'Sin dirección')}</div>
+                            <div><b>Destino:</b> ${t.end_postext_short ?? (t.end_postext ?? 'Sin dirección')}</div>
                         </div>
                     `;
 

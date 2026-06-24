@@ -257,7 +257,7 @@
                                         </span>
                                     </div>
                                     <p class="text-gray-700 dark:text-gray-300 font-semibold mt-0.5">{{ $evt['msgtext'] }}</p>
-                                    <span class="text-[10px] text-gray-400 block mt-0.5">{{ $evt['postext'] }}</span>
+                                    <span class="text-[10px] text-gray-400 block mt-0.5">{{ $evt['postext'] ?? 'Sin dirección' }}</span>
                                 </div>
                             @empty
                                 <div class="text-center py-8 text-gray-500 dark:text-gray-400 text-xs">
