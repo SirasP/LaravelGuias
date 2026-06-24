@@ -189,7 +189,7 @@ Route::middleware('auth')->group(function () {
 | WEBFLEET
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:admin'])
+Route::middleware(['auth', 'role:admin,viewer'])
     ->prefix('webfleet')
     ->name('webfleet.')
     ->group(function () {
