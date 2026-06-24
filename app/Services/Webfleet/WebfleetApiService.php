@@ -118,6 +118,227 @@ class WebfleetApiService
         }
     }
 
+    public function eventReport(string $from, string $to, ?string $objectNo = null): array
+    {
+        if (! $this->configured()) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => 'Faltan credenciales Webfleet en el archivo .env.',
+            ];
+        }
+
+        try {
+            $params = [
+                'action' => 'showEventReportExtern',
+                'rangefrom_string' => $from,
+                'rangeto_string' => $to,
+            ];
+
+            if (! empty($objectNo)) {
+                $params['objectno'] = $objectNo;
+            }
+
+            $response = $this->request($params);
+            $data = $response->json() ?? [];
+
+            if (is_array($data) && ! array_is_list($data) && ! empty($data)) {
+                if (isset($data['errorCode'])) {
+                    return [
+                        'ok' => false,
+                        'status' => $response->status(),
+                        'data' => [],
+                        'raw' => $response->body(),
+                        'error' => $data['errorMsg'] ?? 'Error de Webfleet.',
+                    ];
+                }
+                $data = [$data];
+            }
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'data' => $data,
+                'raw' => $response->body(),
+                'error' => $response->successful() ? null : $response->body(),
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
+    public function idleExceptions(string $from, string $to, string $objectNo): array
+    {
+        if (! $this->configured()) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => 'Faltan credenciales Webfleet en el archivo .env.',
+            ];
+        }
+
+        try {
+            $params = [
+                'action' => 'showIdleExceptions',
+                'objectno' => $objectNo,
+                'rangefrom_string' => $from,
+                'rangeto_string' => $to,
+            ];
+
+            $response = $this->request($params);
+            $data = $response->json() ?? [];
+
+            if (is_array($data) && ! array_is_list($data) && ! empty($data)) {
+                if (isset($data['errorCode'])) {
+                    return [
+                        'ok' => false,
+                        'status' => $response->status(),
+                        'data' => [],
+                        'raw' => $response->body(),
+                        'error' => $data['errorMsg'] ?? 'Error de Webfleet.',
+                    ];
+                }
+                $data = [$data];
+            }
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'data' => $data,
+                'raw' => $response->body(),
+                'error' => $response->successful() ? null : $response->body(),
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
+    public function objectCanSignals(?string $objectNo = null): array
+    {
+        if (! $this->configured()) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => 'Faltan credenciales Webfleet en el archivo .env.',
+            ];
+        }
+
+        try {
+            $params = [
+                'action' => 'getObjectCanSignals',
+            ];
+
+            if (! empty($objectNo)) {
+                $params['objectno'] = $objectNo;
+            }
+
+            $response = $this->request($params);
+            $data = $response->json() ?? [];
+
+            if (is_array($data) && ! array_is_list($data) && ! empty($data)) {
+                if (isset($data['errorCode'])) {
+                    return [
+                        'ok' => false,
+                        'status' => $response->status(),
+                        'data' => [],
+                        'raw' => $response->body(),
+                        'error' => $data['errorMsg'] ?? 'Error de Webfleet.',
+                    ];
+                }
+                $data = [$data];
+            }
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'data' => $data,
+                'raw' => $response->body(),
+                'error' => $response->successful() ? null : $response->body(),
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
+    public function objectCanMalfunctions(?string $objectNo = null): array
+    {
+        if (! $this->configured()) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => 'Faltan credenciales Webfleet en el archivo .env.',
+            ];
+        }
+
+        try {
+            $params = [
+                'action' => 'getObjectCanMalfunctions',
+            ];
+
+            if (! empty($objectNo)) {
+                $params['objectno'] = $objectNo;
+            }
+
+            $response = $this->request($params);
+            $data = $response->json() ?? [];
+
+            if (is_array($data) && ! array_is_list($data) && ! empty($data)) {
+                if (isset($data['errorCode'])) {
+                    return [
+                        'ok' => false,
+                        'status' => $response->status(),
+                        'data' => [],
+                        'raw' => $response->body(),
+                        'error' => $data['errorMsg'] ?? 'Error de Webfleet.',
+                    ];
+                }
+                $data = [$data];
+            }
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'data' => $data,
+                'raw' => $response->body(),
+                'error' => $response->successful() ? null : $response->body(),
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'data' => [],
+                'raw' => null,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
     private function request(array $parameters): Response
     {
         return Http::asForm()

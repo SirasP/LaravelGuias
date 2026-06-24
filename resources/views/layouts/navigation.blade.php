@@ -139,6 +139,10 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h10zM13 9h4l4 4v3h-8V9z" />
                 </x-slot>
                 <x-nav-sublink href="{{ route('webfleet.index') }}" :active="request()->routeIs('webfleet.index')" color="sky">Panel</x-nav-sublink>
+                <x-nav-sublink href="{{ route('webfleet.trips') }}" :active="request()->routeIs('webfleet.trips')" color="sky">Viajes</x-nav-sublink>
+                <x-nav-sublink href="{{ route('webfleet.events') }}" :active="request()->routeIs('webfleet.events')" color="sky">Eventos</x-nav-sublink>
+                <x-nav-sublink href="{{ route('webfleet.idle') }}" :active="request()->routeIs('webfleet.idle')" color="sky">Ralentí</x-nav-sublink>
+                <x-nav-sublink href="{{ route('webfleet.diagnostics') }}" :active="request()->routeIs('webfleet.diagnostics')" color="sky">Diagnóstico</x-nav-sublink>
             </x-nav-item>
         @endif
 

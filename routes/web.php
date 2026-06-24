@@ -195,6 +195,9 @@ Route::middleware(['auth', 'role:admin'])
     ->group(function () {
         Route::get('/', [WebfleetController::class, 'index'])->name('index');
         Route::get('/viajes', [WebfleetController::class, 'trips'])->name('trips');
+        Route::get('/eventos', [WebfleetController::class, 'events'])->name('events');
+        Route::get('/ralenti', [WebfleetController::class, 'idleExceptions'])->name('idle');
+        Route::get('/diagnosticos', [WebfleetController::class, 'diagnostics'])->name('diagnostics');
     });
 
 /*

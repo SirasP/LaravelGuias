@@ -31,7 +31,19 @@
                 </a>
                 <a href="{{ route('webfleet.trips') }}"
                     class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm">
-                    Historial de Viajes
+                    Viajes
+                </a>
+                <a href="{{ route('webfleet.events') }}"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Eventos
+                </a>
+                <a href="{{ route('webfleet.idle') }}"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Ralentí
+                </a>
+                <a href="{{ route('webfleet.diagnostics') }}"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Diagnóstico
                 </a>
             </div>
         </div>
@@ -81,7 +93,7 @@
         @endif
 
         <!-- Tarjetas Informativas / Totales -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
             <div class="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm">
                 <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Total Viajes</span>
                 <span class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1 block">
@@ -108,9 +120,23 @@
             </div>
 
             <div class="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm">
-                <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Tiempo Ralentí (Idle)</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Tiempo Ralentí</span>
                 <span class="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1 block">
                     {{ floor($tripStats['total_idle_s'] / 60) }} min
+                </span>
+            </div>
+
+            <div class="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Combustible Usado</span>
+                <span class="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
+                    {{ $tripStats['total_fuel_ml'] > 0 ? number_format($tripStats['total_fuel_ml'] / 1000, 1, ',', '.') . ' L' : '0 L' }}
+                </span>
+            </div>
+
+            <div class="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Emisiones CO₂</span>
+                <span class="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1 block">
+                    {{ $tripStats['total_co2_g'] > 0 ? number_format($tripStats['total_co2_g'] / 1000, 1, ',', '.') . ' kg' : '0 kg' }}
                 </span>
             </div>
         </div>
@@ -139,6 +165,8 @@
                                 <th class="px-4 py-3">Duración</th>
                                 <th class="px-4 py-3">Ralentí (Idle)</th>
                                 <th class="px-4 py-3">Vel. Prom / Max</th>
+                                <th class="px-4 py-3">Combustible / Prom / CO₂</th>
+                                <th class="px-4 py-3">OptiDrive / CAN</th>
                                 <th class="px-4 py-3">Ruta</th>
                             </tr>
                         </thead>
@@ -167,6 +195,51 @@
                                     </td>
                                     <td class="px-4 py-3 text-gray-600 dark:text-gray-400 font-semibold">
                                         {{ $trip['avg_speed'] ?? 0 }} / {{ $trip['max_speed'] ?? 0 }} km/h
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @php
+                                            $fuelLtr = isset($trip['fuel_consumption']) ? ($trip['fuel_consumption'] / 1000) : (isset($trip['fuel_consumed']) ? ($trip['fuel_consumed'] / 1000) : (isset($trip['fuel_usage']) ? ($trip['fuel_usage'] / 1000) : null));
+                                            $avgFuel = $trip['fuelconsump'] ?? $trip['fuel_average'] ?? null;
+                                            $co2Kg = isset($trip['co2']) ? ($trip['co2'] / 1000) : (isset($trip['co2_emission']) ? ($trip['co2_emission'] / 1000) : (isset($trip['co2_emissions']) ? ($trip['co2_emissions'] / 1000) : null));
+                                        @endphp
+                                        <div class="space-y-0.5">
+                                            @if($fuelLtr !== null && $fuelLtr > 0)
+                                                <div class="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                                    <span>⛽ {{ number_format($fuelLtr, 1, ',', '.') }} L</span>
+                                                </div>
+                                            @else
+                                                <span class="text-gray-400">⛽ -</span>
+                                            @endif
+                                            
+                                            <div class="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1.5">
+                                                <span>{{ $avgFuel !== null ? number_format($avgFuel, 1, ',', '.') . ' L/100k' : '- L/100k' }}</span>
+                                                <span>•</span>
+                                                <span>{{ $co2Kg !== null ? number_format($co2Kg, 1, ',', '.') . ' kg' : '- kg' }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-col gap-1 text-[10px] min-w-[120px]">
+                                            @if(isset($trip['optidrive_indicator']) && $trip['optidrive_indicator'] > 0)
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-gray-500 dark:text-gray-400 font-semibold">OptiDrive:</span>
+                                                    <span class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-bold dark:bg-sky-950/20 dark:text-sky-400">
+                                                        {{ number_format($trip['optidrive_indicator'] * 5.0, 1) }} / 5
+                                                    </span>
+                                                </div>
+                                            @endif
+                                            <div class="flex flex-wrap gap-1 mt-0.5">
+                                                @if(isset($trip['speeding_indicator']) && $trip['speeding_indicator'] < 1)
+                                                    <span class="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold dark:bg-red-950/20 dark:text-red-400" title="Exceso de velocidad registrado">Velocidad</span>
+                                                @endif
+                                                @if(isset($trip['idling_indicator']) && $trip['idling_indicator'] < 1)
+                                                    <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold dark:bg-amber-950/20 dark:text-amber-400" title="Ralentí excesivo registrado">Ralentí</span>
+                                                @endif
+                                                @if(isset($trip['drivingevents_indicator']) && $trip['drivingevents_indicator'] > 0.05)
+                                                    <span class="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold dark:bg-red-950/20 dark:text-red-400" title="Maniobras bruscas detectadas">Maniobras</span>
+                                                @endif
+                                            </div>
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3">
                                         @if(isset($trip['start_latitude']) && isset($trip['end_latitude']))
