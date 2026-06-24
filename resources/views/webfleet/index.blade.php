@@ -101,7 +101,7 @@
                 </div>
                 <div>
                     <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Total Equipos</span>
-                    <span class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['total'] }}</span>
+                    <span id="stat-total" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['total'] }}</span>
                 </div>
             </div>
 
@@ -111,7 +111,7 @@
                 </div>
                 <div>
                     <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">En Movimiento</span>
-                    <span class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['moving'] }}</span>
+                    <span id="stat-moving" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['moving'] }}</span>
                 </div>
             </div>
 
@@ -121,7 +121,7 @@
                 </div>
                 <div>
                     <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Contacto ON</span>
-                    <span class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['ignition_on'] }}</span>
+                    <span id="stat-ignition-on" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['ignition_on'] }}</span>
                 </div>
             </div>
 
@@ -131,7 +131,7 @@
                 </div>
                 <div>
                     <span class="text-xs text-gray-500 dark:text-gray-400 block font-semibold uppercase">Activos Hoy</span>
-                    <span class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['active_today'] }}</span>
+                    <span id="stat-active-today" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ $stats['active_today'] }}</span>
                 </div>
             </div>
         </div>
@@ -190,22 +190,22 @@
                             }
                         @endphp
                         <button type="button" 
-                            onclick="focusVehicle({{ $vehicle['latitude_mdeg'] ?? 0 }}, {{ $vehicle['longitude_mdeg'] ?? 0 }}, '{{ $vehicle['objectname'] }}')"
+                            onclick="focusVehicle({{ $vehicle['latitude_mdeg'] ?? 0 }}, {{ $vehicle['longitude_mdeg'] ?? 0 }}, '{{ $vehicle['objectno'] }}')"
                             class="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-850 flex items-center justify-between rounded-lg transition border border-transparent hover:border-gray-100 dark:hover:border-gray-800 vehicle-item"
                             data-name="{{ strtolower($vehicle['objectname']) }}"
                             data-no="{{ $vehicle['objectno'] }}">
                             <div class="space-y-1">
-                                <div class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full @if($speed > 0) bg-emerald-500 @elseif($ignition === 1) bg-amber-500 @else bg-red-500 @endif"></span>
-                                    {{ $vehicle['objectname'] }}
+                                <div class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 vehicle-name-text">
+                                    <span class="w-1.5 h-1.5 rounded-full vehicle-dot @if($speed > 0) bg-emerald-500 @elseif($ignition === 1) bg-amber-500 @else bg-red-500 @endif"></span>
+                                    <span class="vehicle-name-label">{{ $vehicle['objectname'] }}</span>
                                 </div>
                                 <div class="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-2">
                                     <span>N° {{ $vehicle['objectno'] }}</span>
                                     <span>•</span>
-                                    <span>{{ $vehicle['postext_short'] ?? 'Sin ubicacion' }}</span>
+                                    <span class="vehicle-pos-text">{{ $vehicle['postext_short'] ?? 'Sin ubicacion' }}</span>
                                 </div>
                             </div>
-                            <span class="px-2 py-1 rounded text-[10px] font-bold {{ $statusColor }} {{ $statusBg }}">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold vehicle-status-badge {{ $statusColor }} {{ $statusBg }}">
                                 {{ $statusText }}
                             </span>
                         </button>
@@ -223,10 +223,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Inicializar datos de vehículos
-            const vehicles = @json($result['data'] ?? []);
+            let vehicles = @json($result['data'] ?? []);
             
             // Filtrar vehículos que tengan coordenadas válidas
-            const validVehicles = vehicles.filter(v => v.latitude_mdeg && v.longitude_mdeg);
+            const getValidVehicles = (list) => list.filter(v => v.latitude_mdeg && v.longitude_mdeg);
+            let validVehicles = getValidVehicles(vehicles);
             
             // Centrar mapa por defecto en las coordenadas del primer vehiculo o en Rio Bueno por defecto
             let mapCenter = [-40.3628, -72.9450]; // Rio Bueno
@@ -247,47 +248,11 @@
             const markers = {};
             const markerGroup = L.featureGroup();
 
-            // Dibujar marcadores para todos los vehículos válidos
-            validVehicles.forEach(v => {
-                const lat = v.latitude_mdeg / 1000000;
-                const lng = v.longitude_mdeg / 1000000;
-                
-                // Determinar color de pin
-                let pinClass = 'pin-gray';
+            // Función para generar popup HTML
+            function getPopupContent(v) {
                 const speed = v.speed ?? 0;
                 const ignition = v.ignition ?? 0;
-                
-                // Verificar si reportó hoy para darle color activo
-                let isToday = false;
-                if (v.pos_time) {
-                    const reportDate = new Date(v.pos_time);
-                    const today = new Date();
-                    isToday = reportDate.toDateString() === today.toDateString();
-                }
-
-                if (isToday) {
-                    if (speed > 0) {
-                        pinClass = 'pin-green';
-                    } else if (ignition === 1) {
-                        pinClass = 'pin-orange';
-                    } else {
-                        pinClass = 'pin-red';
-                    }
-                }
-                
-                // Icono Leaflet personalizado
-                const icon = L.divIcon({
-                    className: '',
-                    html: `<div class="custom-pin ${pinClass}">${v.objectno}</div>`,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
-                });
-                
-                // Crear Marcador
-                const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
-                
-                // Popup HTML
-                const popupContent = `
+                return `
                     <div class="p-1 space-y-1.5 text-xs">
                         <div class="font-bold text-gray-900 border-b pb-1 flex items-center justify-between gap-4">
                             <span>${v.objectname}</span>
@@ -307,13 +272,60 @@
                         </div>
                     </div>
                 `;
-                
-                marker.bindPopup(popupContent);
-                
-                // Registrar para zoom interactivo
-                markers[v.objectname] = marker;
-                markerGroup.addLayer(marker);
-            });
+            }
+
+            // Dibujar marcadores para todos los vehículos válidos
+            function renderMarkers(list) {
+                list.forEach(v => {
+                    const lat = v.latitude_mdeg / 1000000;
+                    const lng = v.longitude_mdeg / 1000000;
+                    
+                    // Determinar color de pin
+                    let pinClass = 'pin-gray';
+                    const speed = v.speed ?? 0;
+                    const ignition = v.ignition ?? 0;
+                    
+                    let isToday = false;
+                    if (v.pos_time) {
+                        const reportDate = new Date(v.pos_time);
+                        const today = new Date();
+                        isToday = reportDate.toDateString() === today.toDateString();
+                    }
+
+                    if (isToday) {
+                        if (speed > 0) {
+                            pinClass = 'pin-green';
+                        } else if (ignition === 1) {
+                            pinClass = 'pin-orange';
+                        } else {
+                            pinClass = 'pin-red';
+                        }
+                    }
+                    
+                    const icon = L.divIcon({
+                        className: '',
+                        html: `<div class="custom-pin ${pinClass}">${v.objectno}</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                    
+                    if (markers[v.objectno]) {
+                        // Actualizar marcador existente
+                        markers[v.objectno].setLatLng([lat, lng]);
+                        markers[v.objectno].setIcon(icon);
+                        markers[v.objectno].setPopupContent(getPopupContent(v));
+                    } else {
+                        // Crear Marcador nuevo
+                        const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+                        marker.bindPopup(getPopupContent(v));
+                        markers[v.objectno] = marker;
+                        markerGroup.addLayer(marker);
+                    }
+                });
+            }
+
+            // Renderizar inicial
+            renderMarkers(validVehicles);
             
             // Si hay marcadores, ajustar el zoom para encuadrarlos a todos en pantalla automáticamente
             if (validVehicles.length > 0) {
@@ -321,13 +333,13 @@
             }
             
             // Función para centrar y abrir popup de un vehiculo desde el panel lateral
-            window.focusVehicle = function(latMdeg, lngMdeg, name) {
+            window.focusVehicle = function(latMdeg, lngMdeg, objectNo) {
                 if (latMdeg && lngMdeg) {
                     const lat = latMdeg / 1000000;
                     const lng = lngMdeg / 1000000;
                     map.setView([lat, lng], 15);
-                    if (markers[name]) {
-                        markers[name].openPopup();
+                    if (markers[objectNo]) {
+                        markers[objectNo].openPopup();
                     }
                 } else {
                     alert('Este vehículo no tiene coordenadas de posición válidas reportadas.');
@@ -350,6 +362,107 @@
                     }
                 });
             });
+
+            // Función para refrescar datos desde Laravel (AJAX)
+            function refreshData() {
+                fetch('{{ route('webfleet.index') }}', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        // 1. Actualizar Tarjetas de Estadísticas
+                        if (data.stats) {
+                            document.getElementById('stat-total').textContent = data.stats.total ?? 0;
+                            document.getElementById('stat-moving').textContent = data.stats.moving ?? 0;
+                            document.getElementById('stat-ignition-on').textContent = data.stats.ignition_on ?? 0;
+                            document.getElementById('stat-active-today').textContent = data.stats.active_today ?? 0;
+                        }
+                        
+                        // 2. Actualizar Listado de Equipos Lateral
+                        if (data.result && data.result.data) {
+                            const newVehicles = data.result.data;
+                            newVehicles.forEach(v => {
+                                const button = document.querySelector(`.vehicle-item[data-no="${v.objectno}"]`);
+                                if (button) {
+                                    const speed = v.speed ?? 0;
+                                    const ignition = v.ignition ?? 0;
+                                    
+                                    let isToday = false;
+                                    if (v.pos_time) {
+                                        const reportDate = new Date(v.pos_time);
+                                        const today = new Date();
+                                        isToday = reportDate.toDateString() === today.toDateString();
+                                    }
+
+                                    // Actualizar data-name por si cambió
+                                    button.dataset.name = v.objectname.toLowerCase();
+
+                                    // Actualizar punto de color
+                                    const dot = button.querySelector('.vehicle-dot');
+                                    if (dot) {
+                                        dot.className = 'w-1.5 h-1.5 rounded-full vehicle-dot';
+                                        if (speed > 0) {
+                                            dot.classList.add('bg-emerald-500');
+                                        } else if (ignition === 1) {
+                                            dot.classList.add('bg-amber-500');
+                                        } else {
+                                            dot.classList.add('bg-red-500');
+                                        }
+                                    }
+
+                                    // Actualizar nombre
+                                    const nameLabel = button.querySelector('.vehicle-name-label');
+                                    if (nameLabel) {
+                                        nameLabel.textContent = v.objectname;
+                                    }
+
+                                    // Actualizar posición corta
+                                    const posLabel = button.querySelector('.vehicle-pos-text');
+                                    if (posLabel) {
+                                        posLabel.textContent = v.postext_short ?? 'Sin ubicación';
+                                    }
+
+                                    // Actualizar placa de estado
+                                    const badge = button.querySelector('.vehicle-status-badge');
+                                    if (badge) {
+                                        badge.className = 'px-2 py-1 rounded text-[10px] font-bold vehicle-status-badge';
+                                        if (isToday) {
+                                            if (speed > 0) {
+                                                badge.classList.add('text-emerald-700', 'dark:text-emerald-400', 'bg-emerald-50', 'dark:bg-emerald-950/20');
+                                                badge.textContent = `${speed} km/h`;
+                                            } else if (ignition === 1) {
+                                                badge.classList.add('text-amber-700', 'dark:text-amber-400', 'bg-amber-50', 'dark:bg-amber-950/20');
+                                                badge.textContent = 'Contacto ON';
+                                            } else {
+                                                badge.classList.add('text-red-700', 'dark:text-red-400', 'bg-red-50', 'dark:bg-red-950/20');
+                                                badge.textContent = 'Contacto OFF';
+                                            }
+                                        } else {
+                                            badge.classList.add('text-gray-500', 'bg-gray-100');
+                                            badge.textContent = 'Desconectado';
+                                        }
+                                    }
+
+                                    // Actualizar onclick
+                                    button.setAttribute('onclick', `focusVehicle(${v.latitude_mdeg ?? 0}, ${v.longitude_mdeg ?? 0}, '${v.objectno}')`);
+                                }
+                            });
+
+                            // 3. Actualizar Marcadores en el Mapa
+                            const newValidVehicles = getValidVehicles(newVehicles);
+                            renderMarkers(newValidVehicles);
+                        }
+                    }
+                })
+                .catch(error => console.error('Error refreshing Webfleet data:', error));
+            }
+
+            // Programar refresco automático cada 20 segundos
+            setInterval(refreshData, 20000);
         });
     </script>
 </x-app-layout>

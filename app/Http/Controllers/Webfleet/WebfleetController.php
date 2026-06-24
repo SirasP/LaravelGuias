@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class WebfleetController extends Controller
 {
-    public function index(WebfleetApiService $webfleet)
+    public function index(Request $request, WebfleetApiService $webfleet)
     {
         $result = $webfleet->objectReport();
 
@@ -48,6 +48,14 @@ class WebfleetController extends Controller
                     }
                 }
             }
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'result' => $result,
+                'stats' => $stats,
+            ]);
         }
 
         return view('webfleet.index', [
