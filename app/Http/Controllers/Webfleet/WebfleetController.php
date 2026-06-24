@@ -11,7 +11,10 @@ class WebfleetController extends Controller
 {
     public function index(Request $request, WebfleetApiService $webfleet)
     {
-        $result = $webfleet->objectReport();
+        // Cargar desde caché por 10 segundos para evitar saturación de la API de Webfleet y acelerar las respuestas
+        $result = cache()->remember('webfleet_object_report', 10, function () use ($webfleet) {
+            return $webfleet->objectReport();
+        });
 
         // Calcular estadísticas básicas para las tarjetas informativas
         $stats = [
