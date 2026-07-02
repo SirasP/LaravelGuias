@@ -197,7 +197,29 @@ class GmailLeerXml extends Command
                     $fch = $xml->xpath('//sii:Encabezado/sii:IdDoc/sii:FchEmis')[0] ?? null;
 
                     if (!$fch) {
-                        $this->error("❌ No se pudo leer FchEmis en {$part->getFilename()}");
+                        $filename = (string) $part->getFilename();
+                        $esBhe = str_starts_with(strtolower($filename), 'bhe_') || isset($xml->rutEmisor);
+
+                        if ($esBhe) {
+                            $this->info("🎯 Detectada Boleta de Honorarios (BHE): {$filename}");
+                            $this->line("   Reenviando a Odoo de produccion...");
+
+                            try {
+                                \Illuminate\Support\Facades\Mail::raw(
+                                    "BHE procesada automaticamente por LaravelGuias.",
+                                    function ($message) use ($filename, $contenidoXml) {
+                                        $message->to('vendor-bills@agricolaehe.odoo.com')
+                                                ->subject("Reenvio automatico BHE: {$filename}")
+                                                ->attachData($contenidoXml, $filename, ['mime' => 'application/xml']);
+                                    }
+                                );
+                                $this->info("   ✅ Reenviada con exito.");
+                            } catch (\Exception $e) {
+                                $this->error("   ❌ Error al reenviar a Odoo: " . $e->getMessage());
+                            }
+                        } else {
+                            $this->error("❌ No se pudo leer FchEmis en {$part->getFilename()} (No es DTE ni BHE)");
+                        }
                         continue;
                     }
 
