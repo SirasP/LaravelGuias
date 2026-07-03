@@ -11,6 +11,7 @@ class Kernel extends ConsoleKernel
 {
     protected $commands = [
         AgrakNormalizeExisting::class,
+        Commands\BancoChileSync::class,
     ];
 
     protected function schedule(Schedule $schedule): void
@@ -18,6 +19,12 @@ class Kernel extends ConsoleKernel
         $schedule->job(new CheckStockJob)
             ->everyMinute()
             ->evenInMaintenanceMode();
+
+        // Sincronización en vivo Banco de Chile (Cada 1 minuto)
+        $schedule->command('bancochile:sync')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
 
         /*
         |--------------------------------------------------------------------------

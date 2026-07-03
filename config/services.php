@@ -54,4 +54,18 @@ return [
         'api_key' => env('WEBFLEET_API_KEY'),
     ],
 
+    'odoo' => [
+        'url'        => env('ODOO_URL', 'https://agricolaehe-prueba-31455293.dev.odoo.com'),
+        'db'         => env('ODOO_DB', 'agricolaehe-prueba-31455293'),
+        'user'       => env('ODOO_USER', 's.lopez.epple@gmail.com'),
+        'password'   => env('ODOO_PASSWORD', '1234'),
+        'journal_id' => env('ODOO_JOURNAL_ID', 22),
+    ],
+
+    'banco_chile' => [
+        'client_id'     => env('BANCO_CHILE_CLIENT_ID', '721816d1e407fb656e73374a21bc9ebb'),
+        'client_secret' => env('BANCO_CHILE_CLIENT_SECRET', '93cac5b5a54a51d685aba881c6f2d872'),
+        'api_url'       => env('BANCO_CHILE_API_URL', 'https://gw.apistore.bancochile.cl/banco-chile/sandbox/v1/movimientos-cuenta/obtener'),
+    ],
+
 ];

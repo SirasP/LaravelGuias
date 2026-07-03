@@ -301,6 +301,231 @@
                         </div>
                     </div>
 
+                    {{-- 🔑 BANCO DE CHILE — TOKEN DE CARTOLA AUTOMÁTICA --}}
+                    <div class="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg flex items-center justify-center
+                                    {{ $bcTokenActivo ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-red-100 dark:bg-red-900/30' }}">
+                                    <svg class="w-3.5 h-3.5 {{ $bcTokenActivo ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' }}"
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M15 7a2 2 0 012 2m-2 4a2 2 0 012 2m-2-4a2 2 0 012 2m-5-4a3 3 0 11-6 0 3 3 0 016 0zM4 15H2v2a2 2 0 002 2h2m14 0h2a2 2 0 002-2v-2M18 5h2a2 2 0 012 2v2"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">Token Banco de Chile (Cartola)</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold
+                                {{ $bcTokenActivo
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                    : 'bg-red-100 text-red-650 dark:bg-red-900/30 dark:text-red-400' }}">
+                                {{ $bcTokenActivo ? 'Activo' : 'Inactivo/Expirado' }}
+                            </span>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            @if($bcTokenActivo)
+                                <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-250 dark:border-emerald-800 rounded-xl p-3">
+                                    <p class="text-xs font-bold text-emerald-800 dark:text-emerald-400">✅ Conexión con el banco funcionando</p>
+                                    <p class="text-[11px] text-emerald-600 dark:text-emerald-550 font-mono mt-0.5 truncate">{{ $bcTokenGuardado }}</p>
+                                    <p class="text-[10px] text-emerald-500 mt-0.5">Expira: {{ $bcTokenExpira }}</p>
+                                </div>
+                            @else
+                                <div class="bg-red-50 dark:bg-red-900/20 border border-red-250 dark:border-red-800 rounded-xl p-3">
+                                    <p class="text-xs font-bold text-red-800 dark:text-red-400">⚠️ Requiere Atención</p>
+                                    <p class="text-[10px] text-red-600 dark:text-red-500 mt-0.5">La sincronización automática de cartolas está pausada porque el token expiró o no ha sido ingresado.</p>
+                                </div>
+                            @endif
+
+                            <p class="text-xs text-gray-400">
+                                Para reactivar, obtén un nuevo token en el portal del banco (apistore.bancochile.cl → "Intentarlo") y pégalo abajo:
+                            </p>
+
+                            <div class="space-y-2 pb-3 border-b border-gray-100 dark:border-gray-800">
+                                <textarea id="bc-token-input" rows="2"
+                                          placeholder="Bearer eyJhbGciOiJSUzI1..."
+                                          class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700
+                                                 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono
+                                                 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none"></textarea>
+                                <button type="button" id="btn-save-bc-token"
+                                        class="w-full py-2 text-xs font-semibold rounded-xl text-white bg-indigo-650 hover:bg-indigo-700 transition-colors">
+                                    Guardar Token de Cartola
+                                </button>
+                                <div id="bc-token-status" class="text-xs text-center font-semibold mt-1 hidden"></div>
+                            </div>
+
+                            {{-- Credenciales Multi-Ambiente (Odoo & Banco de Chile) --}}
+                            <div class="pt-2" x-data="{ activeTab: '{{ $bcEnv }}', previousTab: '{{ $bcEnv }}', showConfirmModal: false, pendingTab: '' }">
+                                <p class="text-xs font-bold text-gray-700 dark:text-gray-250 mb-2">⚙️ Configuración de Entornos</p>
+                                
+                                <form method="POST" action="{{ route('gmail.inventory.sii.config') }}" class="space-y-4">
+                                    @csrf
+
+                                    {{-- Selector de Ambiente Activo --}}
+                                    <div class="bg-gray-55 dark:bg-gray-800/40 p-2.5 rounded-xl border border-gray-150 dark:border-gray-800 flex items-center justify-between gap-3">
+                                        <label class="text-[11px] font-bold text-gray-650 dark:text-gray-300">Ambiente Activo:</label>
+                                        <select name="banco_chile_env" x-model="activeTab"
+                                                @change="pendingTab = $event.target.value; activeTab = previousTab; showConfirmModal = true;"
+                                                class="text-xs font-bold rounded-lg border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-3 py-1 focus:outline-none">
+                                            <option value="qa">QA (Ambiente de Pruebas)</option>
+                                            <option value="production">🚀 Producción (Real)</option>
+                                        </select>
+                                    </div>
+
+                                    {{-- Tabs de Navegación Visual --}}
+                                    <div class="flex border-b border-gray-200 dark:border-gray-800 text-[11px] font-bold">
+                                        <button type="button" 
+                                                @click="if (activeTab !== 'qa') { pendingTab = 'qa'; showConfirmModal = true; }"
+                                                :class="activeTab === 'qa' ? 'border-b-2 border-indigo-500 text-indigo-650 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-500'"
+                                                class="flex-1 py-1.5 text-center transition-colors">
+                                            QA / Pruebas
+                                        </button>
+                                        <button type="button" 
+                                                @click="if (activeTab !== 'production') { pendingTab = 'production'; showConfirmModal = true; }"
+                                                :class="activeTab === 'production' ? 'border-b-2 border-indigo-500 text-indigo-650 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-500'"
+                                                class="flex-1 py-1.5 text-center transition-colors">
+                                            🚀 Producción
+                                        </button>
+                                    </div>
+
+                                    {{-- Contenedor QA --}}
+                                    <div x-show="activeTab === 'qa'" class="space-y-3 pt-1">
+                                        <p class="text-[10px] uppercase font-black text-amber-600 dark:text-amber-500">Conexión Odoo (QA)</p>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Odoo URL</label>
+                                                <input type="text" name="qa_odoo_url" value="{{ $qaOdooUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Base de Datos</label>
+                                                <input type="text" name="qa_odoo_db" value="{{ $qaOdooDb }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div class="col-span-2">
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Usuario (Email)</label>
+                                                <input type="text" name="qa_odoo_user" value="{{ $qaOdooUser }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Diario ID</label>
+                                                <input type="number" name="qa_odoo_journal_id" value="{{ $qaOdooJournalId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Password Odoo</label>
+                                            <input type="password" name="qa_odoo_password" value="{{ $qaOdooPassword }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+
+                                        <p class="text-[10px] uppercase font-black text-amber-600 dark:text-amber-500 pt-2 border-t border-gray-100 dark:border-gray-800">API Banco de Chile (QA)</p>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client ID</label>
+                                            <input type="text" name="qa_bc_client_id" value="{{ $qaBcClientId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client Secret</label>
+                                            <input type="password" name="qa_bc_client_secret" value="{{ $qaBcClientSecret }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Endpoint API URL</label>
+                                            <input type="text" name="qa_bc_api_url" value="{{ $qaBcApiUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                    </div>
+
+                                    {{-- Contenedor Producción --}}
+                                    <div x-show="activeTab === 'production'" class="space-y-3 pt-1">
+                                        <p class="text-[10px] uppercase font-black text-indigo-600 dark:text-indigo-400">Conexión Odoo (Producción)</p>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Odoo URL</label>
+                                                <input type="text" name="prod_odoo_url" value="{{ $prodOdooUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Base de Datos</label>
+                                                <input type="text" name="prod_odoo_db" value="{{ $prodOdooDb }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div class="col-span-2">
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Usuario (Email)</label>
+                                                <input type="text" name="prod_odoo_user" value="{{ $prodOdooUser }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Diario ID</label>
+                                                <input type="number" name="prod_odoo_journal_id" value="{{ $prodOdooJournalId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Password Odoo</label>
+                                            <input type="password" name="prod_odoo_password" value="{{ $prodOdooPassword }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+
+                                        <p class="text-[10px] uppercase font-black text-indigo-600 dark:text-indigo-400 pt-2 border-t border-gray-100 dark:border-gray-800">API Banco de Chile (Producción)</p>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client ID</label>
+                                            <input type="text" name="prod_bc_client_id" value="{{ $prodBcClientId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client Secret</label>
+                                            <input type="password" name="prod_bc_client_secret" value="{{ $prodBcClientSecret }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Endpoint API URL</label>
+                                            <input type="text" name="prod_bc_api_url" value="{{ $prodBcApiUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                        </div>
+                                    </div>
+
+                                    <button type="submit"
+                                            class="w-full py-2 text-xs font-bold rounded-xl text-white bg-indigo-650 hover:bg-indigo-700 transition-colors shadow">
+                                        Guardar Configuración de Ambiente
+                                    </button>
+                                </form>
+
+                                {{-- ⚠️ MODAL DE CONFIRMACIÓN DE CAMBIO DE AMBIENTE --}}
+                                <div x-show="showConfirmModal" x-transition.opacity.duration.150ms 
+                                     class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+                                    {{-- Backdrop oscuro --}}
+                                    <div class="absolute inset-0 bg-black/60 backdrop-blur-md" @click="showConfirmModal = false"></div>
+                                    
+                                    {{-- Tarjeta de Modal --}}
+                                    <div x-show="showConfirmModal"
+                                         x-transition:enter="transition ease-out duration-150"
+                                         x-transition:enter-start="opacity-0 scale-95"
+                                         x-transition:enter-end="opacity-100 scale-100"
+                                         class="relative w-full max-w-md bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-6 shadow-2xl space-y-4">
+                                        
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                                                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-sm font-black text-gray-900 dark:text-gray-100">Confirmar cambio de ambiente</h3>
+                                                <p class="text-xs text-gray-400">¿Estás seguro de que deseas continuar?</p>
+                                            </div>
+                                        </div>
+
+                                        <p class="text-xs text-gray-650 dark:text-gray-300 leading-relaxed">
+                                            Estás a punto de alterar el entorno activo del sistema contable. Al realizar el cambio se modificarán de inmediato los endpoints del Banco de Chile y el destino del Odoo conectado para la importación minuto a minuto de cartolas bancarias.
+                                        </p>
+
+                                        <div class="flex gap-2.5 pt-2">
+                                            <button type="button" @click="showConfirmModal = false; pendingTab = '';" 
+                                                    class="flex-1 py-2.5 text-xs font-bold rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-205 dark:hover:bg-gray-750 transition-all text-center">
+                                                Cancelar
+                                            </button>
+                                            <button type="button" 
+                                                    @click="activeTab = pendingTab; previousTab = pendingTab; showConfirmModal = false;" 
+                                                    class="flex-1 py-2.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-650 text-white transition-all shadow text-center">
+                                                Confirmar cambio
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 {{-- ── FIN COL IZQUIERDA ─────────────────────────────── --}}
 
@@ -471,6 +696,44 @@
         if (details && panel) {
             details.addEventListener('toggle', () => {
                 panel.classList.toggle('hidden', !details.open);
+            });
+        }
+
+        // Guardar token del Banco de Chile
+        const btnSaveBc = document.getElementById('btn-save-bc-token');
+        if (btnSaveBc) {
+            btnSaveBc.addEventListener('click', async function () {
+                const token = document.getElementById('bc-token-input').value.trim();
+                const status = document.getElementById('bc-token-status');
+                if (!token) { alert('Ingresa un token antes de guardar.'); return; }
+
+                this.disabled = true; this.textContent = 'Guardando...';
+                status.className = 'text-xs text-center mt-1 text-gray-500';
+                status.classList.remove('hidden');
+                status.textContent = 'Conectando...';
+
+                try {
+                    const res = await fetch('{{ route("bancochile.token") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                        body: JSON.stringify({ token })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        status.textContent = '✅ Token guardado. Expira: ' + data.expires_at;
+                        status.className = 'text-xs text-center mt-1 text-emerald-600 font-semibold';
+                        document.getElementById('bc-token-input').value = '';
+                        setTimeout(() => location.reload(), 1200);
+                    } else {
+                        status.textContent = '❌ ' + (data.error || 'Error al guardar.');
+                        status.className = 'text-xs text-center mt-1 text-red-500 font-semibold';
+                    }
+                } catch (e) {
+                    status.textContent = '❌ Error de red: ' + e.message;
+                    status.className = 'text-xs text-center mt-1 text-red-500 font-semibold';
+                } finally {
+                    this.disabled = false; this.textContent = 'Guardar Token de Cartola';
+                }
             });
         }
     });

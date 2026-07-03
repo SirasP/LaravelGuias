@@ -144,7 +144,8 @@
                 <x-nav-sublink href="{{ route('webfleet.idle') }}" :active="request()->routeIs('webfleet.idle')" color="sky">Ralentí</x-nav-sublink>
                 <x-nav-sublink href="{{ route('webfleet.diagnostics') }}" :active="request()->routeIs('webfleet.diagnostics')" color="sky">Diagnóstico</x-nav-sublink>
             </x-nav-item>
-        @endif
+
+         @endif
 
         @if(auth()->check() && in_array(auth()->user()->role, ['admin', 'bodeguero']))
             {{-- ─── SECCIÓN: FACTURAS PROVEEDOR (admin + bodeguero) ─── --}}

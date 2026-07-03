@@ -42,6 +42,42 @@ class GmailInventoryController extends Controller
         $pfxExists = $pfxPath !== '' && Storage::disk($pfxDisk)->exists($pfxPath);
         $isRealMode = $cafExists && $pfxExists;
 
+        // Cargar estado del token de Banco de Chile
+        $bcTokenRow = DB::table('banco_chile_tokens')
+            ->where('activo', true)
+            ->latest()
+            ->first();
+        $bcTokenActivo = $bcTokenRow !== null;
+        $bcTokenExpira = $bcTokenRow && $bcTokenRow->expires_at
+            ? \Carbon\Carbon::parse($bcTokenRow->expires_at)->diffForHumans()
+            : 'Desconocido';
+        $bcTokenGuardado = $bcTokenActivo
+            ? substr($bcTokenRow->token, 0, 30) . '...'
+            : null;
+
+        // Cargar variables de ambiente activo
+        $bcEnv = $settings->get('banco_chile_env', 'qa');
+
+        // QA CONFIGS (Fallback a valores de prueba del código)
+        $qaOdooUrl = $settings->get('qa_odoo_url', 'https://agricolaehe-prueba-31455293.dev.odoo.com');
+        $qaOdooDb = $settings->get('qa_odoo_db', 'agricolaehe-prueba-31455293');
+        $qaOdooUser = $settings->get('qa_odoo_user', 's.lopez.epple@gmail.com');
+        $qaOdooPassword = $settings->get('qa_odoo_password', '1234');
+        $qaOdooJournalId = $settings->get('qa_odoo_journal_id', '22');
+        $qaBcClientId = $settings->get('qa_bc_client_id', '721816d1e407fb656e73374a21bc9ebb');
+        $qaBcClientSecret = $settings->get('qa_bc_client_secret', '93cac5b5a54a51d685aba881c6f2d872');
+        $qaBcApiUrl = $settings->get('qa_bc_api_url', 'https://gw.apistore.bancochile.cl/banco-chile/sandbox/v1/movimientos-cuenta/obtener');
+
+        // PRODUCTION CONFIGS (Fallback a variables del .env)
+        $prodOdooUrl = $settings->get('prod_odoo_url', config('services.odoo.url', 'https://agricolaehe.odoo.com'));
+        $prodOdooDb = $settings->get('prod_odoo_db', config('services.odoo.db', 'beluckycl-agricolaehe-main-22926049'));
+        $prodOdooUser = $settings->get('prod_odoo_user', config('services.odoo.user', 's.lopez.epple@gmail.com'));
+        $prodOdooPassword = $settings->get('prod_odoo_password', config('services.odoo.password', '1234'));
+        $prodOdooJournalId = $settings->get('prod_odoo_journal_id', config('services.odoo.journal_id', '22'));
+        $prodBcClientId = $settings->get('prod_bc_client_id', config('services.banco_chile.client_id', ''));
+        $prodBcClientSecret = $settings->get('prod_bc_client_secret', config('services.banco_chile.client_secret', ''));
+        $prodBcApiUrl = $settings->get('prod_bc_api_url', 'https://gw.apistore.bancochile.cl/banco-chile/v1/movimientos-cuenta/obtener');
+
         return view('gmail.inventory.configuraciones', [
             'cafDisk' => $cafDisk,
             'cafPath' => $cafPath,
@@ -58,11 +94,34 @@ class GmailInventoryController extends Controller
             'hasPfxPassword'    => $settings->getDtePfxPassword() !== null,
             'fuelMinimoDiesel'  => $settings->getFuelMinimo('diesel'),
             'fuelMinimoGasolina'=> $settings->getFuelMinimo('gasolina'),
+            'bcTokenActivo'     => $bcTokenActivo,
+            'bcTokenExpira'     => $bcTokenExpira,
+            'bcTokenGuardado'   => $bcTokenGuardado,
+            
+            // Ambientes
+            'bcEnv'             => $bcEnv,
+            'qaOdooUrl'         => $qaOdooUrl,
+            'qaOdooDb'          => $qaOdooDb,
+            'qaOdooUser'        => $qaOdooUser,
+            'qaOdooPassword'    => $qaOdooPassword,
+            'qaOdooJournalId'   => $qaOdooJournalId,
+            'qaBcClientId'      => $qaBcClientId,
+            'qaBcClientSecret'  => $qaBcClientSecret,
+            'qaBcApiUrl'        => $qaBcApiUrl,
+
+            'prodOdooUrl'       => $prodOdooUrl,
+            'prodOdooDb'        => $prodOdooDb,
+            'prodOdooUser'      => $prodOdooUser,
+            'prodOdooPassword'  => $prodOdooPassword,
+            'prodOdooJournalId' => $prodOdooJournalId,
+            'prodBcClientId'    => $prodBcClientId,
+            'prodBcClientSecret'=> $prodBcClientSecret,
+            'prodBcApiUrl'      => $prodBcApiUrl,
         ]);
     }
 
     /**
-     * Actualiza la configuración guardada sobre SII.
+     * Actualiza la configuración guardada sobre SII y Banco de Chile.
      *
      * @param Request $request
      * @param InventoryConfigService $settings
@@ -75,6 +134,29 @@ class GmailInventoryController extends Controller
             'dte_signature_pfx_password' => 'nullable|string|max:255',
             'fuel_minimo_diesel'         => 'nullable|numeric|min:0',
             'fuel_minimo_gasolina'       => 'nullable|numeric|min:0',
+
+            // Multiambiente Banco de Chile
+            'banco_chile_env'            => 'nullable|string|in:qa,production',
+            
+            // QA
+            'qa_odoo_url'                => 'nullable|string|max:255',
+            'qa_odoo_db'                 => 'nullable|string|max:255',
+            'qa_odoo_user'               => 'nullable|string|max:255',
+            'qa_odoo_password'           => 'nullable|string|max:255',
+            'qa_odoo_journal_id'         => 'nullable|integer',
+            'qa_bc_client_id'            => 'nullable|string|max:255',
+            'qa_bc_client_secret'        => 'nullable|string|max:255',
+            'qa_bc_api_url'              => 'nullable|string|max:500',
+
+            // PROD
+            'prod_odoo_url'              => 'nullable|string|max:255',
+            'prod_odoo_db'               => 'nullable|string|max:255',
+            'prod_odoo_user'             => 'nullable|string|max:255',
+            'prod_odoo_password'         => 'nullable|string|max:255',
+            'prod_odoo_journal_id'       => 'nullable|integer',
+            'prod_bc_client_id'          => 'nullable|string|max:255',
+            'prod_bc_client_secret'      => 'nullable|string|max:255',
+            'prod_bc_api_url'            => 'nullable|string|max:500',
         ]);
 
         $emails = trim((string) ($validated['low_stock_emails'] ?? ''));
@@ -91,6 +173,25 @@ class GmailInventoryController extends Controller
 
         if (isset($validated['fuel_minimo_gasolina'])) {
             $settings->set('fuel_minimo_gasolina', (string) max(0.0, (float) $validated['fuel_minimo_gasolina']));
+        }
+
+        // Guardar variables del Banco
+        if (isset($validated['banco_chile_env'])) {
+            $settings->set('banco_chile_env', $validated['banco_chile_env']);
+        }
+
+        // QA
+        foreach (['qa_odoo_url', 'qa_odoo_db', 'qa_odoo_user', 'qa_odoo_password', 'qa_odoo_journal_id', 'qa_bc_client_id', 'qa_bc_client_secret', 'qa_bc_api_url'] as $key) {
+            if (isset($validated[$key])) {
+                $settings->set($key, trim($validated[$key]));
+            }
+        }
+
+        // PROD
+        foreach (['prod_odoo_url', 'prod_odoo_db', 'prod_odoo_user', 'prod_odoo_password', 'prod_odoo_journal_id', 'prod_bc_client_id', 'prod_bc_client_secret', 'prod_bc_api_url'] as $key) {
+            if (isset($validated[$key])) {
+                $settings->set($key, trim($validated[$key]));
+            }
         }
 
         return back()->with('success', 'Configuraciones actualizadas.');

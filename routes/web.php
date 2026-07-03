@@ -22,6 +22,7 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Webfleet\WebfleetController;
+use App\Http\Controllers\BancoChileController;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -198,6 +199,19 @@ Route::middleware(['auth', 'role:admin,viewer'])
         Route::get('/eventos', [WebfleetController::class, 'events'])->name('events');
         Route::get('/ralenti', [WebfleetController::class, 'idleExceptions'])->name('idle');
         Route::get('/diagnosticos', [WebfleetController::class, 'diagnostics'])->name('diagnostics');
+    });
+
+/*
+|--------------------------------------------------------------------------
+| BANCO DE CHILE
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin,viewer'])
+    ->prefix('bancochile')
+    ->name('bancochile.')
+    ->group(function () {
+        Route::post('/token', [BancoChileController::class, 'guardarToken'])->name('token');
+        Route::post('/movimientos', [BancoChileController::class, 'obtenerMovimientos'])->name('movimientos');
     });
 
 /*
