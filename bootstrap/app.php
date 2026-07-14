@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'role'            => \App\Http\Middleware\RoleMiddleware::class,
+            'bch.webhook.log' => \App\Http\Middleware\BancoChileWebhookLogMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

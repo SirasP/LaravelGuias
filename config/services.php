@@ -63,8 +63,8 @@ return [
     ],
 
     'banco_chile' => [
-        'client_id'     => env('BANCO_CHILE_CLIENT_ID', '721816d1e407fb656e73374a21bc9ebb'),
-        'client_secret' => env('BANCO_CHILE_CLIENT_SECRET', '93cac5b5a54a51d685aba881c6f2d872'),
+        'client_id'     => env('BANCO_CHILE_CLIENT_ID', '0b881efcaf610304f3c0e8f7ce18cd5d'),
+        'client_secret' => env('BANCO_CHILE_CLIENT_SECRET', 'de5eea84369b05dd2fc5f9bb484a56ee'),
         'api_url'       => env('BANCO_CHILE_API_URL', 'https://gw.apistore.bancochile.cl/banco-chile/sandbox/v1/movimientos-cuenta/obtener'),
     ],
 

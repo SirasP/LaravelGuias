@@ -238,7 +238,10 @@
                 </div>
             </a>
 
-        @php $configActive = request()->routeIs('gmail.inventory.sii.status') || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); @endphp
+        @php 
+            $configActive = request()->routeIs('gmail.inventory.sii.status') 
+                || (request()->routeIs('gmail.*') && !request()->routeIs('gmail.dtes.*') && !request()->routeIs('gmail.inventory.*')); 
+        @endphp
             <x-nav-item id="config" label="Configuraciones" iconBgColor="indigo" :active="$configActive">
                 <x-slot name="icon">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317a1 1 0 011.35-.936l1.618.708a1 1 0 001.042-.145l1.28-1.024a1 1 0 011.451.19l1.06 1.414a1 1 0 00.94.386l1.619-.27a1 1 0 011.133.966l.087 1.767a1 1 0 00.555.835l1.52.79a1 1 0 01.433 1.37l-.79 1.52a1 1 0 000 .928l.79 1.52a1 1 0 01-.433 1.37l-1.52.79a1 1 0 00-.555.835l-.087 1.767a1 1 0 01-1.133.966l-1.619-.27a1 1 0 00-.94.386l-1.06 1.414a1 1 0 01-1.451.19l-1.28-1.024a1 1 0 00-1.042-.145l-1.618.708a1 1 0 01-1.35-.936l-.24-1.733a1 1 0 00-.666-.796l-1.666-.555a1 1 0 01-.617-1.304l.555-1.666a1 1 0 00-.14-.908l-1.024-1.28a1 1 0 01.19-1.451l1.414-1.06a1 1 0 00.386-.94l-.27-1.619a1 1 0 01.966-1.133l1.767-.087a1 1 0 00.835-.555l.79-1.52a1 1 0 011.37-.433l1.52.79a1 1 0 00.928 0l1.52-.79z" />

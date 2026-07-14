@@ -58,6 +58,13 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        'bch_webhook' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/bch_webhook.log'),
+            'level' => 'debug',
+            'replace_placeholders' => true,
+        ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),

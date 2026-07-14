@@ -67,6 +67,10 @@ class GmailInventoryController extends Controller
         $qaBcClientId = $settings->get('qa_bc_client_id', '721816d1e407fb656e73374a21bc9ebb');
         $qaBcClientSecret = $settings->get('qa_bc_client_secret', '93cac5b5a54a51d685aba881c6f2d872');
         $qaBcApiUrl = $settings->get('qa_bc_api_url', 'https://gw.apistore.bancochile.cl/banco-chile/sandbox/v1/movimientos-cuenta/obtener');
+        $qaBcCuentaOrigen = $settings->get('qa_bc_cuenta_origen', '902252590600');
+        $qaBcRutOrigen = $settings->get('qa_bc_rut_origen', '90512020-3');
+        $qaBcUsuario = $settings->get('qa_bc_usuario', 'userCli');
+        $qaBcRutApoderado = $settings->get('qa_bc_rut_apoderado', '1-9');
 
         // PRODUCTION CONFIGS (Fallback a variables del .env)
         $prodOdooUrl = $settings->get('prod_odoo_url', config('services.odoo.url', 'https://agricolaehe.odoo.com'));
@@ -77,6 +81,10 @@ class GmailInventoryController extends Controller
         $prodBcClientId = $settings->get('prod_bc_client_id', config('services.banco_chile.client_id', ''));
         $prodBcClientSecret = $settings->get('prod_bc_client_secret', config('services.banco_chile.client_secret', ''));
         $prodBcApiUrl = $settings->get('prod_bc_api_url', 'https://gw.apistore.bancochile.cl/banco-chile/v1/movimientos-cuenta/obtener');
+        $prodBcCuentaOrigen = $settings->get('prod_bc_cuenta_origen', config('services.banco_chile.cuenta_origen', ''));
+        $prodBcRutOrigen = $settings->get('prod_bc_rut_origen', config('services.banco_chile.rut_origen', ''));
+        $prodBcUsuario = $settings->get('prod_bc_usuario', config('services.banco_chile.usuario', ''));
+        $prodBcRutApoderado = $settings->get('prod_bc_rut_apoderado', config('services.banco_chile.rut_apoderado', ''));
 
         return view('gmail.inventory.configuraciones', [
             'cafDisk' => $cafDisk,
@@ -108,6 +116,10 @@ class GmailInventoryController extends Controller
             'qaBcClientId'      => $qaBcClientId,
             'qaBcClientSecret'  => $qaBcClientSecret,
             'qaBcApiUrl'        => $qaBcApiUrl,
+            'qaBcCuentaOrigen'  => $qaBcCuentaOrigen,
+            'qaBcRutOrigen'     => $qaBcRutOrigen,
+            'qaBcUsuario'       => $qaBcUsuario,
+            'qaBcRutApoderado'  => $qaBcRutApoderado,
 
             'prodOdooUrl'       => $prodOdooUrl,
             'prodOdooDb'        => $prodOdooDb,
@@ -117,6 +129,10 @@ class GmailInventoryController extends Controller
             'prodBcClientId'    => $prodBcClientId,
             'prodBcClientSecret'=> $prodBcClientSecret,
             'prodBcApiUrl'      => $prodBcApiUrl,
+            'prodBcCuentaOrigen'=> $prodBcCuentaOrigen,
+            'prodBcRutOrigen'   => $prodBcRutOrigen,
+            'prodBcUsuario'     => $prodBcUsuario,
+            'prodBcRutApoderado'=> $prodBcRutApoderado,
         ]);
     }
 
@@ -147,6 +163,10 @@ class GmailInventoryController extends Controller
             'qa_bc_client_id'            => 'nullable|string|max:255',
             'qa_bc_client_secret'        => 'nullable|string|max:255',
             'qa_bc_api_url'              => 'nullable|string|max:500',
+            'qa_bc_cuenta_origen'        => 'nullable|string|max:255',
+            'qa_bc_rut_origen'           => 'nullable|string|max:255',
+            'qa_bc_usuario'              => 'nullable|string|max:255',
+            'qa_bc_rut_apoderado'        => 'nullable|string|max:255',
 
             // PROD
             'prod_odoo_url'              => 'nullable|string|max:255',
@@ -157,6 +177,10 @@ class GmailInventoryController extends Controller
             'prod_bc_client_id'          => 'nullable|string|max:255',
             'prod_bc_client_secret'      => 'nullable|string|max:255',
             'prod_bc_api_url'            => 'nullable|string|max:500',
+            'prod_bc_cuenta_origen'      => 'nullable|string|max:255',
+            'prod_bc_rut_origen'         => 'nullable|string|max:255',
+            'prod_bc_usuario'            => 'nullable|string|max:255',
+            'prod_bc_rut_apoderado'      => 'nullable|string|max:255',
         ]);
 
         $emails = trim((string) ($validated['low_stock_emails'] ?? ''));
@@ -181,14 +205,14 @@ class GmailInventoryController extends Controller
         }
 
         // QA
-        foreach (['qa_odoo_url', 'qa_odoo_db', 'qa_odoo_user', 'qa_odoo_password', 'qa_odoo_journal_id', 'qa_bc_client_id', 'qa_bc_client_secret', 'qa_bc_api_url'] as $key) {
+        foreach (['qa_odoo_url', 'qa_odoo_db', 'qa_odoo_user', 'qa_odoo_password', 'qa_odoo_journal_id', 'qa_bc_client_id', 'qa_bc_client_secret', 'qa_bc_api_url', 'qa_bc_cuenta_origen', 'qa_bc_rut_origen', 'qa_bc_usuario', 'qa_bc_rut_apoderado'] as $key) {
             if (isset($validated[$key])) {
                 $settings->set($key, trim($validated[$key]));
             }
         }
 
         // PROD
-        foreach (['prod_odoo_url', 'prod_odoo_db', 'prod_odoo_user', 'prod_odoo_password', 'prod_odoo_journal_id', 'prod_bc_client_id', 'prod_bc_client_secret', 'prod_bc_api_url'] as $key) {
+        foreach (['prod_odoo_url', 'prod_odoo_db', 'prod_odoo_user', 'prod_odoo_password', 'prod_odoo_journal_id', 'prod_bc_client_id', 'prod_bc_client_secret', 'prod_bc_api_url', 'prod_bc_cuenta_origen', 'prod_bc_rut_origen', 'prod_bc_usuario', 'prod_bc_rut_apoderado'] as $key) {
             if (isset($validated[$key])) {
                 $settings->set($key, trim($validated[$key]));
             }

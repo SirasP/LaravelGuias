@@ -48,3 +48,8 @@ Route::prefix('mantencion')->group(function () {
     Route::post('/kits', [AppSyncController::class, 'upsertKit']);
     Route::post('/ordenes', [AppSyncController::class, 'upsertWorkOrder']);
 });
+
+// 🏦 Integración Banco de Chile: Carga automática de lotes desde Odoo
+Route::prefix('bancochile')->middleware('bch.webhook.log')->group(function () {
+    Route::post('/pago-webhook', [\App\Http\Controllers\BancoChileController::class, 'procesarPagoWebhook']);
+});

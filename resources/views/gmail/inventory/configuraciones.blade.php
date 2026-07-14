@@ -428,6 +428,27 @@
                                             <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Endpoint API URL</label>
                                             <input type="text" name="qa_bc_api_url" value="{{ $qaBcApiUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
                                         </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100 dark:border-gray-800/50">
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Cuenta Origen Cargo</label>
+                                                <input type="text" name="qa_bc_cuenta_origen" value="{{ $qaBcCuentaOrigen }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">RUT Origen Emisor</label>
+                                                <input type="text" name="qa_bc_rut_origen" value="{{ $qaBcRutOrigen }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Usuario Portal</label>
+                                                <input type="text" name="qa_bc_usuario" value="{{ $qaBcUsuario }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">RUT Apoderado Firma</label>
+                                                <input type="text" name="qa_bc_rut_apoderado" value="{{ $qaBcRutApoderado }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {{-- Contenedor Producción --}}
@@ -454,22 +475,40 @@
                                             </div>
                                         </div>
                                         <div>
-                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Password Odoo</label>
-                                            <input type="password" name="prod_odoo_password" value="{{ $prodOdooPassword }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
-                                        </div>
-
-                                        <p class="text-[10px] uppercase font-black text-indigo-600 dark:text-indigo-400 pt-2 border-t border-gray-100 dark:border-gray-800">API Banco de Chile (Producción)</p>
-                                        <div>
-                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client ID</label>
-                                            <input type="text" name="prod_bc_client_id" value="{{ $prodBcClientId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
-                                        </div>
-                                        <div>
-                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client Secret</label>
-                                            <input type="password" name="prod_bc_client_secret" value="{{ $prodBcClientSecret }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
-                                        </div>
-                                        <div>
-                                            <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Endpoint API URL</label>
-                                            <input type="text" name="prod_bc_api_url" value="{{ $prodBcApiUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            <p class="text-[10px] uppercase font-black text-indigo-600 dark:text-indigo-400 pt-2 border-t border-gray-100 dark:border-gray-800">API Banco de Chile (Producción)</p>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client ID</label>
+                                                <input type="text" name="prod_bc_client_id" value="{{ $prodBcClientId }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Client Secret</label>
+                                                <input type="password" name="prod_bc_client_secret" value="{{ $prodBcClientSecret }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Endpoint API URL</label>
+                                                <input type="text" name="prod_bc_api_url" value="{{ $prodBcApiUrl }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                            </div>
+                                            
+                                            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100 dark:border-gray-800/50">
+                                                <div>
+                                                    <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Cuenta Origen Cargo</label>
+                                                    <input type="text" name="prod_bc_cuenta_origen" value="{{ $prodBcCuentaOrigen }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">RUT Origen Emisor</label>
+                                                    <input type="text" name="prod_bc_rut_origen" value="{{ $prodBcRutOrigen }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                                </div>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Usuario Portal</label>
+                                                    <input type="text" name="prod_bc_usuario" value="{{ $prodBcUsuario }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">RUT Apoderado Firma</label>
+                                                    <input type="text" name="prod_bc_rut_apoderado" value="{{ $prodBcRutApoderado }}" class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-850 text-[11px] font-mono focus:outline-none">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
