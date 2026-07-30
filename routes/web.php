@@ -7,6 +7,7 @@ use App\Http\Controllers\CamionController;
 use App\Http\Controllers\CentroController;
 use App\Http\Controllers\ComprasController;
 use App\Http\Controllers\ExcelOutTransferController;
+use App\Http\Controllers\FuelControl\ConsumoAnalysisController;
 use App\Http\Controllers\FuelControl\DashboardController as FuelDashboard;
 use App\Http\Controllers\FuelControl\MovimientoController;
 use App\Http\Controllers\FuelControl\ProductoController;
@@ -406,6 +407,8 @@ Route::middleware(['auth'])
 
         Route::get('/', [FuelDashboard::class, 'index'])
             ->name('index');
+        Route::get('/analisis-consumo', [ConsumoAnalysisController::class, 'index'])
+            ->name('analisis-consumo');
         Route::get('/export/vehiculos.xlsx', [FuelDashboard::class, 'exportVehiculosExcel'])
             ->name('export.vehiculos.xlsx');
 
