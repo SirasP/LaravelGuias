@@ -41,60 +41,88 @@ class OdooImportToDte extends Command
 
         $dte = DB::connection('fuelcontrol');
 
-        // Pre-cargar hashes ya existentes (odoo_XXXX) para no re-insertar
+        // Pre-cargar hashes ya existentes (odoo_XXXX) para no re-insertar y
+        // poder refrescar su estado de pago desde Odoo.
         $existingHashes = $dte->table('gmail_dte_documents')
             ->where('hash_unico', 'like', 'odoo_%')
-            ->pluck('hash_unico')
-            ->flip()
+            ->get(['id', 'hash_unico'])
+            ->groupBy('hash_unico')
+            ->map(fn ($rows) => $rows->pluck('id')->all())
             ->toArray();
 
-        // Pre-cargar combinaciones folio+rut de documentos de Gmail (para evitar duplicados reales)
+        // Pre-cargar combinaciones folio+RUT normalizado de documentos recibidos
+        // por Gmail. El RUT puede venir con puntos y guion en el XML, mientras que
+        // Odoo lo entrega sin formato.
         $existingGmail = $dte->table('gmail_dte_documents')
-            ->where('hash_unico', 'not like', 'odoo_%')
+            ->where(function ($query) {
+                $query->whereNull('hash_unico')
+                    ->orWhere('hash_unico', 'not like', 'odoo_%');
+            })
             ->whereNotNull('proveedor_rut')
-            ->get(['folio', 'proveedor_rut'])
-            ->mapWithKeys(fn($r) => ["{$r->folio}|{$r->proveedor_rut}" => true])
-            ->toArray();
+            ->get(['id', 'folio', 'proveedor_rut'])
+            ->reduce(function (array $index, object $document) {
+                $key = $this->documentKey($document->folio, $document->proveedor_rut);
+
+                if ($key !== null) {
+                    $index[$key][] = $document->id;
+                }
+
+                return $index;
+            }, []);
 
         $moves = OdooAccountMove::whereIn('move_type', array_keys(self::TIPO_DTE_MAP))
             ->orderBy('id')
             ->get();
 
         $inserted  = 0;
-        $skipped   = 0;
+        $updated   = 0;
+        $unchanged = 0;
         $duplicate = 0;
 
         foreach ($moves as $move) {
             $hash = 'odoo_' . $move->odoo_id;
+            $paymentStatus = self::PAYMENT_STATUS_MAP[$move->payment_state ?? 'not_paid'] ?? 'sin_pagar';
 
-            // 1) Ya fue importado antes
+            // 1) Ya fue importado antes: mantener el estado de pago local alineado
+            // con Odoo sin modificar nada en Odoo.
             if (isset($existingHashes[$hash])) {
-                $skipped++;
+                $changed = $dte->table('gmail_dte_documents')
+                    ->whereIn('id', $existingHashes[$hash])
+                    ->where('payment_status', '<>', $paymentStatus)
+                    ->update([
+                        'payment_status' => $paymentStatus,
+                        'updated_at' => now(),
+                    ]);
+
+                $updated += $changed;
+                $unchanged += $changed === 0 ? 1 : 0;
                 continue;
             }
 
             // 2) Ya existe en Gmail con mismo folio + RUT
-            $rutNorm = $move->partner_vat
-                ? strtoupper(preg_replace('/[.\-\s]/', '', $move->partner_vat))
-                : null;
+            $rutNorm = $this->normalizeRut($move->partner_vat);
 
-            if ($rutNorm && $move->folio) {
-                $key = "{$move->folio}|{$rutNorm}";
+            if ($rutNorm !== '' && $move->folio) {
+                $key = $this->documentKey($move->folio, $rutNorm);
+
                 if (isset($existingGmail[$key])) {
-                    // Actualizar hash para que quede vinculado
+                    // Vincular el DTE existente y al mismo tiempo reflejar el pago
+                    // informado por Odoo.
                     $dte->table('gmail_dte_documents')
-                        ->where('folio', (string) $move->folio)
-                        ->where('proveedor_rut', $rutNorm)
-                        ->update(['hash_unico' => $hash]);
+                        ->whereIn('id', $existingGmail[$key])
+                        ->update([
+                            'hash_unico' => $hash,
+                            'payment_status' => $paymentStatus,
+                            'updated_at' => now(),
+                        ]);
                     $duplicate++;
-                    $existingHashes[$hash] = true;
+                    $existingHashes[$hash] = $existingGmail[$key];
                     continue;
                 }
             }
 
             // 3) Insertar registro nuevo
             $tipoDte       = self::TIPO_DTE_MAP[$move->move_type] ?? 33;
-            $paymentStatus = self::PAYMENT_STATUS_MAP[$move->payment_state ?? 'not_paid'] ?? 'sin_pagar';
             $workflowStatus = self::WORKFLOW_STATUS_MAP[$move->state ?? 'draft'] ?? 'borrador';
 
             // Calcular neto e IVA aproximados (19% IVA Chile)
@@ -130,7 +158,7 @@ class OdooImportToDte extends Command
             ]);
 
             $inserted++;
-            $existingHashes[$hash] = true;
+            $existingHashes[$hash] = [];
         }
 
         $total_dte = $dte->table('gmail_dte_documents')->count();
@@ -142,11 +170,25 @@ class OdooImportToDte extends Command
             [
                 ['Insertados desde Odoo', $inserted],
                 ['Duplicados vinculados', $duplicate],
-                ['Ya existían (salteados)', $skipped],
+                ['Estados actualizados', $updated],
+                ['Ya existían sin cambios', $unchanged],
                 ['Total en gmail_dte_documents', $total_dte],
             ]
         );
 
         return self::SUCCESS;
+    }
+
+    private function documentKey(mixed $folio, ?string $rut): ?string
+    {
+        $folio = trim((string) $folio);
+        $rut = $this->normalizeRut($rut);
+
+        return $folio !== '' && $rut !== '' ? "{$folio}|{$rut}" : null;
+    }
+
+    private function normalizeRut(?string $rut): string
+    {
+        return strtoupper((string) preg_replace('/[^0-9k]/i', '', (string) $rut));
     }
 }

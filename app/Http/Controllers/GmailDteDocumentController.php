@@ -67,7 +67,37 @@ class GmailDteDocumentController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $tipo = 'facturas';
-        $documents = $this->buildDocumentsListQuery($q, self::FACTURA_TYPES)
+        $estado = (string) $request->query('estado', 'todos');
+
+        if (! in_array($estado, ['todos', 'sinpagar', 'pendiente', 'pagado'], true)) {
+            $estado = 'todos';
+        }
+
+        $documentsQuery = $this->buildDocumentsListQuery($q, self::FACTURA_TYPES);
+
+        if ($estado === 'pagado') {
+            $documentsQuery->where('payment_status', 'pagado');
+        } elseif ($estado === 'sinpagar') {
+            $documentsQuery
+                ->where(function ($query) {
+                    $query->whereNull('payment_status')
+                        ->orWhere('payment_status', '<>', 'pagado');
+                })
+                ->whereNotNull('fecha_vencimiento')
+                ->whereDate('fecha_vencimiento', '<=', today()->toDateString());
+        } elseif ($estado === 'pendiente') {
+            $documentsQuery
+                ->where(function ($query) {
+                    $query->whereNull('payment_status')
+                        ->orWhere('payment_status', '<>', 'pagado');
+                })
+                ->where(function ($query) {
+                    $query->whereNull('fecha_vencimiento')
+                        ->orWhereDate('fecha_vencimiento', '>', today()->toDateString());
+                });
+        }
+
+        $documents = $documentsQuery
             ->orderByDesc('fecha_factura')
             ->orderByDesc('id')
             ->paginate(20)
@@ -75,7 +105,7 @@ class GmailDteDocumentController extends Controller
 
         $canSeeValues = auth()->user()?->canSeeValues() ?? true;
 
-        return view('gmail.dtes.facturas.list', compact('documents', 'q', 'tipo', 'canSeeValues'));
+        return view('gmail.dtes.facturas.list', compact('documents', 'q', 'tipo', 'estado', 'canSeeValues'));
     }
 
     public function boletasList(Request $request)
@@ -227,6 +257,65 @@ class GmailDteDocumentController extends Controller
             });
     }
 
+    /**
+     * Encuentra la factura contable de Odoo que corresponde a un DTE de proveedor.
+     *
+     * Los folios de proveedores distintos pueden coincidir, por lo que el folio por
+     * sí solo no es una clave suficiente para relacionar los apuntes contables.
+     */
+    private function findAccountingMoveForDocument(object $document, string $folio): ?OdooAccountMove
+    {
+        $folioInt = (int) $folio;
+
+        $candidates = OdooAccountMove::query()
+            ->where(function ($query) use ($folioInt, $folio) {
+                $query->where('folio', $folioInt)
+                    ->orWhere('ref', $folio);
+            })
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $providerRut = $this->normalizeRut($document->proveedor_rut ?? null);
+
+        if ($providerRut !== '') {
+            $rutMatches = $candidates->filter(fn (OdooAccountMove $candidate) =>
+                $this->normalizeRut($candidate->partner_vat) === $providerRut
+            )->values();
+
+            if ($rutMatches->count() === 1) {
+                return $rutMatches->first();
+            }
+
+            if ($rutMatches->isNotEmpty()) {
+                $candidates = $rutMatches;
+            }
+        }
+
+        $invoiceDate = (string) ($document->fecha_factura ?? '');
+        $amountTotal = (float) ($document->monto_total ?? 0);
+
+        $dateAndAmountMatches = $candidates->filter(function (OdooAccountMove $candidate) use ($invoiceDate, $amountTotal) {
+            $sameDate = $invoiceDate !== '' && (string) $candidate->invoice_date === $invoiceDate;
+            $sameAmount = abs((float) $candidate->amount_total - $amountTotal) < 0.01;
+
+            return $sameDate && $sameAmount;
+        })->values();
+
+        if ($dateAndAmountMatches->count() === 1) {
+            return $dateAndAmountMatches->first();
+        }
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
+    }
+
+    private function normalizeRut(?string $rut): string
+    {
+        return strtoupper((string) preg_replace('/[^0-9k]/i', '', (string) $rut));
+    }
+
     public function show(int $id)
     {
         [$document, $lines] = $this->getDocumentWithLines($id);
@@ -266,15 +355,15 @@ class GmailDteDocumentController extends Controller
                 'message' => 'El documento no tiene folio registrado.']);
         }
 
-        // Buscar la factura de proveedor en nuestra tabla local (sincronizada desde Odoo)
-        // El folio numérico del DTE se compara contra el campo `folio` extraído de name ("FAC 106723" → 106723)
-        $folioInt = (int) $folio;
-        $move = OdooAccountMove::where('folio', $folioInt)->first()
-            ?? OdooAccountMove::where('ref', $folio)->first();
+        // Un folio no es único entre proveedores. Primero se buscan los candidatos por
+        // folio y luego se identifica la factura por RUT; si el DTE no tiene RUT, se
+        // exige una coincidencia única por fecha y total. Nunca se debe tomar el
+        // primer resultado, porque podría pertenecer a otro proveedor.
+        $move = $this->findAccountingMoveForDocument($document, $folio);
 
         if (! $move) {
             return response()->json(['found' => false, 'lines' => [], 'move' => null,
-                'message' => "No se encontró la factura con folio «{$folio}» en la base de datos local. Puede que aún no haya sido registrada en Odoo."]);
+                'message' => "No se encontró una factura única para el folio «{$folio}» en la base de datos local. Verifica el proveedor, la fecha y el total en Odoo."]);
         }
 
         $rawLines = OdooAccountMoveLine::where('move_odoo_id', $move->odoo_id)
