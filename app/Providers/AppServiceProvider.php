@@ -19,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (config('app.env') === 'production') {
+        // Los dominios públicos siempre usan HTTPS. La IP directa del VPS se
+        // conserva en HTTP, porque no puede tener un certificado TLS válido.
+        if (config('app.env') === 'production'
+            && filter_var(request()->getHost(), FILTER_VALIDATE_IP) === false) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
     }
