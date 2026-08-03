@@ -2,7 +2,7 @@
 <script>
     const KG_PROMEDIO_URL = "{{ route('agrak.kg-promedio') }}";
     window.AUTH_USER = { id: {{ auth()->id() }}, name: "{{ auth()->user()->name }}", role: "{{ auth()->user()->role }}" };
-    const ws = new WebSocket("ws://109.72.119.62/ws");
+    const ws = new WebSocket("wss://digitalvault.cl/ws");
     ws.onopen = () => ws.send(JSON.stringify({ type: 'register', userId: window.AUTH_USER.id, name: window.AUTH_USER.name }));
     ws.onmessage = e => {
         let d; try { d = JSON.parse(e.data); } catch { return; }

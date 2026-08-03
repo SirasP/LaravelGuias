@@ -216,34 +216,6 @@
 
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-500 mb-1">Fleet L/h (Diesel)</p>
-                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
-                                {{ number_format($fleetDieselAvgLh, 1) }} <span class="text-xs font-bold text-gray-400">L/h</span>
-                            </p>
-                        </div>
-                        <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                            <svg class="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-500 mb-1">Fleet km/L (Diesel)</p>
-                            <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
-                                {{ number_format($fleetDieselAvgKmL, 1) }} <span class="text-xs font-bold text-gray-400">km/L</span>
-                            </p>
-                        </div>
-                        <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                            <svg class="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.487V6.512a2 2 0 011.553-1.943L9 2l5.447 2.764A2 2 0 0115 6.512v8.975a2 2 0 01-1.553 1.943L9 20zm0 0V9" />
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-1">Total Distribución (km)</p>
                             <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">
                                 {{ number_format($totalDieselKm, 0) }} <span class="text-xs font-bold text-gray-400">km</span>

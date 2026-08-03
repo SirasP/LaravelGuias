@@ -65,7 +65,11 @@
             $status = 'pendiente';
             $movId = null;
             if ($matched) {
-                $status = $matched->estado === 'aprobado' ? 'aprobado' : 'pendiente_revision';
+                $status = match ($matched->estado) {
+                    'aprobado' => 'aprobado',
+                    'rechazado' => 'rechazado',
+                    default => 'pendiente_revision',
+                };
                 $movId = $matched->id;
             }
             
@@ -118,8 +122,10 @@
                                          f.rut.toLowerCase().includes(this.searchInvoice.toLowerCase());
                      
                      if (this.statusFilter === 'todos') return matchSearch;
-                     if (this.statusFilter === 'ingresados') return matchSearch && f.status !== 'pendiente';
+                     if (this.statusFilter === 'ingresados') return matchSearch && f.status === 'aprobado';
+                     if (this.statusFilter === 'revision') return matchSearch && f.status === 'pendiente_revision';
                      if (this.statusFilter === 'pendientes') return matchSearch && f.status === 'pendiente';
+                     if (this.statusFilter === 'rechazados') return matchSearch && f.status === 'rechazado';
                      return matchSearch;
                  });
              }
@@ -288,7 +294,9 @@
                                 class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-semibold">
                             <option value="todos">Todos los Estados</option>
                             <option value="ingresados">Ingresados en Stock</option>
+                            <option value="revision">En Revisión</option>
                             <option value="pendientes">Pendientes de Ingreso</option>
+                            <option value="rechazados">Rechazados</option>
                         </select>
                     </div>
                 </div>
@@ -353,9 +361,10 @@
                                             <span :class="{
                                                 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/30': fac.status === 'aprobado',
                                                 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400 border border-yellow-100/50 dark:border-yellow-900/30': fac.status === 'pendiente_revision',
-                                                'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-500 border border-amber-100/50 dark:border-amber-900/30': fac.status === 'pendiente'
+                                                'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-500 border border-amber-100/50 dark:border-amber-900/30': fac.status === 'pendiente',
+                                                'bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-900/30': fac.status === 'rechazado'
                                             }" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                                                  x-text="fac.status === 'aprobado' ? 'Ingresado' : (fac.status === 'pendiente_revision' ? 'En Revisión' : 'Pendiente')">
+                                                  x-text="fac.status === 'aprobado' ? 'Ingresado' : (fac.status === 'pendiente_revision' ? 'En Revisión' : (fac.status === 'rechazado' ? 'Rechazado' : 'Pendiente'))">
                                             </span>
                                         </td>
 
@@ -363,7 +372,7 @@
                                         <td class="px-6 py-4 text-center whitespace-nowrap">
                                             <div class="flex items-center justify-center gap-2">
                                                 <button @click="fac.status === 'pendiente' ? abrirDteXml('{{ route('fuelcontrol.xml.dte.show', '__id__') }}'.replace('__id__', fac.id)) : abrirMovimiento('{{ route('fuelcontrol.xml.show', '__id__') }}'.replace('__id__', fac.movimiento_id))"
-                                                        :class="fac.status === 'pendiente' ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-450 hover:bg-amber-100' : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100'"
+                                                        :class="fac.status === 'pendiente' ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-450 hover:bg-amber-100' : (fac.status === 'rechazado' ? 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100' : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100')"
                                                         class="w-9 h-9 rounded-2xl flex items-center justify-center transition-all shadow-sm hover:scale-105 active:scale-95 group"
                                                         title="Ver XML e Ingreso">
                                                     <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
