@@ -559,6 +559,16 @@
             color: #f87171
         }
 
+        .tipo-neutro {
+            background: #e2e8f0;
+            color: #475569
+        }
+
+        .dark .tipo-neutro {
+            background: rgba(100, 116, 139, .18);
+            color: #cbd5e1
+        }
+
         .tipo-pill {
             display: inline-flex;
             padding: 2px 8px;
@@ -985,7 +995,9 @@
                         @forelse($movimientos as $m)
                             @php
                                 $isPos = strtolower($m->tipo) === 'entrada' || strtolower($m->tipo) === 'ingreso';
-                                $tipoClass = $isPos ? 'tipo-ingreso' : 'tipo-egreso';
+                                $isCargaVehiculo = strtolower(trim($m->tipo)) === 'vehiculo';
+                                $tipoClass = $isCargaVehiculo ? 'tipo-neutro' : ($isPos ? 'tipo-ingreso' : 'tipo-egreso');
+                                $tipoLabel = $isCargaVehiculo ? 'Carga vehículo' : ucfirst($m->tipo);
                             @endphp
                             <div class="mv-row {{ !empty($m->xml_path) ? 'clickable' : '' }}" @if(!empty($m->xml_path))
                             onclick="abrirMovimiento({{ $m->id }})" @endif>
@@ -1007,7 +1019,7 @@
                                         {{ ucfirst($m->producto_nombre ?? 'Producto #' . $m->producto_id) }}
                                     </p>
                                     <div class="flex items-center gap-2 mt-0.5">
-                                        <span class="tipo-pill {{ $tipoClass }}">{{ ucfirst($m->tipo) }}</span>
+                                        <span class="tipo-pill {{ $tipoClass }}">{{ $tipoLabel }}</span>
                                         <span class="text-[11px] text-gray-400">
                                             {{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}
                                         </span>
