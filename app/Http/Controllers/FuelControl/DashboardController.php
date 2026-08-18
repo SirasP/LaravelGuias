@@ -99,7 +99,8 @@ class DashboardController extends Controller
         LOWER(productos.nombre) as producto,
         SUM(ABS(movimientos.cantidad)) as total
     ')
-                ->where('tipo', 'salida')
+                // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+                ->whereIn('tipo', ['salida', 'vehiculo'])
                 ->where('fecha_movimiento', '>=', $desde)
                 ->groupBy('fecha', 'producto')
                 ->orderBy('fecha')

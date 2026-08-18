@@ -410,11 +410,15 @@ class GmailLeerXml extends Command
                             ? "Carga vehículo {$patenteDte}"
                             : ($usaVehiculo ? 'XML requiere revisión' : "Ingreso de {$productoNombre}");
 
+                        // La patente viaja en la notificación para poder cachar
+                        // al vuelo una factura que entró al estanque sin serlo.
+                        $patenteInfo = $patenteDte !== '' ? "patente {$patenteDte}" : 'sin patente';
+
                         $mensajeNotif = $vehiculoExcluido
                             ? "{$cantidad} L de {$productoNombre} — no afecta stock del estanque"
                             : ($usaVehiculo
                                 ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
-                                : "+{$cantidad} L desde XML ({$filename})");
+                                : "+{$cantidad} L al estanque · {$patenteInfo} ({$filename})");
 
                         $notificacionId = DB::connection('fuelcontrol')->table('notificaciones')->insertGetId([
                             'tipo'         => $tipoNotif,

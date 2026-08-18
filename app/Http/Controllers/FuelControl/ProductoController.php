@@ -34,7 +34,8 @@ class ProductoController extends Controller
         if ($dieselId) {
             $movimientosDiesel = $db->table('movimientos')
                 ->where('producto_id', $dieselId)
-                ->where('tipo', 'salida')
+                // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+                ->whereIn('tipo', ['salida', 'vehiculo'])
                 ->whereDate('fecha_movimiento', '>=', $inicioMes)
                 ->where(function ($q) {
                     $q->where('estado', 'aprobado')->orWhereNull('estado');
@@ -93,7 +94,8 @@ class ProductoController extends Controller
         if ($gasolinaId) {
             $totalGasolina = $db->table('movimientos')
                 ->where('producto_id', $gasolinaId)
-                ->where('tipo', 'salida')
+                // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+                ->whereIn('tipo', ['salida', 'vehiculo'])
                 ->whereDate('fecha_movimiento', '>=', $inicioMes)
                 ->where(function ($q) {
                     $q->where('estado', 'aprobado')->orWhereNull('estado');

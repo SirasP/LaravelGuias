@@ -63,7 +63,8 @@ class ConsumoAnalysisController extends Controller
             ->table('movimientos as m')
             ->leftJoin('vehiculos as v', 'v.id', '=', 'm.vehiculo_id')
             ->leftJoin('productos as p', 'p.id', '=', 'm.producto_id')
-            ->where('m.tipo', 'salida')
+            // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+            ->whereIn('m.tipo', ['salida', 'vehiculo'])
             ->whereBetween('m.fecha_movimiento', [
                 $periodoActual->copy()->startOfMonth(),
                 $periodoActual->copy()->endOfMonth(),
@@ -122,7 +123,8 @@ class ConsumoAnalysisController extends Controller
         return DB::connection('fuelcontrol')
             ->table('movimientos as m')
             ->join('productos as p', 'p.id', '=', 'm.producto_id')
-            ->where('m.tipo', 'salida')
+            // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+            ->whereIn('m.tipo', ['salida', 'vehiculo'])
             ->whereBetween('m.fecha_movimiento', [$desde, $hasta])
             ->where(function ($query) {
                 $query->where('m.estado', 'aprobado')->orWhereNull('m.estado');
@@ -152,7 +154,8 @@ class ConsumoAnalysisController extends Controller
     {
         return DB::connection('fuelcontrol')
             ->table('movimientos')
-            ->where('tipo', 'salida')
+            // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
+            ->whereIn('tipo', ['salida', 'vehiculo'])
             ->whereBetween('fecha_movimiento', [$desde, $hasta])
             ->where(function ($query) {
                 $query->where('estado', 'aprobado')->orWhereNull('estado');
