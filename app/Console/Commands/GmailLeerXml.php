@@ -240,6 +240,27 @@ class GmailLeerXml extends Command
                     }
 
                     /* ─────────────────────────────────
+                     | 7b. PATENTE EXCLUIDA DE STOCK
+                     |     Combustible cargado en bomba directo al
+                     |     estanque de un vehículo: se registra el
+                     |     movimiento pero NO entra al estanque propio.
+                     ─────────────────────────────────  */
+                    $patenteDte = strtoupper(trim(
+                        (string) ($xml->xpath('//sii:Transporte/sii:Patente')[0] ?? '')
+                    ));
+
+                    $vehiculoExcluido = $patenteDte !== ''
+                        ? $db->table('vehiculos')
+                            ->whereRaw('UPPER(patente) = ?', [$patenteDte])
+                            ->where('excluye_stock', 1)
+                            ->first()
+                        : null;
+
+                    if ($vehiculoExcluido) {
+                        $this->warn("🚫 Patente {$patenteDte} excluida de stock → no suma al estanque.");
+                    }
+
+                    /* ─────────────────────────────────
                      | 8. PROCESAR DETALLES
                      ─────────────────────────────────  */
                     $detalleRows = $xml->xpath('//sii:Detalle') ?? [];
@@ -346,7 +367,10 @@ class GmailLeerXml extends Command
                         }
 
                         /* ─── Actualizar stock ─────────── */
-                        if (!$usaVehiculo && $afectaStock) {
+                        if ($vehiculoExcluido) {
+                            $this->info("🚗 Carga de {$patenteDte}: {$cantidad} L registrados SIN afectar stock.");
+                            $estado = 'aprobado';
+                        } elseif (!$usaVehiculo && $afectaStock) {
                             $db->table('productos')
                                 ->where('id', $producto->id)
                                 ->increment('cantidad', $cantidad);
@@ -360,10 +384,12 @@ class GmailLeerXml extends Command
                         /* ─── Insertar movimiento ──────── */
                         $movimientoId = $db->table('movimientos')->insertGetId([
                             'producto_id'      => $producto->id,
-                            'vehiculo_id'      => null,
+                            'vehiculo_id'      => $vehiculoExcluido->id ?? null,
                             'cantidad'         => $cantidad,
-                            'tipo'             => $usaVehiculo ? 'vehiculo' : 'entrada',
-                            'origen'           => $usaVehiculo ? 'xml_vehiculo' : 'xml_estanque',
+                            'tipo'             => ($usaVehiculo || $vehiculoExcluido) ? 'vehiculo' : 'entrada',
+                            'origen'           => $vehiculoExcluido
+                                ? 'xml_patente_excluida'
+                                : ($usaVehiculo ? 'xml_vehiculo' : 'xml_estanque'),
                             'referencia'       => $filename,
                             'requiere_revision'=> $usaVehiculo ? 1 : 0,
                             'estado'           => $estado,
@@ -376,15 +402,25 @@ class GmailLeerXml extends Command
                         ]);
 
                         /* ─── Notificaciones ───────────── */
-                        $notificacionId = DB::connection('fuelcontrol')->table('notificaciones')->insertGetId([
-                            'tipo'         => $usaVehiculo ? 'xml_revision' : 'xml_entrada',
-                            'titulo'       => $usaVehiculo
-                                ? 'XML requiere revisión'
-                                : "Ingreso de {$productoNombre}",
-                            'movimiento_id'=> $movimientoId,
-                            'mensaje'      => $usaVehiculo
+                        $tipoNotif = $vehiculoExcluido
+                            ? 'xml_carga_vehiculo'
+                            : ($usaVehiculo ? 'xml_revision' : 'xml_entrada');
+
+                        $tituloNotif = $vehiculoExcluido
+                            ? "Carga vehículo {$patenteDte}"
+                            : ($usaVehiculo ? 'XML requiere revisión' : "Ingreso de {$productoNombre}");
+
+                        $mensajeNotif = $vehiculoExcluido
+                            ? "{$cantidad} L de {$productoNombre} — no afecta stock del estanque"
+                            : ($usaVehiculo
                                 ? "{$cantidad} L detectados como posible carga vehicular (Ley 18.502)"
-                                : "+{$cantidad} L desde XML ({$filename})",
+                                : "+{$cantidad} L desde XML ({$filename})");
+
+                        $notificacionId = DB::connection('fuelcontrol')->table('notificaciones')->insertGetId([
+                            'tipo'         => $tipoNotif,
+                            'titulo'       => $tituloNotif,
+                            'movimiento_id'=> $movimientoId,
+                            'mensaje'      => $mensajeNotif,
                             'created_at'   => now(),
                             'updated_at'   => now(),
                         ]);
@@ -403,11 +439,9 @@ class GmailLeerXml extends Command
                         /* ─── WebSocket notify ─────────── */
                         try {
                             Http::timeout(3)->post('http://127.0.0.1:3001/notify', [
-                                'type'    => $usaVehiculo ? 'xml_vehiculo' : 'xml_entrada',
-                                'titulo'  => $usaVehiculo ? 'XML de consumo vehicular' : "Ingreso de {$productoNombre}",
-                                'mensaje' => $usaVehiculo
-                                    ? "{$cantidad} L (Ley 18.502)"
-                                    : "+{$cantidad} L desde XML ({$filename})",
+                                'type'    => $tipoNotif,
+                                'titulo'  => $tituloNotif,
+                                'mensaje' => $mensajeNotif,
                                 'producto' => $productoNombre,  // 🔥 Diesel o Gasolina
                                 'cantidad' => $cantidad,
                                 'movimiento_id' => $movimientoId,
@@ -419,14 +453,14 @@ class GmailLeerXml extends Command
 
                         /* ─── Firebase Push Notifications ─── */
                         $this->enviarNotificacionPush(
-                            titulo: $usaVehiculo ? '🚗 XML requiere revisión' : "⛽ Ingreso de {$productoNombre}",
-                            mensaje: $usaVehiculo
-                                ? "{$cantidad} L detectados (Ley 18.502)"
-                                : "+{$cantidad} L agregados al stock",
+                            titulo: $vehiculoExcluido
+                                ? "🚗 Carga vehículo {$patenteDte}"
+                                : ($usaVehiculo ? '🚗 XML requiere revisión' : "⛽ Ingreso de {$productoNombre}"),
+                            mensaje: $mensajeNotif,
                             producto: $productoNombre,
                             cantidad: $cantidad,
                             movimientoId: $movimientoId,
-                            tipo: $usaVehiculo ? 'xml_revision' : 'xml_entrada'
+                            tipo: $tipoNotif
                         );
                     }
                 }

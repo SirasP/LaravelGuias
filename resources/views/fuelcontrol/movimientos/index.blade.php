@@ -217,6 +217,16 @@
             color: #f87171
         }
 
+        .tipo-vehiculo {
+            background: #e2e8f0;
+            color: #475569
+        }
+
+        .dark .tipo-vehiculo {
+            background: rgba(100, 116, 139, .18);
+            color: #cbd5e1
+        }
+
         .flt-select {
             padding: 6px 26px 6px 10px;
             border-radius: 10px;
@@ -350,6 +360,7 @@
                         <option value="">Tipo — todos</option>
                         <option value="entrada" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>Entrada</option>
                         <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>Salida</option>
+                        <option value="vehiculo" {{ request('tipo') == 'vehiculo' ? 'selected' : '' }}>Carga vehículo</option>
                     </select>
                     <select name="producto_id" onchange="this.form.submit()" class="flt-select">
                         <option value="">Producto — todos</option>
@@ -401,6 +412,9 @@
                             @forelse ($movimientos as $m)
                                 @php
                                     $isEntrada = strtolower(trim($m->tipo)) === 'entrada';
+                                    $isCargaVehiculo = strtolower(trim($m->tipo)) === 'vehiculo';
+                                    $claseTipo = $isCargaVehiculo ? 'tipo-vehiculo' : ($isEntrada ? 'tipo-entrada' : 'tipo-salida');
+                                    $etiquetaTipo = $isCargaVehiculo ? 'Carga vehículo' : ($isEntrada ? 'Ingreso' : 'Salida');
                                     $nombreUsuario = $m->usuario;
                                     if (in_array($nombreUsuario, ['gmail', 'gmail_historico']))
                                         $nombreUsuario = 'Carga Autom.';
@@ -417,8 +431,8 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="badge-pill {{ $isEntrada ? 'tipo-entrada' : 'tipo-salida' }}">
-                                            {{ $isEntrada ? 'Ingreso' : 'Salida' }}
+                                        <span class="badge-pill {{ $claseTipo }}">
+                                            {{ $etiquetaTipo }}
                                         </span>
                                     </td>
                                     <td>
@@ -432,8 +446,8 @@
                                         @endif
                                     </td>
                                     <td
-                                        class="text-right font-bold tabular-nums {{ $isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                        {{ $isEntrada ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }}
+                                        class="text-right font-bold tabular-nums {{ $isCargaVehiculo ? 'text-slate-500 dark:text-slate-300' : ($isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') }}">
+                                        {{ $isCargaVehiculo ? '' : ($isEntrada ? '+' : '-') }}{{ number_format(abs($m->cantidad), 2) }}
                                         <span class="text-xs text-gray-400 ml-0.5">L</span>
                                     </td>
                                     <td class="text-center">
@@ -495,6 +509,9 @@
                 @forelse ($movimientos as $m)
                     @php
                         $isEntrada = strtolower(trim($m->tipo)) === 'entrada';
+                        $isCargaVehiculo = strtolower(trim($m->tipo)) === 'vehiculo';
+                        $claseTipo = $isCargaVehiculo ? 'tipo-vehiculo' : ($isEntrada ? 'tipo-entrada' : 'tipo-salida');
+                        $etiquetaTipo = $isCargaVehiculo ? 'Carga vehículo' : ($isEntrada ? 'Ingreso' : 'Salida');
                         $nombreUsuario = $m->usuario;
                         if (in_array($nombreUsuario, ['gmail', 'gmail_historico']))
                             $nombreUsuario = 'Carga Autom.';
@@ -503,8 +520,14 @@
                         <div class="flex items-start justify-between gap-2 mb-2.5">
                             <div class="flex items-center gap-2.5 min-w-0">
                                 <div
-                                    class="w-9 h-9 rounded-xl {{ $isEntrada ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20' }} flex items-center justify-center shrink-0">
-                                    @if($isEntrada)
+                                    class="w-9 h-9 rounded-xl {{ $isCargaVehiculo ? 'bg-slate-100 dark:bg-slate-700/30' : ($isEntrada ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20') }} flex items-center justify-center shrink-0">
+                                    @if($isCargaVehiculo)
+                                        <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 17h8m-9 0a2 2 0 11-4 0 2 2 0 014 0zm14 0a2 2 0 11-4 0 2 2 0 014 0zM3 13h18l-2-6H5l-2 6z" />
+                                        </svg>
+                                    @elseif($isEntrada)
                                         <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none"
                                             stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -524,15 +547,15 @@
                                     {{-- Detalle movido a vehículos --}}
                                     <div class="flex items-center gap-2 mt-0.5">
                                         <span
-                                            class="badge-pill text-[10px] {{ $isEntrada ? 'tipo-entrada' : 'tipo-salida' }}">{{ $isEntrada ? 'Ingreso' : 'Salida' }}</span>
+                                            class="badge-pill text-[10px] {{ $claseTipo }}">{{ $etiquetaTipo }}</span>
                                         <span
                                             class="text-[11px] text-gray-400">{{ \Carbon\Carbon::parse($m->fecha_movimiento)->format('d/m/Y') }}</span>
                                     </div>
                                 </div>
                             </div>
                             <p
-                                class="text-sm font-black tabular-nums shrink-0 {{ $isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                {{ $isEntrada ? '+' : '-' }}{{ number_format(abs($m->cantidad), 2) }} L
+                                class="text-sm font-black tabular-nums shrink-0 {{ $isCargaVehiculo ? 'text-slate-500 dark:text-slate-300' : ($isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') }}">
+                                {{ $isCargaVehiculo ? '' : ($isEntrada ? '+' : '-') }}{{ number_format(abs($m->cantidad), 2) }} L
                             </p>
                         </div>
 

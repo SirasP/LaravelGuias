@@ -15,11 +15,13 @@ class Vehiculo extends Model
         'descripcion',
         'tipo',
         'is_active',
+        'excluye_stock',
         'fecha_registro',
         'usuario',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'excluye_stock' => 'boolean',
     ];
 }
