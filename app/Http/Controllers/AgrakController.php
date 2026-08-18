@@ -19,10 +19,19 @@ class AgrakController extends Controller
         $season = $request->get('season');
         $view = $request->get('view', 'list'); // list | group
 
+        // Rango de fechas de cosecha (columna date `fecha_registro`).
+        // Cualquiera de los dos extremos puede venir solo. Solo se acepta
+        // ISO yyyy-mm-dd; cualquier otra cosa en la URL se ignora.
+        $esFecha = fn($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
+        $desde = trim((string) $request->get('desde', ''));
+        $hasta = trim((string) $request->get('hasta', ''));
+        $desde = $esFecha($desde) ? $desde : '';
+        $hasta = $esFecha($hasta) ? $hasta : '';
+
         // Obtener temporadas disponibles dinámicamente desde la BD (cosechas tipo 2025/2026)
         $availableSeasons = AgrakRegistro::query()
-            ->whereNotNull('created_at')
-            ->selectRaw("DISTINCT IF(MONTH(created_at) >= 6, CONCAT(YEAR(created_at), '/', YEAR(created_at) + 1), CONCAT(YEAR(created_at) - 1, '/', YEAR(created_at))) as season")
+            ->whereNotNull('fecha_registro')
+            ->selectRaw("DISTINCT IF(MONTH(fecha_registro) >= 6, CONCAT(YEAR(fecha_registro), '/', YEAR(fecha_registro) + 1), CONCAT(YEAR(fecha_registro) - 1, '/', YEAR(fecha_registro))) as season")
             ->pluck('season')
             ->toArray();
 
@@ -56,22 +65,10 @@ class AgrakController extends Controller
         if ($view === 'group') {
 
             // 1) Base query con filtros/búsqueda (sin aggregate todavía)
-            $base = AgrakRegistro::query();
-
-            if ($campo !== '')
-                $base->where('nombre_campo', $campo);
-            if ($cuartel !== '')
-                $base->where('cuartel', $cuartel);
-            if ($especie !== '')
-                $base->where('especie', $especie);
-
-            if ($season && str_contains($season, '/')) {
-                [$startYear, $endYear] = explode('/', $season);
-                $base->whereBetween('created_at', [
-                    "{$startYear}-06-01 00:00:00",
-                    "{$endYear}-05-31 23:59:59"
-                ]);
-            }
+            // Sin 'q': la vista agrupada no tiene buscador.
+            $base = AgrakRegistro::query()->filtrado(
+                compact('campo', 'cuartel', 'especie', 'desde', 'hasta', 'season')
+            );
 
             if ($q !== '') {
                 $base->where(function ($w) use ($q) {
@@ -183,6 +180,8 @@ class AgrakController extends Controller
                 'campo' => $campo,
                 'cuartel' => $cuartel,
                 'especie' => $especie,
+                'desde' => $desde,
+                'hasta' => $hasta,
                 'season' => $season,
                 'availableSeasons' => $availableSeasons,
                 'campos' => $campos,
@@ -198,37 +197,9 @@ class AgrakController extends Controller
         $orderBy = $request->get('order_by', 'fecha_registro');
         $dir = $request->get('dir', 'desc');
 
-        $query = AgrakRegistro::query();
-
-        if ($campo !== '')
-            $query->where('nombre_campo', $campo);
-        if ($cuartel !== '')
-            $query->where('cuartel', $cuartel);
-        if ($especie !== '')
-            $query->where('especie', $especie);
-
-        if ($season && str_contains($season, '/')) {
-            [$startYear, $endYear] = explode('/', $season);
-            $query->whereBetween('created_at', [
-                "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
-            ]);
-        }
-
-        if ($q !== '') {
-            $query->where(function ($w) use ($q) {
-                $w->where('codigo_bin', 'like', "%{$q}%")
-                    ->orWhere('nombre_cosecha', 'like', "%{$q}%")
-                    ->orWhere('nombre_campo', 'like', "%{$q}%")
-                    ->orWhere('cuartel', 'like', "%{$q}%")
-                    ->orWhere('especie', 'like', "%{$q}%")
-                    ->orWhere('variedad', 'like', "%{$q}%")
-                    ->orWhere('usuario', 'like', "%{$q}%")
-                    ->orWhere('id_usuario', 'like', "%{$q}%")
-                    ->orWhere('patente_camion', 'like', "%{$q}%")
-                    ->orWhere('nombre_chofer', 'like', "%{$q}%");
-            });
-        }
+        $query = AgrakRegistro::query()->filtrado(
+            compact('q', 'campo', 'cuartel', 'especie', 'desde', 'hasta', 'season')
+        );
 
         $allowed = ['fecha_registro', 'created_at', 'codigo_bin'];
         if (!in_array($orderBy, $allowed, true))
@@ -260,7 +231,7 @@ class AgrakController extends Controller
         $cuarteles = AgrakRegistro::select('cuartel')->whereNotNull('cuartel')->distinct()->orderBy('cuartel')->pluck('cuartel');
         $especies = AgrakRegistro::select('especie')->whereNotNull('especie')->distinct()->orderBy('especie')->pluck('especie');
 
-        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies', 'stats', 'availableSeasons', 'season'));
+        return view('agrak.index', compact('items', 'q', 'campo', 'cuartel', 'especie', 'desde', 'hasta', 'orderBy', 'dir', 'campos', 'cuarteles', 'especies', 'stats', 'availableSeasons', 'season'));
     }
 
     public function show(int $id)

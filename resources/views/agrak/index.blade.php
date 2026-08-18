@@ -200,6 +200,17 @@
                         @endforeach
                     </select>
 
+                    {{-- Rango de fechas de cosecha --}}
+                    <div class="flex items-center gap-1.5">
+                        <label for="f-desde" class="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Desde</label>
+                        <input id="f-desde" type="date" name="desde" value="{{ $desde ?? '' }}"
+                               max="{{ $hasta ?: null }}" class="flt-date">
+
+                        <label for="f-hasta" class="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Hasta</label>
+                        <input id="f-hasta" type="date" name="hasta" value="{{ $hasta ?? '' }}"
+                               min="{{ $desde ?: null }}" class="flt-date">
+                    </div>
+
                     {{-- Hidden order params --}}
                     <input type="hidden" name="order_by" value="{{ $orderBy ?? '' }}">
                     <input type="hidden" name="dir" value="{{ $dir ?? 'desc' }}">
@@ -209,7 +220,7 @@
                             Filtrar
                         </button>
 
-                        @if($campo || $cuartel || $especie || $q || $season)
+                        @if($campo || $cuartel || $especie || $q || $season || $desde || $hasta)
                             <a href="{{ route('agrak.index') }}" class="flt-btn flt-clear flex items-center justify-center whitespace-nowrap">
                                 Limpiar
                             </a>
@@ -219,9 +230,15 @@
             </form>
 
             {{-- Chips de filtros activos --}}
-            @if($campo || $cuartel || $especie)
+            @if($campo || $cuartel || $especie || $desde || $hasta)
                 <div class="flex flex-wrap gap-1.5 pt-1">
-                    @foreach(array_filter(['Campo' => $campo, 'Cuartel' => $cuartel, 'Especie' => $especie]) as $label => $val)
+                    @foreach(array_filter([
+                        'Campo' => $campo,
+                        'Cuartel' => $cuartel,
+                        'Especie' => $especie,
+                        'Desde' => $desde ? \Carbon\Carbon::parse($desde)->format('d/m/Y') : '',
+                        'Hasta' => $hasta ? \Carbon\Carbon::parse($hasta)->format('d/m/Y') : '',
+                    ]) as $label => $val)
                         <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border
                              bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-900/30">
                             {{ $label }}: {{ $val }}

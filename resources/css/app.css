@@ -556,6 +556,33 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
 
+    /* Igual que .flt-select pero sin la flecha, para inputs de fecha */
+    .flt-date {
+        padding: 6px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        transition: border-color .15s;
+        outline: none;
+    }
+
+    .flt-date:focus {
+        border-color: #6366f1;
+    }
+
+    .dark .flt-date {
+        background-color: #161c2c;
+        border-color: #1e2a3b;
+        color: #94a3b8;
+    }
+
+    .dark .flt-date::-webkit-calendar-picker-indicator {
+        filter: invert(.7);
+    }
+
     .flt-btn {
         padding: 6px 14px;
         border-radius: 10px;

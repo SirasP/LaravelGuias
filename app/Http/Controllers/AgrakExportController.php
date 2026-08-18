@@ -13,8 +13,25 @@ class AgrakExportController extends Controller
 {
     public function exportAll(Request $request)
     {
-        // 1️⃣ Traer bins ordenados
-        $bins = AgrakRegistro::orderBy('fecha_registro')
+        // 1️⃣ Traer bins ordenados, respetando los filtros de la vista
+        //    (llegan en la query string desde el botón "Exportar Excel").
+        $esFecha = fn($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
+        $desde = trim((string) $request->get('desde', ''));
+        $hasta = trim((string) $request->get('hasta', ''));
+
+        $filtros = [
+            'q' => trim((string) $request->get('q', '')),
+            'campo' => trim((string) $request->get('campo', '')),
+            'cuartel' => trim((string) $request->get('cuartel', '')),
+            'especie' => trim((string) $request->get('especie', '')),
+            'desde' => $esFecha($desde) ? $desde : '',
+            'hasta' => $esFecha($hasta) ? $hasta : '',
+            'season' => trim((string) $request->get('season', '')),
+        ];
+
+        $bins = AgrakRegistro::query()
+            ->filtrado($filtros)
+            ->orderBy('fecha_registro')
             ->orderBy('patente_norm')
             ->orderBy('hora_registro')
             ->get()
