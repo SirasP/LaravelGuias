@@ -9,7 +9,7 @@
         'destination' => $item->destination,
     ])->values()->all() ?? []);
     $requestItems = count($requestItems) ? $requestItems : [[
-        'product_service' => '', 'specification' => '', 'quantity' => '', 'unit' => '', 'quantity_note' => '', 'destination' => '',
+        'product_service' => '', 'specification' => '', 'quantity' => '', 'unit' => 'Unidades', 'quantity_note' => '', 'destination' => '',
     ]];
     $suppliers = old('suggested_suppliers', $purchaseRequest?->suggested_suppliers ?? []);
     $suppliers = is_array($suppliers) ? array_values($suppliers) : [];
@@ -92,14 +92,14 @@
 
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
-            <h2 class="font-extrabold text-slate-900 dark:text-white">1. Datos de la solicitud</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Indica quién necesita la compra y cuándo se requiere.</p>
+            <h2 class="font-extrabold text-slate-900 dark:text-white">1. Lo básico</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Sólo tres datos. Todo lo demás es opcional y está más abajo.</p>
         </div>
         <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
             <div>
                 @php
                     $departmentNames = ($departments ?? collect())->pluck('name');
-                    $currentDepartment = old('department', $purchaseRequest?->department);
+                    $currentDepartment = old('department', $purchaseRequest?->department ?? ($defaults['department'] ?? null));
                     // Un área heredada que ya no está en el catálogo no debe
                     // perderse al editar: se trata como valor libre.
                     $departmentIsCustom = filled($currentDepartment) && ! $departmentNames->contains($currentDepartment);
@@ -138,79 +138,15 @@
                             <span aria-hidden="true">↺</span> Compras pidió corregir esto
                         </p>
                     @endif <span class="text-rose-500">*</span></label>
-                <input id="required_date" type="date" name="required_date" value="{{ old('required_date', $purchaseRequest?->required_date?->format('Y-m-d') ?? $purchaseRequest?->required_date) }}" required
+                <input id="required_date" type="date" name="required_date" value="{{ old('required_date', $purchaseRequest?->required_date?->format('Y-m-d') ?? $purchaseRequest?->required_date ?? ($defaults['required_date'] ?? null)) }}" required
                     class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                 @error('required_date') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
             </div>
-            <div class="{{ $marcado('requested_for_name') }}">
-                <label for="requested_for_name" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Solicitado para</label>
-                    @if($estaMarcado('requested_for_name'))
-                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
-                        </p>
-                    @endif
-                <input id="requested_for_name" name="requested_for_name" x-model="requestedFor" value="{{ $requestedFor }}" autocomplete="name"
-                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Persona que necesita esta compra">
-                @error('requested_for') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                @error('requested_for_name') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-            <div class="{{ $marcado('cost_center') }}">
-                <label for="cost_center" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Centro de costo o proyecto</label>
-                    @if($estaMarcado('cost_center'))
-                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
-                        </p>
-                    @endif
-                <input id="cost_center" name="cost_center" list="cost-centers-catalog" value="{{ old('cost_center', $purchaseRequest?->cost_center) }}"
-                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Opcional">
-                @error('cost_center') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-        </div>
-    </section>
-
-    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
-            <h2 class="font-extrabold text-slate-900 dark:text-white">2. Motivo y destino</h2>
-        </div>
-        <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
             <div class="sm:col-span-2">
                 <label for="reason" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Motivo de la compra <span class="text-rose-500">*</span></label>
                 <textarea id="reason" name="reason" rows="3" required
                     class="mt-1.5 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Explica para qué se necesita.">{{ old('reason', $purchaseRequest?->reason) }}</textarea>
                 @error('reason') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-            <div>
-                <label for="priority" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Prioridad <span class="text-rose-500">*</span></label>
-                <select id="priority" name="priority" x-model="priority" required
-                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                    <option value="normal">Normal</option>
-                    <option value="urgent">Urgente</option>
-                </select>
-                @error('priority') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-            <div class="{{ $marcado('delivery_location') }}">
-                <label for="delivery_location" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Lugar de entrega o uso</label>
-                    @if($estaMarcado('delivery_location'))
-                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
-                        </p>
-                    @endif
-                <input id="delivery_location" name="delivery_location" list="locations-catalog" value="{{ old('delivery_location', $purchaseRequest?->delivery_location) }}"
-                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Opcional">
-                @error('delivery_location') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-            <div x-show="priority === 'urgent'" x-cloak class="sm:col-span-2">
-                <label for="urgent_reason" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Justificación de urgencia <span class="text-rose-500">*</span></label>
-                <textarea id="urgent_reason" name="urgent_reason" rows="2" :required="priority === 'urgent'"
-                    class="mt-1.5 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Explica por qué no puede esperar.">{{ old('urgent_reason', $purchaseRequest?->urgent_reason) }}</textarea>
-                @error('urgent_reason') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-            </div>
-            <div class="sm:col-span-2">
-                <label for="internal_notes" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Observaciones internas</label>
-                <textarea id="internal_notes" name="internal_notes" rows="2" x-model="internalNotes"
-                    class="mt-1.5 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Información adicional para Compras.">{{ $internalNotes }}</textarea>
-                @error('notes') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                @error('internal_notes') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
             </div>
         </div>
     </section>
@@ -218,7 +154,7 @@
     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
             <div>
-                <h2 class="font-extrabold text-slate-900 dark:text-white">3. Partidas</h2>
+                <h2 class="font-extrabold text-slate-900 dark:text-white">2. ¿Qué necesitas?</h2>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Usa coma o punto para decimales. Puedes repetir productos si tienen distinto destino.</p>
             </div>
             <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
@@ -257,20 +193,28 @@
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Metros, Unidades, Paquetes">
                             <template x-if="fieldError(`items.${index}.unit`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.unit`)"></p></template>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Especificación</label>
-                            <input :name="`items[${index}][specification]`" x-model="item.specification"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. 75 mm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Nota de cantidad / presentación</label>
-                            <input :name="`items[${index}][quantity_note]`" x-model="item.quantity_note"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. paquete de 6">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Destino o uso específico</label>
-                            <input :name="`items[${index}][destination]`" x-model="item.destination"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Casa de operarios">
+                        <div class="sm:col-span-2" x-data="{ detalle: !!(item.specification || item.quantity_note || item.destination) }">
+                            <button type="button" @click="detalle = !detalle" :aria-expanded="detalle.toString()"
+                                class="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                <span x-text="detalle ? '− Ocultar detalle' : '+ Agregar especificación, presentación o destino'"></span>
+                            </button>
+                            <div x-show="detalle" x-cloak class="mt-2 grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Especificación</label>
+                                <input :name="`items[${index}][specification]`" x-model="item.specification"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. 75 mm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Nota de cantidad / presentación</label>
+                                <input :name="`items[${index}][quantity_note]`" x-model="item.quantity_note"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. paquete de 6">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Destino o uso específico</label>
+                                <input :name="`items[${index}][destination]`" x-model="item.destination"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Casa de operarios">
+                            </div>
+                            </div>
                         </div>
                     </div>
                 </article>
@@ -282,12 +226,86 @@
         </div>
     </section>
 
-    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
-            <h2 class="font-extrabold text-slate-900 dark:text-white">4. Proveedores sugeridos y adjuntos</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Los proveedores son sólo una referencia; no implican adjudicación.</p>
+    {{-- Todo lo opcional, plegado. Pedir algo no puede costar dieciséis campos
+         en blanco: quien necesita el detalle lo abre; el resto ni lo ve. Se
+         despliega solo si hay errores ahí dentro o correcciones marcadas. --}}
+    <section x-data="{ abierto: {{ $errors->hasAny(['requested_for_name', 'cost_center', 'priority', 'urgent_reason', 'delivery_location', 'internal_notes', 'suggested_suppliers', 'attachments']) || $correcciones->isNotEmpty() ? 'true' : 'false' }} }"
+        class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+
+        <button type="button" @click="abierto = !abierto" :aria-expanded="abierto.toString()"
+            class="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 sm:px-5">
+            <span class="min-w-0">
+                <span class="block font-extrabold text-slate-900 dark:text-white">3. Más detalles</span>
+                <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+                    Opcional: para quién es, urgencia, dónde entregar, proveedores y adjuntos.
+                </span>
+            </span>
+            <span class="shrink-0 text-sm font-bold text-blue-600 dark:text-blue-400" x-text="abierto ? 'Ocultar' : 'Mostrar'"></span>
+        </button>
+
+        <div x-show="abierto" x-cloak class="border-t border-slate-100 dark:border-slate-800">
+            <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <div class="{{ $marcado('requested_for_name') }}">
+                <label for="requested_for_name" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Solicitado para</label>
+                    @if($estaMarcado('requested_for_name'))
+                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
+                        </p>
+                    @endif
+                <input id="requested_for_name" name="requested_for_name" x-model="requestedFor" value="{{ $requestedFor }}" autocomplete="name"
+                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Persona que necesita esta compra">
+                @error('requested_for') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                @error('requested_for_name') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="{{ $marcado('cost_center') }}">
+                <label for="cost_center" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Centro de costo o proyecto</label>
+                    @if($estaMarcado('cost_center'))
+                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
+                        </p>
+                    @endif
+                <input id="cost_center" name="cost_center" list="cost-centers-catalog" value="{{ old('cost_center', $purchaseRequest?->cost_center ?? ($isEditing ? null : ($defaults['cost_center'] ?? null))) }}"
+                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Opcional">
+                @error('cost_center') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            </div>
+            <div class="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <div>
+                <label for="priority" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Prioridad <span class="text-rose-500">*</span></label>
+                <select id="priority" name="priority" x-model="priority" required
+                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                    <option value="normal">Normal</option>
+                    <option value="urgent">Urgente</option>
+                </select>
+                @error('priority') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="{{ $marcado('delivery_location') }}">
+                <label for="delivery_location" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Lugar de entrega o uso</label>
+                    @if($estaMarcado('delivery_location'))
+                        <p class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                            <span aria-hidden="true">↺</span> Compras pidió corregir esto
+                        </p>
+                    @endif
+                <input id="delivery_location" name="delivery_location" list="locations-catalog" value="{{ old('delivery_location', $purchaseRequest?->delivery_location ?? ($isEditing ? null : ($defaults['delivery_location'] ?? null))) }}"
+                    class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Opcional">
+                @error('delivery_location') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div x-show="priority === 'urgent'" x-cloak class="sm:col-span-2">
+                <label for="urgent_reason" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Justificación de urgencia <span class="text-rose-500">*</span></label>
+                <textarea id="urgent_reason" name="urgent_reason" rows="2" :required="priority === 'urgent'"
+                    class="mt-1.5 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Explica por qué no puede esperar.">{{ old('urgent_reason', $purchaseRequest?->urgent_reason) }}</textarea>
+                @error('urgent_reason') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
+            <div class="sm:col-span-2">
+                <label for="internal_notes" class="block text-sm font-bold text-slate-700 dark:text-slate-200">Observaciones internas</label>
+                <textarea id="internal_notes" name="internal_notes" rows="2" x-model="internalNotes"
+                    class="mt-1.5 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Información adicional para Compras.">{{ $internalNotes }}</textarea>
+                @error('notes') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                @error('internal_notes') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+            </div>
         </div>
-        <div class="grid gap-5 p-4 sm:p-5 lg:grid-cols-2">
+
+            <div class="grid gap-5 p-4 sm:p-5 lg:grid-cols-2">
             <div class="space-y-3">
                 <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Proveedores sugeridos <span class="font-normal text-slate-400">(opcional, máximo 4)</span></p>
                 @foreach($suppliers as $index => $supplier)
@@ -303,6 +321,8 @@
                 @error('attachments') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                 @error('attachments.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
             </div>
+        </div>
+
         </div>
     </section>
 
@@ -336,7 +356,8 @@
             },
 
             addItem() {
-                this.items.push({ key: Date.now() + Math.random(), product_service: '', specification: '', quantity: '', unit: '', quantity_note: '', destination: '' });
+                // La unidad más común, para no obligar a elegirla en cada línea.
+                this.items.push({ key: Date.now() + Math.random(), product_service: '', specification: '', quantity: '', unit: 'Unidades', quantity_note: '', destination: '' });
             },
             removeItem(index) {
                 if (this.items.length > 1) this.items.splice(index, 1);

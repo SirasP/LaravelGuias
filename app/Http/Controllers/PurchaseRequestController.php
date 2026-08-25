@@ -152,21 +152,51 @@ class PurchaseRequestController extends Controller
     {
         Gate::authorize('create', PurchaseRequest::class);
 
-        return response()->view('purchase_requests.create', $this->catalogs());
+        return response()->view('purchase_requests.create', $this->catalogs($request->user()));
     }
 
     /**
-     * Catálogos que alimentan los desplegables del formulario.
+     * Catálogos y valores por defecto del formulario.
      *
-     * @return array<string, \Illuminate\Support\Collection<int, mixed>>
+     * El formulario llega medio lleno a propósito: pedir algo no puede costar
+     * dieciséis campos en blanco. Se repone lo que la persona ya usó la última
+     * vez, que casi siempre es lo mismo.
+     *
+     * @return array<string, mixed>
      */
-    private function catalogs(): array
+    private function catalogs(?User $user = null): array
     {
+        $departments = Department::query()->forCompany()->active()->ordered()->get();
+
         return [
-            'departments' => Department::query()->forCompany()->active()->ordered()->get(),
+            'departments' => $departments,
             'units' => UnitOfMeasure::query()->forCompany()->active()->ordered()->get(),
             'costCenters' => CostCenter::query()->forCompany()->active()->ordered()->get(),
             'locations' => Location::query()->forCompany()->active()->ordered()->get(),
+            'defaults' => $this->formDefaults($user, $departments),
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Department>  $departments
+     * @return array<string, string|null>
+     */
+    private function formDefaults(?User $user, $departments): array
+    {
+        $ultima = $user === null ? null : PurchaseRequest::query()
+            ->where('user_id', $user->getKey())
+            ->latest('id')
+            ->first();
+
+        return [
+            // Su área de siempre; si es la primera vez y hay una sola en el
+            // catálogo, esa. Igual puede cambiarla.
+            'department' => $ultima?->department
+                ?? ($departments->count() === 1 ? $departments->first()->name : null),
+            'cost_center' => $ultima?->cost_center,
+            'delivery_location' => $ultima?->delivery_location,
+            // Una semana es el plazo típico en los formularios revisados.
+            'required_date' => now()->addWeek()->toDateString(),
         ];
     }
 
@@ -224,7 +254,7 @@ class PurchaseRequestController extends Controller
         return response()->view('purchase_requests.show', compact('purchaseRequest'));
     }
 
-    public function edit(PurchaseRequest $purchaseRequest): Response
+    public function edit(Request $request, PurchaseRequest $purchaseRequest): Response
     {
         Gate::authorize('update', $purchaseRequest);
 
@@ -232,7 +262,7 @@ class PurchaseRequestController extends Controller
 
         return response()->view(
             'purchase_requests.edit',
-            array_merge(compact('purchaseRequest'), $this->catalogs()),
+            array_merge(compact('purchaseRequest'), $this->catalogs($request->user())),
         );
     }
 
