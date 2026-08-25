@@ -325,6 +325,20 @@ class LocalQuotationReader implements QuotationReader
                 $unidad = null;
             }
 
+            // Con una imagen no hay texto del documento contra el cual
+            // contrastar, y el modelo tiende a rellenar con una unidad
+            // plausible: en una prueba real puso «Cajas» a unos guantes cuyo
+            // documento decía «20 C/ TALLA». Se exige entonces que la unidad
+            // esté respaldada por el texto de su propia línea.
+            if ($esImagen && filled($unidad) && ! $this->unidadRespaldadaPorLaLinea($unidad, $producto.' '.($item['specification'] ?? ''))) {
+                $avisos[] = sprintf(
+                    'Partida N° %d: la unidad «%s» no aparece en la línea del documento y se dejó vacía.',
+                    $numero,
+                    $unidad,
+                );
+                $unidad = null;
+            }
+
             if (blank($cantidad)) {
                 $avisos[] = sprintf('Partida N° %d («%s»): falta la cantidad.', $numero, Str::limit($producto, 40));
             }
@@ -419,6 +433,46 @@ class LocalQuotationReader implements QuotationReader
         }
 
         return null;
+    }
+
+    /**
+     * ¿La unidad aparece nombrada en el propio texto de la partida?
+     *
+     * Es la única verificación posible cuando el documento es una imagen y no
+     * hay texto extraíble. Imperfecta, pero atrapa el caso frecuente: una
+     * unidad plausible pegada a una línea que nunca la mencionó.
+     */
+    private function unidadRespaldadaPorLaLinea(string $unidad, string $textoDeLaLinea): bool
+    {
+        $texto = $this->normalizar($textoDeLaLinea);
+        $normalizada = $this->normalizar($unidad);
+
+        // Raíces y abreviaturas con que cada unidad aparece escrita.
+        $raices = [
+            'unidades' => ['unidad', 'unid', 'c/u', ' un ', 'c/ u'],
+            'metros' => ['metro', 'mtr', 'mts', ' mt'],
+            'cubos' => ['cubo', 'm3'],
+            'kilos' => ['kilo', ' kg', 'kls'],
+            'litros' => ['litro', ' lt', 'lts', ' l '],
+            'paquetes' => ['paquete', 'pack'],
+            'cajas' => ['caja'],
+            'sacos' => ['saco'],
+            'rollos' => ['rollo'],
+            'cada medida' => ['medida', 'c/ medida'],
+            'cada talla' => ['talla'],
+            'global / servicio' => ['global', 'servicio'],
+        ];
+
+        // Sin raíces conocidas se acepta el singular como respaldo mínimo.
+        $candidatos = $raices[$normalizada] ?? [rtrim($normalizada, 's')];
+
+        foreach ($candidatos as $candidato) {
+            if (str_contains(' '.$texto.' ', $candidato)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Compara ignorando separadores decimales y ceros de relleno. */

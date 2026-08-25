@@ -247,3 +247,49 @@ it('stays out of the way when the assistant is switched off', function () {
     // Y el formulario manual sigue funcionando igual.
     $this->createPurchaseRequestDraft($owner);
 });
+
+it('drops a unit the image never mentioned', function () {
+    // Caso real: leyendo una foto de solicitud, el modelo puso «Cajas» a unos
+    // guantes cuyo documento decía «20 C/ TALLA», y a unas bolsas de basura.
+    // Con una imagen no hay texto que contrastar, así que la unidad tiene que
+    // estar respaldada por el texto de su propia línea.
+    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $metodo = new ReflectionMethod($reader, 'unidadRespaldadaPorLaLinea');
+
+    // Inventadas: la línea nunca nombra cajas.
+    expect($metodo->invoke($reader, 'Cajas', 'GUANTES NITRILO FLOCADO TALLAS M/L'))->toBeFalse();
+    expect($metodo->invoke($reader, 'Cajas', 'BOLSA BASURA 50X55/50X70'))->toBeFalse();
+
+    // Legítimas: la línea sí las nombra.
+    expect($metodo->invoke($reader, 'Paquetes', 'PAPEL HIGIENICO INDUSTRIAL PAQUETE DE 06 UNIDADES'))->toBeTrue();
+    expect($metodo->invoke($reader, 'Litros', 'CLORO LIQUIDO 2 LITROS'))->toBeTrue();
+    expect($metodo->invoke($reader, 'Cada talla', 'GUANTES NITRILO FLOCADO TALLAS M/L'))->toBeTrue();
+    expect($metodo->invoke($reader, 'Metros', 'PVC 200 mm 295 mtrs'))->toBeTrue();
+});
+
+it('splits a quantity that carries its unit stuck to it', function () {
+    // Los documentos escriben «295 mtrs» dentro de la columna de cantidad.
+    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $separar = new ReflectionMethod($reader, 'separarCantidadYUnidad');
+
+    expect($separar->invoke($reader, '295 mtrs'))->toBe(['295', 'mtrs']);
+    expect($separar->invoke($reader, '1,5'))->toBe(['1,5', null]);
+    expect($separar->invoke($reader, '2 metros'))->toBe(['2', 'metros']);
+    expect($separar->invoke($reader, '16'))->toBe(['16', null]);
+    // Sin número al principio se devuelve tal cual: no se inventa nada.
+    expect($separar->invoke($reader, 'varios'))->toBe(['varios', null]);
+});
+
+it('maps document abbreviations onto the real catalog', function () {
+    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $mapear = new ReflectionMethod($reader, 'unidadDelCatalogo');
+    $catalogo = ['Unidades', 'Metros', 'Litros', 'Kilos', 'Paquetes'];
+
+    expect($mapear->invoke($reader, 'mtrs', $catalogo))->toBe('Metros');
+    expect($mapear->invoke($reader, 'un', $catalogo))->toBe('Unidades');
+    expect($mapear->invoke($reader, 'kg', $catalogo))->toBe('Kilos');
+    expect($mapear->invoke($reader, 'litro', $catalogo))->toBe('Litros');
+
+    // Lo que no calza se descarta en vez de aproximarse.
+    expect($mapear->invoke($reader, 'bidones', $catalogo))->toBeNull();
+});
