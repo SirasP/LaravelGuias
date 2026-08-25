@@ -14,6 +14,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Empresa compradora
+    |--------------------------------------------------------------------------
+    |
+    | Su RUT permite reconocer, en una cotización, cuál de los RUT del
+    | documento es el del cliente y cuál el del proveedor; y avisar si llega
+    | una cotización dirigida a otra empresa.
+    |
+    */
+    'company' => [
+        'code' => env('PURCHASE_REQUESTS_COMPANY_CODE', 'EHE'),
+        'name' => env('PURCHASE_REQUESTS_COMPANY_NAME', 'Agrícola EHE SpA'),
+        'tax_id' => env('PURCHASE_REQUESTS_COMPANY_RUT', '77.415.879-0'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Asistente de lectura de cotizaciones
     |--------------------------------------------------------------------------
     |

@@ -62,9 +62,16 @@ class LeerCotizacion extends Command
             $lectura->isDoubtful() ? ' · CON DUDAS' : '',
         ));
 
-        if (filled($lectura->supplier)) {
-            $this->line('Proveedor: '.$lectura->supplier);
-        }
+        $this->newLine();
+        $this->line('<comment>Partes del documento</comment>');
+        $this->line('  Proveedor : '.($lectura->supplier ?? '(sin nombre)')
+            .' · RUT '.(\App\Support\Rut::format($lectura->supplierTaxId) ?? 'no identificado'));
+        $this->line('  Cliente   : RUT '.(\App\Support\Rut::format($lectura->customerTaxId) ?? 'no identificado')
+            .match ($lectura->isForOurCompany()) {
+                true => ' ✓ es '.config('purchase_requests.company.name'),
+                false => ' ✕ NO es '.config('purchase_requests.company.name'),
+                null => '',
+            });
 
         $this->newLine();
         $this->table(

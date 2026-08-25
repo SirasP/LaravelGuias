@@ -297,6 +297,26 @@ Contra los formularios reales de EHE, con `qwen2.5-vl-3b-instruct` local:
 | Nueva Matriz 2026 | 9 de 9 | 4,2 s | exactas; `295 mtrs` separado bien |
 | Casas y Fosas | 23 de 23 | 9,3 s | exactas; `1,5` intacto, repetidas sin fusionar |
 
+### Quién emite y quién recibe
+
+Una cotización chilena trae dos RUT: el del proveedor en el encabezado y el
+del cliente en su bloque. El lector los separa y los guarda.
+
+Los RUT **no se le piden al modelo**: se extraen con expresión regular y se
+validan por su dígito verificador (`App\Support\Rut`). Es un patrón fijo con
+comprobación matemática; pedírselo a una IA sólo agrega la posibilidad de que
+lo invente.
+
+- El RUT del cliente se compara con `PURCHASE_REQUESTS_COMPANY_RUT`. Si no
+  coincide, se avisa: la cotización iba dirigida a otra empresa.
+- El RUT del proveedor queda guardado en `supplier_tax_id` y acompaña al
+  nombre en el proveedor sugerido de la solicitud.
+
+**Por qué importa:** el día que se conecte Odoo, una RFQ necesita un
+`partner_id` concreto. El nombre «Sodimac» no sirve —puede ser *Sodimac S.A.*
+o *Sodimac Constructor*, escrito de diez maneras—; el RUT sí identifica sin
+ambigüedad. Falta todavía la tabla que enlace cada RUT con su partner de Odoo.
+
 ### Dónde corre el modelo
 
 En desarrollo, LM Studio en la misma máquina. **En el servidor no está

@@ -352,3 +352,50 @@ it('refreshes on its own while something is being read', function () {
         // Recién subido no es motivo de alarma.
         ->assertDontSee('Hay un documento esperando hace rato');
 });
+
+it('records who issued the quotation and who it was addressed to', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Rodamiento 6202', 'specification' => null, 'quantity' => '5', 'unit' => 'Unidades']],
+        supplier: 'Derco Repuestos',
+        supplierTaxId: '77045469-7',
+        customerTaxId: '77415879-0',
+    ));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cotizacion-549.pdf', 90, 'application/pdf'),
+    ]);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    expect($ingestion->supplier_tax_id)->toBe('77045469-7')
+        ->and($ingestion->customer_tax_id)->toBe('77415879-0')
+        // El documento va dirigido a esta empresa.
+        ->and($ingestion->customer_matches_company)->toBeTrue();
+
+    // El proveedor queda con su RUT: el nombre se escribe de mil formas.
+    expect($ingestion->purchaseRequest->suggested_suppliers)
+        ->toBe(['Derco Repuestos (RUT 77.045.469-7)']);
+});
+
+it('warns when the quotation was addressed to a different company', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades']],
+        supplierTaxId: '77045469-7',
+        // Un RUT válido que no es el de la empresa.
+        customerTaxId: '77045469-7',
+    ));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('ajena.pdf', 90, 'application/pdf'),
+    ]);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    expect($ingestion->customer_matches_company)->toBeFalse();
+});

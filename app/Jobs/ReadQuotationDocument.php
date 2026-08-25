@@ -95,6 +95,10 @@ class ReadQuotationDocument implements ShouldQueue
                 : PurchaseRequestIngestion::COMPLETED,
             'source_kind' => $lectura->sourceKind,
             'model_used' => $lectura->model ?? $ingestion->model_used,
+            'supplier_name' => $lectura->supplier,
+            'supplier_tax_id' => $lectura->supplierTaxId,
+            'customer_tax_id' => $lectura->customerTaxId,
+            'customer_matches_company' => $lectura->isForOurCompany(),
             'extracted' => $lectura->toArray(),
             'warnings' => $lectura->warnings,
             'finished_at' => now(),
@@ -119,7 +123,9 @@ class ReadQuotationDocument implements ShouldQueue
                 'reason' => $lectura->reason
                     ?? 'Cotización leída del documento «'.$ingestion->original_name.'».',
                 'priority' => 'normal',
-                'suggested_suppliers' => $lectura->supplier !== null ? [$lectura->supplier] : [],
+                // El proveedor se guarda con su RUT cuando se pudo identificar:
+                // el nombre viene escrito de mil formas, el RUT no.
+                'suggested_suppliers' => $this->proveedorSugerido($lectura),
                 'status' => PurchaseRequestStatus::DRAFT,
                 'revision_number' => 1,
                 'lock_version' => 0,
@@ -167,6 +173,25 @@ class ReadQuotationDocument implements ShouldQueue
 
             return $solicitud;
         });
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function proveedorSugerido(QuotationReading $lectura): array
+    {
+        $rut = \App\Support\Rut::format($lectura->supplierTaxId);
+        $nombre = $lectura->supplier;
+
+        if ($nombre === null && $rut === null) {
+            return [];
+        }
+
+        if ($nombre === null) {
+            return ['RUT '.$rut];
+        }
+
+        return [$rut === null ? $nombre : $nombre.' (RUT '.$rut.')'];
     }
 
     private function areaDe($autor): string

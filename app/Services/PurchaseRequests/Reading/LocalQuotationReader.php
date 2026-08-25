@@ -2,6 +2,7 @@
 
 namespace App\Services\PurchaseRequests\Reading;
 
+use App\Support\Rut;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -86,6 +87,12 @@ class LocalQuotationReader implements QuotationReader
             );
         }
 
+        // Los RUT se sacan del texto con expresión regular y se validan por su
+        // dígito verificador. No se le preguntan al modelo: es un patrón fijo
+        // con comprobación matemática, y ahí una IA sólo puede inventar.
+        [$rutProveedor, $rutCliente, $avisosRut] = $this->identificarPartes($referencia);
+        $avisos = array_values(array_unique([...$avisos, ...$avisosRut]));
+
         return QuotationReading::of(
             items: $items,
             supplier: $this->limpiar($crudo['supplier'] ?? null),
@@ -93,6 +100,8 @@ class LocalQuotationReader implements QuotationReader
             warnings: $avisos,
             model: $modelo,
             sourceKind: $sourceKind,
+            supplierTaxId: $rutProveedor,
+            customerTaxId: $rutCliente,
         );
     }
 
@@ -429,6 +438,99 @@ class LocalQuotationReader implements QuotationReader
         foreach ($knownUnits as $conocida) {
             if ($this->normalizar($conocida) === $buscada) {
                 return $conocida;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Distingue el RUT del proveedor del de la empresa que recibe.
+     *
+     * En una cotización chilena el emisor va en el encabezado y el cliente en
+     * su propio bloque, precedido por «Cliente», «Señor(es)» o «Razón social».
+     * Se usa esa cercanía para separarlos, y si igual queda ambiguo, se
+     * reconoce el nuestro por el RUT configurado de la empresa.
+     *
+     * @return array{0: ?string, 1: ?string, 2: list<string>}
+     */
+    private function identificarPartes(string $texto): array
+    {
+        if (trim($texto) === '') {
+            return [null, null, []];
+        }
+
+        $encontrados = Rut::findAll($texto);
+
+        if ($encontrados === []) {
+            return [null, null, ['No se encontró ningún RUT en el documento; el proveedor queda sin identificar.']];
+        }
+
+        $nuestro = Rut::normalize(config('purchase_requests.company.tax_id'));
+        $avisos = [];
+
+        // Si uno de los RUT es el nuestro, no hay nada que adivinar.
+        $rutCliente = null;
+        foreach ($encontrados as $item) {
+            if ($nuestro !== null && $item['rut'] === $nuestro) {
+                $rutCliente = $item['rut'];
+
+                break;
+            }
+        }
+
+        // Si no, el cliente es el RUT que sigue a la etiqueta que lo nombra.
+        if ($rutCliente === null) {
+            $posicionEtiqueta = $this->posicionDeLaEtiquetaDeCliente($texto);
+
+            if ($posicionEtiqueta !== null) {
+                foreach ($encontrados as $item) {
+                    if ($item['posicion'] > $posicionEtiqueta) {
+                        $rutCliente = $item['rut'];
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // El proveedor es el primer RUT que no sea el del cliente: en estos
+        // documentos el emisor encabeza la página.
+        $rutProveedor = null;
+        foreach ($encontrados as $item) {
+            if ($item['rut'] !== $rutCliente) {
+                $rutProveedor = $item['rut'];
+
+                break;
+            }
+        }
+
+        if ($rutProveedor === null) {
+            $avisos[] = 'No se pudo distinguir el RUT del proveedor en el documento.';
+        }
+
+        if ($rutCliente === null) {
+            $avisos[] = 'No se reconoció a qué empresa va dirigida la cotización.';
+        } elseif ($nuestro !== null && $rutCliente !== $nuestro) {
+            $avisos[] = sprintf(
+                'Ojo: la cotización va dirigida al RUT %s, que no es el de %s. Verifica que corresponda.',
+                Rut::format($rutCliente),
+                config('purchase_requests.company.name'),
+            );
+        }
+
+        return [$rutProveedor, $rutCliente, $avisos];
+    }
+
+    private function posicionDeLaEtiquetaDeCliente(string $texto): ?int
+    {
+        $plano = mb_strtolower($texto);
+
+        foreach (['cliente', 'señor(es)', 'senor(es)', 'señores', 'razon social', 'razón social'] as $etiqueta) {
+            $posicion = mb_strpos($plano, $etiqueta);
+
+            if ($posicion !== false) {
+                return $posicion;
             }
         }
 

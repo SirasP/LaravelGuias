@@ -18,6 +18,8 @@ final readonly class QuotationReading
     private function __construct(
         public bool $successful,
         public ?string $supplier,
+        public ?string $supplierTaxId,
+        public ?string $customerTaxId,
         public ?string $reason,
         public array $items,
         public array $warnings,
@@ -38,13 +40,27 @@ final readonly class QuotationReading
         array $warnings = [],
         ?string $model = null,
         ?string $sourceKind = null,
+        ?string $supplierTaxId = null,
+        ?string $customerTaxId = null,
     ): self {
-        return new self(true, $supplier, $reason, $items, $warnings, $model, $sourceKind);
+        return new self(true, $supplier, $supplierTaxId, $customerTaxId, $reason, $items, $warnings, $model, $sourceKind);
     }
 
     public static function failed(string $error, ?string $model = null, ?string $sourceKind = null): self
     {
-        return new self(false, null, null, [], [], $model, $sourceKind, $error);
+        return new self(false, null, null, null, null, [], [], $model, $sourceKind, $error);
+    }
+
+    /** ¿El documento va dirigido a esta empresa? Null si no se pudo saber. */
+    public function isForOurCompany(): ?bool
+    {
+        if ($this->customerTaxId === null) {
+            return null;
+        }
+
+        $nuestro = \App\Support\Rut::normalize(config('purchase_requests.company.tax_id'));
+
+        return $nuestro !== null && $this->customerTaxId === $nuestro;
     }
 
     /** Sin partidas no hay nada que confirmar. */
@@ -75,6 +91,8 @@ final readonly class QuotationReading
         return [
             'successful' => $this->successful,
             'supplier' => $this->supplier,
+            'supplier_tax_id' => $this->supplierTaxId,
+            'customer_tax_id' => $this->customerTaxId,
             'reason' => $this->reason,
             'items' => $this->items,
             'warnings' => $this->warnings,
