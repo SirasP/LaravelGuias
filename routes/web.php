@@ -21,6 +21,7 @@ use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseCatalogController;
+use App\Http\Controllers\PurchaseIngestionController;
 use App\Http\Controllers\PurchaseNotificationController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ReceptionController;
@@ -29,6 +30,27 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Webfleet\WebfleetController;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| ASISTENTE DE LECTURA DE COTIZACIONES
+|--------------------------------------------------------------------------
+|
+| Antes del grupo de solicitudes, para que la ruta comodín no capture
+| «cotizaciones» como identificador.
+|
+*/
+Route::middleware('auth')
+    ->prefix('solicitudes-compra/cotizaciones')
+    ->name('purchase_requests.ingestions.')
+    ->group(function (): void {
+        Route::get('/', [PurchaseIngestionController::class, 'index'])->name('index');
+        Route::get('/{ingestion}/documento', [PurchaseIngestionController::class, 'download'])->name('download');
+
+        Route::middleware('throttle:solicitudes-compra')->group(function (): void {
+            Route::post('/', [PurchaseIngestionController::class, 'store'])->name('store');
+        });
+    });
 
 /*
 |--------------------------------------------------------------------------

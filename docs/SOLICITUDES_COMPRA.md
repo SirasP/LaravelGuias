@@ -231,7 +231,81 @@ por acción explícita de Compras, crear a lo más una RFQ en borrador, ser
 idempotente, no inventar proveedor ficticio, no crear productos desde textos
 ambiguos y no escribir directo en la base de datos de Odoo.
 
-## 10. Asistente por IA
+## 10. Asistente de lectura de cotizaciones
+
+Sube un PDF o una foto de cotización y el asistente prepara un **borrador** con
+las partidas que reconoce. Vive en `/solicitudes-compra/cotizaciones` y está
+**apagado por defecto** (`PURCHASE_REQUESTS_READER`).
+
+### Qué garantiza
+
+- **Siempre produce un borrador, nunca una solicitud enviada.** Una lectura
+  equivocada se corrige antes de que exista una solicitud formal.
+- **No inventa.** Si una cantidad no aparece literalmente en el texto del
+  documento, se descarta y se avisa. Si una unidad no está en el catálogo, se
+  deja vacía. Es preferible que una persona escriba un dato a que el modelo lo
+  imagine.
+- **No fusiona líneas repetidas.** Probado con un documento real donde
+  «Vinilit de 240 cc» aparece tres veces con cantidades distintas.
+- **La petición responde en milisegundos.** El archivo se guarda, el trabajo se
+  encola y la lectura ocurre en el worker. Nadie espera frente a la pantalla.
+- **Todo queda registrado** en `purchase_request_ingestions`: el archivo, su
+  hash, qué modelo lo leyó, cuánto tardó, qué entendió y en qué borrador
+  terminó. Además, el borrador lleva un evento `ai_drafted` con esos datos, así
+  que siempre se puede responder de dónde salió.
+- **El mismo archivo no se lee dos veces** (unicidad por hash).
+- **Los documentos son privados**: ni un administrador descarga el de otra
+  persona.
+
+### Cómo lee cada documento
+
+| Documento | Camino |
+|---|---|
+| PDF con capa de texto | `pdftotext` y modelo de texto — el más preciso |
+| PDF escaneado | `pdftoppm` a imagen y modelo de visión |
+| Foto (JPG/PNG) | Directo al modelo de visión |
+
+Con imagen no hay texto contra el cual contrastar, así que la lectura entera se
+marca como dudosa y lo advierte.
+
+### La red de verificación
+
+Lo que devuelve el modelo **no se toma por cierto**. Antes de salir del lector:
+
+1. Cada cantidad se busca en el texto del documento. Si no está, se vacía y se
+   avisa. Esto atrapa la invención más típica de un modelo pequeño: copiar la
+   cantidad de otra línea.
+2. Cada unidad se lleva al catálogo, aceptando abreviaturas reales de los
+   documentos (`mtrs`, `un`, `c/u`, `kg`). Lo que no calza se descarta.
+3. `295 mtrs` se parte en cantidad y unidad **con código**, no pidiéndoselo al
+   modelo: partir un texto es determinista y no admite invenciones.
+
+### Probarlo sin tocar nada
+
+```bash
+php artisan solicitudes:leer ruta/al/documento.pdf
+```
+
+Muestra lo que entiende, en cuánto tiempo y con qué avisos, sin crear nada.
+
+### Resultados medidos
+
+Contra los formularios reales de EHE, con `qwen2.5-vl-3b-instruct` local:
+
+| Documento | Partidas | Tiempo | Resultado |
+|---|---|---|---|
+| Nueva Matriz 2026 | 9 de 9 | 4,2 s | exactas; `295 mtrs` separado bien |
+| Casas y Fosas | 23 de 23 | 9,3 s | exactas; `1,5` intacto, repetidas sin fusionar |
+
+### Dónde corre el modelo
+
+En desarrollo, LM Studio en la misma máquina. **En el servidor no está
+resuelto**: el VPS tiene 3,8 GB de RAM, 2 núcleos y sin swap. Un modelo de
+visión ocupa ~2,5 GB y competiría con MySQL y PHP-FPM; sin swap, el kernel
+mataría procesos, y puede matar la base de datos antes que al modelo. Además,
+en 2 núcleos sin GPU una imagen tardaría minutos.
+
+## 10 bis. Puerto de sugerencia por IA (sin implementar)
 
 Preparado y **apagado**. La interfaz `PurchaseRequestDrafter` está enlazada a
 `NullPurchaseRequestDrafter`. El módulo funciona completo sin él.

@@ -9,9 +9,43 @@ return [
     | Controla si los avisos del módulo salen además por correo. Los avisos
     | dentro del sistema funcionan siempre, con esto encendido o apagado.
     |
-    | Se apaga solo en el entorno de pruebas para que la suite jamás intente
-    | contactar un servidor SMTP.
-    |
     */
     'mail_enabled' => (bool) env('PURCHASE_REQUESTS_MAIL', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Asistente de lectura de cotizaciones
+    |--------------------------------------------------------------------------
+    |
+    | Lee un PDF o una foto de cotización y propone las partidas. Apagado por
+    | defecto: encenderlo requiere un modelo disponible en `base_url`.
+    |
+    | Todo lo que produce es un borrador para que una persona lo confirme. El
+    | asistente nunca envía una solicitud a revisión por su cuenta.
+    |
+    */
+    'reader' => [
+        'enabled' => (bool) env('PURCHASE_REQUESTS_READER', false),
+
+        // Servidor compatible con la API de OpenAI: LM Studio, Ollama, vLLM.
+        'base_url' => rtrim((string) env('PURCHASE_REQUESTS_READER_URL', 'http://localhost:1234/v1'), '/'),
+        'api_key' => env('PURCHASE_REQUESTS_READER_KEY', 'lm-studio'),
+
+        // Modelo con visión, para fotos y PDF escaneados.
+        'vision_model' => env('PURCHASE_REQUESTS_READER_VISION_MODEL', 'qwen2.5-vl-3b-instruct'),
+        // Modelo de texto, para PDF que ya traen su texto. Si se deja vacío,
+        // se usa el de visión también para texto.
+        'text_model' => env('PURCHASE_REQUESTS_READER_TEXT_MODEL', ''),
+
+        // Un modelo pequeño en CPU puede tardar bastante; el trabajo corre en
+        // segundo plano, así que la espera no la sufre nadie frente a la pantalla.
+        'timeout' => (int) env('PURCHASE_REQUESTS_READER_TIMEOUT', 300),
+
+        // Cuántas páginas del PDF se miran. Una cotización rara vez pasa de 3.
+        'max_pages' => (int) env('PURCHASE_REQUESTS_READER_MAX_PAGES', 3),
+
+        // Rutas de las herramientas de PDF.
+        'pdftotext' => env('PDFTOTEXT_PATH', 'pdftotext'),
+        'pdftoppm' => env('PDFTOPPM_PATH', 'pdftoppm'),
+    ],
 ];

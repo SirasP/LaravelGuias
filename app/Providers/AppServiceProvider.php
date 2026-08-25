@@ -28,6 +28,15 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter::class,
             \App\Services\PurchaseRequests\Drafting\NullPurchaseRequestDrafter::class,
         );
+
+        // Lector de cotizaciones: el adaptador real sólo entra si está
+        // habilitado por configuración. Apagado, el módulo funciona igual.
+        $this->app->bind(
+            \App\Services\PurchaseRequests\Reading\QuotationReader::class,
+            fn () => config('purchase_requests.reader.enabled')
+                ? new \App\Services\PurchaseRequests\Reading\LocalQuotationReader
+                : new \App\Services\PurchaseRequests\Reading\NullQuotationReader,
+        );
     }
 
     /**
