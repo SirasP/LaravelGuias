@@ -30,10 +30,22 @@ class PurchaseIngestionController extends Controller
             ->latest('id')
             ->paginate(20);
 
+        // Un documento en espera es normal unos segundos. Si lleva minutos,
+        // casi siempre es que nadie está procesando la cola: hay que decirlo,
+        // no dejar a la persona mirando «En espera» sin saber qué pasa.
+        $enProceso = $ingestions->getCollection()
+            ->whereIn('status', [PurchaseRequestIngestion::PENDING, PurchaseRequestIngestion::PROCESSING]);
+
+        $atascado = $enProceso
+            ->filter(fn (PurchaseRequestIngestion $i): bool => $i->created_at?->lt(now()->subMinutes(2)) ?? false)
+            ->isNotEmpty();
+
         return response()->view('purchase_requests.ingestions', [
             'ingestions' => $ingestions,
             'readerEnabled' => $reader->isEnabled(),
             'readerDescription' => $reader->describe(),
+            'hayEnProceso' => $enProceso->isNotEmpty(),
+            'procesadorDetenido' => $atascado,
         ]);
     }
 

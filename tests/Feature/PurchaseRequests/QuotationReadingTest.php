@@ -293,3 +293,62 @@ it('maps document abbreviations onto the real catalog', function () {
     // Lo que no calza se descarta en vez de aproximarse.
     expect($mapear->invoke($reader, 'bidones', $catalogo))->toBeNull();
 });
+
+it('tells the person the queue is stuck instead of leaving them guessing', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades']]));
+
+    $owner = User::factory()->create();
+
+    // Un documento subido hace rato y todavía en espera: el worker no corre.
+    PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->id,
+        'uploader_name_snapshot' => $owner->name,
+        'disk' => 'local',
+        'path' => 'purchase-requests/ingestions/atascado.pdf',
+        'original_name' => 'atascado.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 1024,
+        'sha256' => str_repeat('a', 64),
+        'status' => PurchaseRequestIngestion::PENDING,
+    ]);
+
+    // Eloquent pisa `created_at` al crear, así que se envejece después.
+    PurchaseRequestIngestion::query()->where('original_name', 'atascado.pdf')
+        ->update(['created_at' => now()->subMinutes(10)]);
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.ingestions.index'))
+        ->assertOk()
+        ->assertSee('Hay un documento esperando hace rato')
+        // Y se dice exactamente cómo arreglarlo.
+        ->assertSee('php artisan queue:work')
+        ->assertSee('El documento no se perdió', false);
+});
+
+it('refreshes on its own while something is being read', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades']]));
+
+    $owner = User::factory()->create();
+
+    PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->id,
+        'uploader_name_snapshot' => $owner->name,
+        'disk' => 'local',
+        'path' => 'purchase-requests/ingestions/reciente.pdf',
+        'original_name' => 'reciente.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 1024,
+        'sha256' => str_repeat('b', 64),
+        'status' => PurchaseRequestIngestion::PROCESSING,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.ingestions.index'))
+        ->assertOk()
+        ->assertSee('Estamos leyendo un documento')
+        ->assertSee('window.location.reload()', false)
+        // Recién subido no es motivo de alarma.
+        ->assertDontSee('Hay un documento esperando hace rato');
+});

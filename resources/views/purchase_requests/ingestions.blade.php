@@ -28,6 +28,34 @@
             </div>
         @endif
 
+        {{-- Mientras haya algo leyéndose, la página se refresca sola: así el
+             estado avanza a la vista sin que nadie tenga que recargar. --}}
+        @if($hayEnProceso && ! $procesadorDetenido)
+            <div class="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/60 dark:bg-blue-950/40"
+                x-data x-init="setTimeout(() => window.location.reload(), 5000)">
+                <span class="inline-block h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-blue-600" aria-hidden="true"></span>
+                <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                    Estamos leyendo un documento. Esta página se actualiza sola; puedes cerrarla y te avisamos igual.
+                </p>
+            </div>
+        @endif
+
+        @if($procesadorDetenido)
+            <div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
+                <p class="text-sm font-extrabold text-amber-900 dark:text-amber-100">
+                    ⚠ Hay un documento esperando hace rato
+                </p>
+                <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                    Normalmente se lee en segundos. Si sigue así, es que el procesador de tareas no está corriendo.
+                    En el servidor lo levanta PM2; en un equipo de desarrollo se arranca con:
+                </p>
+                <code class="mt-2 block rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-800 dark:bg-slate-950 dark:text-slate-200">php artisan queue:work</code>
+                <p class="mt-2 text-xs text-amber-800 dark:text-amber-200">
+                    El documento no se perdió: en cuanto el procesador arranque, se lee y te llega el aviso.
+                </p>
+            </div>
+        @endif
+
         <div class="grid gap-5 lg:grid-cols-3">
             <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
                 <h2 class="font-extrabold text-slate-900 dark:text-white">Subir documento</h2>
