@@ -120,8 +120,7 @@ class ReadQuotationDocument implements ShouldQueue
                 // Una semana, igual que el valor por defecto del formulario.
                 'required_date' => today()->addWeek(),
                 'department' => $this->areaDe($autor),
-                'reason' => $lectura->reason
-                    ?? 'Cotización leída del documento «'.$ingestion->original_name.'».',
+                'reason' => $this->motivoDe($lectura, $ingestion),
                 'priority' => 'normal',
                 // El proveedor se guarda con su RUT cuando se pudo identificar:
                 // el nombre viene escrito de mil formas, el RUT no.
@@ -173,6 +172,41 @@ class ReadQuotationDocument implements ShouldQueue
 
             return $solicitud;
         });
+    }
+
+    /**
+     * El motivo de la compra.
+     *
+     * Se usa el del documento sólo si éste lo declara. Un documento comercial
+     * casi nunca dice por qué compras: dice a qué se dedica quien vende. En
+     * una prueba real el giro del proveedor —«Importación y Exportación
+     * Compra Venta…»— terminó escrito como motivo de la solicitud.
+     *
+     * Sin motivo declarado se deja constancia de con quién es la compra, que
+     * es lo único que el documento sí afirma, y la persona lo completa.
+     */
+    private function motivoDe(QuotationReading $lectura, PurchaseRequestIngestion $ingestion): string
+    {
+        if (filled($lectura->reason)) {
+            return $lectura->reason;
+        }
+
+        $proveedor = $lectura->supplier;
+        $rut = \App\Support\Rut::format($lectura->supplierTaxId);
+
+        if ($proveedor !== null && $rut !== null) {
+            return sprintf('Compra a %s (RUT %s). Completar el motivo.', $proveedor, $rut);
+        }
+
+        if ($proveedor !== null) {
+            return sprintf('Compra a %s. Completar el motivo.', $proveedor);
+        }
+
+        if ($rut !== null) {
+            return sprintf('Compra al proveedor RUT %s. Completar el motivo.', $rut);
+        }
+
+        return sprintf('Compra según el documento «%s». Completar el motivo.', $ingestion->original_name);
     }
 
     /**

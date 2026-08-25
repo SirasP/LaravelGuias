@@ -207,6 +207,19 @@ class LocalQuotationReader implements QuotationReader
         - Si dos líneas repiten el mismo producto, devuélvelas como dos partidas separadas. No las sumes.
         - No traduzcas los nombres de productos ni las unidades. Mantén el español del documento.
         - Ignora precios, totales, impuestos y descuentos: esta solicitud no los lleva.
+
+        COLUMNAS:
+        - "product_service" es el NOMBRE del producto (por ejemplo "ANILLO PISTON STD"),
+          nunca su código interno. Si el documento tiene una columna de código o SKU
+          (por ejemplo "KU0214-014047"), ese código va en "specification", no en el nombre.
+
+        MOTIVO:
+        - "reason" es el propósito de la compra, y sólo si el documento lo declara
+          explícitamente (un campo "Motivo", "Obra", "Destino" o similar).
+        - El giro, rubro o actividad económica del proveedor NO es el motivo. Tampoco
+          lo es su razón social ni su dirección. Si el documento no declara un motivo,
+          deja "reason" vacío.
+
         Responde SOLO el JSON pedido.
         TXT;
 
@@ -356,9 +369,17 @@ class LocalQuotationReader implements QuotationReader
                 $sinUnidad[] = $numero;
             }
 
+            $especificacion = $this->limpiar($item['specification'] ?? null);
+
+            // Cuando el documento trae una columna de código, el modelo tiende
+            // a dejarlo pegado al nombre además de en su propia columna:
+            // «KU0214-014047 ANILLO PISTON STD» con especificación
+            // «KU0214-014047». Se limpia con código, que es determinista.
+            [$producto, $especificacion] = $this->separarCodigoDelNombre($producto, $especificacion);
+
             $limpios[] = [
                 'product_service' => Str::limit($producto, 990, ''),
-                'specification' => $this->limpiar($item['specification'] ?? null),
+                'specification' => $especificacion,
                 'quantity' => $cantidad,
                 'unit' => $unidad,
             ];
@@ -442,6 +463,54 @@ class LocalQuotationReader implements QuotationReader
         }
 
         return null;
+    }
+
+    /**
+     * Quita del nombre el código que ya viaja en la especificación.
+     *
+     * Deja «ANILLO PISTON STD» como producto y «KU0214-014047» como
+     * especificación, en vez de repetir el código en ambos. Sólo actúa si el
+     * nombre realmente empieza o termina con esa misma especificación y queda
+     * algo legible después: ante la duda, no toca nada.
+     *
+     * @return array{0: string, 1: ?string}
+     */
+    private function separarCodigoDelNombre(string $producto, ?string $especificacion): array
+    {
+        if (blank($especificacion)) {
+            return [$producto, $especificacion];
+        }
+
+        $normalizadoProducto = $this->normalizar($producto);
+        $normalizadoEspec = $this->normalizar($especificacion);
+
+        if ($normalizadoProducto === $normalizadoEspec) {
+            // Nombre y especificación idénticos: la especificación no aporta.
+            return [$producto, null];
+        }
+
+        foreach (['inicio', 'fin'] as $extremo) {
+            $coincide = $extremo === 'inicio'
+                ? str_starts_with($normalizadoProducto, $normalizadoEspec)
+                : str_ends_with($normalizadoProducto, $normalizadoEspec);
+
+            if (! $coincide) {
+                continue;
+            }
+
+            $recortado = $extremo === 'inicio'
+                ? mb_substr($producto, mb_strlen($especificacion))
+                : mb_substr($producto, 0, mb_strlen($producto) - mb_strlen($especificacion));
+
+            $recortado = trim($recortado, " \t-–—:·|");
+
+            // Sólo se acepta si lo que queda sigue siendo un nombre legible.
+            if (mb_strlen($recortado) >= 3) {
+                return [$recortado, $especificacion];
+            }
+        }
+
+        return [$producto, $especificacion];
     }
 
     /**

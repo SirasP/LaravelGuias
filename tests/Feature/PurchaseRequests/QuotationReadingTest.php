@@ -399,3 +399,71 @@ it('warns when the quotation was addressed to a different company', function () 
 
     expect($ingestion->customer_matches_company)->toBeFalse();
 });
+
+it('puts the product name in the name and the code in the specification', function () {
+    // En la factura de un proveedor real, el modelo dejaba el código pegado al
+    // nombre además de en su propia columna: «KU0214-014047 ANILLO PISTON STD»
+    // con especificación «KU0214-014047».
+    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $separar = new ReflectionMethod($reader, 'separarCodigoDelNombre');
+
+    expect($separar->invoke($reader, 'KU0214-014047 ANILLO PISTON STD', 'KU0214-014047'))
+        ->toBe(['ANILLO PISTON STD', 'KU0214-014047']);
+
+    // También si el código va al final.
+    expect($separar->invoke($reader, 'METAL BIELA STD KU0214-180020', 'KU0214-180020'))
+        ->toBe(['METAL BIELA STD', 'KU0214-180020']);
+
+    // Nombre y especificación idénticos: la especificación no aporta nada.
+    expect($separar->invoke($reader, 'Tubo PVC 75mm', 'Tubo PVC 75mm'))
+        ->toBe(['Tubo PVC 75mm', null]);
+
+    // Ante la duda no se toca: una especificación legítima se conserva.
+    expect($separar->invoke($reader, 'Tubo PVC 75mm', 'Sanitario'))
+        ->toBe(['Tubo PVC 75mm', 'Sanitario']);
+
+    // Y no se recorta si lo que quedaría no es un nombre legible.
+    expect($separar->invoke($reader, 'ABCD', 'ABC'))->toBe(['ABCD', 'ABC']);
+});
+
+it('never passes off the suppliers line of business as the purchase reason', function () {
+    Storage::fake('local');
+    // El documento no declara motivo: el lector devuelve reason vacío.
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Anillo pistón', 'specification' => null, 'quantity' => '4', 'unit' => 'Unidades']],
+        supplier: 'MOTORMAN S.A',
+        reason: null,
+        supplierTaxId: '77591550-1',
+        customerTaxId: '77415879-0',
+    ));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('factura.pdf', 90, 'application/pdf'),
+    ]);
+
+    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+
+    // Un documento comercial dice a qué se dedica quien vende, no por qué
+    // compras. Se deja constancia de con quién es la compra y se pide el resto.
+    expect($borrador->reason)->toBe('Compra a MOTORMAN S.A (RUT 77.591.550-1). Completar el motivo.');
+});
+
+it('keeps a reason the document actually declares', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades']],
+        reason: 'Materiales Casa n°2; Materiales Casino de Operarios',
+    ));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('solicitud.pdf', 90, 'application/pdf'),
+    ]);
+
+    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+
+    expect($borrador->reason)->toBe('Materiales Casa n°2; Materiales Casino de Operarios');
+});
