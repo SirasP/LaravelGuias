@@ -16,6 +16,7 @@ final readonly class DraftSuggestion
         public bool $available,
         public ?string $reason,
         public ?string $requestedForName,
+        public ?string $supplier,
         public array $items,
         public array $warnings,
         public ?string $error = null,
@@ -26,14 +27,19 @@ final readonly class DraftSuggestion
      * @param  list<array<string, string|null>>  $items
      * @param  list<string>  $warnings
      */
-    public static function of(?string $reason, ?string $requestedForName, array $items, array $warnings = []): self
-    {
-        return new self(true, $reason, $requestedForName, $items, $warnings);
+    public static function of(
+        ?string $reason,
+        ?string $requestedForName,
+        array $items,
+        array $warnings = [],
+        ?string $supplier = null,
+    ): self {
+        return new self(true, $reason, $requestedForName, $supplier, $items, $warnings);
     }
 
     public static function unavailable(string $error): self
     {
-        return new self(false, null, null, [], [], $error);
+        return new self(false, null, null, null, [], [], $error);
     }
 
     /** @return array<string, mixed> */
@@ -43,6 +49,7 @@ final readonly class DraftSuggestion
             'available' => $this->available,
             'reason' => $this->reason,
             'requested_for_name' => $this->requestedForName,
+            'supplier' => $this->supplier,
             'items' => $this->items,
             'warnings' => $this->warnings,
             'error' => $this->error,

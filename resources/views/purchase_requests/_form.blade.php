@@ -160,6 +160,81 @@
             <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
         </div>
         <div class="space-y-3 p-4 sm:p-5">
+            @if(config('purchase_requests.reader.enabled') && ! $isEditing)
+                {{-- Escribir de corrido es más rápido que llenar una tabla. Lo
+                     que el asistente propone se agrega como partidas normales,
+                     editables: nada se guarda hasta que la persona envíe. --}}
+                <div class="mb-4 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-900/60 dark:bg-violet-950/30"
+                    x-data="{ texto: '', cargando: false, error: '', avisos: [] }">
+                    <label for="asistente-texto" class="block text-sm font-bold text-violet-900 dark:text-violet-100">
+                        ¿Prefieres escribirlo de corrido?
+                    </label>
+                    <p class="mt-0.5 text-xs text-violet-800 dark:text-violet-300">
+                        Por ejemplo: «pañuelos desechables 2, confort 2, cloro 5 litros». Lo ordenamos en partidas y tú revisas.
+                    </p>
+
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <textarea id="asistente-texto" x-model="texto" rows="2"
+                            @keydown.ctrl.enter="$refs.armar.click()"
+                            class="w-full rounded-xl border-violet-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-violet-500 focus:ring-violet-500 dark:border-violet-900 dark:bg-slate-950 dark:text-white"
+                            placeholder="Escribe lo que necesitas, separado por comas"></textarea>
+
+                        <button type="button" x-ref="armar" :disabled="cargando || texto.trim().length < 3"
+                            @click="
+                                cargando = true; error = ''; avisos = [];
+                                fetch('{{ route('purchase_requests.ingestions.draft') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ text: texto })
+                                })
+                                .then(r => r.json())
+                                .then(d => {
+                                    if (!d.available) { error = d.error || 'El asistente no pudo ayudar esta vez.'; return; }
+                                    // Se reemplaza sólo si las líneas actuales están vacías.
+                                    const vacias = items.every(i => !i.product_service && !i.quantity);
+                                    const nuevas = d.items.map(i => ({
+                                        key: Date.now() + Math.random(),
+                                        product_service: i.product_service ?? '',
+                                        specification: i.specification ?? '',
+                                        quantity: i.quantity ?? '',
+                                        unit: i.unit ?? '',
+                                        quantity_note: '', destination: ''
+                                    }));
+                                    items = vacias ? nuevas : items.concat(nuevas);
+                                    avisos = d.warnings ?? [];
+                                    if (d.reason && !document.getElementById('reason').value) {
+                                        document.getElementById('reason').value = d.reason;
+                                    }
+                                    texto = '';
+                                })
+                                .catch(() => error = 'No se pudo contactar al asistente.')
+                                .finally(() => cargando = false)
+                            "
+                            class="min-h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:self-start">
+                            <span x-show="!cargando">Armar partidas</span>
+                            <span x-show="cargando" x-cloak>Leyendo…</span>
+                        </button>
+                    </div>
+
+                    <template x-if="error">
+                        <p class="mt-2 text-xs font-bold text-rose-700 dark:text-rose-300" x-text="error"></p>
+                    </template>
+
+                    <template x-if="avisos.length">
+                        <div class="mt-2 rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-950/60">
+                            <p class="text-xs font-bold text-amber-800 dark:text-amber-300">Revisa esto antes de enviar</p>
+                            <ul class="mt-1 list-inside list-disc text-xs text-amber-800 dark:text-amber-300">
+                                <template x-for="a in avisos" :key="a"><li x-text="a"></li></template>
+                            </ul>
+                        </div>
+                    </template>
+                </div>
+            @endif
+
             <template x-for="(item, index) in items" :key="item.key">
                 <article class="rounded-xl border p-4"
                     :class="isFlagged(index) ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400 dark:border-amber-700 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-700'">

@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ReadQuotationDocument;
 use App\Models\PurchaseRequestIngestion;
+use App\Models\UnitOfMeasure;
+use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -104,6 +107,36 @@ class PurchaseIngestionController extends Controller
             'success',
             'Documento recibido. Lo estamos leyendo y te avisamos cuando el borrador esté listo; puedes seguir trabajando.',
         );
+    }
+
+    /**
+     * Convierte una frase escrita a mano en partidas, para el formulario.
+     *
+     * Responde JSON y no guarda nada: lo que devuelve entra en el formulario
+     * que la persona está llenando, y ella decide qué queda. Es una sugerencia
+     * en pantalla, no una solicitud.
+     */
+    public function draft(Request $request, PurchaseRequestDrafter $drafter): JsonResponse
+    {
+        abort_unless($request->user()->canCreatePurchaseRequests(), 403);
+
+        $data = $request->validate([
+            'text' => ['required', 'string', 'min:3', 'max:4000'],
+        ], [], ['text' => 'el texto']);
+
+        if (! $drafter->isEnabled()) {
+            return response()->json([
+                'available' => false,
+                'error' => 'El asistente no está habilitado en este entorno.',
+            ], 200);
+        }
+
+        $sugerencia = $drafter->draftFromText(
+            $data['text'],
+            UnitOfMeasure::query()->forCompany()->active()->ordered()->pluck('name')->all(),
+        );
+
+        return response()->json($sugerencia->toArray());
     }
 
     /** El documento original, sólo para quien lo subió. */

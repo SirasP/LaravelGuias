@@ -26,7 +26,9 @@ class AppServiceProvider extends ServiceProvider
         // completo sin él.
         $this->app->bind(
             \App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter::class,
-            \App\Services\PurchaseRequests\Drafting\NullPurchaseRequestDrafter::class,
+            fn () => config('purchase_requests.reader.enabled')
+                ? new \App\Services\PurchaseRequests\Drafting\LocalPurchaseRequestDrafter
+                : new \App\Services\PurchaseRequests\Drafting\NullPurchaseRequestDrafter,
         );
 
         // Lector de cotizaciones: el adaptador real sólo entra si está

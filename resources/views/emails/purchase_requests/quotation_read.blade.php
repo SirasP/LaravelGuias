@@ -31,7 +31,12 @@
     @endif
 
     <p style="margin:0 0 8px;font-size:13px;color:#334155;line-height:1.6;">
-        El asistente sólo prepara un borrador. Nada se envía a revisión hasta que tú lo confirmes.
+        @if($esElAutor ?? true)
+            El asistente sólo prepara un borrador. Nada se envía a revisión hasta que tú lo confirmes.
+        @else
+            Te avisamos para que sepas que la cotización llegó y no se pierda. El borrador es de
+            {{ $quienSubio ?? 'quien la subió' }}: aparecerá en tu bandeja de revisión cuando la envíe.
+        @endif
     </p>
 
     <p style="margin:14px 0 20px;">

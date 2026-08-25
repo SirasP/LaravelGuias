@@ -49,6 +49,8 @@ Route::middleware('auth')
 
         Route::middleware('throttle:solicitudes-compra')->group(function (): void {
             Route::post('/', [PurchaseIngestionController::class, 'store'])->name('store');
+            // Texto libre → partidas sugeridas para el formulario. No guarda nada.
+            Route::post('/redactar', [PurchaseIngestionController::class, 'draft'])->name('draft');
         });
     });
 

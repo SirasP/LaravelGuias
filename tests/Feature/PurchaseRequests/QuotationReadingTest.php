@@ -253,7 +253,7 @@ it('drops a unit the image never mentioned', function () {
     // guantes cuyo documento decía «20 C/ TALLA», y a unas bolsas de basura.
     // Con una imagen no hay texto que contrastar, así que la unidad tiene que
     // estar respaldada por el texto de su propia línea.
-    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $reader = new App\Services\PurchaseRequests\Reading\LineVerifier;
     $metodo = new ReflectionMethod($reader, 'unidadRespaldadaPorLaLinea');
 
     // Inventadas: la línea nunca nombra cajas.
@@ -269,7 +269,7 @@ it('drops a unit the image never mentioned', function () {
 
 it('splits a quantity that carries its unit stuck to it', function () {
     // Los documentos escriben «295 mtrs» dentro de la columna de cantidad.
-    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $reader = new App\Services\PurchaseRequests\Reading\LineVerifier;
     $separar = new ReflectionMethod($reader, 'separarCantidadYUnidad');
 
     expect($separar->invoke($reader, '295 mtrs'))->toBe(['295', 'mtrs']);
@@ -281,7 +281,7 @@ it('splits a quantity that carries its unit stuck to it', function () {
 });
 
 it('maps document abbreviations onto the real catalog', function () {
-    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $reader = new App\Services\PurchaseRequests\Reading\LineVerifier;
     $mapear = new ReflectionMethod($reader, 'unidadDelCatalogo');
     $catalogo = ['Unidades', 'Metros', 'Litros', 'Kilos', 'Paquetes'];
 
@@ -404,7 +404,7 @@ it('puts the product name in the name and the code in the specification', functi
     // En la factura de un proveedor real, el modelo dejaba el código pegado al
     // nombre además de en su propia columna: «KU0214-014047 ANILLO PISTON STD»
     // con especificación «KU0214-014047».
-    $reader = new App\Services\PurchaseRequests\Reading\LocalQuotationReader;
+    $reader = new App\Services\PurchaseRequests\Reading\LineVerifier;
     $separar = new ReflectionMethod($reader, 'separarCodigoDelNombre');
 
     expect($separar->invoke($reader, 'KU0214-014047 ANILLO PISTON STD', 'KU0214-014047'))
@@ -466,4 +466,63 @@ it('keeps a reason the document actually declares', function () {
     $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
 
     expect($borrador->reason)->toBe('Materiales Casa n°2; Materiales Casino de Operarios');
+});
+
+it('tells the admin when a worker uploads a quotation', function () {
+    // El caso que motiva todo: un trabajador cotiza en terreno y la cotización
+    // se pierde porque nadie recuerda subirla. Si el aviso fuera sólo para
+    // quien sube, seguiría perdiéndose igual.
+    Storage::fake('local');
+    Illuminate\Support\Facades\Notification::fake();
+
+    $trabajador = User::factory()->create(['name' => 'José Ancacura']);
+    $admin = User::factory()->admin()->create();
+
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Anillo pistón', 'specification' => null, 'quantity' => '4', 'unit' => 'Unidades']],
+        supplier: 'MOTORMAN S.A',
+        supplierTaxId: '77591550-1',
+    ));
+
+    $this->actingAs($trabajador)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cotizacion-terreno.pdf', 90, 'application/pdf'),
+    ]);
+
+    // Al trabajador, porque es su documento.
+    Illuminate\Support\Facades\Notification::assertSentTo($trabajador, App\Notifications\QuotationDraftReady::class);
+    // Y al administrador, aunque él no subió nada.
+    Illuminate\Support\Facades\Notification::assertSentTo($admin, App\Notifications\QuotationDraftReady::class);
+});
+
+it('sends each recipient a link they can actually open', function () {
+    Storage::fake('local');
+
+    $trabajador = User::factory()->create(['name' => 'José Ancacura']);
+    $admin = User::factory()->admin()->create();
+
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Anillo pistón', 'specification' => null, 'quantity' => '4', 'unit' => 'Unidades']],
+        supplier: 'MOTORMAN S.A',
+    ));
+
+    $this->actingAs($trabajador)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cotizacion-terreno.pdf', 90, 'application/pdf'),
+    ]);
+
+    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+
+    $avisoTrabajador = $trabajador->notifications()->firstOrFail()->data;
+    $avisoAdmin = $admin->notifications()->firstOrFail()->data;
+
+    // El autor edita su borrador; el administrador sólo puede verlo, así que
+    // mandarlo a editar sería mandarlo a un «acceso denegado».
+    expect($avisoTrabajador['url'])->toBe(route('purchase_requests.edit', $borrador->public_id));
+    expect($avisoAdmin['url'])->toBe(route('purchase_requests.show', $borrador->public_id));
+
+    // Y el texto habla de quién cotizó, que es lo que el administrador necesita.
+    expect($avisoAdmin['title'])->toContain('José Ancacura')
+        ->and($avisoAdmin['message'])->toContain('MOTORMAN S.A');
+
+    // El enlace del administrador funciona de verdad.
+    $this->actingAs($admin)->get($avisoAdmin['url'])->assertOk();
 });

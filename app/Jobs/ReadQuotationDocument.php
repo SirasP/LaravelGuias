@@ -7,6 +7,7 @@ use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestEvent;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\UnitOfMeasure;
+use App\Models\User;
 use App\Notifications\QuotationDraftReady;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use App\Services\PurchaseRequests\Reading\QuotationReading;
@@ -277,24 +278,39 @@ class ReadQuotationDocument implements ShouldQueue
     }
 
     /**
-     * Avisa a quien subió el documento, haya salido bien o mal. Nadie más:
-     * es su documento y su borrador.
+     * Avisa el resultado a quien subió el documento y al administrador.
+     *
+     * El administrador tiene que enterarse aunque no haya subido nada: el
+     * caso que motiva todo esto es un trabajador que cotiza en terreno y una
+     * cotización que después nadie recuerda. Si el aviso fuera sólo para quien
+     * sube, el documento seguiría perdiéndose igual.
      */
     private function avisar(PurchaseRequestIngestion $ingestion, ?PurchaseRequest $borrador, ?QuotationReading $lectura): void
     {
-        $destinatario = $ingestion->uploader;
+        $fresco = $ingestion->fresh();
+        $destinatarios = collect();
 
-        if ($destinatario === null) {
-            return;
+        if ($ingestion->uploader !== null) {
+            $destinatarios->push($ingestion->uploader);
         }
 
-        try {
-            $destinatario->notify(new QuotationDraftReady($ingestion->fresh(), $borrador));
-        } catch (Throwable $e) {
-            Log::warning('No se pudo avisar del resultado de la lectura.', [
-                'ingestion' => $ingestion->public_id,
-                'motivo' => $e->getMessage(),
-            ]);
+        $destinatarios = $destinatarios->merge(
+            User::query()
+                ->where('role', User::ROLE_ADMIN)
+                ->where('is_active', true)
+                ->get(),
+        )->unique(fn (User $u): int => (int) $u->getKey());
+
+        foreach ($destinatarios as $destinatario) {
+            try {
+                $destinatario->notify(new QuotationDraftReady($fresco, $borrador));
+            } catch (Throwable $e) {
+                Log::warning('No se pudo avisar del resultado de la lectura.', [
+                    'ingestion' => $ingestion->public_id,
+                    'destinatario' => $destinatario->getKey(),
+                    'motivo' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
