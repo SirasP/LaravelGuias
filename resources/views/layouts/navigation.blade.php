@@ -172,6 +172,31 @@
             </x-nav-item>
         @endif
 
+        {{-- Solicitudes de compra — acceso global para todo usuario autenticado --}}
+        @php $purchaseRequestsActive = request()->routeIs('purchase_requests.*'); @endphp
+        <a href="{{ route('purchase_requests.index') }}" @click="mobileOpen = false"
+            class="mt-4 flex items-center rounded-xl transition-all duration-150 mb-0.5 relative group"
+            :class="expanded ? 'gap-3 px-2.5 py-2' : 'justify-center py-2'"
+            :style="!expanded ? 'margin-left:auto; margin-right:auto; width:48px' : ''">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200
+                {{ $purchaseRequestsActive ? 'bg-blue-100 dark:bg-blue-900/40 shadow-sm' : 'bg-gray-50 dark:bg-gray-800/80 group-hover:bg-gray-100 dark:group-hover:bg-gray-800' }}">
+                <svg class="w-[18px] h-[18px] transition-colors {{ $purchaseRequestsActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500' }}"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0m-7 7h8m-8 4h5" />
+                </svg>
+            </div>
+            <span x-show="expanded"
+                class="text-sm truncate {{ $purchaseRequestsActive ? 'font-semibold text-blue-700 dark:text-blue-300' : 'font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200' }}">
+                Solicitudes de compra
+            </span>
+            <div x-show="!expanded"
+                class="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
+                Solicitudes de compra
+                <div class="absolute top-1/2 -left-1 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
+            </div>
+        </a>
+
         @if(auth()->check() && auth()->user()->role === 'admin')
             <div x-show="expanded" x-transition.opacity.duration.200ms class="mb-1 mt-4">
                 <p class="px-2.5 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400/80">Cotizaciones</p>

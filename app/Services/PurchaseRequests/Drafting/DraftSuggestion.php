@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Services\PurchaseRequests\Drafting;
+
+/**
+ * Propuesta del asistente. Nunca se guarda: se ofrece al formulario para que
+ * una persona la revise, corrija y confirme.
+ */
+final readonly class DraftSuggestion
+{
+    /**
+     * @param  list<array<string, string|null>>  $items
+     * @param  list<string>  $warnings  avisos legibles sobre lo que no se pudo determinar
+     */
+    private function __construct(
+        public bool $available,
+        public ?string $reason,
+        public ?string $requestedForName,
+        public array $items,
+        public array $warnings,
+        public ?string $error = null,
+    ) {
+    }
+
+    /**
+     * @param  list<array<string, string|null>>  $items
+     * @param  list<string>  $warnings
+     */
+    public static function of(?string $reason, ?string $requestedForName, array $items, array $warnings = []): self
+    {
+        return new self(true, $reason, $requestedForName, $items, $warnings);
+    }
+
+    public static function unavailable(string $error): self
+    {
+        return new self(false, null, null, [], [], $error);
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return [
+            'available' => $this->available,
+            'reason' => $this->reason,
+            'requested_for_name' => $this->requestedForName,
+            'items' => $this->items,
+            'warnings' => $this->warnings,
+            'error' => $this->error,
+        ];
+    }
+}

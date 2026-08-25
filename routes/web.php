@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\AgrakController;
-use App\Http\Controllers\SugerenciasController;
 use App\Http\Controllers\AgrakExportController;
+use App\Http\Controllers\BancoChileController;
 use App\Http\Controllers\CamionController;
 use App\Http\Controllers\CentroController;
 use App\Http\Controllers\ComprasController;
@@ -20,22 +20,97 @@ use App\Http\Controllers\Inventario\DtesController;
 use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseCatalogController;
+use App\Http\Controllers\PurchaseNotificationController;
+use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ReceptionController;
+use App\Http\Controllers\SugerenciasController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Webfleet\WebfleetController;
-use App\Http\Controllers\BancoChileController;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| AVISOS DE SOLICITUDES DE COMPRA
+|--------------------------------------------------------------------------
+|
+| Igual que los catálogos, se declara antes del grupo de solicitudes para que
+| la ruta comodín no capture «avisos» como identificador.
+|
+*/
+Route::middleware('auth')
+    ->prefix('solicitudes-compra/avisos')
+    ->name('purchase_notifications.')
+    ->group(function (): void {
+        Route::get('/', [PurchaseNotificationController::class, 'index'])->name('index');
+        Route::post('/leer-todo', [PurchaseNotificationController::class, 'readAll'])->name('read_all');
+        Route::post('/{notification}', [PurchaseNotificationController::class, 'read'])->name('read');
+    });
+
+/*
+|--------------------------------------------------------------------------
+| CATÁLOGOS DE SOLICITUDES DE COMPRA
+|--------------------------------------------------------------------------
+|
+| Se declara antes del grupo de solicitudes: la ruta comodín
+| /solicitudes-compra/{purchaseRequest} capturaría «catalogos» como si fuera
+| el identificador de una solicitud.
+*/
+Route::middleware('auth')
+    ->prefix('solicitudes-compra/catalogos')
+    ->name('purchase_catalogs.')
+    ->group(function (): void {
+        Route::get('/{catalog?}', [PurchaseCatalogController::class, 'index'])->name('index');
+
+        Route::middleware('throttle:solicitudes-compra')->group(function (): void {
+            Route::post('/{catalog}', [PurchaseCatalogController::class, 'store'])->name('store');
+            Route::put('/{catalog}/{entry}', [PurchaseCatalogController::class, 'update'])->name('update');
+            Route::post('/{catalog}/{entry}/alternar', [PurchaseCatalogController::class, 'toggle'])->name('toggle');
+        });
+    });
+
+/*
+|--------------------------------------------------------------------------
+| SOLICITUDES DE COMPRA
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')
+    ->prefix('solicitudes-compra')
+    ->name('purchase_requests.')
+    ->group(function () {
+        // Lectura: navegar la bandeja no debe consumir cupo de escritura.
+        Route::get('/', [PurchaseRequestController::class, 'index'])->name('index');
+        Route::get('/crear', [PurchaseRequestController::class, 'create'])->name('create');
+        Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseRequest}/adjuntos/{attachment}/descargar', [PurchaseRequestController::class, 'downloadAttachment'])
+            ->name('attachments.download');
+        Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
+        Route::get('/{purchaseRequest}/editar', [PurchaseRequestController::class, 'edit'])->name('edit');
+
+        // Escritura y decisiones: limitadas para frenar reintentos en ráfaga.
+        Route::middleware('throttle:solicitudes-compra')->group(function (): void {
+            Route::post('/', [PurchaseRequestController::class, 'store'])->name('store');
+            Route::put('/{purchaseRequest}', [PurchaseRequestController::class, 'update'])->name('update');
+            Route::post('/{purchaseRequest}/enviar', [PurchaseRequestController::class, 'submit'])->name('submit');
+            Route::post('/{purchaseRequest}/aprobar', [PurchaseRequestController::class, 'approve'])->name('approve');
+            Route::post('/{purchaseRequest}/solicitar-cambios', [PurchaseRequestController::class, 'requestChanges'])->name('request_changes');
+            Route::post('/{purchaseRequest}/rechazar', [PurchaseRequestController::class, 'reject'])->name('reject');
+            Route::post('/{purchaseRequest}/anular', [PurchaseRequestController::class, 'cancel'])->name('cancel');
+            Route::post('/{purchaseRequest}/solicitar-anulacion', [PurchaseRequestController::class, 'requestCancellation'])
+                ->name('request_cancellation');
+            Route::delete('/{purchaseRequest}/adjuntos/{attachment}', [PurchaseRequestController::class, 'destroyAttachment'])
+                ->name('attachments.destroy');
+        });
+    });
 
 /*
 |--------------------------------------------------------------------------
 | SUGERENCIAS Y RECLAMOS
 |--------------------------------------------------------------------------
 */
-Route::get('/sugerencias',       [SugerenciasController::class, 'index'])->name('sugerencias.index');
-Route::post('/sugerencias',      [SugerenciasController::class, 'store'])->name('sugerencias.store');
+Route::get('/sugerencias', [SugerenciasController::class, 'index'])->name('sugerencias.index');
+Route::post('/sugerencias', [SugerenciasController::class, 'store'])->name('sugerencias.store');
 Route::get('/sugerencias/admin', [SugerenciasController::class, 'admin'])->middleware('auth')->name('sugerencias.admin');
 
 /*
@@ -133,9 +208,9 @@ Route::get('/google/oauth/token', function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/debug/google', function () {
         return response()->json([
-            'client_id'          => config('services.google.client_id'),
-            'client_secret_set'  => !empty(config('services.google.client_secret')),
-            'redirect'           => config('services.google.redirect'),
+            'client_id' => config('services.google.client_id'),
+            'client_secret_set' => ! empty(config('services.google.client_secret')),
+            'redirect' => config('services.google.redirect'),
         ]);
     });
 
@@ -143,7 +218,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         return response()->json([
             'env_client_id' => env('GOOGLE_CLIENT_ID'),
             'cfg_client_id' => config('services.google.client_id'),
-            'app_env'       => app()->environment(),
+            'app_env' => app()->environment(),
         ]);
     });
 });
@@ -236,7 +311,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 | AUTH (Breeze)
 |--------------------------------------------------------------------------
 */
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -289,7 +364,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('excel.import.rfp');
 
     // Guías ODOO - importar
-    Route::get('/excel-out-transfers/import', fn() => redirect()->route('pdf.import.form'))
+    Route::get('/excel-out-transfers/import', fn () => redirect()->route('pdf.import.form'))
         ->name('excel_out_transfers.form');
     Route::post('/excel-out-transfers/import', [ExcelOutTransferController::class, 'importExcelOutTransfers'])
         ->name('excel_out_transfers.import');
@@ -348,7 +423,7 @@ Route::middleware('auth')->group(function () {
 
 // Operaciones admin-only sobre AGRAK
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/agrak/import', fn() => redirect()->route('pdf.import.form'))
+    Route::get('/agrak/import', fn () => redirect()->route('pdf.import.form'))
         ->name('agrak.import.form');
     Route::post('/agrak/import', [\App\Http\Controllers\ExcelImportController::class, 'importExcelAgrak'])
         ->name('agrak.import');
@@ -483,7 +558,7 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/dtes/{id}/stock-review', [GmailDteDocumentController::class, 'reviewStockMatching'])->whereNumber('id')->name('dtes.stock_review');
     Route::get('/dtes/{id}/apuntes', [GmailDteDocumentController::class, 'apuntesContables'])->whereNumber('id')->name('dtes.apuntes');
     Route::get('/dtes/apuntes/catalogo', [GmailDteDocumentController::class, 'apuntesEditCatalog'])->name('dtes.apuntes.catalog');
-    Route::match(['patch','post'], '/dtes/{id}/apuntes/{lineId}', [GmailDteDocumentController::class, 'updateApunte'])->whereNumber('id')->whereNumber('lineId')->name('dtes.apuntes.update');
+    Route::match(['patch', 'post'], '/dtes/{id}/apuntes/{lineId}', [GmailDteDocumentController::class, 'updateApunte'])->whereNumber('id')->whereNumber('lineId')->name('dtes.apuntes.update');
     Route::get('/dtes/{id}/print', [GmailDteDocumentController::class, 'print'])->whereNumber('id')->name('dtes.print');
     Route::post('/dtes/{id}/add-stock', [GmailDteDocumentController::class, 'addToStock'])->whereNumber('id')->name('dtes.add_stock');
     Route::post('/dtes/{id}/add-stock-mapping', [GmailDteDocumentController::class, 'addToStockWithMapping'])->whereNumber('id')->name('dtes.add_stock_mapping');
@@ -514,11 +589,11 @@ Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmai
     Route::get('/inventario/valorizado', [App\Http\Controllers\GmailInventoryController::class, 'stockValuation'])->name('inventory.valuation');
 
     Route::get('/inventario/sii-status', [App\Http\Controllers\GmailInventoryController::class, 'siiStatus'])->name('inventory.sii.status');
-    
+
     Route::get('/inventario/ajuste', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustCreate'])->name('inventory.adjust.create');
     Route::post('/inventario/ajuste', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustStore'])->name('inventory.adjust.store');
     Route::get('/inventario/ajustes', [\App\Http\Controllers\InventoryAdjustController::class, 'adjustList'])->name('inventory.adjustments');
-    
+
     Route::get('/inventario/{id}', [App\Http\Controllers\Inventario\ProductosController::class, 'show'])->whereNumber('id')->name('inventory.product');
 
 });

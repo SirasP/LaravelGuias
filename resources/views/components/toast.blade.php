@@ -23,8 +23,19 @@
             default                  => (string) session('status'),
         };
     } elseif (isset($errors) && $errors->any()) {
-        $toastType    = 'error';
-        $toastMessage = $errors->first();
+        // Varios errores de validación caben en un solo aviso: se muestran los
+        // primeros y se indica cuántos quedan, en vez de enseñar sólo uno y
+        // dejar al usuario descubriendo el resto de a uno.
+        $toastType = 'error';
+        $listaErrores = collect($errors->all())->unique()->values();
+        $visibles = $listaErrores->take(3);
+        $restantes = $listaErrores->count() - $visibles->count();
+
+        $toastMessage = $visibles->implode(' ');
+
+        if ($restantes > 0) {
+            $toastMessage .= ' (y '.$restantes.' '.\Illuminate\Support\Str::plural('aviso', $restantes).' más)';
+        }
     }
 @endphp
 
@@ -36,7 +47,7 @@
         msg  = $event.detail.msg;
         type = $event.detail.type || 'error';
         show = true;
-        _timer = setTimeout(() => show = false, 4500)
+        _timer = setTimeout(() => show = false, Math.min(14000, Math.max(4500, msg.length * 55)))
     "
     x-show="show"
     x-cloak

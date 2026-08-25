@@ -1,0 +1,153 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Mensajes de validación en español
+|--------------------------------------------------------------------------
+|
+| El proyecto ya declara APP_LOCALE=es, pero sólo existía lang/en, así que
+| Laravel caía al fallback y mostraba los mensajes en inglés. Este archivo
+| corrige eso para toda la aplicación, no sólo para Solicitudes de Compra.
+|
+*/
+
+return [
+    'accepted' => 'Debes aceptar :attribute.',
+    'active_url' => ':Attribute no es una URL válida.',
+    'after' => ':Attribute debe ser una fecha posterior a :date.',
+    'after_or_equal' => ':Attribute debe ser una fecha posterior o igual a :date.',
+    'alpha' => ':Attribute sólo puede contener letras.',
+    'alpha_dash' => ':Attribute sólo puede contener letras, números, guiones y guiones bajos.',
+    'alpha_num' => ':Attribute sólo puede contener letras y números.',
+    'array' => ':Attribute debe ser una lista.',
+    'before' => ':Attribute debe ser una fecha anterior a :date.',
+    'before_or_equal' => ':Attribute debe ser una fecha anterior o igual a :date.',
+    'between' => [
+        'array' => ':Attribute debe tener entre :min y :max elementos.',
+        'file' => ':Attribute debe pesar entre :min y :max kilobytes.',
+        'numeric' => ':Attribute debe estar entre :min y :max.',
+        'string' => ':Attribute debe tener entre :min y :max caracteres.',
+    ],
+    'boolean' => 'El campo :attribute debe ser verdadero o falso.',
+    'confirmed' => 'La confirmación de :attribute no coincide.',
+    'current_password' => 'La contraseña es incorrecta.',
+    'date' => ':Attribute no es una fecha válida.',
+    'date_equals' => ':Attribute debe ser una fecha igual a :date.',
+    'date_format' => ':Attribute no corresponde al formato :format.',
+    'decimal' => ':Attribute debe tener :decimal decimales.',
+    'declined' => 'Debes rechazar :attribute.',
+    'different' => ':Attribute y :other deben ser distintos.',
+    'digits' => ':Attribute debe tener :digits dígitos.',
+    'digits_between' => ':Attribute debe tener entre :min y :max dígitos.',
+    'dimensions' => ':Attribute tiene dimensiones de imagen no válidas.',
+    'distinct' => 'El valor de :attribute está repetido.',
+    'doesnt_end_with' => ':Attribute no puede terminar con: :values.',
+    'doesnt_start_with' => ':Attribute no puede comenzar con: :values.',
+    'email' => ':Attribute no tiene un formato válido.',
+    'ends_with' => ':Attribute debe terminar con: :values.',
+    'enum' => 'El valor de :attribute no es válido.',
+    'exists' => 'El valor de :attribute no existe.',
+    'file' => ':Attribute debe ser un archivo.',
+    'filled' => ':Attribute no puede quedar vacío.',
+    'gt' => [
+        'array' => ':Attribute debe tener más de :value elementos.',
+        'file' => ':Attribute debe pesar más de :value kilobytes.',
+        'numeric' => ':Attribute debe ser mayor que :value.',
+        'string' => ':Attribute debe tener más de :value caracteres.',
+    ],
+    'gte' => [
+        'array' => ':Attribute debe tener :value elementos o más.',
+        'file' => ':Attribute debe pesar :value kilobytes o más.',
+        'numeric' => ':Attribute debe ser mayor o igual que :value.',
+        'string' => ':Attribute debe tener :value caracteres o más.',
+    ],
+    'image' => ':Attribute debe ser una imagen.',
+    'in' => 'El valor de :attribute no es válido.',
+    'in_array' => 'El valor de :attribute no existe en :other.',
+    'integer' => ':Attribute debe ser un número entero.',
+    'ip' => ':Attribute debe ser una dirección IP válida.',
+    'ipv4' => ':Attribute debe ser una dirección IPv4 válida.',
+    'ipv6' => ':Attribute debe ser una dirección IPv6 válida.',
+    'json' => ':Attribute debe ser una cadena JSON válida.',
+    'lowercase' => ':Attribute debe ir en minúsculas.',
+    'lt' => [
+        'array' => ':Attribute debe tener menos de :value elementos.',
+        'file' => ':Attribute debe pesar menos de :value kilobytes.',
+        'numeric' => ':Attribute debe ser menor que :value.',
+        'string' => ':Attribute debe tener menos de :value caracteres.',
+    ],
+    'lte' => [
+        'array' => ':Attribute no debe tener más de :value elementos.',
+        'file' => ':Attribute debe pesar :value kilobytes o menos.',
+        'numeric' => ':Attribute debe ser menor o igual que :value.',
+        'string' => ':Attribute debe tener :value caracteres o menos.',
+    ],
+    'max' => [
+        'array' => ':Attribute no puede tener más de :max elementos.',
+        'file' => ':Attribute no puede pesar más de :max kilobytes.',
+        'numeric' => ':Attribute no puede ser mayor que :max.',
+        'string' => ':Attribute no puede tener más de :max caracteres.',
+    ],
+    'mimes' => ':Attribute debe ser un archivo de tipo: :values.',
+    'mimetypes' => ':Attribute debe ser un archivo de tipo: :values.',
+    'min' => [
+        'array' => ':Attribute debe tener al menos :min elementos.',
+        'file' => ':Attribute debe pesar al menos :min kilobytes.',
+        'numeric' => ':Attribute debe ser al menos :min.',
+        'string' => ':Attribute debe tener al menos :min caracteres.',
+    ],
+    'missing' => 'El campo :attribute no debe estar presente.',
+    'multiple_of' => ':Attribute debe ser múltiplo de :value.',
+    'not_in' => 'El valor de :attribute no es válido.',
+    'not_regex' => 'El formato de :attribute no es válido.',
+    'numeric' => ':Attribute debe ser un número.',
+    'password' => [
+        'letters' => 'La contraseña debe contener al menos una letra.',
+        'mixed' => 'La contraseña debe contener al menos una mayúscula y una minúscula.',
+        'numbers' => 'La contraseña debe contener al menos un número.',
+        'symbols' => 'La contraseña debe contener al menos un símbolo.',
+        'uncompromised' => 'Esta contraseña apareció en una filtración de datos. Elige otra.',
+    ],
+    'present' => 'El campo :attribute debe estar presente.',
+    'prohibited' => 'El campo :attribute está prohibido.',
+    'prohibited_if' => 'El campo :attribute está prohibido cuando :other es :value.',
+    'prohibited_unless' => 'El campo :attribute está prohibido salvo que :other esté en :values.',
+    'regex' => 'El formato de :attribute no es válido.',
+    'required' => ':Attribute es obligatorio.',
+    'required_array_keys' => ':Attribute debe contener entradas para: :values.',
+    'required_if' => ':Attribute es obligatorio cuando :other es :value.',
+    'required_if_accepted' => ':Attribute es obligatorio cuando se acepta :other.',
+    'required_unless' => ':Attribute es obligatorio salvo que :other esté en :values.',
+    'required_with' => ':Attribute es obligatorio cuando :values está presente.',
+    'required_with_all' => ':Attribute es obligatorio cuando :values están presentes.',
+    'required_without' => ':Attribute es obligatorio cuando :values no está presente.',
+    'required_without_all' => ':Attribute es obligatorio cuando ninguno de :values está presente.',
+    'same' => ':Attribute y :other deben coincidir.',
+    'size' => [
+        'array' => ':Attribute debe contener :size elementos.',
+        'file' => ':Attribute debe pesar :size kilobytes.',
+        'numeric' => ':Attribute debe ser :size.',
+        'string' => ':Attribute debe tener :size caracteres.',
+    ],
+    'starts_with' => ':Attribute debe comenzar con: :values.',
+    'string' => ':Attribute debe ser texto.',
+    'timezone' => ':Attribute debe ser una zona horaria válida.',
+    'unique' => ':Attribute ya está en uso.',
+    'uploaded' => 'No se pudo subir :attribute.',
+    'uppercase' => ':Attribute debe ir en mayúsculas.',
+    'url' => ':Attribute no tiene un formato de enlace válido.',
+    'uuid' => ':Attribute debe ser un UUID válido.',
+
+    'custom' => [
+        'attribute-name' => [
+            'rule-name' => 'mensaje personalizado',
+        ],
+    ],
+
+    'attributes' => [
+        'name' => 'el nombre',
+        'email' => 'el correo electrónico',
+        'password' => 'la contraseña',
+        'current_password' => 'la contraseña actual',
+    ],
+];
