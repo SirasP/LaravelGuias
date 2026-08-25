@@ -41,6 +41,24 @@ class PurchaseRequestSubmitted extends Notification implements ShouldQueue
         return $channels;
     }
 
+    /**
+     * Cada canal por su vía.
+     *
+     * El aviso dentro del sistema es un INSERT: se hace en el acto, para que
+     * la persona lo vea apenas recarga, aunque el worker esté caído. El correo
+     * sí va a la cola: depende de un servidor externo y no puede hacer esperar
+     * a nadie frente a la pantalla.
+     *
+     * @return array<string, string|null>
+     */
+    public function viaConnections(): array
+    {
+        return [
+            'database' => 'sync',
+            'mail' => 'database',
+        ];
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
         $esCancelacion = $this->reason === 'cancellation_requested';
