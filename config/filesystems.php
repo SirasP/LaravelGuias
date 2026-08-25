@@ -36,6 +36,27 @@ return [
             'serve' => true,
             'throw' => false,
             'report' => false,
+
+            /*
+             * El servidor web y el worker de la cola corren como usuarios
+             * distintos (www-data y ubuntu). Sin permisos de grupo, un archivo
+             * subido por la web queda ilegible para el worker que debe
+             * procesarlo: pasó en producción con las cotizaciones, que se
+             * guardaban en carpetas 0700 y el asistente no podía abrirlas.
+             *
+             * Grupo con lectura y escritura, y nada para el resto del mundo:
+             * estos archivos siguen siendo privados.
+             */
+            'permissions' => [
+                'file' => [
+                    'public' => 0664,
+                    'private' => 0660,
+                ],
+                'dir' => [
+                    'public' => 0775,
+                    'private' => 0770,
+                ],
+            ],
         ],
 
         'public' => [
