@@ -99,6 +99,8 @@ Route::middleware('auth')
             Route::post('/{purchaseRequest}/anular', [PurchaseRequestController::class, 'cancel'])->name('cancel');
             Route::post('/{purchaseRequest}/solicitar-anulacion', [PurchaseRequestController::class, 'requestCancellation'])
                 ->name('request_cancellation');
+            Route::post('/{purchaseRequest}/retirar-anulacion', [PurchaseRequestController::class, 'withdrawCancellation'])
+                ->name('withdraw_cancellation');
             Route::delete('/{purchaseRequest}/adjuntos/{attachment}', [PurchaseRequestController::class, 'destroyAttachment'])
                 ->name('attachments.destroy');
         });

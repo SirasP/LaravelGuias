@@ -93,6 +93,14 @@ class PurchaseRequestPolicy
             && $purchaseRequest->status !== PurchaseRequestStatus::DRAFT;
     }
 
+    /** Retirar la propia petición de anulación, mientras nadie la resuelva. */
+    public function withdrawCancellation(User $user, PurchaseRequest $purchaseRequest): bool
+    {
+        return $this->owns($user, $purchaseRequest)
+            && $purchaseRequest->cancellation_requested_at !== null
+            && ! $purchaseRequest->status->isFinal();
+    }
+
     public function downloadPdf(User $user, PurchaseRequest $purchaseRequest): bool
     {
         return $this->view($user, $purchaseRequest);

@@ -132,6 +132,46 @@
                     <section class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30"><h2 class="font-extrabold text-blue-950 dark:text-blue-100">Lista para enviar</h2><p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Al enviar, la solicitud quedará pendiente de revisión.</p><form method="POST" action="{{ route('purchase_requests.submit', $purchaseRequest) }}" class="mt-4">@csrf<button type="submit" class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white hover:bg-blue-700">Enviar a revisión</button></form></section>
                 @endif
 
+                {{-- Anulación pendiente: el revisor tiene que verla ANTES de
+                     decidir. Una solicitud se aprobó en producción treinta
+                     segundos después de que el solicitante pidiera anularla. --}}
+                @if($purchaseRequest->cancellation_requested_at)
+                    <section class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
+                        <h2 class="flex items-center gap-2 font-extrabold text-rose-900 dark:text-rose-100">
+                            <span aria-hidden="true">⊘</span>
+                            {{ $purchaseRequest->requester?->name ?? 'El solicitante' }} pidió anular esta solicitud
+                        </h2>
+                        <p class="mt-1 text-xs text-rose-800 dark:text-rose-200">
+                            El {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y') }} a las
+                            {{ $purchaseRequest->cancellation_requested_at->format('H:i') }}.
+                        </p>
+
+                        @if(filled($purchaseRequest->cancellation_reason))
+                            <p class="mt-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/60 dark:text-rose-100">
+                                {{ $purchaseRequest->cancellation_reason }}
+                            </p>
+                        @endif
+
+                        <p class="mt-2 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                            @can('cancel', $purchaseRequest)
+                                Decide antes de aprobarla: puedes anularla más abajo, o resolverla igual si corresponde.
+                            @else
+                                Compras debe resolverlo.
+                            @endcan
+                        </p>
+
+                        @can('withdrawCancellation', $purchaseRequest)
+                            <form method="POST" action="{{ route('purchase_requests.withdraw_cancellation', $purchaseRequest) }}" class="mt-3">
+                                @csrf
+                                <button type="submit"
+                                    class="min-h-11 w-full rounded-xl border border-rose-300 bg-white px-3 text-sm font-bold text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:bg-transparent dark:text-rose-200">
+                                    Retirar mi petición de anulación
+                                </button>
+                            </form>
+                        @endcan
+                    </section>
+                @endif
+
                 @if($canReview)
                     <section x-data="{ action: '' }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"><h2 class="font-extrabold text-amber-950 dark:text-amber-100">Revisión de Compras</h2><p class="mt-1 text-sm text-amber-800 dark:text-amber-200">La acción quedará registrada en el historial.</p><form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-3">@csrf<input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}"><div x-show="action === 'changes'" x-cloak class="rounded-xl border border-amber-300 bg-white/70 p-3 dark:border-amber-900 dark:bg-slate-950/40">
     <p class="text-xs font-extrabold text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>
@@ -240,8 +280,8 @@
                     <section x-data="{ open: false }" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                         <h2 class="font-extrabold text-slate-900 dark:text-white">Pedir anulación</h2>
                         @if($purchaseRequest->cancellation_requested_at)
-                            <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                                Ya pediste anularla el {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y H:i') }}. Compras debe resolverlo.
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                Tu petición está registrada más arriba, con la opción de retirarla.
                             </p>
                         @else
                             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">

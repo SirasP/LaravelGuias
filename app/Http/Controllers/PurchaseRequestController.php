@@ -446,9 +446,19 @@ class PurchaseRequestController extends Controller
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($data, $purchaseRequest, $request): void {
+        $yaEstaba = false;
+
+        DB::transaction(function () use ($data, $purchaseRequest, $request, &$yaEstaba): void {
             $lockedRequest = PurchaseRequest::query()->lockForUpdate()->findOrFail($purchaseRequest->getKey());
             Gate::authorize('requestCancellation', $lockedRequest);
+
+            // Idempotente: un doble clic, o un reintento porque no se vio la
+            // confirmación, no puede dejar dos peticiones idénticas.
+            if ($lockedRequest->cancellation_requested_at !== null) {
+                $yaEstaba = true;
+
+                return;
+            }
 
             // La solicitud no cambia de estado: sólo queda marcada la petición.
             $lockedRequest->forceFill([
@@ -470,8 +480,49 @@ class PurchaseRequestController extends Controller
             DB::afterCommit(fn () => $this->notifyReviewers($lockedRequest, $request->user(), 'cancellation_requested'));
         });
 
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            'success',
+            $yaEstaba
+                ? 'Tu petición de anulación ya estaba registrada. Compras la resolverá.'
+                : 'Se registró tu petición de anulación. Compras la revisará.',
+        );
+    }
+
+    /**
+     * Retira una petición de anulación que aún nadie resolvió.
+     *
+     * Pedir la anulación por error es fácil; quedarse atrapado en esa petición
+     * no debería serlo.
+     */
+    public function withdrawCancellation(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        Gate::authorize('withdrawCancellation', $purchaseRequest);
+
+        DB::transaction(function () use ($purchaseRequest, $request): void {
+            $lockedRequest = PurchaseRequest::query()->lockForUpdate()->findOrFail($purchaseRequest->getKey());
+            Gate::authorize('withdrawCancellation', $lockedRequest);
+
+            if ($lockedRequest->cancellation_requested_at === null) {
+                return;
+            }
+
+            $lockedRequest->forceFill([
+                'cancellation_requested_at' => null,
+                'cancellation_reason' => null,
+            ])->save();
+
+            $this->recordEvent(
+                $lockedRequest,
+                $request->user(),
+                PurchaseRequestEvent::CANCELLATION_WITHDRAWN,
+                $lockedRequest->status,
+                $lockedRequest->status,
+                $request,
+            );
+        });
+
         return to_route('purchase_requests.show', $purchaseRequest)
-            ->with('success', 'Se registró tu solicitud de anulación. Compras la revisará.');
+            ->with('success', 'Retiraste tu petición de anulación. La solicitud sigue su curso.');
     }
 
     public function downloadAttachment(PurchaseRequest $purchaseRequest, PurchaseRequestAttachment $attachment): StreamedResponse
@@ -554,6 +605,9 @@ class PurchaseRequestController extends Controller
                 'reviewed_at' => now(),
                 'review_comment' => $data['comment'] ?? null,
                 'requested_corrections' => $corrections ?: null,
+                // La petición de anulación deja de estar pendiente: el revisor
+                // ya decidió. Lo que se pidió queda en el historial.
+                'cancellation_requested_at' => null,
             ])->save();
 
             $this->recordEvent(

@@ -25,6 +25,7 @@ class PurchaseRequestEvent extends Model
     public const ATTACHMENT_REMOVED = 'attachment_removed';
     public const CANCELLED = 'cancelled';
     public const CANCELLATION_REQUESTED = 'cancellation_requested';
+    public const CANCELLATION_WITHDRAWN = 'cancellation_withdrawn';
     public const AI_DRAFTED = 'ai_drafted';
 
     protected $fillable = [
@@ -81,6 +82,7 @@ class PurchaseRequestEvent extends Model
             self::REJECTED => 'Rechazada',
             self::CANCELLED => 'Anulada',
             self::CANCELLATION_REQUESTED => 'Anulación solicitada',
+            self::CANCELLATION_WITHDRAWN => 'Petición de anulación retirada',
             self::ATTACHMENT_ADDED => 'Adjunto agregado',
             self::ATTACHMENT_REMOVED => 'Adjunto eliminado',
             self::AI_DRAFTED => 'Borrador sugerido por el asistente',
@@ -95,6 +97,7 @@ class PurchaseRequestEvent extends Model
             self::APPROVED => 'bg-emerald-500',
             self::REJECTED, self::CANCELLED => 'bg-rose-500',
             self::CHANGES_REQUESTED, self::CANCELLATION_REQUESTED => 'bg-amber-500',
+            self::CANCELLATION_WITHDRAWN => 'bg-slate-400',
             self::SUBMITTED, self::RESUBMITTED => 'bg-blue-500',
             default => 'bg-slate-400',
         };
