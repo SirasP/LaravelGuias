@@ -261,10 +261,24 @@ class GmailLeerXml extends Command
                     }
 
                     /* ─────────────────────────────────
+                     | 7c. RECARGA DE TARJETA PREPAGO / CUPÓN
+                     |     La factura viene en litros, pero es saldo
+                     |     cargado a una tarjeta: no entró al estanque.
+                     ─────────────────────────────────  */
+                    $termPago = strtoupper((string) ($xml->xpath('//sii:IdDoc/sii:TermPagoGlosa')[0] ?? ''));
+                    $sucursalEmisor = strtoupper((string) ($xml->xpath('//sii:Emisor/sii:Sucursal')[0] ?? ''));
+                    $esPrepago = str_contains($termPago, 'PREPAGO') || str_contains($sucursalEmisor, 'CUPON');
+
+                    /* ─────────────────────────────────
                      | 8. PROCESAR DETALLES
                      ─────────────────────────────────  */
                     $detalleRows = $xml->xpath('//sii:Detalle') ?? [];
                     $fuelDetails = [];
+
+                    if ($esPrepago) {
+                        $this->warn("💳 Prepago/cupón detectado → se guarda como factura normal, sin tocar el estanque.");
+                        $detalleRows = [];
+                    }
 
                     foreach ($detalleRows as $detalle) {
 
@@ -281,8 +295,22 @@ class GmailLeerXml extends Command
                             }
                         }
 
+                        // El combustible SIEMPRE se factura en litros. Un repuesto con
+                        // "DIESEL" en el nombre (ej. un marcador de tacómetro) viene en
+                        // UNID y no debe sumar al estanque.
+                        $unidad = strtoupper(trim((string) $detalle->UnmdItem));
+                        $esLitros = $unidad === 'L'
+                            || str_starts_with($unidad, 'LT')
+                            || str_starts_with($unidad, 'LITR');
+
+                        $pareceCombustible = str_contains($nombre, 'DIESEL') || str_contains($nombre, 'GASOLINA');
+
+                        if ($pareceCombustible && !$esExcluido && !$esLitros) {
+                            $this->warn("📏 '{$nombre}' viene en '{$unidad}', no en litros → no suma al estanque.");
+                        }
+
                         $productoNombre = null;
-                        if (!$esExcluido) {
+                        if (!$esExcluido && $esLitros) {
                             $productoNombre = match (true) {
                                 str_contains($nombre, 'DIESEL')   => 'Diesel',
                                 str_contains($nombre, 'GASOLINA') => 'Gasolina',

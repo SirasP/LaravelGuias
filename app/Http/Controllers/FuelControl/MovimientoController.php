@@ -445,7 +445,17 @@ class MovimientoController extends Controller
                 return response()->json(['error' => 'El archivo XML contiene un formato inválido'], 400);
             }
             $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
-            
+
+            // Recarga de tarjeta prepago / cupón: la factura viene en litros,
+            // pero es saldo cargado a una tarjeta y nunca entró al estanque.
+            $termPago = strtoupper((string) ($xml->xpath('//sii:IdDoc/sii:TermPagoGlosa')[0] ?? ''));
+            $sucursalEmisor = strtoupper((string) ($xml->xpath('//sii:Emisor/sii:Sucursal')[0] ?? ''));
+            if (str_contains($termPago, 'PREPAGO') || str_contains($sucursalEmisor, 'CUPON')) {
+                return response()->json([
+                    'error' => 'Esta factura es una recarga de tarjeta prepago: el combustible no entró al estanque.'
+                ], 400);
+            }
+
             $detalles = $xml->xpath('//sii:Detalle') ?? [];
             $fuelDetails = [];
             
@@ -463,15 +473,22 @@ class MovimientoController extends Controller
                     }
                 }
                 
+                // El combustible siempre se factura en litros; un repuesto con
+                // "DIESEL" en el nombre viene en UNID y no debe entrar al estanque.
+                $unidad = strtoupper(trim((string) $detalle->UnmdItem));
+                $esLitros = $unidad === 'L'
+                    || str_starts_with($unidad, 'LT')
+                    || str_starts_with($unidad, 'LITR');
+
                 $productoNombre = null;
-                if (!$esExcluido) {
+                if (!$esExcluido && $esLitros) {
                     $productoNombre = match (true) {
                         str_contains($nombre, 'DIESEL')   => 'Diesel',
                         str_contains($nombre, 'GASOLINA') => 'Gasolina',
                         default                            => null,
                     };
                 }
-                
+
                 if ($productoNombre && $cantidad > 0) {
                     $fuelDetails[] = [
                         'producto' => $productoNombre,
