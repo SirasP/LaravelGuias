@@ -21,8 +21,16 @@ use Throwable;
  */
 class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
 {
-    /** Quien escribe está mirando la pantalla: no puede esperar minutos. */
-    private const TIMEOUT = 45;
+    /**
+     * Quien escribe está mirando la pantalla, así que el límite es corto por
+     * defecto. Se puede subir por configuración para un modelo lento —un
+     * servidor sin GPU tarda minutos—, sabiendo que ahí la persona sí queda
+     * esperando.
+     */
+    private function timeout(): int
+    {
+        return (int) config('purchase_requests.reader.draft_timeout', 45);
+    }
 
     public function isEnabled(): bool
     {
@@ -153,7 +161,7 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             ?: config('purchase_requests.reader.vision_model');
 
         $respuesta = Http::withToken((string) config('purchase_requests.reader.api_key'))
-            ->timeout(self::TIMEOUT)
+            ->timeout($this->timeout())
             ->acceptJson()
             ->post(config('purchase_requests.reader.base_url').'/chat/completions', [
                 'model' => $modelo,

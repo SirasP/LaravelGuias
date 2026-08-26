@@ -57,6 +57,11 @@ return [
         // segundo plano, así que la espera no la sufre nadie frente a la pantalla.
         'timeout' => (int) env('PURCHASE_REQUESTS_READER_TIMEOUT', 300),
 
+        // Límite para el asistente de texto libre, que corre dentro de la
+        // petición. Corto a propósito: ahí la persona está esperando frente a
+        // la pantalla. Con un modelo lento hay que subirlo, asumiendo la espera.
+        'draft_timeout' => (int) env('PURCHASE_REQUESTS_READER_DRAFT_TIMEOUT', 45),
+
         // Cuántas páginas del PDF se miran. Una cotización rara vez pasa de 3.
         'max_pages' => (int) env('PURCHASE_REQUESTS_READER_MAX_PAGES', 3),
 
