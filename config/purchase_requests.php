@@ -82,11 +82,17 @@ return [
          * la máquina que lo hospeda no carga con varios gigas ocupados todo el
          * día por un asistente que se usa unas pocas veces.
          *
-         * Cargar de nuevo cuesta unos segundos; sólo lo paga la primera
-         * lectura después de un rato de silencio. En 0 se desactiva y el
-         * modelo queda cargado indefinidamente.
+         * Un minuto por defecto: suficiente para que varios documentos subidos
+         * seguidos aprovechen el modelo ya cargado, y lo bastante corto para
+         * que la máquina no quede con varios gigas ocupados el resto del día.
+         *
+         * Volver a cargarlo cuesta unos cuatro segundos, y sólo lo paga la
+         * primera lectura tras un silencio. Bajarlo más ahorra poca memoria y
+         * hace que cada documento pague esa espera.
+         *
+         * En 0 el modelo queda cargado indefinidamente.
          */
-        'keep_loaded_minutes' => (int) env('PURCHASE_REQUESTS_READER_KEEP_LOADED', 10),
+        'keep_loaded_minutes' => (int) env('PURCHASE_REQUESTS_READER_KEEP_LOADED', 1),
 
         // Cuántas páginas del PDF se miran. Una cotización rara vez pasa de 3.
         'max_pages' => (int) env('PURCHASE_REQUESTS_READER_MAX_PAGES', 3),
