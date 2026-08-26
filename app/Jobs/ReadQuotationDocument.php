@@ -109,6 +109,12 @@ class ReadQuotationDocument implements ShouldQueue
             return;
         }
 
+        if ($lectura->taxTreatment !== null
+            && $lectura->taxTreatment->kind === \App\Services\PurchaseRequests\Reading\TaxTreatment::SIN_DETERMINAR
+            && collect($lectura->items)->contains(fn (array $i): bool => filled($i['unit_price'] ?? null))) {
+            $lectura = $lectura->conAviso($lectura->taxTreatment->explanation.' Revisa el IVA antes de enviar a Odoo.');
+        }
+
         // El job ya NO crea la solicitud. Deja la lectura preparada para que
         // una persona la revise en pantalla y decida: una lectura equivocada
         // no debe dejar un borrador que después haya que anular.
@@ -120,6 +126,7 @@ class ReadQuotationDocument implements ShouldQueue
                 : PurchaseRequestIngestion::COMPLETED,
             'source_kind' => $lectura->sourceKind,
             'model_used' => $lectura->model ?? $ingestion->model_used,
+            'prices_include_tax' => $lectura->taxTreatment?->pricesIncludeTax(),
             'supplier_name' => $lectura->supplier,
             'supplier_tax_id' => $lectura->supplierTaxId,
             'customer_tax_id' => $lectura->customerTaxId,

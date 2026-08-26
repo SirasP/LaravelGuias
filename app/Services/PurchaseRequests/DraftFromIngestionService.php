@@ -38,6 +38,9 @@ class DraftFromIngestionService
                 'request_date' => today(),
                 'required_date' => today()->addWeek(),
                 'department' => $department ?: $this->areaDe($actor),
+                // Lo que se concluyó al leer el documento viaja con la solicitud:
+                // es lo que decide si al exportar se le suma el IVA o no.
+                'prices_include_tax' => $ingestion->prices_include_tax,
                 // El motivo que escribió quien revisa manda; si lo dejó vacío se
                 // usa el que declaraba el documento, y sólo entonces el genérico.
                 'reason' => $reason

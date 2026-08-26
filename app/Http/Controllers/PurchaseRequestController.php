@@ -736,6 +736,7 @@ class PurchaseRequestController extends Controller
             'required_date',
             'reason',
             'priority',
+            'prices_include_tax',
             'urgent_reason',
             'cost_center',
             'delivery_location',

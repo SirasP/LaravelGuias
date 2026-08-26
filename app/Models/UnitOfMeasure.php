@@ -12,7 +12,8 @@ class UnitOfMeasure extends Model
 
     protected $table = 'units_of_measure';
 
-    protected $fillable = ['company_code', 'code', 'name', 'slug', 'allows_decimals', 'sort_order', 'is_active'];
+    protected $fillable = ['company_code', 'code', 'name',
+        'odoo_uom_id', 'slug', 'allows_decimals', 'sort_order', 'is_active'];
 
     protected function casts(): array
     {

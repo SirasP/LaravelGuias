@@ -62,6 +62,21 @@ return [
         'password' => env('PURCHASE_REQUESTS_ODOO_PASSWORD', env('ODOO_PASSWORD')),
         'timeout' => (int) env('PURCHASE_REQUESTS_ODOO_TIMEOUT', 30),
         'picking_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_PICKING_TYPE', 1),
+
+        /*
+         * El impuesto de compra que se pone en cada línea. En Odoo el 19% sale
+         * normalmente del producto, y aquí no mandamos producto, así que sin
+         * esto la cotización entra en cero de IVA. Dejarlo vacío es válido:
+         * significa que Compras lo pone a mano allá.
+         */
+        'tax_id' => env('PURCHASE_REQUESTS_ODOO_TAX_ID') ? (int) env('PURCHASE_REQUESTS_ODOO_TAX_ID') : null,
+
+        /*
+         * La unidad con que entra una línea cuando la nuestra no tiene
+         * equivalente en Odoo. Sin esto la línea queda literalmente sin
+         * unidad, que es peor que una unidad aproximada.
+         */
+        'default_uom_id' => (int) env('PURCHASE_REQUESTS_ODOO_DEFAULT_UOM', 1),
     ],
 
     /*

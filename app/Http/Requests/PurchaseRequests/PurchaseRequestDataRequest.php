@@ -51,6 +51,7 @@ abstract class PurchaseRequestDataRequest extends FormRequest
                     }
                 }
             }],
+            'prices_include_tax' => ['nullable', 'boolean'],
             'items' => ['nullable', 'array', 'max:200'],
             'items.*.sort_order' => ['required', 'integer', 'min:1'],
             'items.*.product_service' => ['required', 'string', 'max:1000'],
@@ -198,6 +199,9 @@ abstract class PurchaseRequestDataRequest extends FormRequest
             ->all();
 
         $this->merge([
+            // Una casilla sin marcar no llega en la petición: hay que fijarla
+            // en falso, o quedaría en «no se sabe» y no se sumaría el IVA.
+            'prices_include_tax' => $this->boolean('prices_include_tax'),
             'urgent_reason' => $this->input('priority') === 'urgent' ? $this->input('urgent_reason') : null,
             'items' => $items,
             'suggested_suppliers' => $suppliers,

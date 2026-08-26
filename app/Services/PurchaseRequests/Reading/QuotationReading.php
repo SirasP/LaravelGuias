@@ -33,6 +33,8 @@ final readonly class QuotationReading
          * entre rendirse y esperar.
          */
         public bool $unreachable = false,
+        /** Si los precios llevan el IVA dentro, decidido con aritmética. */
+        public ?TaxTreatment $taxTreatment = null,
     ) {}
 
     /**
@@ -48,8 +50,19 @@ final readonly class QuotationReading
         ?string $sourceKind = null,
         ?string $supplierTaxId = null,
         ?string $customerTaxId = null,
+        ?TaxTreatment $taxTreatment = null,
     ): self {
-        return new self(true, $supplier, $supplierTaxId, $customerTaxId, $reason, $items, $warnings, $model, $sourceKind);
+        return new self(true, $supplier, $supplierTaxId, $customerTaxId, $reason, $items, $warnings, $model, $sourceKind, null, false, $taxTreatment);
+    }
+
+    /** Una copia con un aviso más. Sigue siendo inmutable. */
+    public function conAviso(string $aviso): self
+    {
+        return new self(
+            $this->successful, $this->supplier, $this->supplierTaxId, $this->customerTaxId,
+            $this->reason, $this->items, [...$this->warnings, $aviso],
+            $this->model, $this->sourceKind, $this->error, $this->unreachable, $this->taxTreatment,
+        );
     }
 
     public static function failed(string $error, ?string $model = null, ?string $sourceKind = null): self

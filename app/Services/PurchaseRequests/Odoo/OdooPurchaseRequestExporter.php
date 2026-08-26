@@ -5,6 +5,7 @@ namespace App\Services\PurchaseRequests\Odoo;
 use App\Enums\PurchaseRequestStatus;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseSupplier;
+use App\Models\UnitOfMeasure;
 use App\Support\Rut;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -219,7 +220,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'origin' => (string) $purchaseRequest->folio,
             'date_order' => now()->format('Y-m-d H:i:s'),
             'order_line' => $purchaseRequest->items
-                ->map(fn ($item): array => [0, 0, $this->linea($item)])
+                ->map(fn ($item): array => [0, 0, $this->linea($item, $purchaseRequest)])
                 ->values()
                 ->all(),
         ]]);
@@ -243,7 +244,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return array<string, mixed>
      */
-    private function linea(mixed $item): array
+    private function linea(mixed $item, PurchaseRequest $purchaseRequest): array
     {
         $descripcion = trim((string) $item->product_service);
 
@@ -257,12 +258,43 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $item->unit,
         );
 
-        return [
+        $linea = [
             'name' => $descripcion,
             'product_qty' => (float) $item->quantity,
             // Odoo lo exige. Sin cotizar, la RFQ nace en cero y Compras lo
             // completa allá: es preferible a inventar un precio.
             'price_unit' => (float) ($item->unit_price ?? 0),
+            'product_uom' => $this->unidadOdoo($item),
         ];
+
+        // El impuesto no viene del producto —no mandamos producto—, así que sin
+        // esto la cotización entraría en cero de IVA. Sólo se pone cuando
+        // sabemos que los precios son netos: si ya traen el IVA dentro,
+        // sumárselo otra vez inflaría la orden un 19%.
+        $impuesto = config('purchase_requests.odoo.tax_id');
+
+        if ($impuesto !== null && $purchaseRequest->prices_include_tax === false) {
+            $linea['taxes_id'] = [[6, 0, [(int) $impuesto]]];
+        }
+
+        return $linea;
+    }
+
+    /**
+     * La unidad de Odoo que corresponde a la nuestra.
+     *
+     * Se busca la equivalencia registrada en el catálogo; si no hay, se usa la
+     * de por defecto. Traducir «Cubos» a alguna unidad métrica por parecido
+     * sería inventar, y la unidad real ya viaja escrita en la descripción.
+     */
+    private function unidadOdoo(mixed $item): int
+    {
+        $mapeada = UnitOfMeasure::query()
+            ->whereRaw('LOWER(name) = ?', [Str::lower(trim((string) $item->unit))])
+            ->value('odoo_uom_id');
+
+        return filled($mapeada)
+            ? (int) $mapeada
+            : (int) config('purchase_requests.odoo.default_uom_id', 1);
     }
 }

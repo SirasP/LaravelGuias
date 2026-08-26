@@ -2,6 +2,7 @@
 
 namespace App\Services\PurchaseRequests\Reading;
 
+use App\Support\ChileanMoney;
 use App\Support\Rut;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -123,6 +124,12 @@ class LocalQuotationReader implements QuotationReader
             items: $items,
             supplier: $proveedor,
             reason: $this->limpiar($crudo['reason'] ?? null),
+            taxTreatment: TaxTreatment::infer(
+                $items,
+                $this->monto($crudo['net_total'] ?? null),
+                $this->monto($crudo['tax_total'] ?? null),
+                $this->monto($crudo['grand_total'] ?? null),
+            ),
             warnings: $avisos,
             model: $modelo,
             sourceKind: $sourceKind,
@@ -141,6 +148,12 @@ class LocalQuotationReader implements QuotationReader
      * es un fallo de lectura: es una ausencia temporal, y merece esperar en
      * vez de dar el documento por ilegible.
      */
+    /** Un total leído del documento, en la convención chilena del dinero. */
+    private function monto(mixed $valor): ?float
+    {
+        return blank($valor) ? null : ChileanMoney::parse((string) $valor);
+    }
+
     private function esProblemaDeConexion(Throwable $e): bool
     {
         if ($e instanceof ConnectionException) {
@@ -269,8 +282,9 @@ class LocalQuotationReader implements QuotationReader
         - "unit_price" es el precio POR UNIDAD, sin puntos de miles ni signo peso: «$ 12.500»
           es "12500". Si la línea sólo muestra el total, divídelo NO: deja "unit_price" vacío.
           Si la línea no trae precio, déjalo vacío. Nunca lo deduzcas de otra línea.
-        - Ignora totales del documento, impuestos y descuentos: sólo interesa el precio
-          unitario de cada partida.
+        - "net_total", "tax_total" y "grand_total" son el bloque de totales del final:
+          el neto (o subtotal), el IVA y el total a pagar, sin puntos ni signo peso.
+          Si el documento no los declara, déjalos vacíos. NO los calcules tú.
 
         PROVEEDOR:
         - "supplier" es la EMPRESA que emite el documento, la que aparece en el encabezado
@@ -300,10 +314,13 @@ class LocalQuotationReader implements QuotationReader
         $esquema = [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['supplier', 'reason', 'items'],
+            'required' => ['supplier', 'reason', 'net_total', 'tax_total', 'grand_total', 'items'],
             'properties' => [
                 'supplier' => ['type' => 'string', 'description' => 'Proveedor que emite la cotización, o cadena vacía.'],
                 'reason' => ['type' => 'string', 'description' => 'Para qué es la compra, en una frase corta, o cadena vacía.'],
+                'net_total' => ['type' => 'string', 'description' => 'Neto o subtotal del documento, sólo cifras, o vacío.'],
+                'tax_total' => ['type' => 'string', 'description' => 'IVA declarado, sólo cifras, o vacío.'],
+                'grand_total' => ['type' => 'string', 'description' => 'Total a pagar, sólo cifras, o vacío.'],
                 'items' => [
                     'type' => 'array',
                     'items' => [

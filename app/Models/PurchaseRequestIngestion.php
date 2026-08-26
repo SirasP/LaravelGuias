@@ -41,7 +41,7 @@ class PurchaseRequestIngestion extends Model
         'public_id', 'company_code', 'user_id', 'uploader_name_snapshot',
         'purchase_request_id', 'disk', 'path', 'original_name', 'mime_type',
         'size', 'sha256', 'status', 'source_kind', 'model_used',
-        'supplier_name', 'supplier_tax_id', 'customer_tax_id', 'customer_matches_company',
+        'supplier_name', 'supplier_tax_id', 'prices_include_tax', 'customer_tax_id', 'customer_matches_company',
         'extracted', 'warnings', 'error_message', 'attempts',
         'started_at', 'finished_at', 'duration_ms',
     ];

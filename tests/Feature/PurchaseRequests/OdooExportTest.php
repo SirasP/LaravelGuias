@@ -87,10 +87,15 @@ it('sends the lines as text, without inventing products or units', function () {
 
         $linea = $args[5][0]['order_line'][0][2];
 
-        // Ni product_id ni product_uom: crearlos desde texto escrito a mano
-        // llenaría el catálogo de Odoo de duplicados.
+        // Sin product_id: crear productos desde texto escrito a mano llenaría
+        // el catálogo de Odoo de duplicados con faltas de ortografía.
+        //
+        // Con product_uom, en cambio, sí: dejarlo fuera no hacía que Odoo
+        // pusiera «Units» por defecto, sino que la línea entrara literalmente
+        // sin unidad. «Cajas» no tiene equivalente en Odoo, así que entra con
+        // la de por defecto y la real viaja en la descripción.
         return ! array_key_exists('product_id', $linea)
-            && ! array_key_exists('product_uom', $linea)
+            && $linea['product_uom'] === 1
             && str_contains($linea['name'], 'Rodamiento 6202')
             && str_contains($linea['name'], '2RS C3')
             && str_contains($linea['name'], 'Cajas')   // la unidad viaja en el texto
@@ -264,4 +269,70 @@ it('does not offer to send it twice', function () {
         ->assertOk()
         ->assertSee('P00219')
         ->assertDontSee('Enviar a Odoo');
+});
+
+it('adds the tax only when the prices are known to be net', function () {
+    config(['purchase_requests.odoo.tax_id' => 2]);
+
+    $impuestoDeLaLinea = function (): mixed {
+        $enviado = null;
+        Http::assertSent(function ($request) use (&$enviado) {
+            $args = $request['params']['args'] ?? [];
+            if (($args[3] ?? null) === 'purchase.order' && ($args[4] ?? null) === 'create') {
+                $enviado = $args[5][0]['order_line'][0][2];
+            }
+
+            return true;
+        });
+
+        return $enviado;
+    };
+
+    // Precios netos: hay que sumar el 19%, o la orden entra sin IVA.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    $neta = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7'], 'prices_include_tax' => false]);
+    $neta->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '1000']);
+    exportador()->exportApproved($neta);
+
+    expect($impuestoDeLaLinea()['taxes_id'])->toBe([[6, 0, [2]]]);
+});
+
+it('does not add tax to prices that already carry it', function () {
+    config(['purchase_requests.odoo.tax_id' => 2]);
+
+    // Sumarle el 19% a un precio que ya lo trae infla la orden un 19%, y el
+    // monto sigue pareciendo razonable hasta que llega la factura.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    $bruta = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7'], 'prices_include_tax' => true]);
+    $bruta->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '1190']);
+    exportador()->exportApproved($bruta);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        return ! array_key_exists('taxes_id', $args[5][0]['order_line'][0][2]);
+    });
+});
+
+it('does not guess the tax when nobody could tell', function () {
+    config(['purchase_requests.odoo.tax_id' => 2]);
+
+    // prices_include_tax en null significa «no se pudo determinar», que no es
+    // lo mismo que «no lo lleva»: ante la duda no se toca el monto.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    $duda = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7'], 'prices_include_tax' => null]);
+    $duda->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '1000']);
+    exportador()->exportApproved($duda);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        return ! array_key_exists('taxes_id', $args[5][0]['order_line'][0][2]);
+    });
 });

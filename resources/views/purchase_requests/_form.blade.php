@@ -498,6 +498,23 @@
                     </div>
                 </article>
             </template>
+            {{-- En Chile se cotiza neto y el IVA va al final; de las cotizaciones
+                 reales revisadas, todas venían así. Se pregunta igual, porque
+                 equivocarse mueve el monto un 19% sin que se note. --}}
+            <template x-if="totalSolicitud()">
+                <label class="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/50">
+                    <input type="checkbox" name="prices_include_tax" value="1"
+                        @checked(old('prices_include_tax', $purchaseRequest?->prices_include_tax))
+                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                    <span class="text-xs text-slate-600 dark:text-slate-300">
+                        <span class="font-bold">Los precios ya incluyen IVA</span>
+                        <span class="block text-slate-500 dark:text-slate-400">
+                            Déjalo sin marcar si son netos, que es lo habitual. Al enviar a Odoo se suma el 19% sólo si están netos.
+                        </span>
+                    </span>
+                </label>
+            </template>
+
             <button type="button" @click="addItem()" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-blue-300 px-4 text-sm font-bold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30 sm:w-auto">
                 <span class="text-lg leading-none">+</span> Agregar producto o servicio
             </button>
