@@ -206,3 +206,23 @@ it('turns every table row into a link to its request instead of showing action b
     expect($tabla)->not->toContain('Acción');
     expect($tabla)->not->toContain(route('purchase_requests.edit', $draft));
 });
+
+it('keeps the side panel filters inside the form so they still reach the server', function () {
+    $owner = User::factory()->create();
+    $this->createPurchaseRequestDraft($owner);
+
+    $listado = $this->actingAs($owner)->get(route('purchase_requests.index'));
+    $html = $listado->getContent();
+
+    // El panel es un solo formulario con la búsqueda: mover los campos a un
+    // costado no puede dejarlos fuera, o el botón Filtrar los perdería.
+    $inicio = strpos($html, '<form method="GET"');
+    $formulario = substr($html, $inicio, strpos($html, '</form>', $inicio) - $inicio);
+
+    foreach (['department', 'requester', 'requested_from', 'requested_to', 'required_from', 'required_to'] as $campo) {
+        expect($formulario)->toContain('name="'.$campo.'"');
+    }
+
+    // Y el panel entra desde la derecha, no empujando la tabla hacia abajo.
+    expect($formulario)->toContain('translate-x-full');
+});

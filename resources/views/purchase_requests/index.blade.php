@@ -120,8 +120,16 @@
                     $activeFilters = collect($f)->filter(fn ($v) => filled($v))->count();
                 @endphp
 
+                {{--
+                    Los filtros de detalle viven en un panel lateral. Antes se abrían
+                    hacia abajo y empujaban la tabla media pantalla; ahora entran por
+                    la derecha y la lista se queda quieta detrás.
+                --}}
                 <form method="GET" action="{{ route('purchase_requests.index') }}"
-                    x-data="{ open: {{ $activeFilters > 0 ? 'true' : 'false' }} }" class="w-full sm:w-auto">
+                    x-data="{ open: false }"
+                    x-effect="document.querySelector('main')?.classList.toggle('overflow-hidden', open)"
+                    @keydown.escape.window="open = false"
+                    class="w-full sm:w-auto">
 
                     {{-- Búsqueda y estado siempre visibles; el resto se despliega --}}
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -144,7 +152,7 @@
                             @endforeach
                         </select>
 
-                        <button type="button" @click="open = !open"
+                        <button type="button" x-ref="abrirFiltros" @click="open = true"
                             class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                             :aria-expanded="open.toString()" aria-controls="filtros-avanzados">
                             Más filtros
@@ -159,58 +167,102 @@
                         </button>
                     </div>
 
+                    {{-- Fondo oscuro: atenúa la lista y sirve para cerrar --}}
+                    <div x-show="open" x-cloak x-transition.opacity.duration.200ms
+                        @click="open = false"
+                        class="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-[1px]"
+                        aria-hidden="true"></div>
+
+                    {{-- El panel: entra deslizándose desde el borde derecho --}}
                     <div id="filtros-avanzados" x-show="open" x-cloak
-                        class="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/50 sm:grid-cols-2 lg:grid-cols-3">
-                        <div>
-                            <label for="filter-department" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Área</label>
-                            <select id="filter-department" name="department"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                <option value="">Todas</option>
-                                @foreach (($departments ?? collect()) as $department)
-                                    <option value="{{ $department->name }}" @selected(($f['department'] ?? null) === $department->name)>
-                                        {{ $department->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label for="filter-requester" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Solicitante</label>
-                            <input id="filter-requester" name="requester" value="{{ $f['requester'] ?? '' }}" placeholder="Nombre"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="translate-x-full"
+                        x-transition:enter-end="translate-x-0"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="translate-x-0"
+                        x-transition:leave-end="translate-x-full"
+                        role="dialog" aria-modal="true" aria-labelledby="filtros-avanzados-titulo"
+                        class="fixed inset-y-0 right-0 z-[71] flex w-full max-w-sm flex-col bg-white text-left shadow-2xl dark:bg-slate-900">
+
+                        <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                             <div>
-                                <label for="requested_from" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Solicitada desde</label>
-                                <input id="requested_from" type="date" name="requested_from" value="{{ $f['requested_from'] ?? '' }}"
-                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                <h3 id="filtros-avanzados-titulo" class="font-extrabold text-slate-900 dark:text-white">Más filtros</h3>
+                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Se suman a la búsqueda y al estado.</p>
                             </div>
-                            <div>
-                                <label for="requested_to" class="block text-xs font-bold text-slate-600 dark:text-slate-300">hasta</label>
-                                <input id="requested_to" type="date" name="requested_to" value="{{ $f['requested_to'] ?? '' }}"
-                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-1">
-                            <div>
-                                <label for="required_from" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Requerida desde</label>
-                                <input id="required_from" type="date" name="required_from" value="{{ $f['required_from'] ?? '' }}"
-                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                            </div>
-                            <div>
-                                <label for="required_to" class="block text-xs font-bold text-slate-600 dark:text-slate-300">hasta</label>
-                                <input id="required_to" type="date" name="required_to" value="{{ $f['required_to'] ?? '' }}"
-                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                            </div>
+                            <button type="button" @click="open = false; $refs.abrirFiltros?.focus()"
+                                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                                <span class="sr-only">Cerrar filtros</span>
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
 
-                        @if ($activeFilters > 0 || filled($currentStatus))
-                            <div class="flex items-end">
-                                <a href="{{ route('purchase_requests.index') }}"
-                                    class="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-white dark:border-slate-700 dark:text-slate-300">
-                                    Limpiar filtros
-                                </a>
+                        <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                            <div>
+                                <label for="filter-department" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Área</label>
+                                <select id="filter-department" name="department"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    <option value="">Todas</option>
+                                    @foreach (($departments ?? collect()) as $department)
+                                        <option value="{{ $department->name }}" @selected(($f['department'] ?? null) === $department->name)>
+                                            {{ $department->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
-                        @endif
+
+                            <div>
+                                <label for="filter-requester" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Solicitante</label>
+                                <input id="filter-requester" name="requester" value="{{ $f['requester'] ?? '' }}" placeholder="Nombre"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                            </div>
+
+                            <fieldset class="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                                <legend class="px-1 text-xs font-bold text-slate-600 dark:text-slate-300">Fecha de solicitud</legend>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label for="requested_from" class="block text-xs text-slate-500 dark:text-slate-400">Desde</label>
+                                        <input id="requested_from" type="date" name="requested_from" value="{{ $f['requested_from'] ?? '' }}"
+                                            class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="requested_to" class="block text-xs text-slate-500 dark:text-slate-400">Hasta</label>
+                                        <input id="requested_to" type="date" name="requested_to" value="{{ $f['requested_to'] ?? '' }}"
+                                            class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset class="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                                <legend class="px-1 text-xs font-bold text-slate-600 dark:text-slate-300">Fecha requerida</legend>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label for="required_from" class="block text-xs text-slate-500 dark:text-slate-400">Desde</label>
+                                        <input id="required_from" type="date" name="required_from" value="{{ $f['required_from'] ?? '' }}"
+                                            class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="required_to" class="block text-xs text-slate-500 dark:text-slate-400">Hasta</label>
+                                        <input id="required_to" type="date" name="required_to" value="{{ $f['required_to'] ?? '' }}"
+                                            class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </div>
+
+                        <div class="flex items-center gap-2 border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+                            @if ($activeFilters > 0 || filled($currentStatus))
+                                <a href="{{ route('purchase_requests.index') }}"
+                                    class="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                    Limpiar
+                                </a>
+                            @endif
+                            <button type="submit"
+                                class="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700">
+                                Aplicar filtros
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
