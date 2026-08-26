@@ -118,6 +118,7 @@
                                                 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' => $ingestion->status === 'completed',
                                                 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' => $ingestion->status === 'needs_review',
                                                 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' => $ingestion->status === 'failed',
+                                                'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300' => $ingestion->status === 'waiting',
                                                 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' => in_array($ingestion->status, ['pending','processing'], true),
                                             ])">
                                             {{ $ingestion->statusIcon() }} {{ $ingestion->statusLabel() }}
@@ -143,6 +144,16 @@
                                     @endif
                                 </div>
                             </div>
+
+                            {{-- Esperar no es fallar: no hay nada que hacer ni nada
+                                 que reintentar a mano, y decirlo evita que alguien
+                                 vuelva a subir el mismo archivo creyendo que se perdió. --}}
+                            @if($ingestion->status === 'waiting')
+                                <p class="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+                                    El asistente de lectura no está disponible ahora mismo.
+                                    Este documento se leerá solo en cuanto vuelva; no hace falta subirlo de nuevo.
+                                </p>
+                            @endif
 
                             @if($ingestion->status === 'failed' && $ingestion->error_message)
                                 <p class="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">

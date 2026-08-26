@@ -26,8 +26,14 @@ final readonly class QuotationReading
         public ?string $model,
         public ?string $sourceKind,
         public ?string $error = null,
-    ) {
-    }
+        /**
+         * No es que la lectura saliera mal: es que no se pudo hablar con el
+         * modelo. La diferencia importa —un documento ilegible no mejora
+         * reintentando, un túnel caído sí— y sin ella el job no puede decidir
+         * entre rendirse y esperar.
+         */
+        public bool $unreachable = false,
+    ) {}
 
     /**
      * @param  list<array<string, string|null>>  $items
@@ -49,6 +55,12 @@ final readonly class QuotationReading
     public static function failed(string $error, ?string $model = null, ?string $sourceKind = null): self
     {
         return new self(false, null, null, null, null, [], [], $model, $sourceKind, $error);
+    }
+
+    /** No se pudo contactar al modelo. Vale la pena volver a intentarlo. */
+    public static function unreachable(string $error, ?string $model = null, ?string $sourceKind = null): self
+    {
+        return new self(false, null, null, null, null, [], [], $model, $sourceKind, $error, true);
     }
 
     /** ¿El documento va dirigido a esta empresa? Null si no se pudo saber. */

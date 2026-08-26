@@ -5,9 +5,9 @@ namespace App\Jobs;
 use App\Mail\StockBajoMail;
 use App\Services\InventoryConfigService;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -52,6 +52,7 @@ class CheckStockJob
 
             if ($yaEnviado) {
                 Log::info('Ya notificado hoy', ['producto' => $nombreProducto]);
+
                 continue;
             }
 

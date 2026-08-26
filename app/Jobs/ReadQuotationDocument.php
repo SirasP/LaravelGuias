@@ -9,6 +9,7 @@ use App\Models\PurchaseRequestIngestion;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Notifications\QuotationDraftReady;
+use App\Notifications\QuotationWaitingForReader;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use App\Services\PurchaseRequests\Reading\QuotationReading;
 use Illuminate\Bus\Queueable;
@@ -39,11 +40,20 @@ class ReadQuotationDocument implements ShouldQueue
     /** Un modelo en CPU puede tardar; se le da margen antes de rendirse. */
     public int $timeout = 600;
 
-    public int $tries = 2;
+    /**
+     * Los reintentos se limitan por tiempo, no por número: mientras el modelo
+     * no esté accesible el documento se vuelve a encolar, y eso consume vidas
+     * sin que nadie haya fallado en nada.
+     */
+    public int $tries = 0;
 
-    public function __construct(public readonly PurchaseRequestIngestion $ingestion)
+    /** Hasta cuándo vale la pena seguir esperando a que el lector vuelva. */
+    public function retryUntil(): \DateTimeInterface
     {
+        return now()->addHours((int) config('purchase_requests.reader.wait_hours', 12));
     }
+
+    public function __construct(public readonly PurchaseRequestIngestion $ingestion) {}
 
     public function handle(QuotationReader $reader): void
     {
@@ -54,6 +64,11 @@ class ReadQuotationDocument implements ShouldQueue
         }
 
         $comenzo = microtime(true);
+
+        // Hay que quedarse con el estado ANTES de marcarlo como «leyendo»: si no,
+        // al llegar el momento de decidir si ya estaba esperando, ese dato ya se
+        // perdió y se avisa en cada reintento.
+        $estadoPrevio = $ingestion->status;
 
         $ingestion->forceFill([
             'status' => PurchaseRequestIngestion::PROCESSING,
@@ -70,6 +85,15 @@ class ReadQuotationDocument implements ShouldQueue
             );
         } catch (Throwable $e) {
             $this->registrarFallo($ingestion, $e->getMessage(), $comenzo);
+
+            return;
+        }
+
+        // El modelo no estaba: la Mac que lo aloja se duerme, y el túnel con
+        // ella. El documento no tiene nada malo, así que se deja esperando en
+        // vez de darlo por ilegible.
+        if ($lectura->unreachable) {
+            $this->esperarAlLector($ingestion, $lectura->error ?? 'El lector no está disponible.', $estadoPrevio);
 
             return;
         }
@@ -277,6 +301,56 @@ class ReadQuotationDocument implements ShouldQueue
         return is_numeric($limpio) ? $limpio : '0';
     }
 
+    /**
+     * Deja el documento esperando y lo devuelve a la cola.
+     *
+     * Se avisa una sola vez, al entrar en espera: un documento que espera tres
+     * horas no puede mandar treinta correos por el camino.
+     */
+    private function esperarAlLector(
+        PurchaseRequestIngestion $ingestion,
+        string $motivo,
+        ?string $estadoPrevio,
+    ): void {
+        $yaEstaba = $estadoPrevio === PurchaseRequestIngestion::WAITING;
+
+        $ingestion->forceFill([
+            'status' => PurchaseRequestIngestion::WAITING,
+            'error_message' => $motivo,
+            // No se marca como terminado: sigue vivo, sólo que en pausa.
+            'finished_at' => null,
+        ])->save();
+
+        if (! $yaEstaba) {
+            Log::info('Una cotización quedó esperando al lector.', [
+                'ingestion' => $ingestion->public_id,
+                'archivo' => $ingestion->original_name,
+            ]);
+
+            $this->avisarQueEspera($ingestion);
+        }
+
+        // Los primeros reintentos son rápidos: la Mac suele volver enseguida.
+        // Después se espacian, para no golpear el túnel durante horas.
+        $intentos = $this->attempts();
+        $demora = match (true) {
+            $intentos <= 3 => 60,
+            $intentos <= 8 => 300,
+            default => 900,
+        };
+
+        $this->release($demora);
+    }
+
+    private function avisarQueEspera(PurchaseRequestIngestion $ingestion): void
+    {
+        try {
+            $ingestion->uploader?->notify(new QuotationWaitingForReader($ingestion));
+        } catch (Throwable $e) {
+            Log::warning('No se pudo avisar de la espera.', ['motivo' => $e->getMessage()]);
+        }
+    }
+
     private function registrarFallo(
         PurchaseRequestIngestion $ingestion,
         string $motivo,
@@ -346,9 +420,13 @@ class ReadQuotationDocument implements ShouldQueue
             return;
         }
 
+        $esperaba = $ingestion->status === PurchaseRequestIngestion::WAITING;
+
         $ingestion->forceFill([
             'status' => PurchaseRequestIngestion::FAILED,
-            'error_message' => 'El trabajo falló: '.$exception->getMessage(),
+            'error_message' => $esperaba
+                ? 'El lector no volvió a estar disponible dentro del plazo. Puedes volver a leer el documento cuando lo esté.'
+                : 'El trabajo falló: '.$exception->getMessage(),
             'finished_at' => now(),
         ])->save();
     }

@@ -113,6 +113,14 @@ return [
          *
          * En 0 el modelo queda cargado indefinidamente.
          */
+        /*
+         * Cuánto tiempo se espera a que el lector vuelva antes de dar un
+         * documento por no leído. El modelo vive en una máquina que se duerme,
+         * así que las ausencias son normales y no deberían costar el trabajo
+         * de quien ya subió su cotización.
+         */
+        'wait_hours' => (int) env('PURCHASE_REQUESTS_READER_WAIT_HOURS', 12),
+
         'keep_loaded_minutes' => (int) env('PURCHASE_REQUESTS_READER_KEEP_LOADED', 1),
 
         // Cuántas páginas del PDF se miran. Una cotización rara vez pasa de 3.

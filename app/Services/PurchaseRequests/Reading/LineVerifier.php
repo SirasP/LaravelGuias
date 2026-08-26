@@ -39,9 +39,9 @@ class LineVerifier
      */
     /**
      * @param  bool  $referenciaEsUnaFrase  cuando el texto es una frase corta
-     *   escrita a mano —«cloro 5 litros»—, la unidad puede estar en cualquier
-     *   parte de ella y no necesariamente pegada al producto. En un documento
-     *   con tabla, en cambio, cada línea responde por lo suyo.
+     *                                      escrita a mano —«cloro 5 litros»—, la unidad puede estar en cualquier
+     *                                      parte de ella y no necesariamente pegada al producto. En un documento
+     *                                      con tabla, en cambio, cada línea responde por lo suyo.
      */
     public function verificarContraElDocumento(array $items, string $referencia, array $knownUnits, bool $esImagen, bool $referenciaEsUnaFrase = false): array
     {

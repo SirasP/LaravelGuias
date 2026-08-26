@@ -3,6 +3,8 @@
 namespace App\Services\PurchaseRequests\Reading;
 
 use App\Support\Rut;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -66,6 +68,16 @@ class LocalQuotationReader implements QuotationReader
                 'motivo' => $e->getMessage(),
             ]);
 
+            // Si ni siquiera se pudo llegar al modelo, el documento no tiene la
+            // culpa y reintentar más tarde sí puede funcionar.
+            if ($this->esProblemaDeConexion($e)) {
+                return QuotationReading::unreachable(
+                    'No se pudo contactar al modelo: '.$e->getMessage(),
+                    $modelo,
+                    $sourceKind,
+                );
+            }
+
             return QuotationReading::failed('El modelo no respondió: '.$e->getMessage(), $modelo, $sourceKind);
         }
 
@@ -120,8 +132,42 @@ class LocalQuotationReader implements QuotationReader
     }
 
     /**
-     * @return array{0: string, 1: ?string, 2: ?string}  [tipo, texto, imagen en base64]
+     * @return array{0: string, 1: ?string, 2: ?string} [tipo, texto, imagen en base64]
      */
+    /**
+     * ¿El problema fue de conexión, y no del documento ni del modelo?
+     *
+     * El túnel hacia la Mac se cae cada vez que esa máquina se duerme. Eso no
+     * es un fallo de lectura: es una ausencia temporal, y merece esperar en
+     * vez de dar el documento por ilegible.
+     */
+    private function esProblemaDeConexion(Throwable $e): bool
+    {
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        // Un 502/503/504 del otro lado significa lo mismo: el servidor del
+        // modelo no está atendiendo ahora mismo.
+        if ($e instanceof RequestException && in_array($e->response->status(), [502, 503, 504], true)) {
+            return true;
+        }
+
+        $mensaje = Str::lower($e->getMessage());
+
+        foreach ([
+            'connection refused', 'could not connect', 'failed to connect',
+            'timed out', 'timeout', 'connection reset', 'empty reply',
+            'no route to host', 'network is unreachable', 'curl error',
+        ] as $senal) {
+            if (Str::contains($mensaje, $senal)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function prepararEntrada(string $ruta, string $mimeType): array
     {
         if (str_starts_with($mimeType, 'image/')) {

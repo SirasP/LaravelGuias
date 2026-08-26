@@ -6,6 +6,8 @@ namespace App\Services\PurchaseRequests\Reading;
 final class PurchaseRequestSourceKind
 {
     public const PDF_TEXT = 'pdf_text';
+
     public const PDF_SCAN = 'pdf_scan';
+
     public const IMAGE = 'image';
 }

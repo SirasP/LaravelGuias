@@ -18,14 +18,23 @@ class PurchaseRequestIngestion extends Model
     use HasFactory;
 
     public const PENDING = 'pending';
+
+    /** El modelo no está accesible; el documento espera a que vuelva. */
+    public const WAITING = 'waiting';
+
     public const PROCESSING = 'processing';
+
     public const COMPLETED = 'completed';
+
     public const FAILED = 'failed';
+
     /** Se leyó, pero con tan poca confianza que no vale crear un borrador. */
     public const NEEDS_REVIEW = 'needs_review';
 
     public const SOURCE_PDF_TEXT = 'pdf_text';
+
     public const SOURCE_PDF_SCAN = 'pdf_scan';
+
     public const SOURCE_IMAGE = 'image';
 
     protected $fillable = [
@@ -77,7 +86,8 @@ class PurchaseRequestIngestion extends Model
     public function statusLabel(): string
     {
         return match ($this->status) {
-            self::PENDING => 'En espera',
+            self::PENDING => 'En cola',
+            self::WAITING => 'Esperando al lector',
             self::PROCESSING => 'Leyendo el documento',
             self::COMPLETED => 'Borrador creado',
             self::NEEDS_REVIEW => 'Leído con dudas',
@@ -90,6 +100,7 @@ class PurchaseRequestIngestion extends Model
     {
         return match ($this->status) {
             self::PENDING => '◷',
+            self::WAITING => '⏸',
             self::PROCESSING => '⟳',
             self::COMPLETED => '✓',
             self::NEEDS_REVIEW => '?',
