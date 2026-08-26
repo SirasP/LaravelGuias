@@ -60,6 +60,19 @@
                                 placeholder="Ej. caja">
                             @error('code') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                         </div>
+                        <div>
+                            <label for="odoo_uom_id" class="block text-sm font-bold text-slate-700 dark:text-slate-200">
+                                Unidad equivalente en Odoo <span class="font-normal text-slate-400">(opcional)</span>
+                            </label>
+                            <input id="odoo_uom_id" name="odoo_uom_id" type="number" min="1" value="{{ old('odoo_uom_id') }}"
+                                class="mt-1.5 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                placeholder="Ej. 11 para m³">
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                El número que Odoo le da a esa unidad. Sin esto, la línea entra con la unidad por defecto
+                                y la real viaja escrita en la descripción.
+                            </p>
+                            @error('odoo_uom_id') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                        </div>
                         <label class="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                             <input type="checkbox" name="allows_decimals" value="1" @checked(old('allows_decimals', true))
                                 class="h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500">
@@ -108,7 +121,9 @@
                                     </p>
                                     <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                                         clave: {{ $entry->slug }} · orden {{ $entry->sort_order }}
-                                        @if($isUnit) · {{ $entry->allows_decimals ? 'admite decimales' : 'sólo enteros' }} @endif
+                                        @if($isUnit) · {{ $entry->allows_decimals ? 'admite decimales' : 'sólo enteros' }}
+                                            · Odoo: {{ $entry->odoo_uom_id ? 'unidad '.$entry->odoo_uom_id : 'la de por defecto' }}
+                                        @endif
                                     </p>
                                 </div>
 
@@ -138,6 +153,8 @@
                                 @if($isUnit)
                                     <input name="code" value="{{ $entry->code }}" required
                                         class="min-h-11 w-28 rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    <input name="odoo_uom_id" type="number" min="1" value="{{ $entry->odoo_uom_id }}" placeholder="Odoo"
+                                        class="min-h-11 w-24 rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     <input type="hidden" name="allows_decimals" value="{{ $entry->allows_decimals ? 1 : 0 }}">
                                 @endif
                                 <input name="sort_order" type="number" min="0" value="{{ $entry->sort_order }}"

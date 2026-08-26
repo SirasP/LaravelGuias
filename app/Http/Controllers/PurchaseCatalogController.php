@@ -273,12 +273,16 @@ class PurchaseCatalogController extends Controller
         if ($model === UnitOfMeasure::class) {
             $rules['code'] = ['required', 'string', 'max:40'];
             $rules['allows_decimals'] = ['nullable', 'boolean'];
+            // La unidad equivalente en Odoo. Opcional: sin ella la línea entra
+            // con la de por defecto y la unidad real viaja en la descripción.
+            $rules['odoo_uom_id'] = ['nullable', 'integer', 'min:1'];
         }
 
         $validated = $request->validate($rules, [], [
             'name' => 'el nombre',
             'code' => 'la abreviatura',
             'sort_order' => 'el orden',
+            'odoo_uom_id' => 'la unidad de Odoo',
         ]);
 
         $validated['name'] = trim($validated['name']);
@@ -299,6 +303,7 @@ class PurchaseCatalogController extends Controller
         if ($model === UnitOfMeasure::class) {
             $attributes['code'] = trim($data['code']);
             $attributes['allows_decimals'] = (bool) ($data['allows_decimals'] ?? false);
+            $attributes['odoo_uom_id'] = filled($data['odoo_uom_id'] ?? null) ? (int) $data['odoo_uom_id'] : null;
         }
 
         return $attributes;
