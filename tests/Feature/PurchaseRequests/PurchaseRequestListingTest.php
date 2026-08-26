@@ -184,3 +184,25 @@ it('lists both submitted and resubmitted under the pending-review filter', funct
         ->assertSee($nueva->folio)
         ->assertSee($vuelta->folio);
 });
+
+it('turns every table row into a link to its request instead of showing action buttons', function () {
+    $owner = User::factory()->create();
+    $draft = $this->createPurchaseRequestDraft($owner);
+
+    $listado = $this->actingAs($owner)->get(route('purchase_requests.index'));
+
+    $listado->assertOk()
+        // La fila entera lleva a la solicitud.
+        ->assertSee('data-row-href="'.route('purchase_requests.show', $draft).'"', false)
+        // Y el folio sigue siendo un enlace de verdad, para tabular o copiar.
+        ->assertSee('href="'.route('purchase_requests.show', $draft).'"', false);
+
+    // Dentro de la tabla ya no queda columna de acciones: ni la cabecera ni el
+    // atajo a editar. Las tarjetas de móvil, que van aparte, sí los conservan.
+    $html = $listado->getContent();
+    $inicio = strpos($html, '<table');
+    $tabla = substr($html, $inicio, strpos($html, '</table>') - $inicio);
+
+    expect($tabla)->not->toContain('Acción');
+    expect($tabla)->not->toContain(route('purchase_requests.edit', $draft));
+});

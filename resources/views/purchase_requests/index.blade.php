@@ -293,7 +293,6 @@
                             <th class="whitespace-nowrap px-5 py-3">Requerida</th>
                             <th class="whitespace-nowrap px-5 py-3">Prioridad</th>
                             <th class="whitespace-nowrap px-5 py-3">Estado</th>
-                            <th class="px-5 py-3 text-right">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -302,9 +301,14 @@
                                 $meta = $statusMeta($purchaseRequest->status);
                                 [$priorityLabel, $priorityClasses] = $priorityMeta($purchaseRequest->priority ?? null);
                             @endphp
-                            <tr class="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                <td class="whitespace-nowrap px-5 py-4 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
-                                    {{ $purchaseRequest->folio ?? ('BOR-' . $purchaseRequest->id) }}
+                            <tr class="cursor-pointer transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                                data-row-href="{{ route('purchase_requests.show', $purchaseRequest) }}">
+                                <td class="whitespace-nowrap px-5 py-4">
+                                    {{-- Enlace de verdad: se puede tabular, copiar y abrir en otra pestaña --}}
+                                    <a href="{{ route('purchase_requests.show', $purchaseRequest) }}"
+                                        class="font-mono text-xs font-bold text-blue-600 hover:underline focus:outline-none focus-visible:underline dark:text-blue-400">
+                                        {{ $purchaseRequest->folio ?? ('BOR-' . $purchaseRequest->id) }}
+                                    </a>
                                 </td>
                                 <td class="px-5 py-4">
                                     <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">{{ $purchaseRequest->reason }}</p>
@@ -314,18 +318,10 @@
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $formatDate($purchaseRequest->required_date) }}</td>
                                 <td class="whitespace-nowrap px-5 py-4"><span class="rounded-full px-2 py-1 text-xs font-bold {{ $priorityClasses }}">{{ $priorityLabel }}</span></td>
                                 <td class="whitespace-nowrap px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $meta['classes'] }}">{{ $meta['label'] }}</span></td>
-                                <td class="whitespace-nowrap px-5 py-4 text-right">
-                                    <div class="inline-flex items-center gap-2">
-                                        @if($meta['editable'])
-                                            <a href="{{ route('purchase_requests.edit', $purchaseRequest) }}" class="font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400">Editar</a>
-                                        @endif
-                                        <a href="{{ route('purchase_requests.show', $purchaseRequest) }}" class="font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Ver</a>
-                                    </div>
-                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                                <td colspan="6" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>
                             </tr>
@@ -341,4 +337,34 @@
             @endif
         </section>
     </div>
+
+    <script>
+        // Cada fila de la tabla lleva a su solicitud. Va como un solo oyente en
+        // el documento para que las filas que llegan al cambiar de página
+        // funcionen igual, sin volver a enganchar nada.
+        document.addEventListener('click', (evento) => {
+            const fila = evento.target.closest('[data-row-href]');
+
+            if (! fila) {
+                return;
+            }
+
+            // Un enlace o un botón dentro de la fila hace lo suyo, no lo nuestro.
+            if (evento.target.closest('a, button, input, select, label')) {
+                return;
+            }
+
+            // Si venía seleccionando texto para copiarlo, no lo sacamos de la página.
+            if ((window.getSelection()?.toString() ?? '') !== '') {
+                return;
+            }
+
+            if (evento.metaKey || evento.ctrlKey) {
+                window.open(fila.dataset.rowHref, '_blank', 'noopener');
+                return;
+            }
+
+            window.location = fila.dataset.rowHref;
+        });
+    </script>
 </x-app-layout>
