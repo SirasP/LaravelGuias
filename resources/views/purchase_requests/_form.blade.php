@@ -262,31 +262,33 @@
                         </div>
                         <button type="button" @click="removeItem(index)" x-show="items.length > 1" class="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30">Quitar</button>
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div class="sm:col-span-2">
+                    {{-- En pantalla ancha las tres van en una línea: el producto se
+                         lleva el espacio, y cantidad y unidad piden poco. --}}
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                        <div class="sm:col-span-2 lg:col-span-7">
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Producto o servicio <span class="text-rose-500">*</span></label>
                             <input :name="`items[${index}][product_service]`" x-model="item.product_service" required
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Tubo PVC sanitario">
                             <template x-if="fieldError(`items.${index}.product_service`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.product_service`)"></p></template>
                         </div>
-                        <div>
+                        <div class="lg:col-span-2">
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Cantidad <span class="text-rose-500">*</span></label>
                             <input :name="`items[${index}][quantity]`" x-model="item.quantity" inputmode="decimal" required
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. 1,5">
                             <template x-if="fieldError(`items.${index}.quantity`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.quantity`)"></p></template>
                         </div>
-                        <div>
+                        <div class="lg:col-span-3">
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Unidad <span class="text-rose-500">*</span></label>
                             <input :name="`items[${index}][unit]`" x-model="item.unit" required list="units-catalog"
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Metros, Unidades, Paquetes">
                             <template x-if="fieldError(`items.${index}.unit`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.unit`)"></p></template>
                         </div>
-                        <div class="sm:col-span-2" x-data="{ detalle: !!(item.specification || item.quantity_note || item.destination) }">
+                        <div class="sm:col-span-2 lg:col-span-12" x-data="{ detalle: !!(item.specification || item.quantity_note || item.destination) }">
                             <button type="button" @click="detalle = !detalle" :aria-expanded="detalle.toString()"
                                 class="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400">
                                 <span x-text="detalle ? '− Ocultar detalle' : '+ Agregar especificación, presentación o destino'"></span>
                             </button>
-                            <div x-show="detalle" x-cloak class="mt-2 grid gap-3 sm:grid-cols-2">
+                            <div x-show="detalle" x-cloak class="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Especificación</label>
                                 <input :name="`items[${index}][specification]`" x-model="item.specification"
@@ -297,7 +299,7 @@
                                 <input :name="`items[${index}][quantity_note]`" x-model="item.quantity_note"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. paquete de 6">
                             </div>
-                            <div class="sm:col-span-2">
+                            <div class="sm:col-span-2 lg:col-span-1">
                                 <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Destino o uso específico</label>
                                 <input :name="`items[${index}][destination]`" x-model="item.destination"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Casa de operarios">
