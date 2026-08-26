@@ -55,6 +55,11 @@ class LineVerifier
             $cantidad = $this->limpiar($item['quantity'] ?? null);
             $unidad = $this->limpiar($item['unit'] ?? null);
 
+            // El texto tal como vino: muchos documentos escriben la unidad
+            // dentro de la propia cantidad («295 mtrs»), así que también
+            // cuenta como respaldo al verificarla.
+            $cantidadOriginal = (string) $cantidad;
+
             // Los documentos escriben «295 mtrs» en la columna de cantidad. Se
             // separan aquí con código, no pidiéndoselo al modelo: partir un
             // texto es determinista y no admite invenciones.
@@ -82,12 +87,21 @@ class LineVerifier
                 $unidad = null;
             }
 
-            // Con una imagen no hay texto del documento contra el cual
-            // contrastar, y el modelo tiende a rellenar con una unidad
-            // plausible: en una prueba real puso «Cajas» a unos guantes cuyo
-            // documento decía «20 C/ TALLA». Se exige entonces que la unidad
-            // esté respaldada por el texto de su propia línea.
-            if ($esImagen && filled($unidad) && ! $this->unidadRespaldadaPorLaLinea($unidad, $producto.' '.($item['specification'] ?? ''))) {
+            // La unidad debe estar respaldada por el texto de su propia línea,
+            // venga el documento como imagen o como texto. Estar en el catálogo
+            // no basta: leyendo una cotización de rodamientos, el modelo puso
+            // «Cada medida» a dos líneas que no mencionaban ninguna medida, y
+            // como esa unidad sí existe en el catálogo, pasaba el filtro.
+            // «Unidades» es la unidad neutra: cuando un documento no declara
+            // ninguna, contar piezas es lo razonable y no constituye una
+            // invención. Se exige respaldo sólo a las unidades específicas
+            // —cajas, litros, cada talla—, que sí afirman algo sobre el
+            // producto y por tanto pueden estar equivocadas.
+            $esNeutra = $this->normalizar($unidad ?? '') === 'unidades';
+
+            $textoDeLaLinea = $producto.' '.($item['specification'] ?? '').' '.$cantidadOriginal;
+
+            if (filled($unidad) && ! $esNeutra && ! $this->unidadRespaldadaPorLaLinea($unidad, $textoDeLaLinea)) {
                 $avisos[] = sprintf(
                     'Partida N° %d: la unidad «%s» no aparece en la línea del documento y se dejó vacía.',
                     $numero,

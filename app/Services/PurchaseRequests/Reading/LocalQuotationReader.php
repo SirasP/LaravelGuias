@@ -208,6 +208,16 @@ class LocalQuotationReader implements QuotationReader
         - No traduzcas los nombres de productos ni las unidades. Mantén el español del documento.
         - Ignora precios, totales, impuestos y descuentos: esta solicitud no los lleva.
 
+        PROVEEDOR:
+        - "supplier" es la EMPRESA que emite el documento, la que aparece en el encabezado
+          junto a su RUT (por ejemplo "DERCOMAQ S.P.A." o "MOTORMAN S.A").
+        - NO es el vendedor, ejecutivo o contacto que atiende. Un campo "Vendedor:",
+          "Ejecutivo:" o "Atendido por:" contiene el nombre de una PERSONA, y esa persona
+          nunca es el proveedor.
+        - Tampoco es el cliente ni quien recibe la cotización.
+        - Si no aparece con claridad el nombre de la empresa emisora, deja "supplier" vacío:
+          el RUT se extrae aparte y basta para identificarla.
+
         COLUMNAS:
         - "product_service" es el NOMBRE del producto (por ejemplo "ANILLO PISTON STD"),
           nunca su código interno. Si el documento tiene una columna de código o SKU

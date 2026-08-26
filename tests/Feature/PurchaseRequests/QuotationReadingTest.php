@@ -526,3 +526,69 @@ it('sends each recipient a link they can actually open', function () {
     // El enlace del administrador funciona de verdad.
     $this->actingAs($admin)->get($avisoAdmin['url'])->assertOk();
 });
+
+it('does not take the salesperson for the supplier', function () {
+    // La cotización 549 trae «Vendedor: M. FERNANDA MANSILLA TORR». El
+    // asistente registró a esa persona como proveedor de la solicitud, en vez
+    // de a DERCOMAQ S.P.A., que es la empresa que emite el documento.
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of(
+        items: [['product_service' => 'Rodamiento 6202', 'specification' => '07297', 'quantity' => '5', 'unit' => 'Unidades']],
+        supplier: 'DERCOMAQ S.P.A.',
+        supplierTaxId: '77045469-7',
+    ));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cot-549.pdf', 90, 'application/pdf'),
+    ]);
+
+    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+
+    expect($borrador->suggested_suppliers)->toBe(['DERCOMAQ S.P.A. (RUT 77.045.469-7)'])
+        ->and($borrador->reason)->toContain('DERCOMAQ');
+});
+
+it('demands that a specific unit be backed by its own line', function () {
+    // Leyendo una cotización de rodamientos, el modelo puso «Cada medida» a
+    // dos líneas que no mencionaban ninguna medida. Como esa unidad existe en
+    // el catálogo, pasaba el filtro: estar en el catálogo no es respaldo.
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+    $catalogo = ['Unidades', 'Metros', 'Cada medida', 'Cajas'];
+
+    [$items, $avisos] = $verificador->verificarContraElDocumento([
+        ['product_service' => 'RODAMIENTO 6202 2RS2 C3 NKE', 'specification' => '07297', 'quantity' => '5', 'unit' => 'Cada medida'],
+    ], 'RODAMIENTO 6202 2RS2 C3 NKE 07297 5', $catalogo, false);
+
+    expect($items[0]['unit'])->toBeNull();
+    expect(collect($avisos)->contains(fn ($a) => str_contains($a, 'Cada medida')))->toBeTrue();
+});
+
+it('accepts a unit written inside the quantity itself', function () {
+    // Los documentos escriben «295 mtrs» en la columna de cantidad, así que
+    // ese texto también respalda la unidad.
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+
+    [$items] = $verificador->verificarContraElDocumento([
+        ['product_service' => 'PVC 200 mm', 'specification' => null, 'quantity' => '295 mtrs', 'unit' => null],
+    ], 'PVC 200 mm 295 mtrs', ['Metros', 'Unidades'], false);
+
+    expect($items[0]['quantity'])->toBe('295')
+        ->and($items[0]['unit'])->toBe('Metros');
+});
+
+it('lets the neutral unit through when the document declares none', function () {
+    // «Unidades» es contar piezas: cuando el documento no declara nada, no es
+    // una invención. Sí lo sería «Cajas» o «Litros», que afirman algo.
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+    $catalogo = ['Unidades', 'Cajas', 'Litros'];
+
+    [$items] = $verificador->verificarContraElDocumento([
+        ['product_service' => 'Rodamiento 6202', 'specification' => null, 'quantity' => '5', 'unit' => 'Unidades'],
+        ['product_service' => 'Rodamiento 6002', 'specification' => null, 'quantity' => '5', 'unit' => 'Cajas'],
+    ], 'Rodamiento 6202 5 Rodamiento 6002 5', $catalogo, false);
+
+    expect($items[0]['unit'])->toBe('Unidades');
+    expect($items[1]['unit'])->toBeNull();
+});
