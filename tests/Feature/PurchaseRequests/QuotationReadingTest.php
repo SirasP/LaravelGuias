@@ -561,7 +561,8 @@ it('demands that a specific unit be backed by its own line', function () {
         ['product_service' => 'RODAMIENTO 6202 2RS2 C3 NKE', 'specification' => '07297', 'quantity' => '5', 'unit' => 'Cada medida'],
     ], 'RODAMIENTO 6202 2RS2 C3 NKE 07297 5', $catalogo, false);
 
-    expect($items[0]['unit'])->toBeNull();
+    // Se descarta la inventada y queda la unidad por defecto de la empresa.
+    expect($items[0]['unit'])->toBe(App\Services\PurchaseRequests\Reading\LineVerifier::UNIDAD_POR_DEFECTO);
     expect(collect($avisos)->contains(fn ($a) => str_contains($a, 'Cada medida')))->toBeTrue();
 });
 
@@ -589,6 +590,43 @@ it('lets the neutral unit through when the document declares none', function () 
         ['product_service' => 'Rodamiento 6002', 'specification' => null, 'quantity' => '5', 'unit' => 'Cajas'],
     ], 'Rodamiento 6202 5 Rodamiento 6002 5', $catalogo, false);
 
+    // La neutra pasa tal cual; la específica sin respaldo se descarta y cae
+    // en la unidad por defecto, que es la regla de la empresa.
     expect($items[0]['unit'])->toBe('Unidades');
-    expect($items[1]['unit'])->toBeNull();
+    expect($items[1]['unit'])->toBe('Unidades');
+});
+
+it('falls back to the company default unit and says so', function () {
+    // Regla de la empresa: si el documento no indica unidad, se cuentan
+    // unidades. Antes quedaba vacía y la solicitud no se podía enviar sin
+    // que alguien completara un dato que el papel nunca trajo.
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+
+    [$items, $avisos] = $verificador->verificarContraElDocumento([
+        ['product_service' => 'Escobillones', 'specification' => null, 'quantity' => '10', 'unit' => null],
+        ['product_service' => 'Cloro gel', 'specification' => null, 'quantity' => '10', 'unit' => ''],
+    ], 'Escobillones 10 Cloro gel 10', ['Unidades', 'Litros'], false);
+
+    expect($items[0]['unit'])->toBe('Unidades')
+        ->and($items[1]['unit'])->toBe('Unidades');
+
+    // Y se deja constancia: es una suposición, no un dato del documento.
+    expect($avisos)->toHaveCount(1)
+        ->and($avisos[0])->toContain('no indica unidades')
+        ->and($avisos[0])->toContain('Cámbialas si corresponde');
+});
+
+it('never overrides a unit the document did declare', function () {
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+
+    [$items, $avisos] = $verificador->verificarContraElDocumento([
+        ['product_service' => 'PVC 200 mm', 'specification' => null, 'quantity' => '295 mtrs', 'unit' => null],
+        ['product_service' => 'Tuercas 3/4', 'specification' => null, 'quantity' => '16', 'unit' => null],
+    ], 'PVC 200 mm 295 mtrs Tuercas 3/4 16', ['Unidades', 'Metros'], false);
+
+    // La que el documento declara se respeta; sólo la otra cae en el defecto.
+    expect($items[0]['unit'])->toBe('Metros')
+        ->and($items[1]['unit'])->toBe('Unidades');
+
+    expect($avisos[0])->toContain('N° 2');
 });

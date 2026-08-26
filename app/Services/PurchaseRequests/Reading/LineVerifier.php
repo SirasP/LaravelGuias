@@ -17,6 +17,15 @@ use Illuminate\Support\Str;
 class LineVerifier
 {
     /**
+     * Unidad que se asume cuando el documento no declara ninguna.
+     *
+     * Es una regla de la empresa: sin otra indicación, se cuentan unidades.
+     * Evita que una solicitud quede trabada por un dato que el papel nunca
+     * trajo, y siempre se avisa para que la persona pueda cambiarlo.
+     */
+    public const UNIDAD_POR_DEFECTO = 'Unidades';
+
+    /**
      * Red de seguridad: contrasta lo que dijo el modelo contra el documento.
      *
      * Un modelo pequeño puede inventar una cantidad o traducir una unidad. Aquí
@@ -114,7 +123,11 @@ class LineVerifier
                 $avisos[] = sprintf('Partida N° %d («%s»): falta la cantidad.', $numero, Str::limit($producto, 40));
             }
 
+            // Regla de la empresa: si el documento no indica unidad, se cuentan
+            // unidades. Se deja constancia para que la persona pueda cambiarla,
+            // pero la solicitud queda lista para enviar sin trabajo extra.
             if (blank($unidad)) {
+                $unidad = self::UNIDAD_POR_DEFECTO;
                 $sinUnidad[] = $numero;
             }
 
@@ -134,18 +147,22 @@ class LineVerifier
             ];
         }
 
-        // Las unidades faltantes se resumen en un solo aviso: veintitrés
-        // líneas repitiendo lo mismo no ayudarían a nadie. Sin este aviso, la
-        // lectura aparecía «con dudas» sin explicar por qué.
+        // Se resume en un solo aviso: veintitrés líneas repitiendo lo mismo no
+        // ayudarían a nadie. No es un error, es una suposición razonable de la
+        // que conviene dejar constancia.
         if ($sinUnidad !== []) {
             $avisos[] = count($sinUnidad) === count($limpios)
-                ? 'Ninguna partida trae unidad. Complétalas antes de enviar.'
+                ? sprintf(
+                    'El documento no indica unidades: se asumió «%s» en todas las partidas. Cámbialas si corresponde.',
+                    self::UNIDAD_POR_DEFECTO,
+                )
                 : sprintf(
-                    '%s %d %s sin unidad (N° %s). Complétalas antes de enviar.',
+                    '%s %d %s sin unidad en el documento (N° %s): se asumió «%s».',
                     count($sinUnidad) === 1 ? 'Quedó' : 'Quedaron',
                     count($sinUnidad),
                     count($sinUnidad) === 1 ? 'partida' : 'partidas',
                     implode(', ', array_slice($sinUnidad, 0, 12)).(count($sinUnidad) > 12 ? '…' : ''),
+                    self::UNIDAD_POR_DEFECTO,
                 );
         }
 
