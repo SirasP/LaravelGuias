@@ -287,3 +287,26 @@ it('shows who asked for each request in the table', function () {
     expect($tabla)->toContain('Paola Jara');
     expect($tabla)->toContain('Luis Silva');
 });
+
+it('offers manual and AI modes when creating, and neither when editing', function () {
+    config(['purchase_requests.reader.enabled' => true]);
+
+    $owner = User::factory()->create();
+
+    $crear = $this->actingAs($owner)->get(route('purchase_requests.create'));
+    $crear->assertOk()
+        ->assertSee('Manual')
+        ->assertSee('Cuéntale qué necesitas');
+
+    // Las secciones del formulario se esconden al pasar al asistente.
+    expect($crear->getContent())->toContain("x-show=\"modo === 'manual'\"");
+
+    // Editando no hay pestañas: sin la variable `modo` en la página, dejar
+    // ese x-show puesto escondería el formulario entero.
+    $borrador = $this->createPurchaseRequestDraft($owner);
+    $editar = $this->actingAs($owner)->get(route('purchase_requests.edit', $borrador));
+
+    $editar->assertOk()->assertSee('1. Lo básico');
+    expect($editar->getContent())->not->toContain('modo ===');
+    expect($editar->getContent())->not->toContain('Cuéntale qué necesitas');
+});

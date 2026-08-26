@@ -1,5 +1,12 @@
 @php
     $isEditing = filled($purchaseRequest?->getKey());
+
+    // Con el asistente activo la pantalla tiene dos modos; sin él, el
+    // formulario es lo único que hay y no debe depender de ninguna pestaña.
+    // Editando tampoco: ya hay partidas escritas y rehacerlas desde texto
+    // sería pisar el trabajo hecho.
+    $modoIa = (bool) config('purchase_requests.reader.enabled') && ! $isEditing;
+    $soloManual = $modoIa ? 'x-show="modo === \'manual\'"' : '';
     $requestItems = old('items', $purchaseRequest?->items?->map(fn ($item) => [
         'product_service' => $item->product_service,
         'specification' => $item->specification,
@@ -90,7 +97,88 @@
         </div>
     @endif
 
-    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    @if($modoIa)
+        {{-- Escribir de corrido es más rápido que llenar una tabla. Lo que el
+             asistente propone se agrega como partidas normales y editables:
+             nada se guarda hasta que la persona envíe. --}}
+        <section x-show="modo === 'ia'" x-cloak
+            class="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm dark:border-violet-900/60 dark:bg-slate-900"
+            x-data="{ texto: '', cargando: false, error: '', avisos: [] }">
+            <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
+                <h2 class="font-extrabold text-violet-900 dark:text-violet-100">Cuéntale qué necesitas</h2>
+                <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
+                    Escríbelo como se lo dirías a un compañero. Lo ordenamos en partidas y las revisas en Manual antes de enviar.
+                </p>
+            </div>
+
+            <div class="space-y-3 p-4 sm:p-5">
+                <label for="asistente-texto" class="sr-only">Escribe lo que necesitas</label>
+                <textarea id="asistente-texto" x-model="texto" rows="5"
+                    @keydown.ctrl.enter="$refs.armar.click()"
+                    class="w-full rounded-xl border-violet-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-violet-500 focus:ring-violet-500 dark:border-violet-900 dark:bg-slate-950 dark:text-white"
+                    placeholder="Por ejemplo: pañuelos desechables 2, confort 2, cloro 5 litros"></textarea>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="button" x-ref="armar" :disabled="cargando || texto.trim().length < 3"
+                        @click="
+                                cargando = true; error = ''; avisos = [];
+                                fetch('{{ route('purchase_requests.ingestions.draft') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ text: texto })
+                                })
+                                .then(r => r.json())
+                                .then(d => {
+                                    if (!d.available) { error = d.error || 'El asistente no pudo ayudar esta vez.'; return; }
+                                    // Se reemplaza sólo si las líneas actuales están vacías.
+                                    const vacias = items.every(i => !i.product_service && !i.quantity);
+                                    const nuevas = d.items.map(i => ({
+                                        key: Date.now() + Math.random(),
+                                        product_service: i.product_service ?? '',
+                                        specification: i.specification ?? '',
+                                        quantity: i.quantity ?? '',
+                                        unit: i.unit ?? '',
+                                        quantity_note: '', destination: ''
+                                    }));
+                                    items = vacias ? nuevas : items.concat(nuevas);
+                                    avisos = d.warnings ?? [];
+                                    if (d.reason && !document.getElementById('reason').value) {
+                                        document.getElementById('reason').value = d.reason;
+                                    }
+                                    texto = '';
+                                    modo = 'manual';
+                                })
+                                .catch(() => error = 'No se pudo contactar al asistente.')
+                                .finally(() => cargando = false)
+                        "
+                        class="inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-5 text-sm font-extrabold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+                        <span x-show="!cargando">Armar partidas</span>
+                        <span x-show="cargando" x-cloak>Leyendo…</span>
+                    </button>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">La primera lectura del día tarda unos segundos más.</p>
+                </div>
+
+                <template x-if="error">
+                    <p class="text-xs font-bold text-rose-700 dark:text-rose-300" x-text="error"></p>
+                </template>
+
+                <template x-if="avisos.length">
+                    <div class="rounded-xl bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
+                        <p class="text-xs font-bold text-amber-800 dark:text-amber-300">Revisa esto antes de enviar</p>
+                        <ul class="mt-1 list-inside list-disc text-xs text-amber-800 dark:text-amber-300">
+                            <template x-for="a in avisos" :key="a"><li x-text="a"></li></template>
+                        </ul>
+                    </div>
+                </template>
+            </div>
+        </section>
+    @endif
+
+    <section {!! $soloManual !!} class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
             <h2 class="font-extrabold text-slate-900 dark:text-white">1. Lo básico</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Sólo tres datos. Todo lo demás es opcional y está más abajo.</p>
@@ -151,7 +239,7 @@
         </div>
     </section>
 
-    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section {!! $soloManual !!} class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
             <div>
                 <h2 class="font-extrabold text-slate-900 dark:text-white">2. ¿Qué necesitas?</h2>
@@ -160,81 +248,6 @@
             <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
         </div>
         <div class="space-y-3 p-4 sm:p-5">
-            @if(config('purchase_requests.reader.enabled') && ! $isEditing)
-                {{-- Escribir de corrido es más rápido que llenar una tabla. Lo
-                     que el asistente propone se agrega como partidas normales,
-                     editables: nada se guarda hasta que la persona envíe. --}}
-                <div class="mb-4 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-900/60 dark:bg-violet-950/30"
-                    x-data="{ texto: '', cargando: false, error: '', avisos: [] }">
-                    <label for="asistente-texto" class="block text-sm font-bold text-violet-900 dark:text-violet-100">
-                        ¿Prefieres escribirlo de corrido?
-                    </label>
-                    <p class="mt-0.5 text-xs text-violet-800 dark:text-violet-300">
-                        Por ejemplo: «pañuelos desechables 2, confort 2, cloro 5 litros». Lo ordenamos en partidas y tú revisas.
-                    </p>
-
-                    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
-                        <textarea id="asistente-texto" x-model="texto" rows="2"
-                            @keydown.ctrl.enter="$refs.armar.click()"
-                            class="w-full rounded-xl border-violet-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-violet-500 focus:ring-violet-500 dark:border-violet-900 dark:bg-slate-950 dark:text-white"
-                            placeholder="Escribe lo que necesitas, separado por comas"></textarea>
-
-                        <button type="button" x-ref="armar" :disabled="cargando || texto.trim().length < 3"
-                            @click="
-                                cargando = true; error = ''; avisos = [];
-                                fetch('{{ route('purchase_requests.ingestions.draft') }}', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '{{ csrf_token() }}'
-                                    },
-                                    body: JSON.stringify({ text: texto })
-                                })
-                                .then(r => r.json())
-                                .then(d => {
-                                    if (!d.available) { error = d.error || 'El asistente no pudo ayudar esta vez.'; return; }
-                                    // Se reemplaza sólo si las líneas actuales están vacías.
-                                    const vacias = items.every(i => !i.product_service && !i.quantity);
-                                    const nuevas = d.items.map(i => ({
-                                        key: Date.now() + Math.random(),
-                                        product_service: i.product_service ?? '',
-                                        specification: i.specification ?? '',
-                                        quantity: i.quantity ?? '',
-                                        unit: i.unit ?? '',
-                                        quantity_note: '', destination: ''
-                                    }));
-                                    items = vacias ? nuevas : items.concat(nuevas);
-                                    avisos = d.warnings ?? [];
-                                    if (d.reason && !document.getElementById('reason').value) {
-                                        document.getElementById('reason').value = d.reason;
-                                    }
-                                    texto = '';
-                                })
-                                .catch(() => error = 'No se pudo contactar al asistente.')
-                                .finally(() => cargando = false)
-                            "
-                            class="min-h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:self-start">
-                            <span x-show="!cargando">Armar partidas</span>
-                            <span x-show="cargando" x-cloak>Leyendo…</span>
-                        </button>
-                    </div>
-
-                    <template x-if="error">
-                        <p class="mt-2 text-xs font-bold text-rose-700 dark:text-rose-300" x-text="error"></p>
-                    </template>
-
-                    <template x-if="avisos.length">
-                        <div class="mt-2 rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-950/60">
-                            <p class="text-xs font-bold text-amber-800 dark:text-amber-300">Revisa esto antes de enviar</p>
-                            <ul class="mt-1 list-inside list-disc text-xs text-amber-800 dark:text-amber-300">
-                                <template x-for="a in avisos" :key="a"><li x-text="a"></li></template>
-                            </ul>
-                        </div>
-                    </template>
-                </div>
-            @endif
-
             <template x-for="(item, index) in items" :key="item.key">
                 <article class="rounded-xl border p-4"
                     :class="isFlagged(index) ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-400 dark:border-amber-700 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-700'">
@@ -304,7 +317,7 @@
     {{-- Todo lo opcional, plegado. Pedir algo no puede costar dieciséis campos
          en blanco: quien necesita el detalle lo abre; el resto ni lo ve. Se
          despliega solo si hay errores ahí dentro o correcciones marcadas. --}}
-    <section x-data="{ abierto: {{ $errors->hasAny(['requested_for_name', 'cost_center', 'priority', 'urgent_reason', 'delivery_location', 'internal_notes', 'suggested_suppliers', 'attachments']) || $correcciones->isNotEmpty() ? 'true' : 'false' }} }"
+    <section {!! $soloManual !!} x-data="{ abierto: {{ $errors->hasAny(['requested_for_name', 'cost_center', 'priority', 'urgent_reason', 'delivery_location', 'internal_notes', 'suggested_suppliers', 'attachments']) || $correcciones->isNotEmpty() ? 'true' : 'false' }} }"
         class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         <button type="button" @click="abierto = !abierto" :aria-expanded="abierto.toString()"
@@ -401,7 +414,7 @@
         </div>
     </section>
 
-    <div class="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:items-center sm:justify-end">
+    <div {!! $soloManual !!} class="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:items-center sm:justify-end">
         <a href="{{ $isEditing ? route('purchase_requests.show', $purchaseRequest) : route('purchase_requests.index') }}"
             class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</a>
         <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950">
