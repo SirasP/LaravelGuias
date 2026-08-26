@@ -138,6 +138,13 @@ Route::middleware('auth')
                 ->name('withdraw_cancellation');
             Route::delete('/{purchaseRequest}/adjuntos/{attachment}', [PurchaseRequestController::class, 'destroyAttachment'])
                 ->name('attachments.destroy');
+
+            // Enviar a Odoo: sólo tras aprobar, y siempre por una acción
+            // explícita de Compras. Nunca automático al aprobar.
+            Route::post('/{purchaseRequest}/odoo', [PurchaseRequestController::class, 'exportToOdoo'])
+                ->name('odoo.export');
+            Route::post('/{purchaseRequest}/odoo/proveedor', [PurchaseRequestController::class, 'confirmOdooSupplier'])
+                ->name('odoo.supplier');
         });
     });
 

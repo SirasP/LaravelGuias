@@ -36,6 +36,9 @@ class PurchaseRequestEvent extends Model
 
     public const CANCELLATION_REQUESTED = 'cancellation_requested';
 
+    /** Se creó la cotización en Odoo. Queda en el historial como todo lo demás. */
+    public const EXPORTED = 'exported_to_odoo';
+
     public const CANCELLATION_WITHDRAWN = 'cancellation_withdrawn';
 
     public const AI_DRAFTED = 'ai_drafted';
@@ -94,6 +97,7 @@ class PurchaseRequestEvent extends Model
             self::REJECTED => 'Rechazada',
             self::CANCELLED => 'Anulada',
             self::CANCELLATION_REQUESTED => 'Anulación solicitada',
+            self::EXPORTED => 'Enviada a Odoo',
             self::CANCELLATION_WITHDRAWN => 'Petición de anulación retirada',
             self::ATTACHMENT_ADDED => 'Adjunto agregado',
             self::ATTACHMENT_REMOVED => 'Adjunto eliminado',
@@ -109,6 +113,7 @@ class PurchaseRequestEvent extends Model
             self::APPROVED => 'bg-emerald-500',
             self::REJECTED, self::CANCELLED => 'bg-rose-500',
             self::CHANGES_REQUESTED, self::CANCELLATION_REQUESTED => 'bg-amber-500',
+            self::EXPORTED => 'bg-violet-500',
             self::CANCELLATION_WITHDRAWN => 'bg-slate-400',
             self::SUBMITTED, self::RESUBMITTED => 'bg-blue-500',
             default => 'bg-slate-400',

@@ -16,6 +16,8 @@ use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Notifications\PurchaseRequestReviewed;
 use App\Notifications\PurchaseRequestSubmitted;
+use App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier;
+use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
 use App\Services\PurchaseRequests\PurchaseRequestSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -740,6 +742,71 @@ class PurchaseRequestController extends Controller
             'internal_notes',
             'suggested_suppliers',
         ];
+    }
+
+    /**
+     * Envía una solicitud aprobada a Odoo como cotización en borrador.
+     *
+     * Lo dispara una persona de Compras, nunca la aprobación por sí sola:
+     * escribir en un sistema que la empresa usa de verdad no puede ser un
+     * efecto secundario de otra cosa.
+     */
+    public function exportToOdoo(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestExporter $exporter): RedirectResponse
+    {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $resultado = $exporter->exportApproved($purchaseRequest->load('items'));
+
+        if ($resultado->status === 'needs_supplier') {
+            // No es un error: falta un dato que sólo una persona puede dar.
+            return back()
+                ->with('odoo_candidates', $resultado->candidates)
+                ->with('warning', $resultado->message);
+        }
+
+        if ($resultado->status === 'failed') {
+            return back()->with('error', $resultado->message);
+        }
+
+        $purchaseRequest->events()->create([
+            'actor_id' => $request->user()->getKey(),
+            'actor_name_snapshot' => $request->user()->name,
+            'actor_role_snapshot' => $request->user()->role,
+            'event_type' => PurchaseRequestEvent::EXPORTED,
+            'from_status' => $purchaseRequest->status,
+            'to_status' => $purchaseRequest->status,
+            'revision_number' => $purchaseRequest->revision_number,
+            'comment' => $resultado->message,
+            'ip_address' => $request->ip(),
+        ]);
+
+        return back()->with($resultado->performed ? 'success' : 'info', $resultado->message);
+    }
+
+    /**
+     * Registra cuál de los proveedores de Odoo era, y reintenta el envío.
+     *
+     * La respuesta queda guardada en el catálogo con el nombre escrito como
+     * alias, así que esta pregunta se hace una vez por proveedor, no una vez
+     * por solicitud.
+     */
+    public function confirmOdooSupplier(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        ConfirmOdooSupplier $confirmar,
+        PurchaseRequestExporter $exporter,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $datos = $request->validate([
+            'odoo_partner_id' => ['required', 'integer', 'min:1'],
+            'name' => ['required', 'string', 'max:255'],
+            'vat' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $confirmar($purchaseRequest, (int) $datos['odoo_partner_id'], $datos['name'], $datos['vat'] ?? null);
+
+        return $this->exportToOdoo($request, $purchaseRequest->fresh(), $exporter);
     }
 
     /** @param array<int, array<string, mixed>> $items */

@@ -52,6 +52,19 @@ class PurchaseRequestPolicy
         return $this->canReview($user, $purchaseRequest, PurchaseRequestStatus::APPROVED);
     }
 
+    /**
+     * Enviar a Odoo es lo contrario de aprobar: sólo tiene sentido DESPUÉS.
+     *
+     * Por eso no sirve el permiso de `approve`, que deja de valer en cuanto la
+     * solicitud queda aprobada. Aquí basta con ser de Compras y que la
+     * solicitud ya esté aprobada.
+     */
+    public function exportToOdoo(User $user, PurchaseRequest $purchaseRequest): bool
+    {
+        return $user->isPurchaseReviewer()
+            && $purchaseRequest->status === PurchaseRequestStatus::APPROVED;
+    }
+
     public function requestChanges(User $user, PurchaseRequest $purchaseRequest): bool
     {
         return $this->canReview($user, $purchaseRequest, PurchaseRequestStatus::CHANGES_REQUESTED);

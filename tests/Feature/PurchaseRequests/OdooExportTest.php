@@ -210,3 +210,58 @@ it('remembers the answer so nobody is asked twice', function () {
 
     expect(exportador()->exportApproved($otra)->status)->toBe('created');
 });
+
+it('only lets Compras press the button, and only on an approved request', function () {
+    config(['purchase_requests.odoo.enabled' => false]);
+
+    $solicitante = User::factory()->create(['role' => 'user']);
+    $solicitud = PurchaseRequest::factory()->forUser($solicitante)->approved()->create();
+
+    // Quien pide no decide, y menos escribe en Odoo.
+    $this->actingAs($solicitante)
+        ->post(route('purchase_requests.odoo.export', $solicitud))
+        ->assertForbidden();
+
+    // Compras sí, aunque con la integración apagada no ocurra nada.
+    $this->actingAs(User::factory()->create(['role' => 'admin']))
+        ->post(route('purchase_requests.odoo.export', $solicitud))
+        ->assertRedirect();
+});
+
+it('shows the button on the page only once the request is approved', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    $compras = User::factory()->create(['role' => 'admin']);
+
+    $aprobada = PurchaseRequest::factory()->forUser($compras)->approved()->create();
+    $this->actingAs($compras)->get(route('purchase_requests.show', $aprobada))
+        ->assertOk()->assertSee('Enviar a Odoo');
+
+    // Antes de aprobar no hay nada que enviar.
+    $borrador = PurchaseRequest::factory()->forUser($compras)->create();
+    $this->actingAs($compras)->get(route('purchase_requests.show', $borrador))
+        ->assertOk()->assertDontSee('Enviar a Odoo');
+});
+
+it('does not offer to send it twice', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    $compras = User::factory()->create(['role' => 'admin']);
+    $solicitud = PurchaseRequest::factory()->forUser($compras)->approved()->create([
+        'odoo_order_id' => 219, 'odoo_reference' => 'P00219', 'odoo_exported_at' => now(),
+    ]);
+
+    // Dos cotizaciones para la misma compra y nadie sabría cuál vale.
+    $this->actingAs($compras)->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('P00219')
+        ->assertDontSee('Enviar a Odoo');
+});

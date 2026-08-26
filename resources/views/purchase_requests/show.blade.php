@@ -179,6 +179,64 @@
                     </section>
                 @endif
 
+                @php
+                    $odooActivo = (bool) config('purchase_requests.odoo.enabled');
+                    $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
+                    $candidatos = session('odoo_candidates', []);
+                @endphp
+
+                @can('exportToOdoo', $purchaseRequest) @if($odooActivo)
+                    <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/30">
+                        <h2 class="font-extrabold text-violet-950 dark:text-violet-100">Odoo</h2>
+
+                        @if($yaEnOdoo)
+                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                Ya está en Odoo como <span class="font-extrabold">{{ $purchaseRequest->odoo_reference }}</span>,
+                                en borrador. Se confirma allá.
+                            </p>
+                            <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
+                                Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
+                                No se vuelve a enviar: habría dos cotizaciones para la misma compra.
+                            </p>
+                        @elseif(filled($candidatos))
+                            {{-- Nadie escribe el nombre legal completo. El sistema
+                                 propone; quién es lo dice una persona. --}}
+                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                ¿Cuál de estos es el proveedor? Se guardará para no volver a preguntarlo.
+                            </p>
+                            <div class="mt-3 space-y-2">
+                                @foreach($candidatos as $candidato)
+                                    <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}">
+                                        @csrf
+                                        <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
+                                        <input type="hidden" name="name" value="{{ $candidato['name'] }}">
+                                        <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
+                                        <button type="submit"
+                                            class="w-full rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-left text-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950 dark:hover:bg-violet-950/60">
+                                            <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
+                                            <span class="block text-xs text-slate-500 dark:text-slate-400">RUT {{ $candidato['vat'] ?: 'sin RUT en Odoo' }}</span>
+                                        </button>
+                                    </form>
+                                @endforeach
+                            </div>
+                            <p class="mt-2 text-xs text-violet-800 dark:text-violet-300">
+                                Si ninguno es, regístralo en Odoo con su RUT y vuelve a enviar.
+                            </p>
+                        @else
+                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                Crea la cotización en Odoo, en borrador. No la confirma: eso se decide allá.
+                            </p>
+                            <form method="POST" action="{{ route('purchase_requests.odoo.export', $purchaseRequest) }}" class="mt-3">
+                                @csrf
+                                <button type="submit"
+                                    class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
+                                    Enviar a Odoo
+                                </button>
+                            </form>
+                        @endif
+                    </section>
+                @endif @endcan
+
                 @if($canReview)
                     <section x-data="{ action: '' }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"><h2 class="font-extrabold text-amber-950 dark:text-amber-100">Revisión de Compras</h2><p class="mt-1 text-sm text-amber-800 dark:text-amber-200">La acción quedará registrada en el historial.</p><form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-3">@csrf<input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}"><div x-show="action === 'changes'" x-cloak class="rounded-xl border border-amber-300 bg-white/70 p-3 dark:border-amber-900 dark:bg-slate-950/40">
     <p class="text-xs font-extrabold text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>

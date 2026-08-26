@@ -48,10 +48,18 @@ return [
     */
     'odoo' => [
         'enabled' => (bool) env('PURCHASE_REQUESTS_ODOO', false),
-        'url' => env('ODOO_URL'),
-        'db' => env('ODOO_DB'),
-        'user' => env('ODOO_USER'),
-        'password' => env('ODOO_PASSWORD'),
+        /*
+         * Variables propias, con las compartidas como respaldo.
+         *
+         * ODOO_URL y compañía las usan también OdooSyncMoves y
+         * OdooSyncAnalytics, que apuntan a producción. Apuntar este módulo a
+         * una instancia de pruebas cambiándolas habría mandado también a esos
+         * dos a la instancia equivocada, sin que nadie se enterara.
+         */
+        'url' => env('PURCHASE_REQUESTS_ODOO_URL', env('ODOO_URL')),
+        'db' => env('PURCHASE_REQUESTS_ODOO_DB', env('ODOO_DB')),
+        'user' => env('PURCHASE_REQUESTS_ODOO_USER', env('ODOO_USER')),
+        'password' => env('PURCHASE_REQUESTS_ODOO_PASSWORD', env('ODOO_PASSWORD')),
         'timeout' => (int) env('PURCHASE_REQUESTS_ODOO_TIMEOUT', 30),
         'picking_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_PICKING_TYPE', 1),
     ],
