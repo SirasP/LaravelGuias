@@ -201,12 +201,19 @@
             {{-- Lo que se armó, en limpio. Se ve igual que la ficha de una
                  solicitud ya guardada, para que revisar sea el mismo gesto. --}}
             <div x-show="armado" x-cloak>
-                <template x-if="motivo">
-                    <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
-                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Motivo propuesto</p>
+                <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Motivo de la compra</p>
+                    <template x-if="motivo">
                         <p class="mt-1 font-extrabold text-slate-900 dark:text-white" x-text="motivo"></p>
-                    </div>
-                </template>
+                    </template>
+                    {{-- Es obligatorio y el asistente no lo inventa. Decirlo aquí
+                         evita que la persona lo descubra recién al guardar. --}}
+                    <template x-if="!motivo">
+                        <p class="mt-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+                            No dijiste para qué es. Escríbelo en Manual: es obligatorio.
+                        </p>
+                    </template>
+                </div>
 
                 {{-- Sólo se listan los datos que el asistente logró respaldar
                      con el texto. Lo que no aparezca aquí quedó en blanco a

@@ -215,3 +215,37 @@ it('opens the collapsed details section when the assistant writes inside it', fu
     expect($html)->toContain("\$dispatch('abrir-detalles')");
     expect($html)->toContain('@abrir-detalles.window="abierto = true"');
 });
+
+it('uses the urgency explanation as the purchase reason when nothing else says why', function () {
+    $verificador = new App\Services\PurchaseRequests\Drafting\LocalPurchaseRequestDrafter;
+
+    // Al agregar "urgent_reason" el modelo empezó a escribir ahí el porqué y a
+    // dejar el motivo vacío, y el motivo es obligatorio: frenaba el guardado
+    // por un dato que la persona sí había escrito.
+    $metodo = new ReflectionMethod($verificador, 'prioridadVerificada');
+    [$prioridad, $motivoUrgencia] = $metodo->invoke(
+        $verificador,
+        ['priority' => 'urgente', 'urgent_reason' => 'se paró la bomba del pozo'],
+        '2 correas urgente, se paró la bomba del pozo',
+    );
+
+    expect($prioridad)->toBe('urgent')
+        ->and($motivoUrgencia)->toBe('se paró la bomba del pozo');
+
+    // Y lo que el asistente sí trae como motivo manda sobre ese respaldo.
+    expect(App\Services\PurchaseRequests\Drafting\DraftSuggestion::of(
+        reason: 'Reponer correas',
+        requestedForName: null,
+        items: [],
+        urgentReason: 'se paró la bomba',
+    )->reason)->toBe('Reponer correas');
+});
+
+it('says the reason is missing instead of letting it fail at save time', function () {
+    config(['purchase_requests.reader.enabled' => true]);
+
+    $html = $this->actingAs(User::factory()->create())
+        ->get(route('purchase_requests.create'))->getContent();
+
+    expect($html)->toContain('No dijiste para qué es. Escríbelo en Manual: es obligatorio.');
+});

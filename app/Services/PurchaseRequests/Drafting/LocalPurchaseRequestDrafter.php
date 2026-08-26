@@ -121,8 +121,13 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             $avisos[] = $avisoPrioridad;
         }
 
+        // Lo que explica la urgencia explica también la compra. El modelo suele
+        // escribirlo sólo en uno de los dos campos, y dejar el motivo vacío
+        // frena el guardado por un dato que la persona sí había escrito.
+        $motivo = $this->limpiar($crudo['reason'] ?? null) ?? $motivoUrgencia;
+
         return DraftSuggestion::of(
-            reason: $this->limpiar($crudo['reason'] ?? null),
+            reason: $motivo,
             requestedForName: $paraQuien,
             items: $items,
             warnings: $avisos,
@@ -208,6 +213,8 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
           posible", "se paró la máquina"). En cualquier otro caso es "normal". Ante la duda,
           "normal": marcar urgente lo que no lo es hace que nadie crea en las urgencias.
         - "urgent_reason" es por qué no puede esperar, sólo si lo explica. Si no, vacío.
+          Puede ser el mismo texto que "reason": «se paró la bomba» explica a la vez para
+          qué se compra y por qué corre prisa. En ese caso ponlo en LOS DOS campos.
         - "delivery_location" es dónde se entrega o se usa, sólo si lo dice ("para la casa de
           operarios", "llevar al galpón"). Si no lo dice, déjalo vacío.
         EJEMPLOS:

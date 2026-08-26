@@ -319,7 +319,7 @@ it('shows what the assistant built as a table before anything is saved', functio
 
     // La tabla del resumen sale de las mismas partidas del formulario, así
     // que corregir en Manual y guardar operan sobre lo que se está viendo.
-    expect($html)->toContain('Motivo propuesto');
+    expect($html)->toContain('Motivo de la compra');
     expect($html)->toContain('Guardar borrador');
     expect($html)->toContain('x-show="armado"');
 
