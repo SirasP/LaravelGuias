@@ -48,7 +48,9 @@ class LineVerifier
         $limpios = [];
         $avisos = [];
         $sinUnidad = [];
-        $refNormalizada = $this->normalizar($referencia);
+        // «dos correas» tiene que valer lo mismo que «2 correas»: nadie escribe
+        // pensando en lo que este verificador espera encontrar.
+        $refNormalizada = $this->conNumerosEnCifra($this->normalizar($referencia));
         $unidadesConocidas = array_map(fn (string $u): string => $this->normalizar($u), $knownUnits);
 
         if ($esImagen) {
@@ -332,20 +334,119 @@ class LineVerifier
     /** Compara ignorando separadores decimales y ceros de relleno. */
     public function apareceEnElTexto(string $cantidad, string $refNormalizada): bool
     {
-        $candidatos = array_unique([
-            $cantidad,
-            str_replace(',', '.', $cantidad),
-            str_replace('.', ',', $cantidad),
-            rtrim(rtrim(str_replace(',', '.', $cantidad), '0'), '.'),
-        ]);
+        $conPunto = str_replace(',', '.', $cantidad);
 
-        foreach ($candidatos as $candidato) {
-            if ($candidato !== '' && str_contains($refNormalizada, $this->normalizar($candidato))) {
+        $candidatos = [$cantidad, $conPunto, str_replace('.', ',', $cantidad)];
+
+        // «1,50» y «1,5» son la misma cantidad, pero sólo cuando hay decimales:
+        // recortar el cero de «30» lo convertía en «3», y entonces un documento
+        // que decía 35 respaldaba un 30 inventado.
+        if (str_contains($conPunto, '.')) {
+            $sinRelleno = rtrim(rtrim($conPunto, '0'), '.');
+            $candidatos[] = $sinRelleno;
+            $candidatos[] = str_replace('.', ',', $sinRelleno);
+        }
+
+        foreach (array_unique($candidatos) as $candidato) {
+            if ($candidato === '') {
+                continue;
+            }
+
+            // Pegado a otro número no cuenta: el 5 de «15» no respalda un 5
+            // suelto, ni el 35 respalda un 3.
+            $patron = '/(?<![\d.,])'.preg_quote($this->normalizar($candidato), '/').'(?![\d.,])/u';
+
+            if (preg_match($patron, $refNormalizada) === 1) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Agrega al texto la versión en cifra de los números escritos con letra.
+     *
+     * No reemplaza: añade. Así «dos correas y 3 poleas» respalda tanto el «2»
+     * como el «3», y la comprobación de que la cantidad estaba escrita sigue
+     * siendo la misma. Lo que no aparezca de ninguna de las dos formas se
+     * sigue descartando igual que antes.
+     */
+    private function conNumerosEnCifra(string $textoNormalizado): string
+    {
+        $encontrados = [];
+
+        // Se va tachando lo ya reconocido sobre una copia: si «treinta y cinco»
+        // se lleva la frase entera, «treinta» no puede volver a aparecer detrás
+        // y colar un 30 donde iba un 35.
+        $pendiente = $textoNormalizado;
+
+        foreach (self::numerosEnPalabras() as $palabra => $cifra) {
+            $patron = '/(?<![\p{L}\p{N}])'.preg_quote($palabra, '/').'(?![\p{L}\p{N}])/u';
+
+            if (preg_match($patron, $pendiente) === 1) {
+                $encontrados[] = (string) $cifra;
+                $pendiente = preg_replace($patron, ' ', $pendiente) ?? $pendiente;
+            }
+        }
+
+        return $encontrados === []
+            ? $textoNormalizado
+            : $textoNormalizado.' '.implode(' ', array_unique($encontrados));
+    }
+
+    /**
+     * Números en castellano, ya normalizados (minúsculas), ordenados de la
+     * expresión más larga a la más corta.
+     *
+     * @return array<string, int>
+     */
+    private static function numerosEnPalabras(): array
+    {
+        static $mapa = null;
+
+        if ($mapa !== null) {
+            return $mapa;
+        }
+
+        $unidades = [
+            'uno' => 1, 'una' => 1, 'un' => 1, 'dos' => 2, 'tres' => 3, 'cuatro' => 4,
+            'cinco' => 5, 'seis' => 6, 'siete' => 7, 'ocho' => 8, 'nueve' => 9,
+        ];
+
+        $mapa = [
+            ...$unidades,
+            'diez' => 10, 'once' => 11, 'doce' => 12, 'trece' => 13, 'catorce' => 14,
+            'quince' => 15, 'dieciseis' => 16, 'dieciséis' => 16, 'diecisiete' => 17,
+            'dieciocho' => 18, 'diecinueve' => 19, 'veinte' => 20, 'veintiuno' => 21,
+            'veintiun' => 21, 'veintiún' => 21, 'veintidos' => 22, 'veintidós' => 22,
+            'veintitres' => 23, 'veintitrés' => 23, 'veinticuatro' => 24, 'veinticinco' => 25,
+            'veintiseis' => 26, 'veintiséis' => 26, 'veintisiete' => 27, 'veintiocho' => 28,
+            'veintinueve' => 29,
+            'cien' => 100, 'ciento' => 100, 'doscientos' => 200, 'trescientos' => 300,
+            'cuatrocientos' => 400, 'quinientos' => 500, 'mil' => 1000,
+            // Como se pide en una ferretería, no en un examen de aritmética.
+            'un par' => 2, 'par' => 2, 'media docena' => 6, 'docena' => 12,
+        ];
+
+        // Treinta y cinco, cuarenta y dos… se generan en vez de escribirlas.
+        foreach (['treinta' => 30, 'cuarenta' => 40, 'cincuenta' => 50, 'sesenta' => 60,
+            'setenta' => 70, 'ochenta' => 80, 'noventa' => 90] as $decena => $valor) {
+            $mapa[$decena] = $valor;
+
+            foreach ($unidades as $palabra => $suma) {
+                if ($palabra === 'una' || $palabra === 'un') {
+                    continue;
+                }
+
+                $mapa[$decena.' y '.$palabra] = $valor + $suma;
+            }
+        }
+
+        // La expresión más larga primero, para que gane sobre sus pedazos.
+        uksort($mapa, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+
+        return $mapa;
     }
 
     private function normalizar(string $valor): string

@@ -798,3 +798,42 @@ it('keeps someone else from confirming a reading that is not theirs', function (
 
     expect(PurchaseRequest::query()->count())->toBe(0);
 });
+
+it('accepts a quantity written in words, and still rejects one nobody wrote', function () {
+    $verificador = new App\Services\PurchaseRequests\Reading\LineVerifier;
+
+    $pedir = fn (string $frase, string $cantidad) => $verificador->verificarContraElDocumento(
+        [['product_service' => 'correas', 'specification' => null, 'quantity' => $cantidad, 'unit' => 'Unidades']],
+        $frase,
+        ['Unidades'],
+        false,
+        referenciaEsUnaFrase: true,
+    );
+
+    // Escrito con letra: vale igual que la cifra.
+    [$items] = $pedir('dos correas', '2');
+    expect($items[0]['quantity'])->toBe('2');
+
+    [$items] = $pedir('quince correas', '15');
+    expect($items[0]['quantity'])->toBe('15');
+
+    // Compuestos: «treinta y cinco» no puede quedarse en 30.
+    [$items] = $pedir('treinta y cinco correas', '35');
+    expect($items[0]['quantity'])->toBe('35');
+
+    [$items] = $pedir('treinta y cinco correas', '30');
+    expect($items[0]['quantity'])->toBeNull();
+
+    // Como se pide de verdad.
+    [$items] = $pedir('una docena de correas', '12');
+    expect($items[0]['quantity'])->toBe('12');
+
+    // Y lo que nadie escribió se sigue descartando: éste es el punto de todo.
+    [$items, $avisos] = $pedir('correas para el tractor', '7');
+    expect($items[0]['quantity'])->toBeNull()
+        ->and($avisos[0])->toContain('no aparece en el documento');
+
+    // Una palabra que sólo contiene un número no cuenta: «dosis» no es «dos».
+    [$items] = $pedir('dosis de cloro', '2');
+    expect($items[0]['quantity'])->toBeNull();
+});
