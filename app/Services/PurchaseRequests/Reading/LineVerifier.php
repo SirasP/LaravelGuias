@@ -2,6 +2,7 @@
 
 namespace App\Services\PurchaseRequests\Reading;
 
+use App\Support\ChileanMoney;
 use Illuminate\Support\Str;
 
 /**
@@ -98,6 +99,20 @@ class LineVerifier
                 $cantidad = null;
             }
 
+            // El precio se mide con la misma vara que la cantidad: si no está
+            // escrito en el documento, no entra. Un precio inventado no se nota
+            // al mirarlo —parece razonable— y termina en una aprobación.
+            $precio = $this->limpiar($item['unit_price'] ?? null);
+
+            if (filled($precio) && ! $esImagen && ! $this->precioApareceEnElTexto($precio, $referencia)) {
+                $avisos[] = sprintf(
+                    'Partida N° %d: el precio «%s» no aparece en el documento y se dejó vacío.',
+                    $numero,
+                    $precio,
+                );
+                $precio = null;
+            }
+
             // La unidad tiene que estar en el catálogo. Si no está, se vacía.
             if (filled($unidad) && $unidadesConocidas !== [] && ! in_array($this->normalizar($unidad), $unidadesConocidas, true)) {
                 $avisos[] = sprintf('Partida N° %d: la unidad «%s» no está en el catálogo y se dejó vacía.', $numero, $unidad);
@@ -155,6 +170,7 @@ class LineVerifier
                 'product_service' => Str::limit($producto, 990, ''),
                 'specification' => $especificacion,
                 'quantity' => $cantidad,
+                'unit_price' => filled($precio) ? $this->aNumeroCanonico($precio) : null,
                 'unit' => $unidad,
             ];
         }
@@ -447,6 +463,41 @@ class LineVerifier
         uksort($mapa, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
 
         return $mapa;
+    }
+
+    /**
+     * ¿El precio propuesto está escrito en el documento?
+     *
+     * No sirve buscar el texto tal cual: el documento dice «$ 12.500» y el
+     * modelo devuelve «12500». Se comparan los números ya normalizados, que es
+     * lo único que significa lo mismo en ambos lados.
+     */
+    public function precioApareceEnElTexto(string $precio, string $referencia): bool
+    {
+        $buscado = $this->aNumeroCanonico($precio);
+
+        if ($buscado === null) {
+            return false;
+        }
+
+        // Todo lo que parezca una cifra en el documento, con o sin separadores.
+        preg_match_all('/\d[\d.,]*/u', $referencia, $coincidencias);
+
+        foreach ($coincidencias[0] ?? [] as $candidato) {
+            $valor = $this->aNumeroCanonico($candidato);
+
+            if ($valor !== null && abs($valor - $buscado) < 0.005) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @see ChileanMoney para por qué «12.500» son doce mil quinientos. */
+    public function aNumeroCanonico(string $valor): ?float
+    {
+        return ChileanMoney::parse($valor);
     }
 
     private function normalizar(string $valor): string

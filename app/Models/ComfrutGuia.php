@@ -30,4 +30,3 @@ class ComfrutGuia extends Model
         return $this->hasMany(ComfrutGuiaDetalle::class, 'comfrut_guia_id');
     }
 }
-

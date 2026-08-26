@@ -28,27 +28,27 @@ class ProductVolumeDetector
         $matchers = [
             // Litros — "208 LT", "208 LTS", "208 LTRS", "208 LITROS", "20L", "X 208 LT"
             [
-                'regex'   => '/(?:X\s*)?(\d+(?:\.\d+)?)\s*(?:LITROS?|LTRS?|LTS?|(?<![A-Z])L(?![A-Z\d]))/u',
-                'unidad'  => 'Ltrs',
-                'tipo'    => 'vol',
+                'regex' => '/(?:X\s*)?(\d+(?:\.\d+)?)\s*(?:LITROS?|LTRS?|LTS?|(?<![A-Z])L(?![A-Z\d]))/u',
+                'unidad' => 'Ltrs',
+                'tipo' => 'vol',
             ],
             // Mililitros — "500 ML", "500ML"
             [
-                'regex'   => '/(\d+(?:\.\d+)?)\s*ML\b/u',
-                'unidad'  => 'ml',
-                'tipo'    => 'vol',
+                'regex' => '/(\d+(?:\.\d+)?)\s*ML\b/u',
+                'unidad' => 'ml',
+                'tipo' => 'vol',
             ],
             // Kilogramos — "25 KG", "25KG", "25 KILOS"
             [
-                'regex'   => '/(\d+(?:\.\d+)?)\s*(?:KGS?|KILOS?)\b/u',
-                'unidad'  => 'kg',
-                'tipo'    => 'masa',
+                'regex' => '/(\d+(?:\.\d+)?)\s*(?:KGS?|KILOS?)\b/u',
+                'unidad' => 'kg',
+                'tipo' => 'masa',
             ],
             // Gramos — "400 GR", "400GR", "400 GRS"
             [
-                'regex'   => '/(\d+(?:\.\d+)?)\s*GRS?\b/u',
-                'unidad'  => 'gr',
-                'tipo'    => 'masa',
+                'regex' => '/(\d+(?:\.\d+)?)\s*GRS?\b/u',
+                'unidad' => 'gr',
+                'tipo' => 'masa',
             ],
         ];
 
@@ -60,10 +60,10 @@ class ProductVolumeDetector
                 }
 
                 return [
-                    'factor'         => $valor,
+                    'factor' => $valor,
                     'unidad_consumo' => $m['unidad'],
-                    'unidad_compra'  => self::guessContainer($valor, $m['unidad']),
-                    'auto_detected'  => true,
+                    'unidad_compra' => self::guessContainer($valor, $m['unidad']),
+                    'auto_detected' => true,
                 ];
             }
         }
@@ -84,11 +84,12 @@ class ProductVolumeDetector
         foreach ($products as $p) {
             $det = self::detect((string) $p->nombre);
             if ($det !== null) {
-                $det['nombre']     = $p->nombre;
+                $det['nombre'] = $p->nombre;
                 $det['product_id'] = $p->id;
-                $result[$p->id]    = $det;
+                $result[$p->id] = $det;
             }
         }
+
         return $result;
     }
 
@@ -97,15 +98,15 @@ class ProductVolumeDetector
     private static function guessContainer(float $valor, string $unidad): string
     {
         return match ($unidad) {
-            'ml'  => $valor >= 900  ? 'litro'    : 'frasco',
-            'gr'  => $valor >= 1000 ? 'kilo'     : ($valor >= 400 ? 'cartucho' : 'sobre'),
-            'kg'  => $valor >= 20   ? 'saco'      : 'bolsa',
+            'ml' => $valor >= 900 ? 'litro' : 'frasco',
+            'gr' => $valor >= 1000 ? 'kilo' : ($valor >= 400 ? 'cartucho' : 'sobre'),
+            'kg' => $valor >= 20 ? 'saco' : 'bolsa',
             // Ltrs
             default => match (true) {
                 $valor >= 150 => 'tambor',
-                $valor >= 20  => 'bidón',
-                $valor >= 4   => 'galón',
-                default       => 'envase',
+                $valor >= 20 => 'bidón',
+                $valor >= 4 => 'galón',
+                default => 'envase',
             },
         };
     }

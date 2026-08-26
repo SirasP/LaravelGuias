@@ -101,20 +101,22 @@ class AgrakOdooMatcher
                 $diff = abs(
                     Carbon::parse($odoo->fecha_prevista)->diffInDays($fechaAgrak)
                 );
-                if ($diff === 0)
+                if ($diff === 0) {
                     $dateScore = max($dateScore, 3);
-                elseif ($diff === 1)
+                } elseif ($diff === 1) {
                     $dateScore = max($dateScore, 1);
+                }
             }
 
             if ($odoo->fecha_traslado) {
                 $diff = abs(
                     Carbon::parse($odoo->fecha_traslado)->diffInDays($fechaAgrak)
                 );
-                if ($diff === 0)
+                if ($diff === 0) {
                     $dateScore = max($dateScore, 3);
-                elseif ($diff === 1)
+                } elseif ($diff === 1) {
                     $dateScore = max($dateScore, 1);
+                }
             }
 
             $score += $dateScore;
@@ -151,7 +153,7 @@ class AgrakOdooMatcher
             }
         }
 
-        if (!$best) {
+        if (! $best) {
             return null;
         }
 
@@ -189,8 +191,10 @@ class AgrakOdooMatcher
 
     private function norm(?string $v): ?string
     {
-        if (!$v)
+        if (! $v) {
             return null;
+        }
+
         return preg_replace('/\s+/', ' ', strtoupper(trim($v)));
     }
 
@@ -204,7 +208,7 @@ class AgrakOdooMatcher
         return $collection
             ->pluck($field)
             ->filter()
-            ->map(fn($v) => $this->norm($v))
+            ->map(fn ($v) => $this->norm($v))
             ->countBy()
             ->sortDesc()
             ->keys()

@@ -12,7 +12,7 @@ class InventoryConfigService
 
     public function get(string $key, ?string $default = null): ?string
     {
-        if (!$this->existsTable()) {
+        if (! $this->existsTable()) {
             return $default;
         }
 
@@ -30,7 +30,7 @@ class InventoryConfigService
 
     public function set(string $key, ?string $value): void
     {
-        if (!$this->existsTable()) {
+        if (! $this->existsTable()) {
             return;
         }
 
@@ -84,9 +84,10 @@ class InventoryConfigService
 
     public function getFuelMinimo(string $producto): float
     {
-        $key = 'fuel_minimo_' . strtolower(str_replace(['é', 'á', 'ó', 'í', 'ú'], ['e', 'a', 'o', 'i', 'u'], $producto));
+        $key = 'fuel_minimo_'.strtolower(str_replace(['é', 'á', 'ó', 'í', 'ú'], ['e', 'a', 'o', 'i', 'u'], $producto));
         $defaults = ['fuel_minimo_diesel' => '1000', 'fuel_minimo_gasolina' => '20'];
         $raw = $this->get($key, $defaults[$key] ?? '0') ?? '0';
+
         return max(0.0, (float) $raw);
     }
 
@@ -95,4 +96,3 @@ class InventoryConfigService
         return Schema::connection('fuelcontrol')->hasTable($this->table);
     }
 }
-

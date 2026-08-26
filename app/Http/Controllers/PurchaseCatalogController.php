@@ -6,13 +6,12 @@ use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\PurchaseSupplier;
-use App\Support\Rut;
 use App\Models\UnitOfMeasure;
+use App\Support\Rut;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**

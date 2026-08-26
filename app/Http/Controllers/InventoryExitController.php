@@ -28,25 +28,25 @@ class InventoryExitController extends Controller
         SiiClientService $siiClientService
     ) {
         $validated = $request->validate([
-            'destinatario'         => 'required|string|max:200',
-            'tipo_salida'          => 'nullable|string|in:Venta,EPP,Salida',
-            'notas'                => 'nullable|string|max:1000',
-            'enviar_factura'       => 'nullable|boolean',
-            'correo_factura'       => 'required_if:enviar_factura,1|nullable|string|email|max:200',
-            'contact_id'           => 'nullable|integer',
-            'items'                => 'required|array|min:1',
-            'items.*.product_id'   => 'required|integer',
-            'items.*.quantity'     => 'required|numeric|gt:0',
+            'destinatario' => 'required|string|max:200',
+            'tipo_salida' => 'nullable|string|in:Venta,EPP,Salida',
+            'notas' => 'nullable|string|max:1000',
+            'enviar_factura' => 'nullable|boolean',
+            'correo_factura' => 'required_if:enviar_factura,1|nullable|string|email|max:200',
+            'contact_id' => 'nullable|integer',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer',
+            'items.*.quantity' => 'required|numeric|gt:0',
         ]);
 
-        $productIds  = collect($validated['items'])->pluck('product_id')->unique()->values()->all();
+        $productIds = collect($validated['items'])->pluck('product_id')->unique()->values()->all();
         $existingIds = $this->db()
             ->table('gmail_inventory_products')
             ->whereIn('id', $productIds)
             ->pluck('id')
             ->all();
 
-        if (!empty(array_diff($productIds, $existingIds))) {
+        if (! empty(array_diff($productIds, $existingIds))) {
             return back()->withInput()->withErrors(['items' => 'Uno o más productos no son válidos.']);
         }
 
@@ -72,7 +72,7 @@ class InventoryExitController extends Controller
                     ->map(function (array $item) use ($products): ?array {
                         $productId = (int) $item['product_id'];
                         $product = $products->get($productId);
-                        if (!$product) {
+                        if (! $product) {
                             return null;
                         }
 
@@ -88,7 +88,7 @@ class InventoryExitController extends Controller
                     ->all();
 
                 $contact = null;
-                if (!empty($validated['contact_id'])) {
+                if (! empty($validated['contact_id'])) {
                     $contact = $this->db()
                         ->table('gmail_inventory_contacts')
                         ->where('id', (int) $validated['contact_id'])
@@ -126,11 +126,11 @@ class InventoryExitController extends Controller
             return back()->withInput()->withErrors(['items' => $e->getMessage()]);
         }
 
-        $success = 'Salida registrada correctamente (movimiento #' . $result['movement_id'] . ').';
-        if (($validated['tipo_salida'] ?? null) === 'Venta' && !empty($dteXmlPath)) {
-            $success .= ' XML DTE generado: ' . $dteXmlPath;
-            if (!empty($siiTrackId)) {
-                $success .= ' TRACKID SII: ' . $siiTrackId;
+        $success = 'Salida registrada correctamente (movimiento #'.$result['movement_id'].').';
+        if (($validated['tipo_salida'] ?? null) === 'Venta' && ! empty($dteXmlPath)) {
+            $success .= ' XML DTE generado: '.$dteXmlPath;
+            if (! empty($siiTrackId)) {
+                $success .= ' TRACKID SII: '.$siiTrackId;
             }
         }
 
@@ -161,30 +161,30 @@ class InventoryExitController extends Controller
             ->where('id', $id)
             ->update([
                 'precio_venta' => $validated['precio_venta'],
-                'tipo_salida'  => 'Venta',
+                'tipo_salida' => 'Venta',
             ]);
 
-        $costoTotal  = (float) $movement->costo_total;
+        $costoTotal = (float) $movement->costo_total;
         $precioVenta = (float) $validated['precio_venta'];
-        $margen      = $costoTotal > 0
+        $margen = $costoTotal > 0
             ? round((($precioVenta - $costoTotal) / $costoTotal) * 100, 2)
             : null;
 
         return response()->json([
-            'ok'           => true,
+            'ok' => true,
             'precio_venta' => $precioVenta,
-            'costo_total'  => $costoTotal,
-            'margen'       => $margen,
+            'costo_total' => $costoTotal,
+            'margen' => $margen,
         ]);
     }
 
     public function exitList(Request $request)
     {
-        $q     = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $desde = trim((string) $request->query('desde', ''));
         $hasta = trim((string) $request->query('hasta', ''));
         $range = trim((string) $request->query('range', ''));
-        $flag  = trim((string) $request->query('flag', ''));
+        $flag = trim((string) $request->query('flag', ''));
         // 'Venta' → ventas view   |   '' (default) → EPP+Salidas view
         $vista = $request->query('tipo', '') === 'Venta' ? 'Venta' : 'ops';
 
@@ -199,7 +199,7 @@ class InventoryExitController extends Controller
         } else {
             $query->where(function ($qb) {
                 $qb->whereIn('tipo_salida', ['EPP', 'Salida'])
-                   ->orWhereNull('tipo_salida');
+                    ->orWhereNull('tipo_salida');
             });
         }
 
@@ -225,43 +225,43 @@ class InventoryExitController extends Controller
         }
 
         $movements = $query->limit(200)->get();
-        $ids       = $movements->pluck('id')->all();
+        $ids = $movements->pluck('id')->all();
 
         $lines = $ids
             ? $this->db()
-            ->table('gmail_inventory_movement_lines as ml')
-            ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
-            ->whereIn('ml.movement_id', $ids)
-            ->orderBy('p.nombre')
-            ->get([
-                'ml.movement_id',
-                'p.nombre as producto',
-                'p.codigo',
-                'p.unidad',
-                'ml.cantidad',
-                'ml.costo_unitario',
-                'ml.costo_total',
-            ])
-            ->groupBy('movement_id')
+                ->table('gmail_inventory_movement_lines as ml')
+                ->join('gmail_inventory_products as p', 'p.id', '=', 'ml.product_id')
+                ->whereIn('ml.movement_id', $ids)
+                ->orderBy('p.nombre')
+                ->get([
+                    'ml.movement_id',
+                    'p.nombre as producto',
+                    'p.codigo',
+                    'p.unidad',
+                    'ml.cantidad',
+                    'ml.costo_unitario',
+                    'ml.costo_total',
+                ])
+                ->groupBy('movement_id')
             : collect();
 
         // Ventas mode: group by cliente name
-        $byName = $movements->groupBy(fn($m) => $m->destinatario ?? '—');
+        $byName = $movements->groupBy(fn ($m) => $m->destinatario ?? '—');
 
         // EPP+Salidas mode: group by tipo_salida → destinatario
         $byTipoName = $movements
-            ->groupBy(fn($m) => $m->tipo_salida ?? 'Salida')
-            ->map(fn($g) => $g->groupBy(fn($m) => $m->destinatario ?? '—'));
+            ->groupBy(fn ($m) => $m->tipo_salida ?? 'Salida')
+            ->map(fn ($g) => $g->groupBy(fn ($m) => $m->destinatario ?? '—'));
 
-        $countEpp    = $movements->filter(fn($m) => ($m->tipo_salida ?? '') === 'EPP')->count();
-        $countSalida = $movements->filter(fn($m) => ($m->tipo_salida ?? 'Salida') === 'Salida')->count();
+        $countEpp = $movements->filter(fn ($m) => ($m->tipo_salida ?? '') === 'EPP')->count();
+        $countSalida = $movements->filter(fn ($m) => ($m->tipo_salida ?? 'Salida') === 'Salida')->count();
         $costoVentas = $movements->sum('costo_total');
-        $pvVentas    = $movements->sum('precio_venta');
+        $pvVentas = $movements->sum('precio_venta');
 
         $mesInicio = now()->startOfMonth()->toDateString();
-        $mesFin    = now()->endOfMonth()->toDateString();
+        $mesFin = now()->endOfMonth()->toDateString();
         $mesPrevInicio = now()->subMonthNoOverflow()->startOfMonth()->toDateString();
-        $mesPrevFin    = now()->subMonthNoOverflow()->endOfMonth()->toDateString();
+        $mesPrevFin = now()->subMonthNoOverflow()->endOfMonth()->toDateString();
 
         $kpiVentas = $this->db()
             ->table('gmail_inventory_movements')
@@ -351,12 +351,12 @@ class InventoryExitController extends Controller
 
     public function exitExport(Request $request)
     {
-        $q     = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $desde = trim((string) $request->query('desde', ''));
         $hasta = trim((string) $request->query('hasta', ''));
         $range = trim((string) $request->query('range', ''));
-        $flag  = trim((string) $request->query('flag', ''));
-        $tipo  = trim((string) $request->query('tipo', ''));
+        $flag = trim((string) $request->query('flag', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
 
         $query = $this->db()
             ->table('gmail_inventory_movements as m')
@@ -409,15 +409,15 @@ class InventoryExitController extends Controller
 
         $rows = $query->get();
 
-        $filename = 'salidas_inventario_' . now()->format('Ymd_His') . '.csv';
-        $headers  = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+        $filename = 'salidas_inventario_'.now()->format('Ymd_His').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
         $callback = function () use ($rows) {
             $fh = fopen('php://output', 'w');
-            fprintf($fh, \chr(0xEF) . \chr(0xBB) . \chr(0xBF)); // BOM UTF-8
+            fprintf($fh, \chr(0xEF).\chr(0xBB).\chr(0xBF)); // BOM UTF-8
             fputcsv($fh, [
                 'ID Movimiento', 'Fecha', 'Destinatario', 'Tipo Salida', 'Notas',
                 'Costo Total Mov.', 'Precio Venta', 'Producto', 'Código', 'Unidad',
@@ -464,7 +464,7 @@ class InventoryExitController extends Controller
             ->whereIn('tipo', ['SALIDA', 'AJUSTE'])
             ->first();
 
-        abort_if(!$movement, 404);
+        abort_if(! $movement, 404);
 
         $lines = $this->db()
             ->table('gmail_inventory_movement_lines as ml')
@@ -537,8 +537,8 @@ class InventoryExitController extends Controller
             'movimientos' => (int) $movements->count(),
             'cantidad_total' => (float) $lines->flatten(1)->sum('cantidad'),
             'costo_total' => (float) $movements->sum('costo_total'),
-            'venta_total' => (float) $movements->sum(fn($m) => (float) ($m->precio_venta ?? 0)),
-            'sin_precio' => (int) $movements->filter(fn($m) => ((float) ($m->precio_venta ?? 0)) <= 0)->count(),
+            'venta_total' => (float) $movements->sum(fn ($m) => (float) ($m->precio_venta ?? 0)),
+            'sin_precio' => (int) $movements->filter(fn ($m) => ((float) ($m->precio_venta ?? 0)) <= 0)->count(),
             'ultimo_movimiento' => $movements->first(),
         ];
 
@@ -553,7 +553,7 @@ class InventoryExitController extends Controller
             ->where('tipo', 'SALIDA')
             ->first();
 
-        abort_if(!$movement, 404);
+        abort_if(! $movement, 404);
 
         $items = $this->db()
             ->table('gmail_inventory_movement_lines as ml')
@@ -564,11 +564,11 @@ class InventoryExitController extends Controller
             ->orderBy('p.nombre')
             ->get()
             ->map(fn ($i) => [
-                'product_id'     => (int) $i->product_id,
-                'nombre'         => $i->nombre,
-                'codigo'         => $i->codigo,
-                'unidad'         => $i->unidad,
-                'quantity'       => (float) $i->cantidad,
+                'product_id' => (int) $i->product_id,
+                'nombre' => $i->nombre,
+                'codigo' => $i->codigo,
+                'unidad' => $i->unidad,
+                'quantity' => (float) $i->cantidad,
                 'stock_efectivo' => (float) $i->stock_actual + (float) $i->cantidad,
             ]);
 
@@ -583,16 +583,16 @@ class InventoryExitController extends Controller
             ->where('tipo', 'SALIDA')
             ->first();
 
-        abort_if(!$movement, 404);
+        abort_if(! $movement, 404);
 
         $validated = $request->validate([
-            'destinatario'       => 'required|string|max:200',
-            'tipo_salida'        => 'required|string|in:Venta,EPP,Salida',
-            'ocurrio_el'         => 'required|date',
-            'notas'              => 'nullable|string|max:2000',
-            'items'              => 'required|array|min:1',
+            'destinatario' => 'required|string|max:200',
+            'tipo_salida' => 'required|string|in:Venta,EPP,Salida',
+            'ocurrio_el' => 'required|date',
+            'notas' => 'nullable|string|max:2000',
+            'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:fuelcontrol.gmail_inventory_products,id',
-            'items.*.quantity'   => 'required|numeric|gt:0',
+            'items.*.quantity' => 'required|numeric|gt:0',
         ]);
 
         try {
@@ -613,14 +613,14 @@ class InventoryExitController extends Controller
 
                         if ($lot) {
                             $newDisponible = (float) $lot->cantidad_disponible + (float) $line->cantidad;
-                            $newSalida     = max(0.0, (float) $lot->cantidad_salida - (float) $line->cantidad);
+                            $newSalida = max(0.0, (float) $lot->cantidad_salida - (float) $line->cantidad);
                             $this->db()->table('gmail_inventory_lots')
                                 ->where('id', $lot->id)
                                 ->update([
                                     'cantidad_disponible' => $newDisponible,
-                                    'cantidad_salida'     => $newSalida,
-                                    'estado'              => $newDisponible > 0 ? 'ABIERTO' : 'CERRADO',
-                                    'updated_at'          => now(),
+                                    'cantidad_salida' => $newSalida,
+                                    'estado' => $newDisponible > 0 ? 'ABIERTO' : 'CERRADO',
+                                    'updated_at' => now(),
                                 ]);
                         }
                     }
@@ -636,7 +636,7 @@ class InventoryExitController extends Controller
 
                 foreach ($validated['items'] as $item) {
                     $productId = (int) $item['product_id'];
-                    $needed    = (float) $item['quantity'];
+                    $needed = (float) $item['quantity'];
                     $available = (float) $this->db()
                         ->table('gmail_inventory_lots')
                         ->where('product_id', $productId)
@@ -654,13 +654,13 @@ class InventoryExitController extends Controller
                     }
                 }
 
-                $qtyTotal  = 0.0;
+                $qtyTotal = 0.0;
                 $costTotal = 0.0;
 
                 foreach ($validated['items'] as $item) {
                     $productId = (int) $item['product_id'];
-                    $needed    = (float) $item['quantity'];
-                    $pending   = $needed;
+                    $needed = (float) $item['quantity'];
+                    $pending = $needed;
 
                     $lots = $this->db()
                         ->table('gmail_inventory_lots')
@@ -677,18 +677,18 @@ class InventoryExitController extends Controller
                             break;
                         }
 
-                        $take     = min((float) $lot->cantidad_disponible, $pending);
+                        $take = min((float) $lot->cantidad_disponible, $pending);
                         $lineCost = $take * (float) $lot->costo_unitario;
 
                         $this->db()->table('gmail_inventory_movement_lines')->insert([
-                            'movement_id'    => $id,
-                            'lot_id'         => $lot->id,
-                            'product_id'     => $productId,
-                            'cantidad'       => $take,
+                            'movement_id' => $id,
+                            'lot_id' => $lot->id,
+                            'product_id' => $productId,
+                            'cantidad' => $take,
                             'costo_unitario' => $lot->costo_unitario,
-                            'costo_total'    => $lineCost,
-                            'created_at'     => now(),
-                            'updated_at'     => now(),
+                            'costo_total' => $lineCost,
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
 
                         $newDisponible = (float) $lot->cantidad_disponible - $take;
@@ -696,12 +696,12 @@ class InventoryExitController extends Controller
                             ->where('id', $lot->id)
                             ->update([
                                 'cantidad_disponible' => $newDisponible,
-                                'cantidad_salida'     => (float) $lot->cantidad_salida + $take,
-                                'estado'              => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
-                                'updated_at'          => now(),
+                                'cantidad_salida' => (float) $lot->cantidad_salida + $take,
+                                'estado' => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
+                                'updated_at' => now(),
                             ]);
 
-                        $pending   -= $take;
+                        $pending -= $take;
                         $costTotal += $lineCost;
                     }
 
@@ -715,13 +715,13 @@ class InventoryExitController extends Controller
                 $this->db()->table('gmail_inventory_movements')
                     ->where('id', $id)
                     ->update([
-                        'destinatario'   => $validated['destinatario'],
-                        'tipo_salida'    => $validated['tipo_salida'],
-                        'ocurrio_el'     => $validated['ocurrio_el'],
-                        'notas'          => $validated['notas'] ?? null,
+                        'destinatario' => $validated['destinatario'],
+                        'tipo_salida' => $validated['tipo_salida'],
+                        'ocurrio_el' => $validated['ocurrio_el'],
+                        'notas' => $validated['notas'] ?? null,
                         'cantidad_total' => $qtyTotal,
-                        'costo_total'    => $costTotal,
-                        'updated_at'     => now(),
+                        'costo_total' => $costTotal,
+                        'updated_at' => now(),
                     ]);
             });
         } catch (\RuntimeException $e) {
@@ -729,20 +729,20 @@ class InventoryExitController extends Controller
         }
 
         $backParams = array_filter([
-            'from'         => $request->query('from'),
+            'from' => $request->query('from'),
             'destinatario' => $request->query('destinatario'),
-            'tipo'         => $request->query('tipo'),
+            'tipo' => $request->query('tipo'),
         ]);
 
         return redirect()
             ->route('gmail.inventory.exits.show', array_merge(['id' => $id], $backParams))
-            ->with('success', 'Salida #' . $id . ' actualizada correctamente.');
+            ->with('success', 'Salida #'.$id.' actualizada correctamente.');
     }
 
     public function exitGroupPdf(Request $request)
     {
         $destinatario = trim((string) $request->query('destinatario', ''));
-        $tipo         = trim((string) $request->query('tipo', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
 
         abort_if($destinatario === '', 404);
 
@@ -777,16 +777,16 @@ class InventoryExitController extends Controller
             ->orderBy('p.nombre')
             ->get();
 
-        $fechas     = $movements->pluck('ocurrio_el');
+        $fechas = $movements->pluck('ocurrio_el');
         $primeraMov = $fechas->min();
-        $ultimaMov  = $fechas->max();
+        $ultimaMov = $fechas->max();
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('gmail.inventory.exit_group_pdf', compact(
             'destinatario', 'tipo', 'movements', 'consolidatedLines', 'primeraMov', 'ultimaMov'
         ))->setPaper('letter', 'portrait');
 
         $slug = \Illuminate\Support\Str::slug($destinatario);
-        $filename = 'EPP_' . $slug . '_' . now()->format('Ymd') . '.pdf';
+        $filename = 'EPP_'.$slug.'_'.now()->format('Ymd').'.pdf';
 
         return $pdf->download($filename);
     }
@@ -798,7 +798,7 @@ class InventoryExitController extends Controller
             ->whereIn('tipo', ['SALIDA', 'AJUSTE'])
             ->where('id', $id)
             ->first();
-        abort_if(!$movement, 404);
+        abort_if(! $movement, 404);
 
         $lines = $this->db()
             ->table('gmail_inventory_movement_lines as ml')
@@ -811,7 +811,7 @@ class InventoryExitController extends Controller
             ->setPaper('letter', 'portrait');
 
         $slug = \Illuminate\Support\Str::slug($movement->destinatario ?? 'salida');
-        $filename = 'Salida_' . $id . '_' . $slug . '_' . now()->format('Ymd') . '.pdf';
+        $filename = 'Salida_'.$id.'_'.$slug.'_'.now()->format('Ymd').'.pdf';
 
         return $pdf->download($filename);
     }

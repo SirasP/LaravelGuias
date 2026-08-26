@@ -16,12 +16,12 @@ class XmlDsigSignerService
     public function signDocumentoById(DOMDocument $doc, string $documentId): void
     {
         $documento = $this->findElementoById($doc, 'Documento', $documentId);
-        if (!$documento) {
+        if (! $documento) {
             throw new RuntimeException("No se encontró Documento con ID={$documentId} para firma XMLDSIG.");
         }
 
         $dteNode = $documento->parentNode;
-        if (!$dteNode instanceof DOMElement || strtoupper($dteNode->localName ?? '') !== 'DTE') {
+        if (! $dteNode instanceof DOMElement || strtoupper($dteNode->localName ?? '') !== 'DTE') {
             throw new RuntimeException('Estructura XML inválida: Documento no está dentro de DTE.');
         }
 
@@ -31,6 +31,7 @@ class XmlDsigSignerService
                 'reason' => 'pfx_missing',
                 'document_id' => $documentId,
             ]);
+
             return;
         }
 
@@ -72,7 +73,7 @@ class XmlDsigSignerService
         }
 
         $canon = $tmpDoc->C14N(false, false);
-        if (!is_string($canon) || $canon === '') {
+        if (! is_string($canon) || $canon === '') {
             throw new RuntimeException('No se pudo canonicalizar Documento para DigestValue.');
         }
 
@@ -101,7 +102,7 @@ class XmlDsigSignerService
         $signedInfo->appendChild($sigMethod);
 
         $reference = $doc->createElementNS($dsNs, 'ds:Reference');
-        $reference->setAttribute('URI', '#' . $documentId);
+        $reference->setAttribute('URI', '#'.$documentId);
         $signedInfo->appendChild($reference);
 
         $transforms = $doc->createElementNS($dsNs, 'ds:Transforms');
@@ -122,13 +123,13 @@ class XmlDsigSignerService
         $reference->appendChild($doc->createElementNS($dsNs, 'ds:DigestValue', $digestValue));
 
         $signedInfoCanon = $signedInfo->C14N(false, false);
-        if (!is_string($signedInfoCanon) || $signedInfoCanon === '') {
+        if (! is_string($signedInfoCanon) || $signedInfoCanon === '') {
             throw new RuntimeException('No se pudo canonicalizar SignedInfo para firma.');
         }
 
         $signatureBin = '';
         $ok = openssl_sign($signedInfoCanon, $signatureBin, $privateKey, OPENSSL_ALGO_SHA1);
-        if (!$ok) {
+        if (! $ok) {
             throw new RuntimeException('OpenSSL no pudo firmar SignedInfo (RSA-SHA1).');
         }
 
@@ -155,17 +156,17 @@ class XmlDsigSignerService
         if ($path === '') {
             return null;
         }
-        if (!Storage::disk($disk)->exists($path)) {
+        if (! Storage::disk($disk)->exists($path)) {
             return null;
         }
 
         $pfx = Storage::disk($disk)->get($path);
-        if (!is_string($pfx) || $pfx === '') {
+        if (! is_string($pfx) || $pfx === '') {
             throw new RuntimeException("No se pudo leer el contenido del PFX {$path}.");
         }
 
         $certs = [];
-        if (!openssl_pkcs12_read($pfx, $certs, $pass)) {
+        if (! openssl_pkcs12_read($pfx, $certs, $pass)) {
             throw new RuntimeException('No se pudo abrir el .pfx. Revisa contraseña y formato.');
         }
 

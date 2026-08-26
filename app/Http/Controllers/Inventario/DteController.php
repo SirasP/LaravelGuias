@@ -13,11 +13,11 @@ class DteController extends Controller
     public function leer(Request $request)
     {
         $token = Cache::get('gmail_token');
-        if (!$token) {
+        if (! $token) {
             return response()->json(['ok' => false, 'msg' => 'NO HAY TOKEN'], 401);
         }
 
-        $client = new Client();
+        $client = new Client;
         $client->setAccessToken($token);
 
         if ($client->isAccessTokenExpired()) {
@@ -48,27 +48,31 @@ class DteController extends Controller
             $maxResults = (int) $request->query('max', 30);
             $q = (string) $request->query('q', '');
 
-            if ($maxResults < 1)
+            if ($maxResults < 1) {
                 $maxResults = 1;
-            if ($maxResults > 100)
+            }
+            if ($maxResults > 100) {
                 $maxResults = 100;
+            }
 
             $params = [
                 'maxResults' => $maxResults,
                 'includeSpamTrash' => true,
             ];
 
-            if ($pageToken !== '')
+            if ($pageToken !== '') {
                 $params['pageToken'] = $pageToken;
+            }
 
             if ($modo === 'xml') {
-                $params['q'] = trim('filename:xml ' . $q);
+                $params['q'] = trim('filename:xml '.$q);
             } elseif ($modo === 'inbox') {
                 $params['labelIds'] = ['INBOX'];
-                if ($q !== '')
+                if ($q !== '') {
                     $params['q'] = $q;
+                }
             } elseif ($modo === 'all') {
-                $params['q'] = trim('in:anywhere ' . $q);
+                $params['q'] = trim('in:anywhere '.$q);
             }
 
             $list = $gmail->users_messages->listUsersMessages('me', $params);
@@ -81,7 +85,7 @@ class DteController extends Controller
                     'metadataHeaders' => ['Subject', 'From', 'Date'],
                 ]);
                 $headers = collect($mm->getPayload()->getHeaders() ?? [])
-                    ->mapWithKeys(fn($h) => [$h->getName() => $h->getValue()]);
+                    ->mapWithKeys(fn ($h) => [$h->getName() => $h->getValue()]);
 
                 $items[] = (object) [
                     'id' => $m->getId(),
@@ -116,11 +120,9 @@ class DteController extends Controller
             ]);
         }
 
-
-
         // ✅ LECTURA POR ID (tu lógica original, con try/catch)
         $cacheKey = "gmail_xml_view_{$id}";
-        if (!$wantJson) {
+        if (! $wantJson) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached)) {
                 return view('inventario.dtes.xml', $cached);
@@ -142,11 +144,11 @@ class DteController extends Controller
         $payload = $msg->getPayload();
 
         $headers = collect($payload->getHeaders() ?? [])
-            ->mapWithKeys(fn($h) => [$h->getName() => $h->getValue()]);
+            ->mapWithKeys(fn ($h) => [$h->getName() => $h->getValue()]);
 
         [$xml, $filename] = $this->firstXmlFromMessage($gmail, $id, $payload);
 
-        if (!$xml) {
+        if (! $xml) {
             if ($wantJson) {
                 return response()->json([
                     'ok' => false,
@@ -197,13 +199,12 @@ class DteController extends Controller
         return view('inventario.dtes.xml', $viewData);
     }
 
-
     private function firstXmlFromMessage(Gmail $gmail, string $messageId, $payload): array
     {
         $parts = $payload->getParts() ?? [];
         $stack = $parts;
 
-        while (!empty($stack)) {
+        while (! empty($stack)) {
             $part = array_shift($stack);
 
             if ($part->getParts()) {
@@ -218,6 +219,7 @@ class DteController extends Controller
             if ($filename && str_ends_with(strtolower($filename), '.xml') && $body?->getAttachmentId()) {
                 $att = $gmail->users_messages_attachments->get('me', $messageId, $body->getAttachmentId());
                 $xml = base64_decode(strtr($att->getData(), '-_', '+/'));
+
                 return [$xml, $filename];
             }
         }
@@ -240,7 +242,7 @@ class DteController extends Controller
             $xml = preg_replace('/(<\?xml[^>]*encoding=)["\'][^"\']+["\']/i', '$1"UTF-8"', $xml);
         }
 
-        if (!mb_check_encoding($xml, 'UTF-8')) {
+        if (! mb_check_encoding($xml, 'UTF-8')) {
             $xml = @mb_convert_encoding($xml, 'UTF-8', 'ISO-8859-1,Windows-1252,UTF-8');
             $xml = preg_replace('/(<\?xml[^>]*encoding=)["\'][^"\']+["\']/i', '$1"UTF-8"', $xml);
         }
@@ -254,12 +256,13 @@ class DteController extends Controller
         return $xml;
     }
 
-
     private function toUtf8(string $s): string
     {
-        if (mb_check_encoding($s, 'UTF-8'))
+        if (mb_check_encoding($s, 'UTF-8')) {
             return $s;
+        }
         $c = @mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1,Windows-1252,UTF-8');
+
         return is_string($c) && $c !== '' ? $c : $s;
     }
 
@@ -268,16 +271,17 @@ class DteController extends Controller
         libxml_use_internal_errors(true);
 
         $sxe = simplexml_load_string($xml);
-        if (!$sxe) {
+        if (! $sxe) {
             return [
                 'ok' => false,
                 'error' => 'XML inválido',
-                'libxml' => array_map(fn($e) => trim($e->message), libxml_get_errors()),
+                'libxml' => array_map(fn ($e) => trim($e->message), libxml_get_errors()),
             ];
         }
 
         $x = function (string $xpath) use ($sxe): string {
             $res = $sxe->xpath($xpath);
+
             return (string) (($res[0] ?? '') ?: '');
         };
 
@@ -303,7 +307,8 @@ class DteController extends Controller
 
         foreach ($detNodes as $det) {
             $get = function ($node, string $tag): string {
-                $r = $node->xpath('./*[local-name()="' . $tag . '"]');
+                $r = $node->xpath('./*[local-name()="'.$tag.'"]');
+
                 return (string) (($r[0] ?? '') ?: '');
             };
 
@@ -314,10 +319,11 @@ class DteController extends Controller
                 $vlr = (string) (($cdg->xpath('./*[local-name()="VlrCodigo"]')[0] ?? '') ?: '');
                 $tp = trim($tp);
                 $vlr = trim($vlr);
-                if ($tp !== '' && $vlr !== '')
+                if ($tp !== '' && $vlr !== '') {
                     $codigos[] = "{$tp}:{$vlr}";
-                elseif ($vlr !== '')
+                } elseif ($vlr !== '') {
                     $codigos[] = $vlr;
+                }
             }
 
             $items[] = [
@@ -348,14 +354,16 @@ class DteController extends Controller
         // Vamos a leer el mensaje/adjunto y armar $viewData igual que en leer().
 
         $token = \Illuminate\Support\Facades\Cache::get('gmail_token');
-        if (!$token)
+        if (! $token) {
             abort(401, 'NO HAY TOKEN');
+        }
 
-        $client = new \Google\Client();
+        $client = new \Google\Client;
         $client->setAccessToken($token);
 
-        if ($client->isAccessTokenExpired())
+        if ($client->isAccessTokenExpired()) {
             abort(401, 'TOKEN EXPIRADO, reconecta');
+        }
 
         $gmail = new \Google\Service\Gmail($client);
 
@@ -363,11 +371,12 @@ class DteController extends Controller
         $payload = $msg->getPayload();
 
         $headers = collect($payload->getHeaders() ?? [])
-            ->mapWithKeys(fn($h) => [$h->getName() => $h->getValue()]);
+            ->mapWithKeys(fn ($h) => [$h->getName() => $h->getValue()]);
 
         [$xml, $filename] = $this->firstXmlFromMessage($gmail, $id, $payload);
-        if (!$xml)
+        if (! $xml) {
             abort(404, 'No se encontró XML adjunto');
+        }
 
         $xml = $this->ensureUtf8Xml($xml);
 

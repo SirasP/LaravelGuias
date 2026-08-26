@@ -50,13 +50,15 @@ class XmlImportController extends Controller
 
             if ($xml === false) {
                 $skipped++;
+
                 continue;
             }
 
             // ===== 2️⃣ Detectar template =====
             $template = $this->detectXmlTemplate($xml);
-            if (!$template) {
+            if (! $template) {
                 $skipped++;
+
                 continue;
             }
 
@@ -64,14 +66,16 @@ class XmlImportController extends Controller
             $parsed = $this->parseXmlSii46($xml);
 
             $guia = $parsed['guia_no'] ?? null;
-            if (!$guia) {
+            if (! $guia) {
                 $skipped++;
+
                 continue;
             }
 
             // ===== 4️⃣ Dedupe por guía real =====
             if (PdfImport::where('guia_no', $guia)->exists()) {
                 $duplicates++;
+
                 continue;
             }
 
@@ -116,6 +120,7 @@ class XmlImportController extends Controller
     private function detectXmlTemplate(SimpleXMLElement $xml): ?string
     {
         $tipo = (string) ($xml->xpath('//*[local-name()="TipoDTE"]')[0] ?? '');
+
         return $tipo === '46' ? 'XML_SII_46' : null;
     }
 
@@ -123,7 +128,7 @@ class XmlImportController extends Controller
     {
         foreach ($xml->xpath('//*[local-name()="Detalle"]') as $det) {
             $nmbNode = $det->xpath('./*[local-name()="NmbItem"]');
-            if (!$nmbNode || !isset($nmbNode[0])) {
+            if (! $nmbNode || ! isset($nmbNode[0])) {
                 continue;
             }
             $nmb = trim((string) $nmbNode[0]);
@@ -135,16 +140,16 @@ class XmlImportController extends Controller
             $nmb = preg_replace('/\s+/u', ' ', $nmb);
 
             if (preg_match('/\bGD\s*(?:N\s*°)?\s*0*(\d+)\b/ui', $nmb, $m)) {
-                return (string) ((int) $m[1]); 
+                return (string) ((int) $m[1]);
             }
         }
+
         return null;
     }
 
     private function parseXmlSii46(SimpleXMLElement $xml): array
     {
-        $get = fn(string $name) =>
-            (string) ($xml->xpath('//*[local-name()="' . $name . '"]')[0] ?? null);
+        $get = fn (string $name) => (string) ($xml->xpath('//*[local-name()="'.$name.'"]')[0] ?? null);
         $totalKilos = 0;
 
         foreach ($xml->xpath('//*[local-name()="Detalle"]') as $det) {
@@ -155,7 +160,7 @@ class XmlImportController extends Controller
                 $totalKilos += $qty;
             }
         }
-        
+
         $guia = $this->extractGuiaFromDetalles($xml);
         $items = [];
         $lines = $this->extractAllXmlLines($xml);
@@ -195,7 +200,7 @@ class XmlImportController extends Controller
 
         $walker = function ($node, string $path = '') use (&$walker, &$lines) {
             foreach ($node->children() as $name => $child) {
-                $currentPath = $path === '' ? $name : $path . '/' . $name;
+                $currentPath = $path === '' ? $name : $path.'/'.$name;
 
                 if ($child->children()->count() === 0) {
                     $value = trim((string) $child);

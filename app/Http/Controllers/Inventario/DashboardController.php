@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Inventario;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -78,7 +78,6 @@ class DashboardController extends Controller
             ->groupBy('producto')
             ->get();
 
-
         // ======================
         // 📊 GRÁFICO DIARIO (ODOO vs CENTROS)
         // ======================
@@ -105,13 +104,6 @@ class DashboardController extends Controller
                     GROUP BY l.excel_out_transfer_id
                 ) odoo
             "), 'odoo.excel_out_transfer_id', '=', 't.id')
-
-
-
-
-
-
-
 
             // ===============================
             // CENTROS → PDF / XML / EXCEL
@@ -142,14 +134,6 @@ class DashboardController extends Controller
                 '=',
                 DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
             )
-
-
-
-
-
-
-
-
 
             // ===============================
             // FILTROS REALES (IGUAL QUE LARAVEL)
@@ -207,9 +191,6 @@ class DashboardController extends Controller
                 DB::raw("REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')")
             )
 
-
-
-
             // filtros reales
             ->where('t.estado', 'Realizado')
             ->whereNotNull('t.guia_entrega')
@@ -226,7 +207,7 @@ class DashboardController extends Controller
             ->select(
                 't.contacto',
                 DB::raw("COUNT(DISTINCT REGEXP_SUBSTR(t.guia_entrega, '[0-9]+')) AS total_guias"),
-                DB::raw("COUNT(DISTINCT centros.guia_no) AS guias_con_match"),
+                DB::raw('COUNT(DISTINCT centros.guia_no) AS guias_con_match'),
                 DB::raw("
             COUNT(DISTINCT REGEXP_SUBSTR(t.guia_entrega, '[0-9]+'))
             -
@@ -283,8 +264,6 @@ class DashboardController extends Controller
             ->selectRaw("SUM($qtyNorm) as total_bandejas")
             ->value('total_bandejas');
 
-
-
         // ======================
         // 📦 KPI BANDEJAS AGRAK (últimos 40 días)
         // ======================
@@ -305,7 +284,7 @@ class DashboardController extends Controller
         $kgPromedioAgrak = DB::table('agrak_bandeja_promedios')
             ->orderByDesc('id')
             ->value('kg_promedio') ?? 0;
-        //CHART BANDEJAS AGRAK POR DÍA
+        // CHART BANDEJAS AGRAK POR DÍA
         $bandejasAgrakPorDia = DB::table('agrak_registros')
             ->whereDate('fecha_registro', '>=', $from)
             ->whereNotNull('numero_bandejas_palet')
@@ -318,13 +297,13 @@ class DashboardController extends Controller
             ->get();
 
         $bandejasAgrakLabels = $bandejasAgrakPorDia
-            ->map(fn($r) => Carbon::parse($r->fecha)->format('d-m'));
+            ->map(fn ($r) => Carbon::parse($r->fecha)->format('d-m'));
 
         $bandejasAgrakData = $bandejasAgrakPorDia
             ->pluck('total_bandejas')
-            ->map(fn($v) => (int) $v);
+            ->map(fn ($v) => (int) $v);
 
-        //CHART BINS AGRAK POR DÍA
+        // CHART BINS AGRAK POR DÍA
         $binsAgrakPorDia = DB::table('agrak_registros')
             ->whereDate('fecha_registro', '>=', $from)
             ->whereNotNull('codigo_bin')
@@ -337,11 +316,11 @@ class DashboardController extends Controller
             ->get();
 
         $binsAgrakLabels = $binsAgrakPorDia
-            ->map(fn($r) => Carbon::parse($r->fecha)->format('d-m'));
+            ->map(fn ($r) => Carbon::parse($r->fecha)->format('d-m'));
 
         $binsAgrakData = $binsAgrakPorDia
             ->pluck('total_bins')
-            ->map(fn($v) => (int) $v);
+            ->map(fn ($v) => (int) $v);
 
         $maquinasAgrak = DB::table('agrak_registros')
             ->whereDate('fecha_registro', '>=', $from)
@@ -374,9 +353,6 @@ class DashboardController extends Controller
             ->orderByDesc('total_bins')
             ->get();
 
-
-
-
         $aliasContactos = [
             'Santiago Comercio Exterior Exportaciones S.A.' => 'Santiago Comercio Exterior',
             'Agroindustria Pinochet Fuenzalida Limitada' => 'Agroindustria Pinochet',
@@ -391,8 +367,6 @@ class DashboardController extends Controller
 
         $maquinasLabels = $maquinasAgrak->pluck('maquina_norm');
         $maquinasTotales = $maquinasAgrak->pluck('total_bins');
-
-
 
         $notificaciones = collect();
 
@@ -417,12 +391,11 @@ class DashboardController extends Controller
                 ]);
         }
 
-
         // ======================
         // 📉 CÁLCULOS PERÍODO ANTERIOR (% CAMBIO)
         // ======================
         $fromPrev = Carbon::now()->subDays(240)->startOfDay();
-        $toPrev   = Carbon::now()->subDays(120)->endOfDay();
+        $toPrev = Carbon::now()->subDays(120)->endOfDay();
 
         // Odoo (Kilos) prev
         $kpiOdooPrev = DB::table('excel_out_transfers as t')
@@ -475,8 +448,11 @@ class DashboardController extends Controller
             ->whereNotNull('codigo_bin')
             ->count('codigo_bin');
 
-        $calcPct = function($current, $prev) {
-            if ($prev == 0) return $current > 0 ? 100 : 0;
+        $calcPct = function ($current, $prev) {
+            if ($prev == 0) {
+                return $current > 0 ? 100 : 0;
+            }
+
             return (($current - $prev) / abs($prev)) * 100;
         };
 
@@ -486,14 +462,13 @@ class DashboardController extends Controller
         $pctBandejasAgrak = $calcPct((float) $kpiBandejasAgrak, (float) $kpiBandejasAgrakPrev);
         $pctBinsAgrak = $calcPct((float) $kpiBinsAgrak, (float) $kpiBinsAgrakPrev);
 
-
         // ======================
         // 📤 VISTA
         // ======================
         return view('index', [
-            'chartLabels' => $rows->map(fn($r) => Carbon::parse($r->fecha)->format('d-m')),
-            'chartData' => $rows->pluck('kilos_odoo')->map(fn($v) => (float) $v),
-            'centrosData' => $rows->pluck('kilos_centros')->map(fn($v) => (float) $v),
+            'chartLabels' => $rows->map(fn ($r) => Carbon::parse($r->fecha)->format('d-m')),
+            'chartData' => $rows->pluck('kilos_odoo')->map(fn ($v) => (float) $v),
+            'centrosData' => $rows->pluck('kilos_centros')->map(fn ($v) => (float) $v),
 
             'productos' => $productos,
 
@@ -502,7 +477,7 @@ class DashboardController extends Controller
             'contactosLabels' => $kilosPorContacto->map(function ($row) use ($aliasContactos) {
                 return $aliasContactos[$row->contacto] ?? $row->contacto;
             }),
-            'contactosKilos' => $kilosPorContacto->pluck('total_kilos')->map(fn($v) => (float) $v),
+            'contactosKilos' => $kilosPorContacto->pluck('total_kilos')->map(fn ($v) => (float) $v),
             'kpiCentrosPorContacto' => $kpiCentrosPorContacto,
             'topEmpresa' => $topEmpresa,
             'kilosPorContacto' => $kilosPorContacto,
@@ -510,13 +485,13 @@ class DashboardController extends Controller
             'kpiBandejas' => (int) $kpiBandejas,
             // 🔥 NUEVO KPI BANDEJAS AGRAK
             'kpiBandejasAgrak' => (int) $kpiBandejasAgrak,
-            //'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
+            // 'kpiFormatted' => number_format($rows->sum('kilos_odoo'), 3, ',', '.'),
             'kpiBinsAgrak' => (int) $kpiBinsAgrak,
             'kgPromedioAgrak' => (float) $kgPromedioAgrak,
-            //chart bandejas agrak
+            // chart bandejas agrak
             'bandejasAgrakLabels' => $bandejasAgrakLabels,
             'bandejasAgrakData' => $bandejasAgrakData,
-            //chart bins agrak
+            // chart bins agrak
             'binsAgrakLabels' => $binsAgrakLabels,
             'binsAgrakData' => $binsAgrakData,
             'pctOdoo' => $pctOdoo,
@@ -525,10 +500,10 @@ class DashboardController extends Controller
             'pctBandejasAgrak' => $pctBandejasAgrak,
             'pctBinsAgrak' => $pctBinsAgrak,
 
-            //chart maquinas agrak
+            // chart maquinas agrak
             'maquinasLabels' => $maquinasLabels,
             'maquinasTotales' => $maquinasTotales,
-            //chart bins por cuartel agrak
+            // chart bins por cuartel agrak
             'binsPorCuartelLabels' => $binsPorCuartel->pluck('etiquetas_cuartel')->values(),
             'binsPorCuartelData' => $binsPorCuartel->pluck('total_bins')->values(),
             'notificaciones' => $notificaciones,
@@ -540,7 +515,7 @@ class DashboardController extends Controller
     public function updateKgPromedio(Request $request)
     {
         $request->validate([
-            'kg_promedio' => 'required|numeric|min:0'
+            'kg_promedio' => 'required|numeric|min:0',
         ]);
 
         DB::table('agrak_bandeja_promedios')->updateOrInsert(
@@ -574,9 +549,9 @@ class DashboardController extends Controller
             $carbon = Carbon::parse($maxDateStr);
             $year = $carbon->year;
             if ($carbon->month >= 10) {
-                $latestSeasonWithData = $year . '/' . ($year + 1);
+                $latestSeasonWithData = $year.'/'.($year + 1);
             } else {
-                $latestSeasonWithData = ($year - 1) . '/' . $year;
+                $latestSeasonWithData = ($year - 1).'/'.$year;
             }
         }
 
@@ -584,8 +559,8 @@ class DashboardController extends Controller
         $seasonA = $request->input('season_a', $latestSeasonWithData);
 
         // Season B defaults to the NEXT (upcoming) season
-        list($yL, $yL2) = explode('/', $latestSeasonWithData);
-        $nextSeason = ($yL + 1) . '/' . ($yL + 2);
+        [$yL, $yL2] = explode('/', $latestSeasonWithData);
+        $nextSeason = ($yL + 1).'/'.($yL + 2);
         $seasonB = $request->input('season_b', $nextSeason);
 
         $seriesA = [];
@@ -678,7 +653,7 @@ class DashboardController extends Controller
 
         // --- BINS POR CUARTEL & COSECHADORA AGRAK ---
         // Season A Dates
-        list($yStartA, $yEndA) = explode('/', $seasonA);
+        [$yStartA, $yEndA] = explode('/', $seasonA);
         $startA = "{$yStartA}-10-01 00:00:00";
         $endA = "{$yEndA}-04-30 23:59:59";
 
@@ -703,7 +678,7 @@ class DashboardController extends Controller
             ->toArray();
 
         // Season B Dates
-        list($yStartB, $yEndB) = explode('/', $seasonB);
+        [$yStartB, $yEndB] = explode('/', $seasonB);
         $startB = "{$yStartB}-10-01 00:00:00";
         $endB = "{$yEndB}-04-30 23:59:59";
 
@@ -798,14 +773,15 @@ class DashboardController extends Controller
         $endYear = $currentYear + 1;
         $seasons = [];
         for ($y = $startYear; $y <= $endYear; $y++) {
-            $seasons[] = $y . '/' . ($y + 1);
+            $seasons[] = $y.'/'.($y + 1);
         }
+
         return array_reverse($seasons);
     }
 
     private function getSeasonData($season)
     {
-        list($startYear, $endYear) = explode('/', $season);
+        [$startYear, $endYear] = explode('/', $season);
         $seasonStart = "{$startYear}-10-01 00:00:00";
         $seasonEnd = "{$endYear}-04-30 23:59:59";
 
@@ -816,7 +792,7 @@ class DashboardController extends Controller
             ->groupBy('fecha_registro')
             ->orderBy('fecha_registro', 'ASC')
             ->get()
-            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+            ->keyBy(fn ($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
 
         $odooDates = DB::table('excel_out_transfers as t')
             ->leftJoin(DB::raw("
@@ -862,7 +838,7 @@ class DashboardController extends Controller
             ->groupBy(DB::raw('DATE(t.fecha_prevista)'))
             ->orderBy('fecha', 'ASC')
             ->get()
-            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+            ->keyBy(fn ($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
 
         // Query harvester fuel control daily litres
         $fuelDates = DB::connection('fuelcontrol')
@@ -872,14 +848,14 @@ class DashboardController extends Controller
             ->where('m.tipo', 'salida')
             ->where(function ($q) {
                 $q->whereNull('m.estado')
-                  ->orWhere('m.estado', 'aprobado');
+                    ->orWhere('m.estado', 'aprobado');
             })
             ->whereBetween('m.fecha_movimiento', [$seasonStart, $seasonEnd])
             ->selectRaw('DATE(m.fecha_movimiento) as fecha, SUM(ABS(m.cantidad)) as litros')
             ->groupBy(DB::raw('DATE(m.fecha_movimiento)'))
             ->orderBy('fecha', 'ASC')
             ->get()
-            ->keyBy(fn($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
+            ->keyBy(fn ($r) => Carbon::parse($r->fecha)->format('Y-m-d'));
 
         $allDates = collect(array_merge(
             $agrakDates->keys()->toArray(),

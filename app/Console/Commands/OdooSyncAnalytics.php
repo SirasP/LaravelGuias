@@ -10,20 +10,25 @@ use Illuminate\Support\Facades\Http;
 
 class OdooSyncAnalytics extends Command
 {
-    protected $signature   = 'odoo:sync-analytics';
+    protected $signature = 'odoo:sync-analytics';
+
     protected $description = 'Sincroniza planes y cuentas analíticas desde Odoo a MySQL local';
 
     private string $url;
+
     private string $db;
+
     private string $user;
+
     private string $password;
+
     private int $uid;
 
     public function handle(): int
     {
-        $this->url      = rtrim(config('odoo.url'), '/');
-        $this->db       = config('odoo.db');
-        $this->user     = config('odoo.user');
+        $this->url = rtrim(config('odoo.url'), '/');
+        $this->db = config('odoo.db');
+        $this->user = config('odoo.user');
         $this->password = config('odoo.password');
 
         $this->info('Conectando a Odoo...');
@@ -32,6 +37,7 @@ class OdooSyncAnalytics extends Command
 
         if (! $this->uid) {
             $this->error('Login a Odoo falló. Revisa ODOO_URL, ODOO_DB, ODOO_USER y ODOO_PASSWORD en .env');
+
             return self::FAILURE;
         }
 
@@ -61,8 +67,8 @@ class OdooSyncAnalytics extends Command
 
         $plans = $this->odooExecute('account.analytic.plan', 'search_read', [[]], [
             'fields' => ['id', 'name', 'complete_name', 'parent_id', 'color', 'default_applicability'],
-            'limit'  => 200,
-            'order'  => 'id asc',
+            'limit' => 200,
+            'order' => 'id asc',
         ]);
 
         $bar = $this->output->createProgressBar(count($plans));
@@ -72,11 +78,11 @@ class OdooSyncAnalytics extends Command
             OdooAnalyticPlan::updateOrCreate(
                 ['odoo_id' => $plan['id']],
                 [
-                    'name'                  => $plan['name'],
-                    'complete_name'         => $plan['complete_name'],
-                    'parent_odoo_id'        => $plan['parent_id'] ? $plan['parent_id'][0] : null,
-                    'parent_name'           => $plan['parent_id'] ? $plan['parent_id'][1] : null,
-                    'color'                 => $plan['color'] ?? 0,
+                    'name' => $plan['name'],
+                    'complete_name' => $plan['complete_name'],
+                    'parent_odoo_id' => $plan['parent_id'] ? $plan['parent_id'][0] : null,
+                    'parent_name' => $plan['parent_id'] ? $plan['parent_id'][1] : null,
+                    'color' => $plan['color'] ?? 0,
                     'default_applicability' => $plan['default_applicability'] ?? 'optional',
                 ]
             );
@@ -99,8 +105,8 @@ class OdooSyncAnalytics extends Command
             [[['active', '=', true]]],
             [
                 'fields' => ['id', 'name', 'code', 'plan_id', 'color'],
-                'limit'  => 500,
-                'order'  => 'plan_id asc, name asc',
+                'limit' => 500,
+                'order' => 'plan_id asc, name asc',
             ]
         );
 
@@ -108,19 +114,19 @@ class OdooSyncAnalytics extends Command
         $bar->start();
 
         foreach ($accounts as $acc) {
-            $planOdooId    = $acc['plan_id'] ? $acc['plan_id'][0] : null;
-            $planName      = $acc['plan_id'] ? $acc['plan_id'][1] : null;
-            $planComplete  = $planOdooId ? ($plansMap[$planOdooId] ?? $planName) : null;
+            $planOdooId = $acc['plan_id'] ? $acc['plan_id'][0] : null;
+            $planName = $acc['plan_id'] ? $acc['plan_id'][1] : null;
+            $planComplete = $planOdooId ? ($plansMap[$planOdooId] ?? $planName) : null;
 
             OdooAnalyticAccount::updateOrCreate(
                 ['odoo_id' => $acc['id']],
                 [
-                    'name'               => $acc['name'],
-                    'code'               => $acc['code'] ?: null,
-                    'plan_odoo_id'       => $planOdooId,
-                    'plan_name'          => $planName,
+                    'name' => $acc['name'],
+                    'code' => $acc['code'] ?: null,
+                    'plan_odoo_id' => $planOdooId,
+                    'plan_name' => $planName,
                     'plan_complete_name' => $planComplete,
-                    'color'              => $acc['color'] ?? 0,
+                    'color' => $acc['color'] ?? 0,
                 ]
             );
             $bar->advance();
@@ -139,8 +145,8 @@ class OdooSyncAnalytics extends Command
             [[['deprecated', '=', false]]],
             [
                 'fields' => ['id', 'code', 'name', 'account_type', 'reconcile'],
-                'limit'  => 500,
-                'order'  => 'code asc',
+                'limit' => 500,
+                'order' => 'code asc',
             ]
         );
 
@@ -151,10 +157,10 @@ class OdooSyncAnalytics extends Command
             OdooAccount::updateOrCreate(
                 ['odoo_id' => $acc['id']],
                 [
-                    'code'         => $acc['code'],
-                    'name'         => $acc['name'],
+                    'code' => $acc['code'],
+                    'name' => $acc['name'],
                     'account_type' => $acc['account_type'] ?? null,
-                    'reconcile'    => $acc['reconcile'] ?? false,
+                    'reconcile' => $acc['reconcile'] ?? false,
                 ]
             );
             $bar->advance();
@@ -169,9 +175,9 @@ class OdooSyncAnalytics extends Command
     {
         $response = Http::timeout(20)->post("{$this->url}/jsonrpc", [
             'jsonrpc' => '2.0',
-            'method'  => 'call',
-            'params'  => compact('service', 'method', 'args'),
-            'id'      => 1,
+            'method' => 'call',
+            'params' => compact('service', 'method', 'args'),
+            'id' => 1,
         ]);
 
         $data = $response->json();

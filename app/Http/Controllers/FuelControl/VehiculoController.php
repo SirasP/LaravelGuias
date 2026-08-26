@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\FuelControl;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Vehiculo;
+use Illuminate\Http\Request;
 
 class VehiculoController extends Controller
 {
@@ -16,8 +16,8 @@ class VehiculoController extends Controller
         // 🔹 Filtros compartidos
         $baseQuery->when($request->filled('search'), function ($q) use ($request) {
             $q->where(function ($sub) use ($request) {
-                $sub->where('patente', 'like', '%' . $request->search . '%')
-                    ->orWhere('descripcion', 'like', '%' . $request->search . '%');
+                $sub->where('patente', 'like', '%'.$request->search.'%')
+                    ->orWhere('descripcion', 'like', '%'.$request->search.'%');
             });
         });
 
@@ -67,11 +67,8 @@ class VehiculoController extends Controller
     ')
             ->first();
 
-
-
         return view('fuelcontrol.vehiculos.index', compact('vehiculos', 'stats'));
     }
-
 
     public function create()
     {
@@ -161,7 +158,6 @@ class VehiculoController extends Controller
             ->route('fuelcontrol.vehiculos.index')
             ->with('success', $vehiculo->is_active ? 'Vehículo activado correctamente' : 'Vehículo desactivado correctamente');
     }
-
 
     public function destroy($id)
     {

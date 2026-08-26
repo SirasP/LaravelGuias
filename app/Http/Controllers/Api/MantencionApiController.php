@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ProductVolumeDetector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Services\ProductVolumeDetector;
 use Illuminate\Support\Facades\DB;
 
 class MantencionApiController extends Controller
@@ -35,7 +35,7 @@ class MantencionApiController extends Controller
                     SELECT product_id,
                            COALESCE(SUM(CASE WHEN estado = \'ABIERTO\' THEN cantidad_disponible ELSE 0 END), 0) AS stock_disponible
                     FROM gmail_inventory_lots
-                    WHERE bodega_id = ' . self::BODEGA_TALLER . '
+                    WHERE bodega_id = '.self::BODEGA_TALLER.'
                     GROUP BY product_id
                 ) AS lotes_taller'),
                 'lotes_taller.product_id',
@@ -53,14 +53,14 @@ class MantencionApiController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qb) use ($q) {
                     $qb->where('p.nombre', 'like', "%{$q}%")
-                       ->orWhere('p.codigo', 'like', "%{$q}%");
+                        ->orWhere('p.codigo', 'like', "%{$q}%");
                 });
             })
             ->orderBy('p.nombre')
             ->get();
 
         // ── Conversiones manuales ya guardadas ──────────────────────────────────
-        $productIds   = $products->pluck('id');
+        $productIds = $products->pluck('id');
         $conversiones = DB::table('inventory_conversions')
             ->whereIn('product_id', $productIds)
             ->get()
@@ -70,13 +70,13 @@ class MantencionApiController extends Controller
         // Solo intentamos en productos sin conversión y cuya unidad sea "Unidades"
         // (o variantes), ya que los líquidos en Odoo suelen estar como unidades sueltas.
         $sinConversion = $products->filter(
-            fn($p) => !$conversiones->has($p->id)
+            fn ($p) => ! $conversiones->has($p->id)
         );
 
         if ($sinConversion->isNotEmpty()) {
             $autoDetectados = ProductVolumeDetector::detectMany($sinConversion);
 
-            if (!empty($autoDetectados)) {
+            if (! empty($autoDetectados)) {
                 $ahora = now();
                 foreach ($autoDetectados as $det) {
                     // Solo guardar si no existe ya (evitar sobreescribir manuales)
@@ -84,16 +84,16 @@ class MantencionApiController extends Controller
                         ->where('product_id', $det['product_id'])
                         ->exists();
 
-                    if (!$existe) {
+                    if (! $existe) {
                         DB::table('inventory_conversions')->insert([
-                            'product_id'     => $det['product_id'],
-                            'nombre'         => $det['nombre'],
-                            'factor'         => $det['factor'],
+                            'product_id' => $det['product_id'],
+                            'nombre' => $det['nombre'],
+                            'factor' => $det['factor'],
                             'unidad_consumo' => $det['unidad_consumo'],
-                            'unidad_compra'  => $det['unidad_compra'],
-                            'auto_detected'  => true,
-                            'created_at'     => $ahora,
-                            'updated_at'     => $ahora,
+                            'unidad_compra' => $det['unidad_compra'],
+                            'auto_detected' => true,
+                            'created_at' => $ahora,
+                            'updated_at' => $ahora,
                         ]);
                         $conversiones->put($det['product_id'], (object) $det);
                     }
@@ -104,20 +104,21 @@ class MantencionApiController extends Controller
         // ── Mezclar conversiones en cada producto ────────────────────────────
         $products = $products->map(function ($p) use ($conversiones) {
             $conv = $conversiones->get($p->id);
-            $p->factor         = $conv ? (float) $conv->factor        : null;
-            $p->unidad_consumo = $conv ? $conv->unidad_consumo        : null;
-            $p->unidad_compra  = $conv ? $conv->unidad_compra         : null;
-            $p->auto_detected  = $conv ? (bool)  $conv->auto_detected : false;
+            $p->factor = $conv ? (float) $conv->factor : null;
+            $p->unidad_consumo = $conv ? $conv->unidad_consumo : null;
+            $p->unidad_compra = $conv ? $conv->unidad_compra : null;
+            $p->auto_detected = $conv ? (bool) $conv->auto_detected : false;
+
             return $p;
         });
 
         return response()->json([
-            'ok'           => true,
-            'bodega'       => 'Taller Mecánico',
-            'bodega_id'    => self::BODEGA_TALLER,
-            'total'        => $products->count(),
-            'actualizadoEl'=> now()->toIso8601String(),
-            'data'         => $products,
+            'ok' => true,
+            'bodega' => 'Taller Mecánico',
+            'bodega_id' => self::BODEGA_TALLER,
+            'total' => $products->count(),
+            'actualizadoEl' => now()->toIso8601String(),
+            'data' => $products,
         ]);
     }
 
@@ -148,22 +149,22 @@ class MantencionApiController extends Controller
     public function upsertConversion(Request $request): JsonResponse
     {
         $v = $request->validate([
-            'product_id'    => 'required|integer|min:1',
-            'factor'        => 'required|numeric|min:0.0001',
-            'unidad_consumo'=> 'required|string|max:20',
+            'product_id' => 'required|integer|min:1',
+            'factor' => 'required|numeric|min:0.0001',
+            'unidad_consumo' => 'required|string|max:20',
             'unidad_compra' => 'nullable|string|max:40',
-            'nombre'        => 'nullable|string|max:200',
+            'nombre' => 'nullable|string|max:200',
         ]);
 
         DB::table('inventory_conversions')->updateOrInsert(
             ['product_id' => $v['product_id']],
             [
-                'nombre'        => $v['nombre'] ?? null,
-                'factor'        => $v['factor'],
-                'unidad_consumo'=> $v['unidad_consumo'],
+                'nombre' => $v['nombre'] ?? null,
+                'factor' => $v['factor'],
+                'unidad_consumo' => $v['unidad_consumo'],
                 'unidad_compra' => $v['unidad_compra'] ?? null,
-                'updated_at'    => now(),
-                'created_at'    => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
             ]
         );
 
@@ -197,7 +198,7 @@ class MantencionApiController extends Controller
             ->where('id', $id)
             ->first(['id', 'nombre', 'codigo', 'unidad', 'stock_minimo']);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json(['ok' => false, 'message' => 'Producto no encontrado.'], 404);
         }
 
@@ -234,13 +235,13 @@ class MantencionApiController extends Controller
         $conv = DB::table('inventory_conversions')->where('product_id', $id)->first();
 
         return response()->json([
-            'ok'           => true,
-            'producto'     => $product,
+            'ok' => true,
+            'producto' => $product,
             'stock_actual' => (float) $stockActual,
-            'factor'       => $conv ? (float) $conv->factor        : null,
-            'unidad_consumo'=> $conv ? $conv->unidad_consumo        : null,
-            'unidad_compra' => $conv ? $conv->unidad_compra         : null,
-            'movimientos'  => $movimientos,
+            'factor' => $conv ? (float) $conv->factor : null,
+            'unidad_consumo' => $conv ? $conv->unidad_consumo : null,
+            'unidad_compra' => $conv ? $conv->unidad_compra : null,
+            'movimientos' => $movimientos,
         ]);
     }
 
@@ -260,15 +261,15 @@ class MantencionApiController extends Controller
     public function registrarEgresos(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'items'              => 'required|array|min:1',
+            'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|min:1',
-            'items.*.cantidad'   => 'required|numeric|min:0.001',
-            'equipo'             => 'nullable|string|max:255',
-            'notas'              => 'nullable|string|max:1000',
+            'items.*.cantidad' => 'required|numeric|min:0.001',
+            'equipo' => 'nullable|string|max:255',
+            'notas' => 'nullable|string|max:1000',
         ]);
 
-        $db    = DB::connection('fuelcontrol');
-        $notas = trim(($validated['equipo'] ?? '') . ' — ' . ($validated['notas'] ?? 'Mantención'));
+        $db = DB::connection('fuelcontrol');
+        $notas = trim(($validated['equipo'] ?? '').' — '.($validated['notas'] ?? 'Mantención'));
 
         // Cargar conversiones para todos los productos del request
         $productIds = collect($validated['items'])->pluck('product_id')->unique();
@@ -282,22 +283,22 @@ class MantencionApiController extends Controller
         $db->transaction(function () use ($db, $validated, $notas, $conversiones, &$errors) {
 
             $movementId = $db->table('gmail_inventory_movements')->insertGetId([
-                'tipo'           => 'SALIDA',
-                'tipo_salida'    => 'MANTENCION',
-                'estado'         => 'CONTABILIZADO',
-                'notas'          => $notas,
-                'ocurrio_el'     => now(),
+                'tipo' => 'SALIDA',
+                'tipo_salida' => 'MANTENCION',
+                'estado' => 'CONTABILIZADO',
+                'notas' => $notas,
+                'ocurrio_el' => now(),
                 'cantidad_total' => 0,
-                'costo_total'    => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
+                'costo_total' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             $cantidadTotalMovimiento = 0;
 
             foreach ($validated['items'] as $item) {
-                $productId           = (int)   $item['product_id'];
-                $cantidadSolicitada  = (float) $item['cantidad']; // en unidad de consumo (Ltrs, etc.)
+                $productId = (int) $item['product_id'];
+                $cantidadSolicitada = (float) $item['cantidad']; // en unidad de consumo (Ltrs, etc.)
 
                 // Convertir a unidad de Odoo si hay conversión configurada
                 $conv = $conversiones->get($productId);
@@ -318,7 +319,7 @@ class MantencionApiController extends Controller
                 if ($stockTotal < $cantidadNecesaria) {
                     // Mostrar mensaje en unidad entendible
                     $stockMostrar = $conv
-                        ? round($stockTotal * $conv->factor, 2) . ' ' . $conv->unidad_consumo
+                        ? round($stockTotal * $conv->factor, 2).' '.$conv->unidad_consumo
                         : "{$stockTotal}";
                     $pedidoMostrar = $conv
                         ? "{$cantidadSolicitada} {$conv->unidad_consumo}"
@@ -331,30 +332,32 @@ class MantencionApiController extends Controller
                 $pendiente = $cantidadNecesaria;
 
                 foreach ($lotes as $lote) {
-                    if ($pendiente <= 0) break;
+                    if ($pendiente <= 0) {
+                        break;
+                    }
 
                     $deducir = min($pendiente, $lote->cantidad_disponible);
-                    $nueva   = $lote->cantidad_disponible - $deducir;
+                    $nueva = $lote->cantidad_disponible - $deducir;
 
                     $db->table('gmail_inventory_lots')
                         ->where('id', $lote->id)
                         ->update([
                             'cantidad_disponible' => $nueva,
-                            'cantidad_salida'     => $lote->cantidad_salida + $deducir,
-                            'estado'              => $nueva <= 0 ? 'CERRADO' : 'ABIERTO',
-                            'updated_at'          => now(),
+                            'cantidad_salida' => $lote->cantidad_salida + $deducir,
+                            'estado' => $nueva <= 0 ? 'CERRADO' : 'ABIERTO',
+                            'updated_at' => now(),
                         ]);
 
                     $costoUnitario = $lote->costo_unitario ?? 0;
                     $db->table('gmail_inventory_movement_lines')->insert([
-                        'movement_id'    => $movementId,
-                        'lot_id'         => $lote->id,
-                        'product_id'     => $productId,
-                        'cantidad'       => $deducir,   // en unidad Odoo (tambores)
+                        'movement_id' => $movementId,
+                        'lot_id' => $lote->id,
+                        'product_id' => $productId,
+                        'cantidad' => $deducir,   // en unidad Odoo (tambores)
                         'costo_unitario' => $costoUnitario,
-                        'costo_total'    => round($deducir * $costoUnitario, 6),
-                        'created_at'     => now(),
-                        'updated_at'     => now(),
+                        'costo_total' => round($deducir * $costoUnitario, 6),
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                     $pendiente -= $deducir;
@@ -368,7 +371,7 @@ class MantencionApiController extends Controller
                 ->update(['cantidad_total' => $cantidadTotalMovimiento, 'updated_at' => now()]);
         });
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return response()->json(['ok' => false, 'message' => implode('; ', $errors)], 422);
         }
 
@@ -382,7 +385,7 @@ class MantencionApiController extends Controller
     public function registerFcmToken(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'fcm_token'   => 'required|string',
+            'fcm_token' => 'required|string',
             'device_type' => 'required|in:android,ios',
             'device_name' => 'nullable|string|max:255',
         ]);
@@ -392,12 +395,12 @@ class MantencionApiController extends Controller
             ->updateOrInsert(
                 ['fcm_token' => $validated['fcm_token']],
                 [
-                    'user_id'     => 0,
+                    'user_id' => 0,
                     'device_type' => $validated['device_type'],
                     'device_name' => $validated['device_name'] ?? null,
-                    'app_type'    => 'mantencion',
-                    'active'      => true,
-                    'updated_at'  => now(),
+                    'app_type' => 'mantencion',
+                    'active' => true,
+                    'updated_at' => now(),
                 ]
             );
 

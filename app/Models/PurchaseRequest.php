@@ -31,6 +31,7 @@ class PurchaseRequest extends Model
         'department',
         'reason',
         'priority',
+        'currency',
         'urgent_reason',
         'cost_center',
         'delivery_location',
@@ -92,6 +93,35 @@ class PurchaseRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * Suma de las partidas que tienen precio.
+     *
+     * Devuelve null si ninguna lo tiene: mostrar «$0» en una solicitud sin
+     * cotizar diría algo falso sobre lo que cuesta.
+     */
+    public function total(): ?float
+    {
+        $conPrecio = $this->items->filter(fn ($item): bool => filled($item->unit_price));
+
+        if ($conPrecio->isEmpty()) {
+            return null;
+        }
+
+        return round($conPrecio->sum(fn ($item): float => (float) $item->lineTotal()), 2);
+    }
+
+    /** ¿Hay partidas sin precio dentro de una solicitud que sí tiene precios? */
+    public function hasPartialPricing(): bool
+    {
+        if ($this->items->isEmpty()) {
+            return false;
+        }
+
+        $conPrecio = $this->items->filter(fn ($item): bool => filled($item->unit_price))->count();
+
+        return $conPrecio > 0 && $conPrecio < $this->items->count();
     }
 
     public function items(): HasMany

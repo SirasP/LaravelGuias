@@ -3,12 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Services\PurchaseReplyPdfAutofillService;
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
 use Google\Service\Gmail\ModifyMessageRequest;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CheckCotizacionReplies extends Command
 {
@@ -19,6 +19,7 @@ class CheckCotizacionReplies extends Command
 
     protected $signature = 'cotizaciones:check-replies
                             {--all : Leer también correos ya leídos (no solo unread)}';
+
     protected $description = 'Lee respuestas de proveedores en Gmail y las registra automáticamente en cotizaciones';
 
     public function handle(): int
@@ -30,13 +31,14 @@ class CheckCotizacionReplies extends Command
          ───────────────────────────────────────── */
         $tokenPath = storage_path('app/gmail/token.json');
 
-        if (!file_exists($tokenPath)) {
+        if (! file_exists($tokenPath)) {
             $this->error('No hay token de Gmail guardado.');
             $this->line('Conecta la cuenta Gmail desde la aplicación web.');
+
             return Command::FAILURE;
         }
 
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setApplicationName('FuelControl Cotizaciones');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
@@ -44,8 +46,9 @@ class CheckCotizacionReplies extends Command
         $client->setAccessToken(json_decode(file_get_contents($tokenPath), true));
 
         if ($client->isAccessTokenExpired()) {
-            if (!$client->getRefreshToken()) {
+            if (! $client->getRefreshToken()) {
                 $this->error('Token expirado y sin refresh token. Reconecta Gmail.');
+
                 return Command::FAILURE;
             }
             $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
@@ -65,15 +68,15 @@ class CheckCotizacionReplies extends Command
         $this->line("🔍 Buscando correos con: {$query}");
 
         $msgList = $service->users_messages->listUsersMessages('me', [
-            'q'          => $query,
+            'q' => $query,
             'maxResults' => 50,
         ]);
 
         $batch = $msgList->getMessages() ?? [];
-        $this->line('   Encontrados: ' . count($batch));
+        $this->line('   Encontrados: '.count($batch));
 
         $imported = 0;
-        $skipped  = 0;
+        $skipped = 0;
 
         foreach ($batch as $msg) {
             /* ─────────────────────────────────────
@@ -81,6 +84,7 @@ class CheckCotizacionReplies extends Command
              ───────────────────────────────────── */
             if ($db->table('purchase_order_replies')->where('email_message_id', $msg->getId())->exists()) {
                 $skipped++;
+
                 continue;
             }
 
@@ -92,14 +96,15 @@ class CheckCotizacionReplies extends Command
             $headers = $this->parseHeaders($payload->getHeaders());
 
             $subject = $headers['subject'] ?? '';
-            $fromRaw = $headers['from']    ?? '';
+            $fromRaw = $headers['from'] ?? '';
 
             /* ─────────────────────────────────────
              | 5. EXTRAER NÚMERO COT DEL ASUNTO
              ───────────────────────────────────── */
-            if (!preg_match('/COT-\d{4}-\d{5}/', $subject, $m)) {
-                $this->line('   ⏭ Sin número COT en asunto: ' . mb_substr($subject, 0, 70));
+            if (! preg_match('/COT-\d{4}-\d{5}/', $subject, $m)) {
+                $this->line('   ⏭ Sin número COT en asunto: '.mb_substr($subject, 0, 70));
                 $this->markRead($service, $msg->getId());
+
                 continue;
             }
 
@@ -110,9 +115,10 @@ class CheckCotizacionReplies extends Command
              ───────────────────────────────────── */
             $order = $db->table('purchase_orders')->where('order_number', $orderNumber)->first();
 
-            if (!$order) {
+            if (! $order) {
                 $this->warn("   ⚠  Cotización no encontrada en BD: {$orderNumber}");
                 $this->markRead($service, $msg->getId());
+
                 continue;
             }
 
@@ -130,7 +136,7 @@ class CheckCotizacionReplies extends Command
                 }
             }
 
-            $supplierId   = $supplier?->id;
+            $supplierId = $supplier?->id;
             $supplierName = $supplier?->name ?? $senderName ?? $senderEmail ?? 'Desconocido';
 
             /* ─────────────────────────────────────
@@ -144,40 +150,48 @@ class CheckCotizacionReplies extends Command
             $bodyText = preg_replace('/^(-{3,}|_{3,}|={3,})\s*$/m', '', $bodyText);
             $bodyText = trim(preg_replace('/\n{3,}/', "\n\n", $bodyText));
             if (mb_strlen($bodyText) > 5000) {
-                $bodyText = mb_substr($bodyText, 0, 5000) . '…';
+                $bodyText = mb_substr($bodyText, 0, 5000).'…';
             }
 
             /* ─────────────────────────────────────
              | 9. DESCARGAR PRIMER ADJUNTO
              |    (PDF, imagen)
              ───────────────────────────────────── */
-            $pdfPath         = null;
+            $pdfPath = null;
             $pdfOriginalName = null;
 
             foreach ($this->flattenParts($payload->getParts() ?? []) as $part) {
                 $filename = $part->getFilename();
-                if (!$filename) continue;
+                if (! $filename) {
+                    continue;
+                }
 
                 $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-                if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif'])) continue;
+                if (! in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'gif'])) {
+                    continue;
+                }
 
                 $attachId = $part->getBody()->getAttachmentId();
-                if (!$attachId) continue;
+                if (! $attachId) {
+                    continue;
+                }
 
                 try {
-                    $attach  = $service->users_messages_attachments->get('me', $msg->getId(), $attachId);
+                    $attach = $service->users_messages_attachments->get('me', $msg->getId(), $attachId);
                     $content = $this->decodeBase64Url((string) $attach->getData());
-                    if (!$content) continue;
+                    if (! $content) {
+                        continue;
+                    }
 
-                    $safeName  = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
-                    $storePath = 'cotizacion-pdfs/' . now()->format('Ymd_His') . '_' . $safeName;
+                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
+                    $storePath = 'cotizacion-pdfs/'.now()->format('Ymd_His').'_'.$safeName;
                     Storage::disk('public')->put($storePath, $content);
 
-                    $pdfPath         = $storePath;
+                    $pdfPath = $storePath;
                     $pdfOriginalName = $filename;
                     break; // Solo el primer adjunto válido
                 } catch (\Throwable $e) {
-                    $this->warn('   ⚠ Error descargando adjunto: ' . $e->getMessage());
+                    $this->warn('   ⚠ Error descargando adjunto: '.$e->getMessage());
                 }
             }
 
@@ -186,18 +200,18 @@ class CheckCotizacionReplies extends Command
              ───────────────────────────────────── */
             $replyId = $db->table('purchase_order_replies')->insertGetId([
                 'purchase_order_id' => $order->id,
-                'supplier_id'       => $supplierId,
-                'supplier_name'     => $supplierName,
-                'notes'             => $bodyText ?: null,
-                'total_quoted'      => null, // el precio debe confirmarse manualmente
-                'currency'          => $order->currency ?? 'CLP',
-                'pdf_path'          => $pdfPath,
+                'supplier_id' => $supplierId,
+                'supplier_name' => $supplierName,
+                'notes' => $bodyText ?: null,
+                'total_quoted' => null, // el precio debe confirmarse manualmente
+                'currency' => $order->currency ?? 'CLP',
+                'pdf_path' => $pdfPath,
                 'pdf_original_name' => $pdfOriginalName,
-                'source'            => 'email',
-                'email_message_id'  => $msg->getId(),
-                'sender_email'      => $senderEmail,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'source' => 'email',
+                'email_message_id' => $msg->getId(),
+                'sender_email' => $senderEmail,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             $autofill = $this->autofillService->autofillFromStoredAttachment(
@@ -217,6 +231,7 @@ class CheckCotizacionReplies extends Command
         }
 
         $this->info("Finalizado: {$imported} importadas, {$skipped} ya procesadas.");
+
         return Command::SUCCESS;
     }
 
@@ -230,6 +245,7 @@ class CheckCotizacionReplies extends Command
         foreach ($headers as $h) {
             $map[strtolower($h->getName())] = $h->getValue();
         }
+
         return $map;
     }
 
@@ -240,6 +256,7 @@ class CheckCotizacionReplies extends Command
         if (preg_match('/^(.+?)\s*<([^>]+)>$/', $from, $m)) {
             return [trim($m[1], '" '), strtolower(trim($m[2]))];
         }
+
         return [$from, strtolower($from)];
     }
 
@@ -253,12 +270,14 @@ class CheckCotizacionReplies extends Command
         }
 
         $textPlain = null;
-        $textHtml  = null;
+        $textHtml = null;
 
         foreach ($this->flattenParts($payload->getParts() ?? []) as $part) {
-            $mt   = $part->getMimeType() ?? '';
+            $mt = $part->getMimeType() ?? '';
             $data = $part->getBody()->getData() ?? '';
-            if (!$data) continue;
+            if (! $data) {
+                continue;
+            }
 
             if ($mt === 'text/plain' && $textPlain === null) {
                 $textPlain = $this->decodeBase64Url($data);
@@ -280,6 +299,7 @@ class CheckCotizacionReplies extends Command
                 $flat[] = $sub;
             }
         }
+
         return $flat;
     }
 
@@ -287,14 +307,17 @@ class CheckCotizacionReplies extends Command
     {
         $b64 = strtr($data, '-_', '+/');
         $pad = strlen($b64) % 4;
-        if ($pad > 0) $b64 .= str_repeat('=', 4 - $pad);
+        if ($pad > 0) {
+            $b64 .= str_repeat('=', 4 - $pad);
+        }
+
         return (string) base64_decode($b64, true);
     }
 
     private function markRead(Gmail $service, string $messageId): void
     {
         try {
-            $req = new ModifyMessageRequest();
+            $req = new ModifyMessageRequest;
             $req->setRemoveLabelIds(['UNREAD']);
             $service->users_messages->modify('me', $messageId, $req);
         } catch (\Throwable) {

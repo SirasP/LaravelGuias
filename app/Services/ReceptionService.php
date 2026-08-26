@@ -31,11 +31,11 @@ class ReceptionService
         return $this->db()->transaction(function () use ($recepcionId, $userId) {
             $rec = $this->db()->table('recepciones')->where('id', $recepcionId)->lockForUpdate()->first();
 
-            if (!$rec) {
+            if (! $rec) {
                 throw new RuntimeException("Recepción no encontrada: {$recepcionId}");
             }
 
-            if ($rec->estado === 'CONFIRMADA' && !empty($rec->stock_movement_id)) {
+            if ($rec->estado === 'CONFIRMADA' && ! empty($rec->stock_movement_id)) {
                 return ['movement_id' => (int) $rec->stock_movement_id, 'already_posted' => true];
             }
 
@@ -55,19 +55,19 @@ class ReceptionService
             $ocurrioEl = $rec->fecha_recepcion ?? now()->toDateString();
 
             $movementId = $this->db()->table('gmail_inventory_movements')->insertGetId([
-                'document_id'    => null,
-                'recepcion_id'   => $recepcionId,
-                'bodega_id'      => $rec->bodega_id,
-                'tipo'           => 'ENTRADA',
-                'estado'         => 'CONTABILIZADO',
-                'ocurrio_el'     => $ocurrioEl,
-                'usuario_id'     => $userId,
-                'notas'          => 'Ingreso desde Recepción #' . $recepcionId
-                    . ($rec->purchase_order_id ? ' (OC #' . $rec->purchase_order_id . ')' : ''),
+                'document_id' => null,
+                'recepcion_id' => $recepcionId,
+                'bodega_id' => $rec->bodega_id,
+                'tipo' => 'ENTRADA',
+                'estado' => 'CONTABILIZADO',
+                'ocurrio_el' => $ocurrioEl,
+                'usuario_id' => $userId,
+                'notas' => 'Ingreso desde Recepción #'.$recepcionId
+                    .($rec->purchase_order_id ? ' (OC #'.$rec->purchase_order_id.')' : ''),
                 'cantidad_total' => 0,
-                'costo_total'    => 0,
-                'created_at'     => now(),
-                'updated_at'     => now(),
+                'costo_total' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             $qtyTotal = 0.0;
@@ -88,31 +88,31 @@ class ReceptionService
                     ->first();
 
                 $lotId = $this->db()->table('gmail_inventory_lots')->insertGetId([
-                    'product_id'          => $product->id,
-                    'document_id'         => null,
-                    'bodega_id'           => $rec->bodega_id,
-                    'dte_line_id'         => null,
-                    'ingresado_el'        => $ocurrioEl,
-                    'costo_unitario'      => $unitCost,
-                    'cantidad_ingresada'  => $qty,
-                    'cantidad_salida'     => 0,
+                    'product_id' => $product->id,
+                    'document_id' => null,
+                    'bodega_id' => $rec->bodega_id,
+                    'dte_line_id' => null,
+                    'ingresado_el' => $ocurrioEl,
+                    'costo_unitario' => $unitCost,
+                    'cantidad_ingresada' => $qty,
+                    'cantidad_salida' => 0,
                     'cantidad_disponible' => $qty,
-                    'estado'              => 'ABIERTO',
-                    'created_at'          => now(),
-                    'updated_at'          => now(),
+                    'estado' => 'ABIERTO',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 $lineCost = $qty * $unitCost;
 
                 $this->db()->table('gmail_inventory_movement_lines')->insert([
-                    'movement_id'    => $movementId,
-                    'lot_id'         => $lotId,
-                    'product_id'     => $product->id,
-                    'cantidad'       => $qty,
+                    'movement_id' => $movementId,
+                    'lot_id' => $lotId,
+                    'product_id' => $product->id,
+                    'cantidad' => $qty,
                     'costo_unitario' => $unitCost,
-                    'costo_total'    => $lineCost,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'costo_total' => $lineCost,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 $newStock = (float) $product->stock_actual + $qty;
@@ -123,9 +123,9 @@ class ReceptionService
                 $this->db()->table('gmail_inventory_products')
                     ->where('id', $product->id)
                     ->update([
-                        'stock_actual'   => $newStock,
+                        'stock_actual' => $newStock,
                         'costo_promedio' => $newAvg,
-                        'updated_at'     => now(),
+                        'updated_at' => now(),
                     ]);
 
                 // Persistir el producto resuelto en la línea (si vino sin él)
@@ -141,15 +141,15 @@ class ReceptionService
 
             $this->db()->table('gmail_inventory_movements')->where('id', $movementId)->update([
                 'cantidad_total' => $qtyTotal,
-                'costo_total'    => $costTotal,
-                'updated_at'     => now(),
+                'costo_total' => $costTotal,
+                'updated_at' => now(),
             ]);
 
             $this->db()->table('recepciones')->where('id', $recepcionId)->update([
-                'estado'            => 'CONFIRMADA',
+                'estado' => 'CONFIRMADA',
                 'stock_movement_id' => $movementId,
-                'fecha_recepcion'   => $rec->fecha_recepcion ?? now(),
-                'updated_at'        => now(),
+                'fecha_recepcion' => $rec->fecha_recepcion ?? now(),
+                'updated_at' => now(),
             ]);
 
             if ($rec->purchase_order_id) {
@@ -187,14 +187,14 @@ class ReceptionService
         }
 
         return (int) $this->db()->table('gmail_inventory_products')->insertGetId([
-            'codigo'         => null,
-            'nombre'         => $name,
-            'unidad'         => $unit,
-            'stock_actual'   => 0,
+            'codigo' => null,
+            'nombre' => $name,
+            'unidad' => $unit,
+            'stock_actual' => 0,
             'costo_promedio' => 0,
-            'is_active'      => 1,
-            'created_at'     => now(),
-            'updated_at'     => now(),
+            'is_active' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
@@ -240,7 +240,7 @@ class ReceptionService
 
         $this->db()->table('purchase_orders')->where('id', $purchaseOrderId)->update([
             'reception_status' => $status,
-            'updated_at'       => now(),
+            'updated_at' => now(),
         ]);
     }
 
@@ -253,7 +253,7 @@ class ReceptionService
     public function reconcile(int $recepcionId): array
     {
         $rec = $this->db()->table('recepciones')->where('id', $recepcionId)->first();
-        if (!$rec) {
+        if (! $rec) {
             throw new RuntimeException("Recepción no encontrada: {$recepcionId}");
         }
 
@@ -268,27 +268,28 @@ class ReceptionService
 
         $factura = null;
         $totalFacturado = 0.0;
-        if (!empty($rec->gmail_document_id)) {
+        if (! empty($rec->gmail_document_id)) {
             $factura = $this->db()->table('gmail_dte_documents')->where('id', $rec->gmail_document_id)->first();
             $totalFacturado = $factura ? (float) $factura->monto_neto : 0.0;
         }
 
         return [
             'totales' => [
-                'pedido'    => $totalPedido,
-                'recibido'  => $totalRecibido,
+                'pedido' => $totalPedido,
+                'recibido' => $totalRecibido,
                 'facturado' => $totalFacturado,
-                'factura'   => $factura,
+                'factura' => $factura,
             ],
             'lineas' => $recLines->map(function ($l) {
                 $pedida = $l->cantidad_pedida !== null ? (float) $l->cantidad_pedida : null;
                 $recibida = (float) $l->cantidad_recibida;
+
                 return [
-                    'product_name'   => $l->product_name,
-                    'unidad'         => $l->unidad,
-                    'cantidad_pedida'=> $pedida,
+                    'product_name' => $l->product_name,
+                    'unidad' => $l->unidad,
+                    'cantidad_pedida' => $pedida,
                     'cantidad_recibida' => $recibida,
-                    'diferencia'     => $pedida !== null ? round($recibida - $pedida, 6) : null,
+                    'diferencia' => $pedida !== null ? round($recibida - $pedida, 6) : null,
                     'costo_unitario' => $l->costo_unitario !== null ? (float) $l->costo_unitario : null,
                 ];
             })->all(),

@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AgrakRegistro;
 use App\Support\AgrakNormalizer;
+use Illuminate\Console\Command;
 
 class AgrakNormalizeExisting extends Command
 {
     protected $signature = 'agrak:normalize-existing';
+
     protected $description = 'Normaliza patente, chofer y exportadora en agrak_registros';
 
     public function handle()

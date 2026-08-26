@@ -12,14 +12,17 @@ class ServicioPosteoDocumentoCompra
         DB::transaction(function () use ($documentoId) {
 
             $doc = DB::table('documentos_compra')->where('id', $documentoId)->lockForUpdate()->first();
-            if (!$doc)
+            if (! $doc) {
                 throw new RuntimeException("Documento no existe: {$documentoId}");
-            if ($doc->estado !== 'BORRADOR')
+            }
+            if ($doc->estado !== 'BORRADOR') {
                 throw new RuntimeException("Documento {$documentoId} no está en BORRADOR.");
+            }
 
             $lineas = DB::table('lineas_documento_compra')->where('documento_compra_id', $documentoId)->get();
-            if ($lineas->isEmpty())
+            if ($lineas->isEmpty()) {
                 throw new RuntimeException("Documento {$documentoId} no tiene líneas.");
+            }
 
             $totalNeto = 0;
             $totalEsp = 0;
@@ -77,7 +80,7 @@ class ServicioPosteoDocumentoCompra
             } else { // FACTURA
                 if ($doc->documento_relacionado_id) {
                     // luego hacemos “valorizar guía”; por ahora dejamos simple
-                    throw new RuntimeException("Factura vinculada a guía: siguiente paso (valorizar) aún no activado.");
+                    throw new RuntimeException('Factura vinculada a guía: siguiente paso (valorizar) aún no activado.');
                 }
                 $this->crearEntrada($documentoId, costoPendiente: false);
             }

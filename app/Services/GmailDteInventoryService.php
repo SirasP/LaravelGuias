@@ -17,7 +17,7 @@ class GmailDteInventoryService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$doc) {
+            if (! $doc) {
                 throw new RuntimeException("Documento no encontrado: {$documentId}");
             }
 
@@ -33,7 +33,7 @@ class GmailDteInventoryService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 throw new RuntimeException('No se encontró el movimiento de entrada asociado.');
             }
 
@@ -99,7 +99,7 @@ class GmailDteInventoryService
                     ->where('movement_id', '!=', $movementId)
                     ->exists();
 
-                if ($stockTotal <= 0 && !$hasOtherActivity) {
+                if ($stockTotal <= 0 && ! $hasOtherActivity) {
                     DB::connection('fuelcontrol')
                         ->table('gmail_inventory_products')
                         ->where('id', $productId)
@@ -131,8 +131,7 @@ class GmailDteInventoryService
         bool $learnFromManualMap = true,
         array $skipLineIds = [],
         ?int $bodegaId = null
-    ): array
-    {
+    ): array {
         return DB::connection('fuelcontrol')->transaction(function () use ($documentId, $userId, $manualLineProductMap, $learnFromManualMap, $skipLineIds, $bodegaId) {
             $doc = DB::connection('fuelcontrol')
                 ->table('gmail_dte_documents')
@@ -140,11 +139,11 @@ class GmailDteInventoryService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$doc) {
+            if (! $doc) {
                 throw new RuntimeException("Documento no encontrado: {$documentId}");
             }
 
-            if (($doc->inventory_status ?? null) === 'ingresado' && !empty($doc->stock_movement_id)) {
+            if (($doc->inventory_status ?? null) === 'ingresado' && ! empty($doc->stock_movement_id)) {
                 return [
                     'already_posted' => true,
                     'movement_id' => (int) $doc->stock_movement_id,
@@ -152,7 +151,7 @@ class GmailDteInventoryService
             }
 
             // Guard: si la factura ya ingresó stock vía una Recepción confirmada, no duplicar.
-            if (!empty($doc->recepcion_id)) {
+            if (! empty($doc->recepcion_id)) {
                 $recEstado = DB::connection('fuelcontrol')
                     ->table('recepciones')->where('id', $doc->recepcion_id)->value('estado');
                 if ($recEstado === 'CONFIRMADA') {
@@ -178,7 +177,7 @@ class GmailDteInventoryService
                 ->table('gmail_inventory_movements')
                 ->insertGetId([
                     'document_id' => $documentId,
-                    'bodega_id'   => $bodegaId,
+                    'bodega_id' => $bodegaId,
                     'tipo' => 'ENTRADA',
                     'estado' => 'CONTABILIZADO',
                     'ocurrio_el' => $doc->fecha_factura ?? now()->toDateString(),
@@ -195,7 +194,7 @@ class GmailDteInventoryService
 
             foreach ($lines as $line) {
                 // Línea marcada como "saltar" por el usuario en el modal
-                if (!empty($skipLineIds) && in_array((int) $line->id, $skipLineIds, true)) {
+                if (! empty($skipLineIds) && in_array((int) $line->id, $skipLineIds, true)) {
                     continue;
                 }
 
@@ -218,14 +217,14 @@ class GmailDteInventoryService
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$product) {
+                    if (! $product) {
                         throw new RuntimeException("No se encontró el producto asignado manualmente para la línea {$line->id}.");
                     }
                 } else {
                     $product = $this->resolveProductForIncomingLine($code, $name, $unit, true);
                 }
 
-                if (!$product) {
+                if (! $product) {
                     $resolvedCode = $code ?: $this->buildAutomaticProductCode($name);
 
                     $productId = DB::connection('fuelcontrol')
@@ -278,18 +277,18 @@ class GmailDteInventoryService
                 $lotId = DB::connection('fuelcontrol')
                     ->table('gmail_inventory_lots')
                     ->insertGetId([
-                        'product_id'         => $product->id,
-                        'document_id'        => $documentId,
-                        'bodega_id'          => $bodegaId,
-                        'dte_line_id'        => $line->id,
-                        'ingresado_el'       => $doc->fecha_factura ?? now()->toDateString(),
-                        'costo_unitario'     => $unitCost,
+                        'product_id' => $product->id,
+                        'document_id' => $documentId,
+                        'bodega_id' => $bodegaId,
+                        'dte_line_id' => $line->id,
+                        'ingresado_el' => $doc->fecha_factura ?? now()->toDateString(),
+                        'costo_unitario' => $unitCost,
                         'cantidad_ingresada' => $qty,
-                        'cantidad_salida'    => 0,
-                        'cantidad_disponible'=> $qty,
-                        'estado'             => 'ABIERTO',
-                        'created_at'         => now(),
-                        'updated_at'         => now(),
+                        'cantidad_salida' => 0,
+                        'cantidad_disponible' => $qty,
+                        'estado' => 'ABIERTO',
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                 $lineCost = $qty * $unitCost;
@@ -358,11 +357,11 @@ class GmailDteInventoryService
             ->where('id', $documentId)
             ->first();
 
-        if (!$doc) {
+        if (! $doc) {
             throw new RuntimeException("Documento no encontrado: {$documentId}");
         }
 
-        if (($doc->inventory_status ?? null) === 'ingresado' && !empty($doc->stock_movement_id)) {
+        if (($doc->inventory_status ?? null) === 'ingresado' && ! empty($doc->stock_movement_id)) {
             return [
                 'already_posted' => true,
                 'movement_id' => (int) $doc->stock_movement_id,
@@ -422,7 +421,7 @@ class GmailDteInventoryService
             // Validar stock suficiente antes de crear nada
             foreach ($items as $item) {
                 $productId = (int) $item['product_id'];
-                $needed    = (float) $item['quantity'];
+                $needed = (float) $item['quantity'];
 
                 $available = DB::connection('fuelcontrol')
                     ->table('gmail_inventory_lots')
@@ -445,27 +444,27 @@ class GmailDteInventoryService
             $movementId = DB::connection('fuelcontrol')
                 ->table('gmail_inventory_movements')
                 ->insertGetId([
-                    'document_id'    => null,
-                    'tipo'           => 'SALIDA',
-                    'estado'         => 'CONTABILIZADO',
-                    'ocurrio_el'     => now()->toDateString(),
-                    'usuario_id'     => $userId,
-                    'notas'          => $notas,
-                    'destinatario'   => $destinatario,
-                    'tipo_salida'    => $tipoSalida,
+                    'document_id' => null,
+                    'tipo' => 'SALIDA',
+                    'estado' => 'CONTABILIZADO',
+                    'ocurrio_el' => now()->toDateString(),
+                    'usuario_id' => $userId,
+                    'notas' => $notas,
+                    'destinatario' => $destinatario,
+                    'tipo_salida' => $tipoSalida,
                     'cantidad_total' => 0,
-                    'costo_total'    => 0,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'costo_total' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
-            $qtyTotal  = 0.0;
+            $qtyTotal = 0.0;
             $costTotal = 0.0;
 
             foreach ($items as $item) {
                 $productId = (int) $item['product_id'];
-                $needed    = (float) $item['quantity'];
-                $pending   = $needed;
+                $needed = (float) $item['quantity'];
+                $pending = $needed;
 
                 // FIFO: lotes más antiguos primero
                 $lots = DB::connection('fuelcontrol')
@@ -490,14 +489,14 @@ class GmailDteInventoryService
                     DB::connection('fuelcontrol')
                         ->table('gmail_inventory_movement_lines')
                         ->insert([
-                            'movement_id'    => $movementId,
-                            'lot_id'         => $lot->id,
-                            'product_id'     => $productId,
-                            'cantidad'       => $take,
+                            'movement_id' => $movementId,
+                            'lot_id' => $lot->id,
+                            'product_id' => $productId,
+                            'cantidad' => $take,
                             'costo_unitario' => $lot->costo_unitario,
-                            'costo_total'    => $lineCost,
-                            'created_at'     => now(),
-                            'updated_at'     => now(),
+                            'costo_total' => $lineCost,
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
 
                     // Actualizar lote
@@ -507,12 +506,12 @@ class GmailDteInventoryService
                         ->where('id', $lot->id)
                         ->update([
                             'cantidad_disponible' => $newDisponible,
-                            'cantidad_salida'     => (float) $lot->cantidad_salida + $take,
-                            'estado'              => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
-                            'updated_at'          => now(),
+                            'cantidad_salida' => (float) $lot->cantidad_salida + $take,
+                            'estado' => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
+                            'updated_at' => now(),
                         ]);
 
-                    $pending   -= $take;
+                    $pending -= $take;
                     $costTotal += $lineCost;
                 }
 
@@ -531,8 +530,8 @@ class GmailDteInventoryService
                 ->where('id', $movementId)
                 ->update([
                     'cantidad_total' => $qtyTotal,
-                    'costo_total'    => $costTotal,
-                    'updated_at'     => now(),
+                    'costo_total' => $costTotal,
+                    'updated_at' => now(),
                 ]);
 
             return ['movement_id' => $movementId];
@@ -552,7 +551,7 @@ class GmailDteInventoryService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$product) {
+            if (! $product) {
                 throw new RuntimeException('Producto no encontrado.');
             }
 
@@ -573,18 +572,18 @@ class GmailDteInventoryService
             $movementId = DB::connection('fuelcontrol')
                 ->table('gmail_inventory_movements')
                 ->insertGetId([
-                    'document_id'    => null,
-                    'tipo'           => 'AJUSTE',
-                    'estado'         => 'CONTABILIZADO',
-                    'ocurrio_el'     => now()->toDateTimeString(),
-                    'usuario_id'     => $userId,
-                    'destinatario'   => $motivo,
-                    'tipo_salida'    => $direccion === 'POSITIVO' ? 'AJUSTE+' : 'AJUSTE-',
-                    'notas'          => $notas,
+                    'document_id' => null,
+                    'tipo' => 'AJUSTE',
+                    'estado' => 'CONTABILIZADO',
+                    'ocurrio_el' => now()->toDateTimeString(),
+                    'usuario_id' => $userId,
+                    'destinatario' => $motivo,
+                    'tipo_salida' => $direccion === 'POSITIVO' ? 'AJUSTE+' : 'AJUSTE-',
+                    'notas' => $notas,
                     'cantidad_total' => 0,
-                    'costo_total'    => 0,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'costo_total' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
             $costTotal = 0.0;
@@ -603,31 +602,33 @@ class GmailDteInventoryService
                     ->get();
 
                 foreach ($lots as $lot) {
-                    if ($pending <= 0) break;
+                    if ($pending <= 0) {
+                        break;
+                    }
                     $take = min((float) $lot->cantidad_disponible, $pending);
                     $lineCost = $take * (float) $lot->costo_unitario;
 
                     DB::connection('fuelcontrol')->table('gmail_inventory_movement_lines')->insert([
-                        'movement_id'    => $movementId,
-                        'lot_id'         => $lot->id,
-                        'product_id'     => $productId,
-                        'cantidad'       => $take,
+                        'movement_id' => $movementId,
+                        'lot_id' => $lot->id,
+                        'product_id' => $productId,
+                        'cantidad' => $take,
                         'costo_unitario' => $lot->costo_unitario,
-                        'costo_total'    => $lineCost,
-                        'created_at'     => now(),
-                        'updated_at'     => now(),
+                        'costo_total' => $lineCost,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                     $newDisponible = (float) $lot->cantidad_disponible - $take;
                     DB::connection('fuelcontrol')->table('gmail_inventory_lots')->where('id', $lot->id)->update([
                         'cantidad_disponible' => $newDisponible,
-                        'cantidad_salida'     => (float) $lot->cantidad_salida + $take,
-                        'estado'              => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
-                        'updated_at'          => now(),
+                        'cantidad_salida' => (float) $lot->cantidad_salida + $take,
+                        'estado' => $newDisponible <= 0 ? 'CERRADO' : 'ABIERTO',
+                        'updated_at' => now(),
                     ]);
 
-                    $pending    -= $take;
-                    $costTotal  += $lineCost;
+                    $pending -= $take;
+                    $costTotal += $lineCost;
                 }
 
                 DB::connection('fuelcontrol')->table('gmail_inventory_products')->where('id', $productId)
@@ -636,29 +637,29 @@ class GmailDteInventoryService
                 // Positivo: crear lote con costo promedio actual
                 $costoUnitario = (float) $product->costo_promedio;
                 $lotId = DB::connection('fuelcontrol')->table('gmail_inventory_lots')->insertGetId([
-                    'product_id'          => $productId,
-                    'document_id'         => null,
-                    'bodega_id'           => $bodegaId,
-                    'ingresado_el'        => now()->toDateTimeString(),
-                    'costo_unitario'      => $costoUnitario,
-                    'cantidad_ingresada'  => $quantity,
+                    'product_id' => $productId,
+                    'document_id' => null,
+                    'bodega_id' => $bodegaId,
+                    'ingresado_el' => now()->toDateTimeString(),
+                    'costo_unitario' => $costoUnitario,
+                    'cantidad_ingresada' => $quantity,
                     'cantidad_disponible' => $quantity,
-                    'cantidad_salida'     => 0,
-                    'estado'              => 'ABIERTO',
-                    'created_at'          => now(),
-                    'updated_at'          => now(),
+                    'cantidad_salida' => 0,
+                    'estado' => 'ABIERTO',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 $lineCost = $quantity * $costoUnitario;
                 DB::connection('fuelcontrol')->table('gmail_inventory_movement_lines')->insert([
-                    'movement_id'    => $movementId,
-                    'lot_id'         => $lotId,
-                    'product_id'     => $productId,
-                    'cantidad'       => $quantity,
+                    'movement_id' => $movementId,
+                    'lot_id' => $lotId,
+                    'product_id' => $productId,
+                    'cantidad' => $quantity,
                     'costo_unitario' => $costoUnitario,
-                    'costo_total'    => $lineCost,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'costo_total' => $lineCost,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 $costTotal = $lineCost;
@@ -669,8 +670,8 @@ class GmailDteInventoryService
 
             DB::connection('fuelcontrol')->table('gmail_inventory_movements')->where('id', $movementId)->update([
                 'cantidad_total' => $quantity,
-                'costo_total'    => $costTotal,
-                'updated_at'     => now(),
+                'costo_total' => $costTotal,
+                'updated_at' => now(),
             ]);
 
             return ['movement_id' => $movementId];
@@ -842,7 +843,7 @@ class GmailDteInventoryService
         $maxLen = max(strlen($left), strlen($right), 1);
         $levScore = 1 - (levenshtein($left, $right) / $maxLen);
 
-        $leftTokens  = array_values(array_unique(array_filter(explode(' ', $left))));
+        $leftTokens = array_values(array_unique(array_filter(explode(' ', $left))));
         $rightTokens = array_values(array_unique(array_filter(explode(' ', $right))));
         $intersection = array_intersect($leftTokens, $rightTokens);
         $unionCount = count(array_unique(array_merge($leftTokens, $rightTokens)));
@@ -851,9 +852,9 @@ class GmailDteInventoryService
         // Penalización por variante de talla/modelo: si los tokens de talla difieren
         // entre ambos nombres, son definitivamente productos distintos (XL ≠ XXL, M ≠ L).
         $sizeTokens = ['xs', 'xp', 's', 'm', 'l', 'xl', 'xxl', 'xxxl',
-                       'xg', 'xxg', '2xl', '3xl', '4xl', '5xl',
-                       'xchico', 'chico', 'mediano', 'grande', 'xgrande'];
-        $leftSizes  = array_values(array_intersect($leftTokens, $sizeTokens));
+            'xg', 'xxg', '2xl', '3xl', '4xl', '5xl',
+            'xchico', 'chico', 'mediano', 'grande', 'xgrande'];
+        $leftSizes = array_values(array_intersect($leftTokens, $sizeTokens));
         $rightSizes = array_values(array_intersect($rightTokens, $sizeTokens));
         sort($leftSizes);
         sort($rightSizes);
@@ -1002,23 +1003,23 @@ class GmailDteInventoryService
             return null;
         }
 
-        return $normalizedUnit . '|' . $normalizedName;
+        return $normalizedUnit.'|'.$normalizedName;
     }
 
     private function loadAliasMap(): array
     {
         $path = storage_path('app/gmail/product_aliases.json');
-        if (!is_file($path)) {
+        if (! is_file($path)) {
             return [];
         }
 
         $raw = @file_get_contents($path);
-        if (!is_string($raw) || trim($raw) === '') {
+        if (! is_string($raw) || trim($raw) === '') {
             return [];
         }
 
         $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return [];
         }
 
@@ -1029,7 +1030,7 @@ class GmailDteInventoryService
     {
         $path = storage_path('app/gmail/product_aliases.json');
         $dir = dirname($path);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
 

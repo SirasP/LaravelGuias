@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ReadQuotationDocument;
-use App\Models\PurchaseRequestIngestion;
 use App\Models\Department;
+use App\Models\PurchaseRequestIngestion;
 use App\Models\UnitOfMeasure;
 use App\Services\PurchaseRequests\DraftFromIngestionService;
 use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;

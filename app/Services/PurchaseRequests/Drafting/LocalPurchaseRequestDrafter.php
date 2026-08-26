@@ -203,6 +203,9 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         - Si repite un producto, devuélvelo como dos partidas separadas: pueden ser destinos
           distintos. No los sumes.
         - Mantén el nombre tal como lo escribió, sólo corrigiendo mayúsculas evidentes.
+        - "unit_price" es el precio POR UNIDAD, sin puntos de miles ni signo peso: «a 12.500
+          cada uno» es "12500". Si no dice precio, déjalo vacío. Nunca lo inventes ni lo
+          copies de otra partida.
         - "reason" es el motivo, sólo si lo dice ("para el riego", "porque no queda stock").
           Si no lo dice, déjalo vacío.
         - "requested_for" es para quién es, sólo si lo menciona ("lo pide Marco"). Si no, vacío.
@@ -223,6 +226,8 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
           La cantidad va SIEMPRE en quantity aunque esté escrita antes de la unidad.
         - «295 metros de PVC 200mm» → product_service "PVC 200mm", quantity "295", unit "Metros".
         - «1,5 cubos de bolones» → product_service "bolones", quantity "1,5", unit "Cubos".
+        - «3 correas a 12.500 cada una» → quantity "3", unit_price "12500".
+        - «cemento 10 sacos» → unit_price vacío: no dijo cuánto cuesta.
         - «cloro en Sodimac» → supplier "Sodimac", sin la preposición.
         - «2 correas urgente, se paró la bomba» → priority "urgente",
           urgent_reason "se paró la bomba".
@@ -248,12 +253,13 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
-                        'required' => ['product_service', 'specification', 'quantity', 'unit'],
+                        'required' => ['product_service', 'specification', 'quantity', 'unit', 'unit_price'],
                         'properties' => [
                             'product_service' => ['type' => 'string'],
                             'specification' => ['type' => 'string'],
                             'quantity' => ['type' => 'string'],
                             'unit' => ['type' => 'string'],
+                            'unit_price' => ['type' => 'string'],
                         ],
                     ],
                 ],

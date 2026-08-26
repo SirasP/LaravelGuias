@@ -3,16 +3,14 @@
 namespace App\Http\Controllers\Guias;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\ComfrutGuia;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Str;
 
 class ComfrutGuiaController extends Controller
 {
-
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -30,17 +28,17 @@ class ComfrutGuiaController extends Controller
         $currentYear = $now->year;
         $currentMonth = $now->month;
         if ($currentMonth >= 6) {
-            $currentSeason = $currentYear . '/' . ($currentYear + 1);
-            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+            $currentSeason = $currentYear.'/'.($currentYear + 1);
+            $nextSeason = ($currentYear + 1).'/'.($currentYear + 2);
         } else {
-            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
-            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+            $currentSeason = ($currentYear - 1).'/'.$currentYear;
+            $nextSeason = $currentYear.'/'.($currentYear + 1);
         }
 
-        if (!in_array($currentSeason, $availableSeasons)) {
+        if (! in_array($currentSeason, $availableSeasons)) {
             $availableSeasons[] = $currentSeason;
         }
-        if (!in_array($nextSeason, $availableSeasons)) {
+        if (! in_array($nextSeason, $availableSeasons)) {
             $availableSeasons[] = $nextSeason;
         }
 
@@ -63,7 +61,7 @@ class ComfrutGuiaController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $query->whereBetween('created_at', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -71,13 +69,13 @@ class ComfrutGuiaController extends Controller
         $totalBandejas = \App\Models\ComfrutGuiaDetalle::whereIn('comfrut_guia_id', (clone $query)->select('id'))
             ->where(function ($w) {
                 $w->where('nombre_item', 'like', '%BANDEJ%')
-                  ->orWhere('nombre_item', 'like', '%BDJA%');
+                    ->orWhere('nombre_item', 'like', '%BDJA%');
             })->sum('cantidad');
 
         $totalPallets = \App\Models\ComfrutGuiaDetalle::whereIn('comfrut_guia_id', (clone $query)->select('id'))
             ->where(function ($w) {
                 $w->where('nombre_item', 'like', '%PALLET%')
-                  ->orWhere('nombre_item', 'like', '%PALE%');
+                    ->orWhere('nombre_item', 'like', '%PALE%');
             })->sum('cantidad');
 
         $uniqueProducers = (clone $query)->distinct('productor')->count('productor');
@@ -100,16 +98,19 @@ class ComfrutGuiaController extends Controller
             'uniqueProducers' => $uniqueProducers,
         ]);
     }
+
     public function importForm()
     {
         return redirect()->route('pdf.import.form');
     }
+
     public function show(ComfrutGuia $guia)
     {
         $guia->load('detalles');
 
         return view('guias.comfrut.show', compact('guia'));
     }
+
     public function import(Request $request)
     {
         $request->validate([
@@ -128,19 +129,22 @@ class ComfrutGuiaController extends Controller
             // 🔒 XML duplicado exacto
             if (ComfrutGuia::where('xml_hash', $hash)->exists()) {
                 $omitidas++;
+
                 continue;
             }
 
             $xml = simplexml_load_string($xmlContent, 'SimpleXMLElement', LIBXML_NOCDATA);
-            if (!$xml) {
+            if (! $xml) {
                 $omitidas++;
+
                 continue;
             }
 
             $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
             $doc = $xml->xpath('//sii:DTE/sii:Documento')[0] ?? null;
-            if (!$doc) {
+            if (! $doc) {
                 $omitidas++;
+
                 continue;
             }
 
@@ -152,6 +156,7 @@ class ComfrutGuiaController extends Controller
             // 🔒 Guía duplicada por número
             if (ComfrutGuia::where('guia_numero', $folio)->exists()) {
                 $omitidas++;
+
                 continue;
             }
 
@@ -161,6 +166,7 @@ class ComfrutGuiaController extends Controller
             // 🔒 Solo importar tipo DTE 52
             if ($tipoDte !== '52') {
                 $omitidas++;
+
                 continue;
             }
 
@@ -225,7 +231,6 @@ class ComfrutGuiaController extends Controller
             ->with('ok', "Importadas: $importadas · Omitidas: $omitidas");
     }
 
-
     public function exportExcelPhpSpreadsheet(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -245,13 +250,13 @@ class ComfrutGuiaController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $query->whereBetween('created_at', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
         $guias = $query->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Cabeceras
@@ -266,8 +271,8 @@ class ComfrutGuiaController extends Controller
                 'Bandeja',
                 'Cantidad Bandeja',
                 'Pallet',
-                'Cantidad Pallet'
-            ]
+                'Cantidad Pallet',
+            ],
         ], null, 'A1');
 
         $row = 2;
@@ -275,11 +280,13 @@ class ComfrutGuiaController extends Controller
             // Separar detalles en bandejas y pallets y reindexar
             $bandejas = $guia->detalles->filter(function ($d) {
                 $nombre = strtolower(trim($d->nombre_item));
+
                 return Str::contains($nombre, ['bandej', 'bdja']); // agregar variantes
             })->values();
 
             $pallets = $guia->detalles->filter(function ($d) {
                 $nombre = strtolower(trim($d->nombre_item));
+
                 return Str::contains($nombre, ['pallet', 'palet', 'esquinero']); // variantes
             })->values();
 
@@ -323,9 +330,4 @@ class ComfrutGuiaController extends Controller
         $writer->save('php://output');
         exit;
     }
-
-
-
-
-
 }

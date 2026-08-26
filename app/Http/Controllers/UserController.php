@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\JsonResponse;
-use Illuminate\View\View;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
@@ -30,7 +28,6 @@ class UserController extends Controller
         return view('users.create');
     }
 
-
     public function store(Request $request)
     {
         $request->validate([
@@ -49,6 +46,7 @@ class UserController extends Controller
         return redirect()->route('dashboard')->with('success', 'Usuario creado ✅');
 
     }
+
     public function destroy(User $user)
     {
         $user->delete();
@@ -56,6 +54,7 @@ class UserController extends Controller
         return redirect()->route('dashboard')->with('success', 'Usuario eliminado correctamente');
 
     }
+
     public function toggleActive(Request $request, User $user)
     {
         $validated = $request->validate([

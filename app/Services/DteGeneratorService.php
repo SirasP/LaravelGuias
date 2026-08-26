@@ -13,8 +13,7 @@ class DteGeneratorService
         private readonly CafService $cafService,
         private readonly XmlDsigSignerService $xmlDsigSignerService,
         private readonly TedSignerService $tedSignerService
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array{
@@ -66,7 +65,7 @@ class DteGeneratorService
 
         $isDevCaf = (bool) ($caf['is_dev'] ?? false);
 
-        if (!$isDevCaf && strcasecmp($caf['rut_emisor'], (string) $emisor['RUTEmisor']) !== 0) {
+        if (! $isDevCaf && strcasecmp($caf['rut_emisor'], (string) $emisor['RUTEmisor']) !== 0) {
             throw new RuntimeException(
                 "RUT emisor del CAF ({$caf['rut_emisor']}) no coincide con RUT emisor del DTE ({$emisor['RUTEmisor']})."
             );
@@ -123,7 +122,7 @@ class DteGeneratorService
         $doc->appendChild($envio);
 
         $setDte = $doc->createElement('SetDTE');
-        $setDte->setAttribute('ID', 'SetDoc_' . $movementId);
+        $setDte->setAttribute('ID', 'SetDoc_'.$movementId);
         $envio->appendChild($setDte);
 
         $caratula = $doc->createElement('Caratula');
@@ -146,7 +145,7 @@ class DteGeneratorService
         $setDte->appendChild($dte);
 
         $documento = $doc->createElement('Documento');
-        $documento->setAttribute('ID', 'F33T' . $folio);
+        $documento->setAttribute('ID', 'F33T'.$folio);
         $dte->appendChild($documento);
 
         $encabezado = $doc->createElement('Encabezado');
@@ -207,7 +206,7 @@ class DteGeneratorService
             $total,
             $lines
         );
-        if (!$isDevCaf) {
+        if (! $isDevCaf) {
             $this->tedSignerService->timbrarTed($ted, $caf);
         } else {
             $frmt = $this->findFirstChildByLocalName($ted, 'FRMT');
@@ -222,17 +221,17 @@ class DteGeneratorService
         }
         $documento->appendChild($doc->createElement('TmstFirma', now()->format('Y-m-d\TH:i:s')));
 
-        $this->xmlDsigSignerService->signDocumentoById($doc, 'F33T' . $folio);
+        $this->xmlDsigSignerService->signDocumentoById($doc, 'F33T'.$folio);
 
         $xmlUtf8 = $doc->saveXML();
-        if (!is_string($xmlUtf8) || $xmlUtf8 === '') {
+        if (! is_string($xmlUtf8) || $xmlUtf8 === '') {
             throw new RuntimeException('No se pudo serializar XML DTE.');
         }
 
         $xmlIso = mb_convert_encoding($xmlUtf8, 'ISO-8859-1', 'UTF-8');
         $xmlIso = preg_replace('/^<\?xml[^>]+\?>/i', '<?xml version="1.0" encoding="ISO-8859-1"?>', $xmlIso) ?? $xmlIso;
 
-        $relativePath = 'dte/factura_venta_' . $movementId . '_' . now()->format('Ymd_His') . '.xml';
+        $relativePath = 'dte/factura_venta_'.$movementId.'_'.now()->format('Ymd_His').'.xml';
         Storage::disk('local')->put($relativePath, $xmlIso);
 
         return $relativePath;
@@ -302,7 +301,7 @@ class DteGeneratorService
      *   caf_xml:string,
      *   caf_path:string
      * } $caf
-     * @param array<int,array{NroLinDet:int,NmbItem:string,QtyItem:float,PrcItem:float,MontoItem:int}> $lines
+     * @param  array<int,array{NroLinDet:int,NmbItem:string,QtyItem:float,PrcItem:float,MontoItem:int}>  $lines
      */
     private function buildTedNode(
         DOMDocument $doc,

@@ -8,30 +8,31 @@ use Illuminate\Support\Facades\DB;
 
 class OdooImportToDte extends Command
 {
-    protected $signature   = 'odoo:import-dte';
+    protected $signature = 'odoo:import-dte';
+
     protected $description = 'Importa odoo_account_moves a gmail_dte_documents sin duplicar registros existentes';
 
     // Mapa move_type → tipo_dte chileno
     private const TIPO_DTE_MAP = [
-        'in_invoice'  => 33,
+        'in_invoice' => 33,
         'out_invoice' => 33,
-        'in_refund'   => 61,
-        'out_refund'  => 61,
+        'in_refund' => 61,
+        'out_refund' => 61,
     ];
 
     // Mapa payment_state de Odoo → payment_status de gmail_dte_documents
     private const PAYMENT_STATUS_MAP = [
-        'paid'       => 'pagado',
+        'paid' => 'pagado',
         'in_payment' => 'pagado',
-        'not_paid'   => 'sin_pagar',
-        'partial'    => 'sin_pagar',
-        'reversed'   => 'sin_pagar',
+        'not_paid' => 'sin_pagar',
+        'partial' => 'sin_pagar',
+        'reversed' => 'sin_pagar',
     ];
 
     // Mapa state de Odoo → workflow_status de gmail_dte_documents
     private const WORKFLOW_STATUS_MAP = [
         'posted' => 'aceptado',
-        'draft'  => 'borrador',
+        'draft' => 'borrador',
         'cancel' => 'cancelado',
     ];
 
@@ -74,13 +75,13 @@ class OdooImportToDte extends Command
             ->orderBy('id')
             ->get();
 
-        $inserted  = 0;
-        $updated   = 0;
+        $inserted = 0;
+        $updated = 0;
         $unchanged = 0;
         $duplicate = 0;
 
         foreach ($moves as $move) {
-            $hash = 'odoo_' . $move->odoo_id;
+            $hash = 'odoo_'.$move->odoo_id;
             $paymentStatus = self::PAYMENT_STATUS_MAP[$move->payment_state ?? 'not_paid'] ?? 'sin_pagar';
 
             // 1) Ya fue importado antes: mantener el estado de pago local alineado
@@ -96,6 +97,7 @@ class OdooImportToDte extends Command
 
                 $updated += $changed;
                 $unchanged += $changed === 0 ? 1 : 0;
+
                 continue;
             }
 
@@ -117,44 +119,45 @@ class OdooImportToDte extends Command
                         ]);
                     $duplicate++;
                     $existingHashes[$hash] = $existingGmail[$key];
+
                     continue;
                 }
             }
 
             // 3) Insertar registro nuevo
-            $tipoDte       = self::TIPO_DTE_MAP[$move->move_type] ?? 33;
+            $tipoDte = self::TIPO_DTE_MAP[$move->move_type] ?? 33;
             $workflowStatus = self::WORKFLOW_STATUS_MAP[$move->state ?? 'draft'] ?? 'borrador';
 
             // Calcular neto e IVA aproximados (19% IVA Chile)
-            $total   = (float) $move->amount_total;
-            $neto    = round($total / 1.19);
-            $iva     = $total - $neto;
+            $total = (float) $move->amount_total;
+            $neto = round($total / 1.19);
+            $iva = $total - $neto;
 
             $dte->table('gmail_dte_documents')->insert([
-                'gmail_message_id'  => null,
-                'xml_filename'      => $move->name ?? "ODO-{$move->odoo_id}",
-                'xml_path'          => null,
-                'xml_raw'           => null,
-                'hash_unico'        => $hash,
-                'tipo_dte'          => $tipoDte,
-                'folio'             => $move->folio ? (string) $move->folio : null,
-                'proveedor_rut'     => $rutNorm,
-                'proveedor_nombre'  => $move->partner_name,
-                'fecha_factura'     => $move->invoice_date?->format('Y-m-d'),
-                'fecha_contable'    => $move->invoice_date?->format('Y-m-d'),
+                'gmail_message_id' => null,
+                'xml_filename' => $move->name ?? "ODO-{$move->odoo_id}",
+                'xml_path' => null,
+                'xml_raw' => null,
+                'hash_unico' => $hash,
+                'tipo_dte' => $tipoDte,
+                'folio' => $move->folio ? (string) $move->folio : null,
+                'proveedor_rut' => $rutNorm,
+                'proveedor_nombre' => $move->partner_name,
+                'fecha_factura' => $move->invoice_date?->format('Y-m-d'),
+                'fecha_contable' => $move->invoice_date?->format('Y-m-d'),
                 'fecha_vencimiento' => null,
-                'referencia'        => $move->ref,
-                'monto_neto'        => $neto,
-                'monto_iva'         => $iva,
-                'monto_total'       => $total,
-                'payment_status'    => $paymentStatus,
-                'workflow_status'   => $workflowStatus,
-                'inventory_status'  => 'pendiente',
-                'paid_at'           => null,
-                'stock_posted_at'   => null,
+                'referencia' => $move->ref,
+                'monto_neto' => $neto,
+                'monto_iva' => $iva,
+                'monto_total' => $total,
+                'payment_status' => $paymentStatus,
+                'workflow_status' => $workflowStatus,
+                'inventory_status' => 'pendiente',
+                'paid_at' => null,
+                'stock_posted_at' => null,
                 'stock_movement_id' => null,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             $inserted++;

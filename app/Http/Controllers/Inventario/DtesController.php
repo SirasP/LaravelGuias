@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use SimpleXMLElement;
+
 class DtesController extends Controller
 {
     public function index(Request $request)
@@ -20,8 +21,9 @@ class DtesController extends Controller
         $desde = trim((string) $request->query('desde', ''));       // YYYY-MM-DD
         $hasta = trim((string) $request->query('hasta', ''));       // YYYY-MM-DD
         $perPage = (int) $request->query('per_page', 20);
-        if (!in_array($perPage, [20, 50, 100], true))
+        if (! in_array($perPage, [20, 50, 100], true)) {
             $perPage = 20;
+        }
 
         // Subquery: totales por DTE desde dte_detalles
         $detAgg = DB::table('dte_detalles as dd')
@@ -106,8 +108,6 @@ class DtesController extends Controller
         ));
     }
 
-
-
     public function show($dteId)
     {
         $dte = DB::table('dtes')->where('id', $dteId)->first();
@@ -127,7 +127,6 @@ class DtesController extends Controller
         return view('inventario.dtes.show', compact('dte', 'detalles', 'bodegas'));
     }
 
-
     /**
      * LISTA Gmail (esto es lo que demoraba).
      * ✅ list (ids) + get (metadata) cacheado
@@ -138,7 +137,7 @@ class DtesController extends Controller
         $isJson = $request->expectsJson() || $request->wantsJson() || $request->header('Accept') === 'application/json';
 
         $token = Cache::get('gmail_token');
-        if (!$token) {
+        if (! $token) {
             if ($isJson) {
                 return response()->json([
                     'items' => [],
@@ -155,7 +154,7 @@ class DtesController extends Controller
             ]);
         }
 
-        $client = new Client();
+        $client = new Client;
         $client->setClientId(config('services.google.client_id'));
         $client->setClientSecret(config('services.google.client_secret'));
         $client->setAccessToken($token);
@@ -167,7 +166,7 @@ class DtesController extends Controller
             if ($refreshToken) {
                 $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
 
-                if (!isset($newToken['error'])) {
+                if (! isset($newToken['error'])) {
                     $newToken['refresh_token'] = $token['refresh_token'] ?? $refreshToken;
                     Cache::put('gmail_token', $newToken, now()->addDays(30));
                     $client->setAccessToken($newToken);
@@ -212,9 +211,9 @@ class DtesController extends Controller
         $perPage = (int) $request->query('perPage', 20);
         $perPage = max(1, min($perPage, 200));
 
-        $gmailQuery = 'filename:xml' . ($q !== '' ? (' ' . $q) : '');
+        $gmailQuery = 'filename:xml'.($q !== '' ? (' '.$q) : '');
 
-        $listCacheKey = 'gmail_list_' . md5($gmailQuery . '|' . ($pageToken ?? '') . '|' . $perPage);
+        $listCacheKey = 'gmail_list_'.md5($gmailQuery.'|'.($pageToken ?? '').'|'.$perPage);
         $cached = Cache::get($listCacheKey);
 
         // ✅ SI HAY CACHE: devolver JSON si es AJAX
@@ -228,7 +227,7 @@ class DtesController extends Controller
             }
 
             return view('inventario.dtes.gmail', [
-                'items' => array_map(fn($r) => (object) $r, $cached['items']),
+                'items' => array_map(fn ($r) => (object) $r, $cached['items']),
                 'q' => $q,
                 'error' => null,
                 'nextPageToken' => $cached['nextPageToken'] ?? null,
@@ -250,10 +249,10 @@ class DtesController extends Controller
         $items = [];
         foreach ($msgs as $m) {
             $id = (string) $m->getId();
-            $cacheKey = 'gmail_meta_' . $id;
+            $cacheKey = 'gmail_meta_'.$id;
 
             $row = Cache::get($cacheKey);
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 $msg = $gmail->users_messages->get('me', $id, [
                     'format' => 'metadata',
                     'metadataHeaders' => ['Subject', 'From', 'Date'],
@@ -261,7 +260,7 @@ class DtesController extends Controller
                 ]);
 
                 $headers = collect($msg->getPayload()?->getHeaders() ?? [])
-                    ->mapWithKeys(fn($h) => [$h->getName() => $h->getValue()]);
+                    ->mapWithKeys(fn ($h) => [$h->getName() => $h->getValue()]);
 
                 $row = [
                     'gmail_id' => $id,
@@ -277,7 +276,7 @@ class DtesController extends Controller
         }
 
         $payload = [
-            'items' => array_map(fn($o) => (array) $o, $items),
+            'items' => array_map(fn ($o) => (array) $o, $items),
             'nextPageToken' => $nextPageToken,
             'error' => null,
         ];
@@ -298,8 +297,6 @@ class DtesController extends Controller
         ]);
     }
 
-
-
     /**
      * Importa seleccionados
      * ✅ Convierte XML a UTF-8 ANTES de parsear
@@ -309,15 +306,15 @@ class DtesController extends Controller
     public function gmailImportSelected(Request $request)
     {
         $ids = $request->input('message_ids', []);
-        if (!is_array($ids) || count($ids) === 0) {
+        if (! is_array($ids) || count($ids) === 0) {
             return back()->withErrors(['Debes seleccionar al menos 1 correo.']);
         }
         $token = Cache::get('gmail_token');
-        if (!$token) {
+        if (! $token) {
             return back()->withErrors(['No hay token Gmail.']);
         }
 
-        $client = new Client();
+        $client = new Client;
         $client->setAccessToken($token);
 
         if ($client->isAccessTokenExpired()) {
@@ -338,8 +335,9 @@ class DtesController extends Controller
             $payload = $msg->getPayload();
 
             $xmlContent = $this->firstXmlFromMessage($gmail, $messageId, $payload);
-            if (!$xmlContent) {
+            if (! $xmlContent) {
                 $sinXml++;
+
                 continue;
             }
 
@@ -349,8 +347,9 @@ class DtesController extends Controller
             $parsed = $this->parseDteXml($xmlContent);
             $items = $parsed['items'] ?? [];
 
-            if (!($parsed['ok'] ?? false) || !is_array($items) || count($items) === 0) {
+            if (! ($parsed['ok'] ?? false) || ! is_array($items) || count($items) === 0) {
                 $sinParse++;
+
                 continue;
             }
 
@@ -373,6 +372,7 @@ class DtesController extends Controller
 
                 if ($rutEmisor === '' || $tipo === 0 || $folio === 0) {
                     $sinParse++;
+
                     continue;
                 }
 
@@ -440,7 +440,7 @@ class DtesController extends Controller
 
                     // 2) Detalles: UPSERT por (dte_id, nro_lin_det)
                     $detalleRows = $datos['detalle'] ?? [];
-                    if (!is_array($detalleRows)) {
+                    if (! is_array($detalleRows)) {
                         $detalleRows = [];
                     }
 
@@ -499,14 +499,12 @@ class DtesController extends Controller
     /**
      * ✅ Extrae el primer XML adjunto del mensaje (si existe)
      */
-
-
     private function firstXmlFromMessage(Gmail $gmail, string $messageId, $payload): ?string
     {
         $parts = $payload->getParts() ?? [];
         $stack = $parts;
 
-        while (!empty($stack)) {
+        while (! empty($stack)) {
             $part = array_shift($stack);
 
             if ($part->getParts()) {
@@ -521,6 +519,7 @@ class DtesController extends Controller
             if ($filename && str_ends_with(strtolower($filename), '.xml') && $body?->getAttachmentId()) {
                 $att = $gmail->users_messages_attachments->get('me', $messageId, $body->getAttachmentId());
                 $data = $att->getData();
+
                 return base64_decode(strtr($data, '-_', '+/'));
             }
         }
@@ -533,8 +532,9 @@ class DtesController extends Controller
      */
     private function ensureUtf8($value): ?string
     {
-        if ($value === null)
+        if ($value === null) {
             return null;
+        }
 
         $s = (string) $value;
 
@@ -542,6 +542,7 @@ class DtesController extends Controller
         if (mb_check_encoding($s, 'UTF-8')) {
             // igual elimina bytes inválidos por si acaso
             $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $s);
+
             return is_string($clean) && $clean !== '' ? $clean : $s;
         }
 
@@ -550,6 +551,7 @@ class DtesController extends Controller
 
         // limpieza final
         $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $s);
+
         return is_string($clean) && $clean !== '' ? $clean : $s;
     }
 
@@ -571,7 +573,7 @@ class DtesController extends Controller
             $xml = preg_replace('/(<\?xml[^>]*encoding=)["\'][^"\']+["\']/i', '$1"UTF-8"', $xml);
         }
 
-        if (!mb_check_encoding($xml, 'UTF-8')) {
+        if (! mb_check_encoding($xml, 'UTF-8')) {
             $xml = @mb_convert_encoding($xml, 'UTF-8', 'ISO-8859-1,Windows-1252,UTF-8');
             $xml = preg_replace('/(<\?xml[^>]*encoding=)["\'][^"\']+["\']/i', '$1"UTF-8"', $xml);
         }
@@ -584,21 +586,22 @@ class DtesController extends Controller
         return $xml;
     }
 
-
     private function parseDteXml(string $xml): array
     {
         libxml_use_internal_errors(true);
 
         $sxe = simplexml_load_string($xml);
-        if (!$sxe) {
+        if (! $sxe) {
             return ['ok' => false, 'items' => []];
         }
 
         // Helpers sin namespace (local-name)
         $g1 = function (SimpleXMLElement $ctx, string $localName): string {
-            $res = $ctx->xpath('.//*[local-name()="' . $localName . '"]');
-            if ($res === false)
+            $res = $ctx->xpath('.//*[local-name()="'.$localName.'"]');
+            if ($res === false) {
                 return '';
+            }
+
             return (string) (($res[0] ?? '') ?: '');
         };
 
@@ -607,22 +610,26 @@ class DtesController extends Controller
             $parts = array_values(array_filter(explode('/', $pathLocalNames)));
             $q = '.';
             foreach ($parts as $p) {
-                $q .= '/*[local-name()="' . $p . '"]';
+                $q .= '/*[local-name()="'.$p.'"]';
             }
             $res = $ctx->xpath($q);
-            if ($res === false)
+            if ($res === false) {
                 return '';
+            }
+
             return (string) (($res[0] ?? '') ?: '');
         };
 
         // Carátula (una por envío)
         $rutEmisorCar = $g($sxe, 'SetDTE/Caratula/RutEmisor');
-        if ($rutEmisorCar === '')
+        if ($rutEmisorCar === '') {
             $rutEmisorCar = $g($sxe, 'Caratula/RutEmisor');
+        }
 
         $rutReceptorCar = $g($sxe, 'SetDTE/Caratula/RutReceptor');
-        if ($rutReceptorCar === '')
+        if ($rutReceptorCar === '') {
             $rutReceptorCar = $g($sxe, 'Caratula/RutReceptor');
+        }
 
         // Todos los DTE
         $dteNodes = $sxe->xpath('//*[local-name()="DTE"]') ?: [];
@@ -694,32 +701,37 @@ class DtesController extends Controller
         return ['ok' => true, 'items' => $items];
     }
 
-
-
     private function toIntOrNull($v): ?int
     {
-        if ($v === null)
+        if ($v === null) {
             return null;
+        }
 
         $v = trim((string) $v);
-        if ($v === '')
+        if ($v === '') {
             return null;
+        }
 
         $v = str_replace(["\u{00A0}", ' '], '', $v);
         $v = str_replace('.', '', $v);
 
-        if (!is_numeric($v))
+        if (! is_numeric($v)) {
             return null;
+        }
+
         return (int) $v;
     }
+
     private function toDecimalOrNull($v, int $scale = 4): ?string
     {
-        if ($v === null)
+        if ($v === null) {
             return null;
+        }
 
         $v = trim((string) $v);
-        if ($v === '')
+        if ($v === '') {
             return null;
+        }
 
         // limpia espacios raros
         $v = str_replace(["\u{00A0}", ' '], '', $v);
@@ -732,12 +744,14 @@ class DtesController extends Controller
             $v = str_replace(',', '.', $v);
         }
 
-        if (!is_numeric($v))
+        if (! is_numeric($v)) {
             return null;
+        }
 
         // Devolver como string formateado para DECIMAL (evita errores float)
         return number_format((float) $v, $scale, '.', '');
     }
+
     public function ingresarSeleccionadosInventario(Request $request, $dteId)
     {
         $dte = DB::table('dtes')->where('id', $dteId)->first();
@@ -764,6 +778,7 @@ class DtesController extends Controller
 
             if ($lines->count() === 0) {
                 DB::rollBack();
+
                 return back()->withErrors(['No hay cantidades pendientes para ingresar.']);
             }
 
@@ -771,8 +786,9 @@ class DtesController extends Controller
 
             // líneas del form (si vienen)
             $reqLines = $request->input('lines', []);
-            if (!is_array($reqLines))
+            if (! is_array($reqLines)) {
                 $reqLines = [];
+            }
 
             foreach ($lines as $l) {
 
@@ -801,10 +817,12 @@ class DtesController extends Controller
                 $qtyAIngresar = $qtySolicitada !== null ? $qtySolicitada : $pendiente;
 
                 // sanitizar
-                if ($qtyAIngresar <= 0)
+                if ($qtyAIngresar <= 0) {
                     continue;
-                if ($qtyAIngresar > $pendiente)
+                }
+                if ($qtyAIngresar > $pendiente) {
                     $qtyAIngresar = $pendiente;
+                }
 
                 // costo unitario
                 if ($l->prc_item !== null && is_numeric($l->prc_item)) {
@@ -832,7 +850,7 @@ class DtesController extends Controller
                     'documento_tipo' => 'dtes',
                     'documento_id' => $dteId,
                     'usuario_id' => auth()->id(),
-                    'notas' => 'Entrada por DTE ' . ($dte->tipo_nombre ?? $dte->tipo_dte) . ' #' . $dte->folio,
+                    'notas' => 'Entrada por DTE '.($dte->tipo_nombre ?? $dte->tipo_dte).' #'.$dte->folio,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -879,9 +897,6 @@ class DtesController extends Controller
             throw $e;
         }
     }
-
-
-
 
     private function findOrCreateProductoFromDetalle($l): int
     {
@@ -939,7 +954,7 @@ class DtesController extends Controller
         // 2️⃣ Detectar medida tipo 50 X 60 / 50x60 / 50*60
         $medida = 'STD';
         if (preg_match('/(\d{2,3})\s*[Xx\*]\s*(\d{2,3})/', $nombreUpper, $m)) {
-            $medida = $m[1] . $m[2]; // 50x60 → 5060
+            $medida = $m[1].$m[2]; // 50x60 → 5060
         }
 
         // 3️⃣ Hash corto estable (no aleatorio)
@@ -958,14 +973,13 @@ class DtesController extends Controller
         return $skuFinal;
     }
 
-
     public function updateDetallesSelection(Request $request, $dteId)
     {
         $dte = DB::table('dtes')->where('id', $dteId)->first();
         abort_unless($dte, 404);
 
         $lines = $request->input('lines', []);
-        if (!is_array($lines)) {
+        if (! is_array($lines)) {
             $lines = [];
         }
 
@@ -987,16 +1001,16 @@ class DtesController extends Controller
 
             foreach ($lines as $detalleId => $payload) {
                 $detalleId = (int) $detalleId;
-                if (!$detalles->has($detalleId)) {
+                if (! $detalles->has($detalleId)) {
                     continue;
                 }
 
-                if (!is_array($payload)) {
+                if (! is_array($payload)) {
                     $payload = [];
                 }
 
                 $selected = isset($payload['selected']) && (string) $payload['selected'] === '1';
-                if (!$selected) {
+                if (! $selected) {
                     continue;
                 }
 
@@ -1006,10 +1020,12 @@ class DtesController extends Controller
                 $qty = $payload['qty'] ?? $maxQty;
                 $qty = is_numeric($qty) ? (float) $qty : 0.0;
 
-                if ($qty < 0)
+                if ($qty < 0) {
                     $qty = 0;
-                if ($qty > $maxQty)
+                }
+                if ($qty > $maxQty) {
                     $qty = $maxQty;
+                }
 
                 DB::table('dte_detalles')->where('id', $detalleId)->update([
                     'seleccionado_inventario' => 1,
@@ -1028,7 +1044,6 @@ class DtesController extends Controller
 
         return back()->with('ok', "Selección guardada. Líneas seleccionadas: {$selectedCount}");
     }
-
 
     private function tipoDteNombre(string $tipo): string
     {

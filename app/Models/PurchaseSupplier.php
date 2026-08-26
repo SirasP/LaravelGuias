@@ -17,6 +17,7 @@ class PurchaseSupplier extends Model
     use HasFactory;
 
     public const SOURCE_MANUAL = 'manual';
+
     public const SOURCE_DOCUMENT = 'documento';
 
     protected $fillable = [

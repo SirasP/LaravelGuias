@@ -58,12 +58,16 @@ class RedactarSolicitud extends Command
 
         $this->newLine();
         $this->table(
-            ['N°', 'Producto / Servicio', 'Cantidad', 'Unidad'],
+            ['N°', 'Producto / Servicio', 'Cantidad', 'Unidad', 'Precio unit.', 'Total'],
             collect($sugerencia->items)->map(fn (array $i, int $n): array => [
                 $n + 1,
-                mb_strimwidth($i['product_service'], 0, 40, '…'),
+                mb_strimwidth($i['product_service'], 0, 34, '…'),
                 $i['quantity'] ?? '—',
                 $i['unit'] ?? '—',
+                filled($i['unit_price'] ?? null) ? number_format((float) $i['unit_price'], 0, ',', '.') : '—',
+                filled($i['unit_price'] ?? null) && filled($i['quantity'] ?? null)
+                    ? number_format((float) $i['unit_price'] * (float) $i['quantity'], 0, ',', '.')
+                    : '—',
             ])->all(),
         );
 

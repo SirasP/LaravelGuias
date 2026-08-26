@@ -3,11 +3,10 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Mail\Mailables\Address;
 use Illuminate\Queue\SerializesModels;
 
 class StockBajoMail extends Mailable
@@ -23,8 +22,7 @@ class StockBajoMail extends Mailable
         public float $stockMinimo,
         public ?string $codigoProducto = null,
         public ?string $categoria = null
-    ) {
-    }
+    ) {}
 
     /**
      * Get the message envelope.

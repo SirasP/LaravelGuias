@@ -15,17 +15,29 @@ class PurchaseRequestEvent extends Model
     public const UPDATED_AT = null;
 
     public const CREATED = 'created';
+
     public const UPDATED = 'updated';
+
     public const SUBMITTED = 'submitted';
+
     public const RESUBMITTED = 'resubmitted';
+
     public const APPROVED = 'approved';
+
     public const CHANGES_REQUESTED = 'changes_requested';
+
     public const REJECTED = 'rejected';
+
     public const ATTACHMENT_ADDED = 'attachment_added';
+
     public const ATTACHMENT_REMOVED = 'attachment_removed';
+
     public const CANCELLED = 'cancelled';
+
     public const CANCELLATION_REQUESTED = 'cancellation_requested';
+
     public const CANCELLATION_WITHDRAWN = 'cancellation_withdrawn';
+
     public const AI_DRAFTED = 'ai_drafted';
 
     protected $fillable = [

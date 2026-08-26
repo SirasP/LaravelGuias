@@ -15,9 +15,13 @@ use Illuminate\Support\Facades\Schema;
 class GmailDteDocumentController extends Controller
 {
     private const FACTURA_TYPES = [33, 34, 56, 61];
+
     private const BOLETA_TYPES = [39, 41];
+
     private const GUIA_TYPES = [52];
+
     private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
+
     private const BODEGA_TALLER_MECANICO = 2;
 
     public function index()
@@ -197,12 +201,13 @@ class GmailDteDocumentController extends Controller
                 $summary['por_validar_monto'] += $montoConIva;
             }
 
-            if (!$isPaid) {
+            if (! $isPaid) {
                 $venc = $doc->fecha_vencimiento ? \Carbon\Carbon::parse($doc->fecha_vencimiento)->startOfDay() : null;
-                if (!$venc) {
+                if (! $venc) {
                     $summary['por_pagar_count']++;
                     $summary['por_pagar_monto'] += $saldoPendiente;
                     $aging['no_adeudado']++;
+
                     continue;
                 }
 
@@ -281,8 +286,7 @@ class GmailDteDocumentController extends Controller
         $providerRut = $this->normalizeRut($document->proveedor_rut ?? null);
 
         if ($providerRut !== '') {
-            $rutMatches = $candidates->filter(fn (OdooAccountMove $candidate) =>
-                $this->normalizeRut($candidate->partner_vat) === $providerRut
+            $rutMatches = $candidates->filter(fn (OdooAccountMove $candidate) => $this->normalizeRut($candidate->partner_vat) === $providerRut
             )->values();
 
             if ($rutMatches->count() === 1) {
@@ -375,8 +379,8 @@ class GmailDteDocumentController extends Controller
         // o "1" (un solo account ID). Cada parte es un odoo_id de OdooAnalyticAccount.
         $analyticIds = $rawLines
             ->whereNotNull('analytic_distribution')
-            ->flatMap(fn($l) => collect(array_keys($l->analytic_distribution ?? []))
-                ->flatMap(fn($k) => array_map('intval', explode(',', $k)))
+            ->flatMap(fn ($l) => collect(array_keys($l->analytic_distribution ?? []))
+                ->flatMap(fn ($k) => array_map('intval', explode(',', $k)))
             )->unique()->values()->toArray();
 
         $analyticNames = OdooAnalyticAccount::whereIn('odoo_id', $analyticIds)
@@ -392,9 +396,10 @@ class GmailDteDocumentController extends Controller
                     // Cada parte de la clave es un account_odoo_id independiente
                     return collect(array_map('intval', explode(',', $key)))
                         ->map(function ($accId) use ($pct, $analyticNames) {
-                            $acc  = $analyticNames->get($accId);
+                            $acc = $analyticNames->get($accId);
                             $name = $acc ? ($acc->name_es ?: $acc->name) : null;
                             $plan = $acc ? $acc->plan_name : null;
+
                             return $name ? ['id' => $accId, 'name' => $name, 'plan' => $plan, 'pct' => (int) $pct] : null;
                         })
                         ->filter();
@@ -403,31 +408,31 @@ class GmailDteDocumentController extends Controller
                 ->toArray();
 
             return [
-                'line_id'         => $l->id,
+                'line_id' => $l->id,
                 'account_odoo_id' => $l->account_odoo_id,
-                'account_code'    => $l->account_code,
+                'account_code' => $l->account_code,
                 'account_name_es' => $l->account_name_es ?: $l->account_name,
                 'account_name_en' => $l->account_name,
-                'description'     => $l->name ?: '—',
-                'debit'           => (float) $l->debit,
-                'credit'          => (float) $l->credit,
-                'analytic'        => $analytic,
-                'taxes'           => $l->taxes ?? [],
-                'editable'        => $isDraft,
+                'description' => $l->name ?: '—',
+                'debit' => (float) $l->debit,
+                'credit' => (float) $l->credit,
+                'analytic' => $analytic,
+                'taxes' => $l->taxes ?? [],
+                'editable' => $isDraft,
             ];
         })->values();
 
         return response()->json([
             'found' => true,
-            'move'  => [
-                'name'         => $move->name,
-                'ref'          => $move->ref,
-                'state'        => $move->state,
-                'partner'      => $move->partner_name,
+            'move' => [
+                'name' => $move->name,
+                'ref' => $move->ref,
+                'state' => $move->state,
+                'partner' => $move->partner_name,
                 'invoice_date' => $move->invoice_date,
                 'amount_total' => (float) $move->amount_total,
             ],
-            'lines'    => $lines,
+            'lines' => $lines,
             'is_draft' => $isDraft,
         ]);
     }
@@ -439,17 +444,17 @@ class GmailDteDocumentController extends Controller
     {
         $accounts = \App\Models\OdooAccount::orderBy('code')
             ->get(['odoo_id', 'code', 'name_es', 'name', 'account_type'])
-            ->map(fn($a) => [
+            ->map(fn ($a) => [
                 'odoo_id' => $a->odoo_id,
-                'code'    => $a->code,
-                'label'   => $a->code . ' ' . ($a->name_es ?: $a->name),
+                'code' => $a->code,
+                'label' => $a->code.' '.($a->name_es ?: $a->name),
             ]);
 
         $analytic = OdooAnalyticAccount::orderBy('plan_complete_name')->orderBy('name_es')
             ->get(['odoo_id', 'name_es', 'name', 'plan_name', 'plan_complete_name'])
-            ->map(fn($a) => [
-                'odoo_id'   => $a->odoo_id,
-                'name'      => $a->name_es ?: $a->name,
+            ->map(fn ($a) => [
+                'odoo_id' => $a->odoo_id,
+                'name' => $a->name_es ?: $a->name,
                 'plan_name' => $a->plan_name,
             ]);
 
@@ -471,7 +476,7 @@ class GmailDteDocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'account_odoo_id'       => 'nullable|integer|exists:odoo_accounts,odoo_id',
+            'account_odoo_id' => 'nullable|integer|exists:odoo_accounts,odoo_id',
             'analytic_distribution' => 'nullable|array',
         ]);
 
@@ -482,8 +487,8 @@ class GmailDteDocumentController extends Controller
         if (array_key_exists('account_odoo_id', $validated) && $validated['account_odoo_id']) {
             $acc = \App\Models\OdooAccount::where('odoo_id', $validated['account_odoo_id'])->first();
             $updates['account_odoo_id'] = $acc->odoo_id;
-            $updates['account_code']    = $acc->code;
-            $updates['account_name']    = $acc->name;
+            $updates['account_code'] = $acc->code;
+            $updates['account_name'] = $acc->name;
             $updates['account_name_es'] = $acc->name_es ?: $acc->name;
         }
 
@@ -548,7 +553,7 @@ class GmailDteDocumentController extends Controller
 
         $db = DB::connection('fuelcontrol');
         $document = $db->table('gmail_dte_documents')->where('id', $id)->first();
-        if (!$document) {
+        if (! $document) {
             return back()->with('warning', 'Documento no encontrado.');
         }
 
@@ -570,7 +575,7 @@ class GmailDteDocumentController extends Controller
                 'updated_at' => now(),
             ]);
 
-        if (!$updated) {
+        if (! $updated) {
             return back()->with('warning', 'No se pudo actualizar la línea.');
         }
 
@@ -723,18 +728,18 @@ class GmailDteDocumentController extends Controller
         try {
             $fcm->send(
                 appType: 'mantencion',
-                title:   '📦 Stock actualizado — Taller Mecánico',
-                body:    'Se ingresó nuevo stock. Toca para ver el inventario actualizado.',
+                title: '📦 Stock actualizado — Taller Mecánico',
+                body: 'Se ingresó nuevo stock. Toca para ver el inventario actualizado.',
                 data: [
-                    'tipo'        => 'stock_ingreso',
-                    'bodega_id'   => (string) $bodegaId,
+                    'tipo' => 'stock_ingreso',
+                    'bodega_id' => (string) $bodegaId,
                     'movement_id' => (string) $movementId,
                     'document_id' => (string) $documentId,
-                    'timestamp'   => now()->toIso8601String(),
+                    'timestamp' => now()->toIso8601String(),
                 ],
             );
         } catch (\Throwable $e) {
-            Log::warning('[FCM Mantención] Error enviando push: ' . $e->getMessage());
+            Log::warning('[FCM Mantención] Error enviando push: '.$e->getMessage());
         }
     }
 
@@ -768,19 +773,19 @@ class GmailDteDocumentController extends Controller
                 ->groupBy('product_id')
                 ->pluck('stock', 'product_id');
 
-            $totalProducts      = $products->count();
-            $totalActivos       = $products->where('is_active', 1)->count();
-            $totalInactivos     = $products->where('is_active', 0)->count();
-            $totalConStock      = $stockPorProducto->filter(fn($s) => (float) $s > 0)->count();
-            $totalSinStock      = max(0, $totalProducts - $totalConStock);
-            $stockTotalUnidades = $stockPorProducto->sum(fn($s) => (float) $s);
-            $valorInventario    = $products->sum(function ($p) use ($stockPorProducto) {
+            $totalProducts = $products->count();
+            $totalActivos = $products->where('is_active', 1)->count();
+            $totalInactivos = $products->where('is_active', 0)->count();
+            $totalConStock = $stockPorProducto->filter(fn ($s) => (float) $s > 0)->count();
+            $totalSinStock = max(0, $totalProducts - $totalConStock);
+            $stockTotalUnidades = $stockPorProducto->sum(fn ($s) => (float) $s);
+            $valorInventario = $products->sum(function ($p) use ($stockPorProducto) {
                 return (float) ($stockPorProducto->get($p->id) ?? 0) * (float) ($p->costo_promedio ?? 0);
             });
 
             $unidadResumen = $products
-                ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
-                ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
+                ->groupBy(fn ($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
+                ->map(fn ($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
                 ->sortByDesc('cantidad')
                 ->take(6)
                 ->values();
@@ -791,19 +796,19 @@ class GmailDteDocumentController extends Controller
                 ->select(['is_active', 'stock_actual', 'costo_promedio', 'unidad'])
                 ->get();
 
-            $totalProducts      = $products->count();
-            $totalActivos       = $products->where('is_active', 1)->count();
-            $totalInactivos     = $products->where('is_active', 0)->count();
-            $totalConStock      = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) > 0)->count();
-            $totalSinStock      = $products->filter(fn($p) => (float) ($p->stock_actual ?? 0) <= 0)->count();
-            $stockTotalUnidades = $products->sum(fn($p) => (float) ($p->stock_actual ?? 0));
-            $valorInventario    = $products->sum(function ($p) {
+            $totalProducts = $products->count();
+            $totalActivos = $products->where('is_active', 1)->count();
+            $totalInactivos = $products->where('is_active', 0)->count();
+            $totalConStock = $products->filter(fn ($p) => (float) ($p->stock_actual ?? 0) > 0)->count();
+            $totalSinStock = $products->filter(fn ($p) => (float) ($p->stock_actual ?? 0) <= 0)->count();
+            $stockTotalUnidades = $products->sum(fn ($p) => (float) ($p->stock_actual ?? 0));
+            $valorInventario = $products->sum(function ($p) {
                 return (float) ($p->stock_actual ?? 0) * (float) ($p->costo_promedio ?? 0);
             });
 
             $unidadResumen = $products
-                ->groupBy(fn($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
-                ->map(fn($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
+                ->groupBy(fn ($p) => strtoupper(trim((string) ($p->unidad ?? 'SIN UNIDAD'))))
+                ->map(fn ($items, $unidad) => ['unidad' => $unidad, 'cantidad' => $items->count()])
                 ->sortByDesc('cantidad')
                 ->take(6)
                 ->values();
@@ -818,15 +823,15 @@ class GmailDteDocumentController extends Controller
 
     public function inventoryList(Request $request)
     {
-        $q        = trim((string) $request->query('q', ''));
-        $estado   = trim((string) $request->query('estado', ''));
-        $stock    = trim((string) $request->query('stock', ''));
+        $q = trim((string) $request->query('q', ''));
+        $estado = trim((string) $request->query('estado', ''));
+        $stock = trim((string) $request->query('stock', ''));
         $bodegaId = $request->query('bodega_id') !== null
             ? (int) $request->query('bodega_id')
             : null;   // null = todas las bodegas
 
         // Bodegas disponibles (DB principal)
-        $bodegas     = DB::table('bodegas')->orderByDesc('es_principal')->orderBy('nombre')->get();
+        $bodegas = DB::table('bodegas')->orderByDesc('es_principal')->orderBy('nombre')->get();
         $bodegaNames = $bodegas->pluck('nombre', 'id');
 
         // Cantidad de productos con stock en cada bodega (para los chips)
@@ -849,8 +854,8 @@ class GmailDteDocumentController extends Controller
                         ->orWhere('unidad', 'like', "%{$q}%");
                 });
             })
-            ->when($estado === 'activos',   fn($query) => $query->where('is_active', 1))
-            ->when($estado === 'inactivos', fn($query) => $query->where('is_active', 0))
+            ->when($estado === 'activos', fn ($query) => $query->where('is_active', 1))
+            ->when($estado === 'inactivos', fn ($query) => $query->where('is_active', 0))
             // Filtro por bodega: productos que tienen CUALQUIER lote en esa bodega (con o sin stock)
             ->when($bodegaId !== null, function ($query) use ($bodegaId) {
                 $query->whereExists(function ($sub) use ($bodegaId) {
@@ -883,9 +888,9 @@ class GmailDteDocumentController extends Controller
                 });
         } else {
             $baseQuery = $baseQuery
-                ->when($stock === 'con_stock', fn($q) => $q->where('stock_actual', '>', 0))
-                ->when($stock === 'sin_stock', fn($q) => $q->where('stock_actual', '<=', 0))
-                ->when($stock === 'bajo_minimo', fn($q) => $q->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo'));
+                ->when($stock === 'con_stock', fn ($q) => $q->where('stock_actual', '>', 0))
+                ->when($stock === 'sin_stock', fn ($q) => $q->where('stock_actual', '<=', 0))
+                ->when($stock === 'bajo_minimo', fn ($q) => $q->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo'));
         }
 
         $products = (clone $baseQuery)->orderBy('nombre')->paginate(30)->withQueryString();
@@ -900,7 +905,7 @@ class GmailDteDocumentController extends Controller
                     ->whereColumn('product_id', 'gmail_inventory_products.id')
                     ->where('bodega_id', $bodegaId);
             });
-            $totalActivos  = (clone $kpiBase)->where('is_active', 1)->count();
+            $totalActivos = (clone $kpiBase)->where('is_active', 1)->count();
             $totalInactivos = (clone $kpiBase)->where('is_active', 0)->count();
             // Con stock = tiene lote ABIERTO con cantidad > 0 en esa bodega
             $totalConStock = (clone $kpiBase)->whereExists(function ($sub) use ($bodegaId) {
@@ -920,10 +925,10 @@ class GmailDteDocumentController extends Controller
             })->count();
             $totalBajoMinimo = 0;
         } else {
-            $totalActivos    = (clone $kpiBase)->where('is_active', 1)->count();
-            $totalInactivos  = (clone $kpiBase)->where('is_active', 0)->count();
-            $totalConStock   = (clone $kpiBase)->where('stock_actual', '>', 0)->count();
-            $totalSinStock   = (clone $kpiBase)->where('stock_actual', '<=', 0)->count();
+            $totalActivos = (clone $kpiBase)->where('is_active', 1)->count();
+            $totalInactivos = (clone $kpiBase)->where('is_active', 0)->count();
+            $totalConStock = (clone $kpiBase)->where('stock_actual', '>', 0)->count();
+            $totalSinStock = (clone $kpiBase)->where('stock_actual', '<=', 0)->count();
             $totalBajoMinimo = (clone $kpiBase)->whereNotNull('stock_minimo')->whereRaw('stock_actual < stock_minimo')->count();
         }
 
@@ -995,11 +1000,11 @@ class GmailDteDocumentController extends Controller
                 return trim(preg_replace('/^Imp\\. adic\\./i', 'Impuesto específico', $fallback));
             }
 
-            return $code !== '' ? ('Impuesto específico ' . $code) : 'Impuesto específico';
+            return $code !== '' ? ('Impuesto específico '.$code) : 'Impuesto específico';
         };
 
         $add = function (string $key, string $label, ?float $monto, bool $informado = true) use (&$summary): void {
-            if (!isset($summary[$key])) {
+            if (! isset($summary[$key])) {
                 $summary[$key] = [
                     'label' => $label,
                     'monto' => 0.0,
@@ -1007,7 +1012,7 @@ class GmailDteDocumentController extends Controller
                 ];
             }
 
-            if (!is_null($monto)) {
+            if (! is_null($monto)) {
                 $summary[$key]['monto'] += (float) $monto;
                 $summary[$key]['informado'] = true;
             } elseif ($informado) {
@@ -1023,12 +1028,12 @@ class GmailDteDocumentController extends Controller
         foreach ($lines as $line) {
             foreach (($line->taxes ?? collect()) as $tax) {
                 $type = strtoupper((string) ($tax->tax_type ?? 'TAX'));
-                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto ' . ($tax->codigo ?? ''));
+                $label = trim((string) ($tax->descripcion ?? '')) ?: ('Impuesto '.($tax->codigo ?? ''));
                 if ($type === 'IMP_ADIC') {
                     $label = $resolveImpAdicLabel((string) ($tax->codigo ?? ''), $label);
                 }
                 $monto = is_null($tax->monto) ? null : (float) $tax->monto;
-                $add($type . '|' . $label, $label, $monto, !is_null($monto));
+                $add($type.'|'.$label, $label, $monto, ! is_null($monto));
             }
         }
 
@@ -1044,7 +1049,7 @@ class GmailDteDocumentController extends Controller
                 if ($tot) {
                     $tasaIva = trim((string) ($tot->TasaIVA ?? ''));
                     if ($tasaIva !== '' && isset($summary['IVA'])) {
-                        $summary['IVA']['label'] = 'IVA ' . rtrim(rtrim($tasaIva, '0'), '.') . '%';
+                        $summary['IVA']['label'] = 'IVA '.rtrim(rtrim($tasaIva, '0'), '.').'%';
                     }
 
                     $mntImp = (float) ((string) ($tot->MntImp ?? 0));
@@ -1068,7 +1073,7 @@ class GmailDteDocumentController extends Controller
                             $mntImpLabel = 'Impuestos específicos (incluye IEC Diesel)';
                         }
 
-                        $add('MntImp|' . $mntImpLabel, $mntImpLabel, $mntImp, true);
+                        $add('MntImp|'.$mntImpLabel, $mntImpLabel, $mntImp, true);
                     }
 
                     if (isset($tot->ImptoReten)) {
@@ -1079,19 +1084,19 @@ class GmailDteDocumentController extends Controller
 
                             $label = 'Impuesto retenido';
                             if ($tipo !== '') {
-                                $label .= ' ' . $tipo;
+                                $label .= ' '.$tipo;
                             }
                             if ($tasa !== '') {
-                                $label .= ' (' . rtrim(rtrim($tasa, '0'), '.') . '%)';
+                                $label .= ' ('.rtrim(rtrim($tasa, '0'), '.').'%)';
                             }
 
-                            $add('RET|' . $label, $label, $monto, !is_null($monto));
+                            $add('RET|'.$label, $label, $monto, ! is_null($monto));
                         }
                     }
 
                     foreach ($tot->children() as $child) {
                         $name = $child->getName();
-                        if (!str_starts_with($name, 'Mnt')) {
+                        if (! str_starts_with($name, 'Mnt')) {
                             continue;
                         }
                         if (in_array($name, ['MntNeto', 'MntTotal', 'MntImp'], true)) {
@@ -1107,7 +1112,7 @@ class GmailDteDocumentController extends Controller
                             'MntExe' => 'Monto exento',
                             default => $name,
                         };
-                        $add('TOT|' . $name, $label, $value, true);
+                        $add('TOT|'.$name, $label, $value, true);
                     }
                 }
             }

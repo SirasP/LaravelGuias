@@ -6,24 +6,18 @@ use App\Models\PdfImport;
 use App\Models\PdfLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\Process\Process;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use App\Models\AgrakRegistro;
-use App\Http\Controllers\ExcelDate;
-use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
 
-
-use SimpleXMLElement;
 class PdfImportController extends Controller
 {
-
-
     public function create()
     {
         $lastImport = PdfImport::latest('id')->first();
+
         return view('pdf.import', compact('lastImport'));
     }
 
@@ -56,14 +50,12 @@ class PdfImportController extends Controller
             // 2) Parse según template (QC / MP)
             $data = null;
 
-
             if ($template === 'QC') {
                 $data = $this->parseQC($lines);
             } elseif ($template === 'MP') {
                 $data = $this->parseMP($lines);
             } elseif ($template === 'SANCO') {
                 $data = $this->parseGuiaRecepcion($lines);
-
 
                 // ✅ Normaliza para que el resto del flujo funcione igual
                 $data['guia_no'] = $data['numero_guia'] ?? null;
@@ -84,8 +76,9 @@ class PdfImportController extends Controller
                 foreach ($recepciones as $r) {
 
                     $guia = $r['guia_no'] ?? null;
-                    if (!$guia) {
+                    if (! $guia) {
                         $skippedNoGuia++;
+
                         continue;
                     }
                     if (PdfImport::where('guia_no', $guia)->exists()) {
@@ -96,6 +89,7 @@ class PdfImportController extends Controller
                             'template' => 'LIQ_COMPUAGRO',
                             'guia' => $guia,
                         ];
+
                         continue;
                     }
 
@@ -161,12 +155,10 @@ class PdfImportController extends Controller
                 ];
             }
 
-
             $guia = $data['guia_no'] ?? $data['numero_guia'] ?? null;
 
-
             // si no detecta template o data
-            if (!$template || !$data) {
+            if (! $template || ! $data) {
                 $report[] = [
                     'file' => $originalName,
                     'status' => 'skip',
@@ -175,6 +167,7 @@ class PdfImportController extends Controller
                     'guia' => $guia,
                 ];
                 $skippedNoGuia++;
+
                 continue;
             }
 
@@ -188,6 +181,7 @@ class PdfImportController extends Controller
                     'template' => $template,
                     'guia' => null,
                 ];
+
                 continue;
             }
             // 4) DEDUPE GLOBAL por guia_no (🔥 CLAVE)
@@ -200,9 +194,9 @@ class PdfImportController extends Controller
                     'template' => $template,
                     'guia' => $guia,
                 ];
+
                 continue;
             }
-
 
             // 5) Recién aquí guardas el archivo
             $path = $file->store('imports/pdfs', $disk);
@@ -252,8 +246,6 @@ class PdfImportController extends Controller
             ->with('import_report', $report); // ✅
     }
 
-
-
     private function parseQC(array $lines): array
     {
         $text = implode("\n", $lines);
@@ -278,7 +270,7 @@ class PdfImportController extends Controller
 
         // ✅ Kilos (QC): aparece como "Kilos:" y el número en la(s) línea(s) siguiente(s)
         // ✅ Kilos (QC): soporta "Kilos:" solo, "Kilos: 1.234,56" en la misma línea,
-// y tolera que haya "Prom.Band:" u otros rótulos entre medio.
+        // y tolera que haya "Prom.Band:" u otros rótulos entre medio.
         $kgs = null;
 
         for ($i = 0; $i < count($lines); $i++) {
@@ -296,8 +288,9 @@ class PdfImportController extends Controller
                     $next = $lines[$i + $k] ?? '';
                     $nextTrim = trim($next);
 
-                    if ($nextTrim === '')
+                    if ($nextTrim === '') {
                         continue;
+                    }
 
                     // Extrae el primer número aunque haya texto/espacios raros alrededor
                     if (preg_match('/([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]+|[0-9]+(?:[.,][0-9]+)?)/u', $nextTrim, $m2)) {
@@ -308,7 +301,6 @@ class PdfImportController extends Controller
                 }
             }
         }
-
 
         // ✅ (Opcional) Kgs netos desde "RESULTADO ANALISIS" (IQF / PULPA)
         $iqfKgNetos = null;
@@ -341,7 +333,7 @@ class PdfImportController extends Controller
             }
         }
 
-        $totalBandejas = array_sum(array_map(fn($b) => $b['cantidad'], $bandejas));
+        $totalBandejas = array_sum(array_map(fn ($b) => $b['cantidad'], $bandejas));
 
         return [
             'guia_no' => $guia,
@@ -426,15 +418,15 @@ class PdfImportController extends Controller
 
                 $parts = [];
 
-                if ($p1 !== '' && !preg_match($stopRe, $p1)) {
+                if ($p1 !== '' && ! preg_match($stopRe, $p1)) {
                     $parts[] = $p1;
                 }
 
-                if ($p2 !== '' && !preg_match($stopRe, $p2)) {
+                if ($p2 !== '' && ! preg_match($stopRe, $p2)) {
                     $parts[] = $p2;
                 }
 
-                if (!empty($parts)) {
+                if (! empty($parts)) {
                     $proveedor = trim(implode(' ', $parts));
                 }
 
@@ -502,20 +494,19 @@ class PdfImportController extends Controller
         $dmy = trim($dmy);
 
         // Espera dd/mm/yyyy
-        if (!preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $dmy, $m)) {
+        if (! preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $dmy, $m)) {
             return null;
         }
 
         [$all, $dd, $mm, $yyyy] = $m;
 
         // valida fecha real
-        if (!checkdate((int) $mm, (int) $dd, (int) $yyyy)) {
+        if (! checkdate((int) $mm, (int) $dd, (int) $yyyy)) {
             return null;
         }
 
         return sprintf('%04d-%02d-%02d', (int) $yyyy, (int) $mm, (int) $dd);
     }
-
 
     public function showJson(int $id)
     {
@@ -524,7 +515,7 @@ class PdfImportController extends Controller
         return response()->json([
             'id' => $import->id,
             'template' => $import->template,
-            'lines' => $import->lines->map(fn($l) => [$l->line_no, $l->content]),
+            'lines' => $import->lines->map(fn ($l) => [$l->line_no, $l->content]),
         ]);
     }
 
@@ -549,17 +540,17 @@ class PdfImportController extends Controller
         $currentYear = $now->year;
         $currentMonth = $now->month;
         if ($currentMonth >= 6) {
-            $currentSeason = $currentYear . '/' . ($currentYear + 1);
-            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+            $currentSeason = $currentYear.'/'.($currentYear + 1);
+            $nextSeason = ($currentYear + 1).'/'.($currentYear + 2);
         } else {
-            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
-            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+            $currentSeason = ($currentYear - 1).'/'.$currentYear;
+            $nextSeason = $currentYear.'/'.($currentYear + 1);
         }
 
-        if (!in_array($currentSeason, $availableSeasons)) {
+        if (! in_array($currentSeason, $availableSeasons)) {
             $availableSeasons[] = $currentSeason;
         }
-        if (!in_array($nextSeason, $availableSeasons)) {
+        if (! in_array($nextSeason, $availableSeasons)) {
             $availableSeasons[] = $nextSeason;
         }
 
@@ -585,7 +576,7 @@ class PdfImportController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $query->whereBetween('created_at', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -607,7 +598,6 @@ class PdfImportController extends Controller
                 }
             });
         }
-
 
         // ===== Orden =====
         if ($orderBy === 'doc_fecha') {
@@ -631,14 +621,11 @@ class PdfImportController extends Controller
         $imports = $query->paginate(15)->withQueryString();
 
         return view('pdf.index', compact(
-            'imports', 'q', 'model', 'orderBy', 'dir', 
+            'imports', 'q', 'model', 'orderBy', 'dir',
             'availableSeasons', 'season',
             'totalImports', 'xmlImports', 'sancoImports', 'qcImports'
         ));
     }
-
-
-
 
     public function show(int $id)
     {
@@ -653,11 +640,10 @@ class PdfImportController extends Controller
         return view('pdf.show', compact('import', 'xmlTotals'));
     }
 
-
     private function calculateXml46Totals(PdfImport $import): array
     {
         // 👉 EL XML ESTÁ EN DISCO LOCAL
-        if (!Storage::disk('local')->exists($import->stored_path)) {
+        if (! Storage::disk('local')->exists($import->stored_path)) {
             return ['bandejas' => 0, 'kilos' => 0];
         }
 
@@ -666,7 +652,7 @@ class PdfImportController extends Controller
         libxml_use_internal_errors(true);
 
         $xml = simplexml_load_string($xmlContent);
-        if (!$xml) {
+        if (! $xml) {
             return ['bandejas' => 0, 'kilos' => 0];
         }
 
@@ -700,21 +686,20 @@ class PdfImportController extends Controller
             'pdftotext',
             '-layout',
             $pdfPath,
-            '-'
+            '-',
         ]);
 
         $process->setTimeout(120);
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             throw new \RuntimeException(
-                'Error ejecutando pdftotext: ' . $process->getErrorOutput()
+                'Error ejecutando pdftotext: '.$process->getErrorOutput()
             );
         }
 
         return $process->getOutput();
     }
-
 
     private function toLines(string $text): array
     {
@@ -723,8 +708,9 @@ class PdfImportController extends Controller
         $out = [];
         foreach (explode("\n", $text) as $line) {
             $line = trim($line);
-            if ($line === '')
+            if ($line === '') {
                 continue;
+            }
             $out[] = $line;
         }
 
@@ -745,11 +731,13 @@ class PdfImportController extends Controller
         ];
         $qcHits = 0;
         foreach ($qcNeedles as $n) {
-            if (str_contains($head, $n))
+            if (str_contains($head, $n)) {
                 $qcHits++;
+            }
         }
-        if ($qcHits >= 2)
+        if ($qcHits >= 2) {
             return 'QC';
+        }
 
         if (
             str_contains($head, 'reporte recepcion') ||
@@ -760,12 +748,15 @@ class PdfImportController extends Controller
         }
 
         // Tus modelos anteriores (ejemplos)
-        if (str_contains($head, 'factura'))
+        if (str_contains($head, 'factura')) {
             return 'A';
-        if (str_contains($head, 'guía de despacho') || str_contains($head, 'guia de despacho'))
+        }
+        if (str_contains($head, 'guía de despacho') || str_contains($head, 'guia de despacho')) {
             return 'B';
-        if (str_contains($head, 'orden de compra'))
+        }
+        if (str_contains($head, 'orden de compra')) {
             return 'C';
+        }
         if (
             str_contains($head, 'guia recepcion de fruta granel') ||
             str_contains($head, 'guía recepcion de fruta granel') ||
@@ -793,6 +784,7 @@ class PdfImportController extends Controller
 
             return 'GUIA_RECEPCION_RESUMEN';
         }
+
         // 🔥🔥🔥 ESTE RETURN FALTABA 🔥🔥🔥
         return null;
     }
@@ -832,7 +824,7 @@ class PdfImportController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $q->whereBetween('created_at', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -842,7 +834,7 @@ class PdfImportController extends Controller
 
         $imports = $q->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Bandejas');
 
@@ -857,8 +849,9 @@ class PdfImportController extends Controller
         foreach ($imports as $imp) {
 
             $meta = is_string($imp->meta) ? json_decode($imp->meta, true) : ($imp->meta ?? []);
-            if (!is_array($meta))
+            if (! is_array($meta)) {
                 $meta = [];
+            }
 
             $template = trim((string) $imp->template);
 
@@ -880,6 +873,7 @@ class PdfImportController extends Controller
                         ], null, "A{$row}");
                         $row++;
                     }
+
                     continue;
                 }
 
@@ -893,6 +887,7 @@ class PdfImportController extends Controller
                     is_null($totalKgs) ? '' : (float) $totalKgs,
                 ], null, "A{$row}");
                 $row++;
+
                 continue;
             }
 
@@ -930,49 +925,33 @@ class PdfImportController extends Controller
         }
 
         if ($row > 2) {
-            $sheet->getStyle("C2:C" . ($row - 1))->getNumberFormat()->setFormatCode('#,##0.00');
-            $sheet->getStyle("D2:D" . ($row - 1))->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle('C2:C'.($row - 1))->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle('D2:D'.($row - 1))->getNumberFormat()->setFormatCode('#,##0.00');
         }
 
         $writer = new Xlsx($spreadsheet);
-        $filename = 'bandejas_kgs_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'bandejas_kgs_'.now()->format('Ymd_His').'.xlsx';
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
         }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'max-age=0',
         ]);
     }
-
 
     public function ver(int $id)
     {
         $import = PdfImport::findOrFail($id);
 
-        $absolutePath = storage_path('app/private/' . $import->stored_path);
+        $absolutePath = storage_path('app/private/'.$import->stored_path);
 
         return response()->file($absolutePath, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $import->original_name . '"'
+            'Content-Disposition' => 'inline; filename="'.$import->original_name.'"',
         ]);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     /**
      * Parse Recepciones desde Liquidación de Productores COMPUAGRO
@@ -988,6 +967,7 @@ class PdfImportController extends Controller
             $raw = str_replace([' ', "\u{00A0}"], '', $raw);
             $raw = str_replace('.', '', $raw);
             $raw = str_replace(',', '.', $raw);
+
             return is_numeric($raw) ? (float) $raw : null;
         };
 
@@ -1025,8 +1005,8 @@ class PdfImportController extends Controller
             }
 
             // =======================
-// PRODUCTOR
-// =======================
+            // PRODUCTOR
+            // =======================
             if (
                 stripos($l, 'Productor') !== false &&
                 preg_match('/Productor\s*:\s*(.+?)\s{2,}/iu', $l, $m)
@@ -1035,8 +1015,8 @@ class PdfImportController extends Controller
             }
 
             // =======================
-// PRODUCTO
-// =======================
+            // PRODUCTO
+            // =======================
             if (
                 stripos($l, 'Producto') !== false &&
                 preg_match('/Producto\s*:\s*(.+?)\s{2,}/iu', $l, $m)
@@ -1045,19 +1025,19 @@ class PdfImportController extends Controller
             }
 
             // =======================
-// VARIEDAD (línea siguiente)
-// =======================
+            // VARIEDAD (línea siguiente)
+            // =======================
             if (
                 $doc['producto'] &&
-                !$doc['variedad'] &&
+                ! $doc['variedad'] &&
                 preg_match('/^[A-Za-zÁÉÍÓÚÑñ]+$/u', trim($l))
             ) {
                 $doc['variedad'] = trim($l);
             }
 
             // =======================
-// PERIODO CONTRATO
-// =======================
+            // PERIODO CONTRATO
+            // =======================
             if (
                 stripos($l, 'Periodo Contrato') !== false &&
                 preg_match('/Periodo\s+Contrato\s*:\s*(\d{2}-\d{2}-\d{4}\s+al\s+\d{2}-\d{2}-\d{4})/iu', $l, $m)
@@ -1066,16 +1046,14 @@ class PdfImportController extends Controller
             }
 
             // =======================
-// PERIODO LIQUIDACIÓN
-// =======================
+            // PERIODO LIQUIDACIÓN
+            // =======================
             if (
                 stripos($l, 'Periodo Liquidación') !== false &&
                 preg_match('/Periodo\s+Liquidaci[oó]n\s*:\s*(\d{2}-\d{2}-\d{4}\s+al\s+\d{2}-\d{2}-\d{4})/iu', $l, $m)
             ) {
                 $doc['periodo_liquidacion'] = $m[1];
             }
-
-
 
             // =======================
             // NUEVA RECEPCIÓN
@@ -1107,6 +1085,7 @@ class PdfImportController extends Controller
                     'total_neto' => null,
                 ];
                 $skipCurrent = false;
+
                 continue;
             }
 
@@ -1209,7 +1188,7 @@ class PdfImportController extends Controller
                     $m
                 )
             ) {
-                if (!$skipCurrent) {
+                if (! $skipCurrent) {
                     $current['total_kgs'] = $toFloat($m[1]);
                     $current['total_neto'] = $toFloat($m[2]);
                     $recepciones[] = $current;
@@ -1225,8 +1204,6 @@ class PdfImportController extends Controller
             'recepciones' => $recepciones,
         ];
     }
-
-
 
     private function parseGuiaRecepcionResumen(array $lines): array
     {
@@ -1279,5 +1256,4 @@ class PdfImportController extends Controller
 
         return $data;
     }
-
 }

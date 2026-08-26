@@ -101,6 +101,8 @@ class PurchaseRequestSnapshotService
             'requested_for_name' => $purchaseRequest->requested_for_name,
             'reason' => $purchaseRequest->reason,
             'priority' => $purchaseRequest->priority,
+            'currency' => $purchaseRequest->currency,
+            'total' => filled($purchaseRequest->total()) ? (string) $purchaseRequest->total() : null,
             'urgent_reason' => $purchaseRequest->urgent_reason,
             'cost_center' => $purchaseRequest->cost_center,
             'delivery_location' => $purchaseRequest->delivery_location,
@@ -121,6 +123,8 @@ class PurchaseRequestSnapshotService
                 // serializar a JSON y volver.
                 'quantity' => (string) $item->quantity,
                 'unit' => $item->unit,
+                'unit_price' => filled($item->unit_price) ? (string) $item->unit_price : null,
+                'line_total' => filled($item->unit_price) ? (string) $item->lineTotal() : null,
                 'quantity_note' => $item->quantity_note,
                 'destination' => $item->destination,
             ])

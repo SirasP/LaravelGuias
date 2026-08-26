@@ -36,9 +36,9 @@ class OdooAccountMove extends Model
     {
         return match ($this->state) {
             'posted' => 'Confirmado',
-            'draft'  => 'Borrador',
+            'draft' => 'Borrador',
             'cancel' => 'Cancelado',
-            default  => $this->state ?? '—',
+            default => $this->state ?? '—',
         };
     }
 }

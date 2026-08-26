@@ -30,9 +30,24 @@
         'specification' => $i->specification,
         'quantity' => (string) $i->quantity,
         'unit' => $i->unit,
+        'unit_price' => filled($i->unit_price) ? (string) $i->unit_price : null,
+        'line_total' => filled($i->unit_price) ? (string) $i->lineTotal() : null,
         'quantity_note' => $i->quantity_note,
         'destination' => $i->destination,
     ])->all());
+
+    // Los precios sólo ocupan sitio si alguna partida los trae. Una solicitud
+    // sin cotizar no debe imprimir dos columnas de guiones.
+    $conPrecios = $lines->contains(fn (array $l): bool => filled($l['unit_price'] ?? null));
+
+    $moneda = $purchaseRequest->currency ?? 'CLP';
+    $simbolo = $moneda === 'CLP' ? '$' : $moneda.' ';
+
+    $fmtMonto = static fn ($valor): string => filled($valor)
+        ? number_format((float) $valor, 0, ',', '.')
+        : '';
+
+    $totalDocumento = $lines->sum(fn (array $l): float => (float) ($l['line_total'] ?? 0));
 
     $fmtDate = static function ($value): string {
         if (blank($value)) {
@@ -190,6 +205,10 @@ URGENTE: {{ $h['urgent_reason'] }}@endif</div>
             <th class="spec" style="text-align: left;">Especificación</th>
             <th class="qty">Cantidad</th>
             <th class="unit" style="text-align: left;">Unidad</th>
+            @if ($conPrecios)
+                <th class="qty">Precio unit.</th>
+                <th class="qty">Total</th>
+            @endif
         </tr>
     </thead>
     <tbody>
@@ -210,6 +229,10 @@ URGENTE: {{ $h['urgent_reason'] }}@endif</div>
                         <div class="note">{{ $line['quantity_note'] }}</div>
                     @endif
                 </td>
+                @if ($conPrecios)
+                    <td class="qty">{{ $fmtMonto($line['unit_price'] ?? null) }}</td>
+                    <td class="qty">{{ $fmtMonto($line['line_total'] ?? null) }}</td>
+                @endif
             </tr>
         @endforeach
 
@@ -218,9 +241,19 @@ URGENTE: {{ $h['urgent_reason'] }}@endif</div>
             <tr>
                 <td class="n">{{ $lines->count() + $i + 1 }}</td>
                 <td></td><td></td><td class="qty"></td><td></td>
+                @if ($conPrecios)<td class="qty"></td><td class="qty"></td>@endif
             </tr>
         @endfor
     </tbody>
+
+    @if ($conPrecios)
+        <tfoot>
+            <tr>
+                <td colspan="5" style="text-align: right; font-weight: bold; padding-top: 6px;">Total</td>
+                <td class="qty" style="font-weight: bold; padding-top: 6px;">{{ $simbolo }}{{ $fmtMonto($totalDocumento) }}</td>
+            </tr>
+        </tfoot>
+    @endif
 </table>
 
 {{-- Proveedores sugeridos: sugerencia, nunca adjudicación --}}

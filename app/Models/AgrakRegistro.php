@@ -40,9 +40,8 @@ class AgrakRegistro extends Model
         'numero_sello_1',
         'numero_sello_2',
         'source_file',
-        'source_row'
+        'source_row',
     ];
-
 
     protected $casts = [
         'fecha_registro' => 'date',
@@ -67,17 +66,22 @@ class AgrakRegistro extends Model
         $season = trim((string) ($f['season'] ?? ''));
         $q = trim((string) ($f['q'] ?? ''));
 
-        if ($campo !== '')
+        if ($campo !== '') {
             $query->where('nombre_campo', $campo);
-        if ($cuartel !== '')
+        }
+        if ($cuartel !== '') {
             $query->where('cuartel', $cuartel);
-        if ($especie !== '')
+        }
+        if ($especie !== '') {
             $query->where('especie', $especie);
+        }
 
-        if ($desde !== '')
+        if ($desde !== '') {
             $query->whereDate('fecha_registro', '>=', $desde);
-        if ($hasta !== '')
+        }
+        if ($hasta !== '') {
             $query->whereDate('fecha_registro', '<=', $hasta);
+        }
 
         // Temporada de cosecha: junio a mayo, sobre la fecha de cosecha
         if ($season !== '' && str_contains($season, '/')) {
@@ -139,8 +143,9 @@ class AgrakRegistro extends Model
     public static function normalizeText(?string $text): ?string
     {
         $t = trim((string) $text);
-        if ($t === '')
+        if ($t === '') {
             return null;
+        }
 
         $t = mb_strtoupper($t);
         $t = preg_replace('/\s+/u', ' ', $t);

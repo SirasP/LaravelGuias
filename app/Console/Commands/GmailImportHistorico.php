@@ -2,15 +2,16 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class GmailImportHistorico extends Command
 {
     protected $signature = 'gmail:import-historico';
+
     protected $description = 'Importa HISTÓRICO de XML DTE desde Gmail (sin tocar stock ni marcar leídos)';
 
     public function handle()
@@ -23,7 +24,7 @@ class GmailImportHistorico extends Command
         /* ===============================
          | 2️⃣ CLIENTE GMAIL
          =============================== */
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setApplicationName('FuelControl Gmail Import Historico');
         $client->setScopes([Gmail::GMAIL_READONLY]);
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
@@ -68,7 +69,7 @@ class GmailImportHistorico extends Command
 
             $messages = $service->users_messages->listUsersMessages('me', $params);
 
-            if (!$messages->getMessages()) {
+            if (! $messages->getMessages()) {
                 break;
             }
 
@@ -79,6 +80,7 @@ class GmailImportHistorico extends Command
                  =============================== */
                 if ($db->table('gmail_imports')->where('gmail_message_id', $msg->getId())->exists()) {
                     $omitidos++;
+
                     continue;
                 }
 
@@ -98,8 +100,8 @@ class GmailImportHistorico extends Command
                 foreach ($parts as $part) {
 
                     if (
-                        !$part->getFilename() ||
-                        !str_ends_with(strtolower($part->getFilename()), '.xml')
+                        ! $part->getFilename() ||
+                        ! str_ends_with(strtolower($part->getFilename()), '.xml')
                     ) {
                         continue;
                     }
@@ -117,9 +119,10 @@ class GmailImportHistorico extends Command
                     );
 
                     // Protección básica
-                    if (!str_starts_with($xmlContent, '<')) {
-                        $this->warn("⚠️ No es XML válido, se omite");
+                    if (! str_starts_with($xmlContent, '<')) {
+                        $this->warn('⚠️ No es XML válido, se omite');
                         $xmlInvalidos++;
+
                         continue;
                     }
 
@@ -127,9 +130,10 @@ class GmailImportHistorico extends Command
                     $xml = simplexml_load_string($xmlContent);
 
                     if ($xml === false) {
-                        $this->warn("⚠️ XML mal formado, se omite");
+                        $this->warn('⚠️ XML mal formado, se omite');
                         $xmlInvalidos++;
                         libxml_clear_errors();
+
                         continue;
                     }
 
@@ -140,8 +144,9 @@ class GmailImportHistorico extends Command
                      | 5️⃣ FECHA DTE
                      =============================== */
                     $fch = $xml->xpath('//sii:Encabezado/sii:IdDoc/sii:FchEmis')[0] ?? null;
-                    if (!$fch) {
-                        $this->warn("⚠️ Sin FchEmis, se omite XML");
+                    if (! $fch) {
+                        $this->warn('⚠️ Sin FchEmis, se omite XML');
+
                         continue;
                     }
 
@@ -163,7 +168,7 @@ class GmailImportHistorico extends Command
                             str_contains($nombre, 'DIESEL') ? 'Diesel' :
                             (str_contains($nombre, 'GASOLINA') ? 'Gasolina' : null);
 
-                        if (!$productoNombre) {
+                        if (! $productoNombre) {
                             continue;
                         }
 
@@ -171,7 +176,7 @@ class GmailImportHistorico extends Command
                             $msg->getId(),
                             $part->getFilename(),
                             $productoNombre,
-                            $cantidad
+                            $cantidad,
                         ]));
 
                         if ($db->table('movimientos')->where('hash_unico', $hash)->exists()) {
@@ -182,8 +187,9 @@ class GmailImportHistorico extends Command
                             ->where('nombre', $productoNombre)
                             ->first();
 
-                        if (!$producto) {
+                        if (! $producto) {
                             $this->warn("⚠️ Producto {$productoNombre} no existe");
+
                             continue;
                         }
 

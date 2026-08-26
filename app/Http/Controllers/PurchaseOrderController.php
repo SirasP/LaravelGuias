@@ -3,18 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Services\PurchaseReplyPdfAutofillService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class PurchaseOrderController extends Controller
 {
-    public function __construct(private PurchaseReplyPdfAutofillService $autofillService)
-    {
-    }
+    public function __construct(private PurchaseReplyPdfAutofillService $autofillService) {}
 
     private const DEFAULT_NOTES_TEMPLATE = "Estimado/a {PROVEEDOR},\n\nJunto con saludar, enviamos cotización para su revisión y confirmación.\n\nPor favor indicar plazo de entrega y condiciones.\n\nSaludos cordiales.";
 
@@ -34,7 +32,7 @@ class PurchaseOrderController extends Controller
             ->select('por.purchase_order_id', 'pos.name as supplier_name')
             ->get()
             ->groupBy('purchase_order_id')
-            ->map(fn($rows) => $rows->pluck('supplier_name')->filter()->unique()->values());
+            ->map(fn ($rows) => $rows->pluck('supplier_name')->filter()->unique()->values());
 
         // ===== KPIs =====
         $stats = (object) [
@@ -92,12 +90,13 @@ class PurchaseOrderController extends Controller
 
         $suppliers = $suppliers->map(function ($supplier) use ($emailsBySupplier) {
             $supplier->emails = ($emailsBySupplier->get($supplier->id) ?? collect())
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'email' => (string) $row->email,
                     'is_primary' => (int) $row->is_primary === 1,
                 ])
                 ->values()
                 ->all();
+
             return $supplier;
         })->values();
 
@@ -125,7 +124,7 @@ class PurchaseOrderController extends Controller
         $db = DB::connection('fuelcontrol');
 
         $supplierId = isset($data['supplier_id']) && $data['supplier_id'] !== '' ? (int) $data['supplier_id'] : null;
-        if (!$supplierId) {
+        if (! $supplierId) {
             return back()->withInput()->with('warning', 'Debes seleccionar al menos un proveedor.');
         }
 
@@ -135,7 +134,7 @@ class PurchaseOrderController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        if (!$supplier) {
+        if (! $supplier) {
             return back()->withInput()->with('warning', 'Proveedor no válido.');
         }
 
@@ -144,7 +143,7 @@ class PurchaseOrderController extends Controller
         // Emails de los destinatarios seleccionados en el formulario
         $emails = array_values(array_unique(array_filter(
             array_map('mb_strtolower', (array) ($data['recipient_emails'] ?? [])),
-            fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL)
+            fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL)
         )));
 
         // Si no se enviaron emails, usar los del proveedor principal
@@ -152,7 +151,7 @@ class PurchaseOrderController extends Controller
             $emails = $db->table('purchase_order_supplier_emails')
                 ->where('supplier_id', $supplierId)
                 ->pluck('email')
-                ->map(fn($e) => mb_strtolower((string) $e))
+                ->map(fn ($e) => mb_strtolower((string) $e))
                 ->all();
         }
 
@@ -188,7 +187,7 @@ class PurchaseOrderController extends Controller
 
             if ($inventoryId) {
                 $p = $products->get($inventoryId);
-                if (!$p) {
+                if (! $p) {
                     return back()->withInput()->with('warning', 'Producto de inventario no válido en una línea.');
                 }
                 $productName = $productName !== '' ? $productName : (string) $p->nombre;
@@ -209,7 +208,7 @@ class PurchaseOrderController extends Controller
             }
 
             if ($productName === '') {
-                return back()->withInput()->with('warning', 'Nombre de producto requerido en la línea ' . ($idx + 1) . '.');
+                return back()->withInput()->with('warning', 'Nombre de producto requerido en la línea '.($idx + 1).'.');
             }
 
             if ($unit === '') {
@@ -235,7 +234,7 @@ class PurchaseOrderController extends Controller
         $orderId = $db->transaction(function () use ($db, $data, $supplierId, $supplierName, $cleanItems, $emails, $subtotal, $now) {
             $year = now()->format('Y');
             $lastId = (int) ($db->table('purchase_orders')->max('id') ?? 0) + 1;
-            $orderNumber = 'COT-' . $year . '-' . str_pad((string) $lastId, 5, '0', STR_PAD_LEFT);
+            $orderNumber = 'COT-'.$year.'-'.str_pad((string) $lastId, 5, '0', STR_PAD_LEFT);
 
             $orderId = $db->table('purchase_orders')->insertGetId([
                 'order_number' => $orderNumber,
@@ -280,7 +279,7 @@ class PurchaseOrderController extends Controller
                         ->whereRaw('LOWER(nombre) = ?', [mb_strtolower($line['product_name'])])
                         ->exists();
 
-                    if (!$exists) {
+                    if (! $exists) {
                         $db->table('gmail_inventory_products')->insert([
                             'nombre' => $line['product_name'],
                             'codigo' => null,
@@ -299,12 +298,12 @@ class PurchaseOrderController extends Controller
         });
 
         // ── Auto-envío de correo al crear ─────────────────────────────────
-        $sentCount  = 0;
+        $sentCount = 0;
         $emailError = null;
 
-        if (!empty($emails)) {
+        if (! empty($emails)) {
             try {
-                $order      = $db->table('purchase_orders')->where('id', $orderId)->first();
+                $order = $db->table('purchase_orders')->where('id', $orderId)->first();
                 $orderItems = $db->table('purchase_order_items')
                     ->where('purchase_order_id', $orderId)->orderBy('id')->get();
 
@@ -314,89 +313,89 @@ class PurchaseOrderController extends Controller
                     ->where('por.purchase_order_id', $orderId)
                     ->select('por.email', 'pos.name as supplier_name')
                     ->get()
-                    ->map(fn($r) => [
-                        'email'         => $r->email,
+                    ->map(fn ($r) => [
+                        'email' => $r->email,
                         'supplier_name' => $r->supplier_name ?? $supplierName,
                     ])
                     ->all();
 
-                $subject         = 'Cotización ' . $order->order_number;
+                $subject = 'Cotización '.$order->order_number;
                 $messageTemplate = trim((string) ($data['notes'] ?? ''));
 
                 Log::info('[PurchaseOrder] Iniciando envío de correos', [
-                    'order_id'        => $orderId,
+                    'order_id' => $orderId,
                     'recipient_count' => count($recipientList),
                 ]);
 
                 foreach ($recipientList as $recipient) {
                     $personalizedMsg = str_replace('{PROVEEDOR}', $recipient['supplier_name'], $messageTemplate);
 
-                    Log::info('[PurchaseOrder] Generando PDF para ' . $recipient['email']);
+                    Log::info('[PurchaseOrder] Generando PDF para '.$recipient['email']);
                     $pdf = Pdf::loadView('purchase_orders.pdf', [
-                        'order'         => $order,
-                        'items'         => $orderItems,
-                        'supplierName'  => $recipient['supplier_name'],
+                        'order' => $order,
+                        'items' => $orderItems,
+                        'supplierName' => $recipient['supplier_name'],
                         'supplierEmail' => $recipient['email'],
-                        'message'       => $personalizedMsg,
+                        'message' => $personalizedMsg,
                     ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
-                      ->setPaper('a4', 'portrait');
+                        ->setPaper('a4', 'portrait');
 
-                    $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
-                    $pdfContent  = $pdf->output();
+                    $pdfFilename = 'Cotizacion_'.preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number).'.pdf';
+                    $pdfContent = $pdf->output();
                     if (empty($pdfContent)) {
                         throw new \RuntimeException('DomPDF devolvió un PDF vacío.');
                     }
-                    Log::info('[PurchaseOrder] PDF generado OK, tamaño=' . strlen($pdfContent) . ' bytes');
+                    Log::info('[PurchaseOrder] PDF generado OK, tamaño='.strlen($pdfContent).' bytes');
 
                     $bodyText = $personalizedMsg !== ''
                         ? nl2br(e($personalizedMsg))
-                        : 'Adjunto encontrará la solicitud de cotización N° ' . e($order->order_number) . ' en formato PDF.<br>Por favor responda indicando sus precios unitarios por ítem.';
+                        : 'Adjunto encontrará la solicitud de cotización N° '.e($order->order_number).' en formato PDF.<br>Por favor responda indicando sus precios unitarios por ítem.';
 
                     $bodyHtml = '
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
   <div style="background:#0f766e;padding:20px 24px;border-radius:8px 8px 0 0;">
-    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización ' . e($order->order_number) . '</h1>
+    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización '.e($order->order_number).'</h1>
     <p style="margin:4px 0 0;color:#ccfbf1;font-size:13px;">Solicitud de cotización de precios</p>
   </div>
   <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;font-size:13px;line-height:1.7;">
-    ' . $bodyText . '
+    '.$bodyText.'
   </div>
   <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
-    ' . e(config('app.name', 'Sistema')) . ' &mdash; Cotización N° ' . e($order->order_number) . '
+    '.e(config('app.name', 'Sistema')).' &mdash; Cotización N° '.e($order->order_number).'
   </div>
 </div>';
 
                     $emailAddr = $recipient['email'];
-                    Log::info('[PurchaseOrder] Enviando correo a ' . $emailAddr);
+                    Log::info('[PurchaseOrder] Enviando correo a '.$emailAddr);
                     Mail::send([], [], function ($msg) use ($emailAddr, $subject, $bodyHtml, $pdfContent, $pdfFilename) {
                         $msg->to($emailAddr)
                             ->subject($subject)
                             ->html($bodyHtml)
                             ->attachData($pdfContent, $pdfFilename, ['mime' => 'application/pdf']);
                     });
-                    Log::info('[PurchaseOrder] Correo enviado OK a ' . $emailAddr);
+                    Log::info('[PurchaseOrder] Correo enviado OK a '.$emailAddr);
                 }
 
                 $sentCount = count($recipientList);
                 $db->table('purchase_orders')->where('id', $orderId)->update([
-                    'status'     => 'sent',
-                    'sent_at'    => now(),
+                    'status' => 'sent',
+                    'sent_at' => now(),
                     'updated_at' => now(),
                 ]);
             } catch (\Throwable $ex) {
-                $emailError = get_class($ex) . ': ' . $ex->getMessage() . ' [' . basename($ex->getFile()) . ':' . $ex->getLine() . ']';
-                Log::error('[PurchaseOrder] Error enviando correo: ' . $emailError, ['trace' => $ex->getTraceAsString()]);
+                $emailError = get_class($ex).': '.$ex->getMessage().' ['.basename($ex->getFile()).':'.$ex->getLine().']';
+                Log::error('[PurchaseOrder] Error enviando correo: '.$emailError, ['trace' => $ex->getTraceAsString()]);
             }
         }
 
         if ($emailError) {
             return redirect()->route('purchase_orders.show', $orderId)
                 ->with('success', 'Cotización creada.')
-                ->with('warning', 'No se pudo enviar el correo: ' . $emailError);
+                ->with('warning', 'No se pudo enviar el correo: '.$emailError);
         }
 
         $successMsg = $sentCount > 0
-            ? 'Cotización creada y enviada a ' . $sentCount . ' destinatario(s).'
+            ? 'Cotización creada y enviada a '.$sentCount.' destinatario(s).'
             : 'Cotización creada.';
 
         return redirect()->route('purchase_orders.show', $orderId)->with('success', $successMsg);
@@ -406,7 +405,7 @@ class PurchaseOrderController extends Controller
     {
         $validated = $request->validate([
             'chosen_supplier_id' => ['required', 'integer'],
-            'apply_reply_id'     => ['nullable', 'integer'],
+            'apply_reply_id' => ['nullable', 'integer'],
         ]);
 
         $db = DB::connection('fuelcontrol');
@@ -416,7 +415,7 @@ class PurchaseOrderController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        if (!$supplier) {
+        if (! $supplier) {
             return back()->with('warning', 'Proveedor no válido.');
         }
 
@@ -424,17 +423,17 @@ class PurchaseOrderController extends Controller
             ->where('id', $id)
             ->where('status', 'sent')
             ->update([
-                'status'        => 'order',
-                'supplier_id'   => $supplier->id,
+                'status' => 'order',
+                'supplier_id' => $supplier->id,
                 'supplier_name' => $supplier->name,
-                'updated_at'    => now(),
+                'updated_at' => now(),
             ]);
 
         // Aplicar precios cotizados del proveedor a los ítems de la OC
-        if (!empty($validated['apply_reply_id'])) {
-            $replyId     = (int) $validated['apply_reply_id'];
-            $replyItems  = $db->table('purchase_order_reply_items')->where('reply_id', $replyId)->get();
-            $newTotal    = 0;
+        if (! empty($validated['apply_reply_id'])) {
+            $replyId = (int) $validated['apply_reply_id'];
+            $replyItems = $db->table('purchase_order_reply_items')->where('reply_id', $replyId)->get();
+            $newTotal = 0;
 
             foreach ($replyItems as $ri) {
                 if ($ri->unit_price_quoted !== null) {
@@ -452,7 +451,7 @@ class PurchaseOrderController extends Controller
 
             if ($newTotal > 0) {
                 $db->table('purchase_orders')->where('id', $id)->update([
-                    'total'      => round($newTotal, 2),
+                    'total' => round($newTotal, 2),
                     'updated_at' => now(),
                 ]);
             }
@@ -472,34 +471,34 @@ class PurchaseOrderController extends Controller
 
             if ($supplierEmail) {
                 $pdf = Pdf::loadView('purchase_orders.order_pdf', [
-                    'order'         => $freshOrder,
-                    'items'         => $freshItems,
-                    'supplierName'  => $supplier->name,
+                    'order' => $freshOrder,
+                    'items' => $freshItems,
+                    'supplierName' => $supplier->name,
                     'supplierEmail' => $supplierEmail,
                 ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
-                  ->setPaper('a4', 'portrait');
+                    ->setPaper('a4', 'portrait');
 
-                $pdfFilename = 'OrdenCompra_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $freshOrder->order_number) . '.pdf';
-                $pdfContent  = $pdf->output();
-                $subject     = 'Orden de Compra ' . $freshOrder->order_number;
+                $pdfFilename = 'OrdenCompra_'.preg_replace('/[^A-Za-z0-9_-]/', '_', $freshOrder->order_number).'.pdf';
+                $pdfContent = $pdf->output();
+                $subject = 'Orden de Compra '.$freshOrder->order_number;
 
                 $bodyHtml = '
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
   <div style="background:#1d4ed8;padding:20px 24px;border-radius:8px 8px 0 0;">
-    <h1 style="margin:0;color:#fff;font-size:20px;">Orden de Compra ' . e($freshOrder->order_number) . '</h1>
+    <h1 style="margin:0;color:#fff;font-size:20px;">Orden de Compra '.e($freshOrder->order_number).'</h1>
     <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">Confirmación de pedido</p>
   </div>
   <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
-    <p style="margin:0 0 12px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($supplier->name) . '</p>
+    <p style="margin:0 0 12px;font-size:14px;"><strong>Estimado/a:</strong> '.e($supplier->name).'</p>
     <p style="margin:0 0 12px;font-size:13px;line-height:1.6;">
-      Nos complace confirmar la <strong>Orden de Compra N° ' . e($freshOrder->order_number) . '</strong>.<br>
+      Nos complace confirmar la <strong>Orden de Compra N° '.e($freshOrder->order_number).'</strong>.<br>
       Adjunto encontrará el detalle completo de los productos solicitados.<br>
       Por favor proceda con el despacho y confirme la fecha estimada de entrega.
     </p>
-    <p style="margin:0;font-size:12px;color:#64748b;">Total: <strong>' . e($freshOrder->currency) . ' ' . number_format((float) $freshOrder->total, 2, ',', '.') . '</strong></p>
+    <p style="margin:0;font-size:12px;color:#64748b;">Total: <strong>'.e($freshOrder->currency).' '.number_format((float) $freshOrder->total, 2, ',', '.').'</strong></p>
   </div>
   <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
-    ' . config('app.name', 'Sistema') . ' &mdash; Orden de Compra N° ' . e($freshOrder->order_number) . '
+    '.config('app.name', 'Sistema').' &mdash; Orden de Compra N° '.e($freshOrder->order_number).'
   </div>
 </div>';
 
@@ -516,7 +515,7 @@ class PurchaseOrderController extends Controller
             // OC ya confirmada, el correo es no-crítico
         }
 
-        $msg = 'Orden de compra creada con ' . $supplier->name . '.';
+        $msg = 'Orden de compra creada con '.$supplier->name.'.';
         if ($emailSent) {
             $msg .= ' Se envió confirmación por correo al proveedor.';
         }
@@ -575,7 +574,7 @@ class PurchaseOrderController extends Controller
 
             if ($supplierId) {
                 $exists = $db->table('purchase_order_suppliers')->where('id', $supplierId)->exists();
-                if (!$exists) {
+                if (! $exists) {
                     abort(404, 'Proveedor no encontrado.');
                 }
                 $db->table('purchase_order_suppliers')->where('id', $supplierId)->update($data);
@@ -613,7 +612,7 @@ class PurchaseOrderController extends Controller
             ->orderByDesc('is_primary')
             ->orderBy('email')
             ->get()
-            ->map(fn($row) => [
+            ->map(fn ($row) => [
                 'email' => (string) $row->email,
                 'is_primary' => (int) $row->is_primary === 1,
             ])
@@ -646,6 +645,7 @@ class PurchaseOrderController extends Controller
             ->get()
             ->map(function ($r) use ($order) {
                 $r->supplier_name = $r->supplier_name ?? $order->supplier_name;
+
                 return $r;
             });
 
@@ -682,14 +682,14 @@ class PurchaseOrderController extends Controller
         // Build recipient list: [{email, supplier_name}]
         $customEmails = $this->normalizeEmails((string) ($validated['emails'] ?? ''));
 
-        if (!empty($customEmails)) {
+        if (! empty($customEmails)) {
             // Map typed emails → supplier name (join via supplier emails table)
             $emailToSupplier = $db->table('purchase_order_supplier_emails as pose')
                 ->join('purchase_order_suppliers as pos', 'pos.id', '=', 'pose.supplier_id')
                 ->whereIn('pose.email', $customEmails)
                 ->pluck('pos.name', 'pose.email');
 
-            $recipientList = array_map(fn($email) => [
+            $recipientList = array_map(fn ($email) => [
                 'email' => $email,
                 'supplier_name' => $emailToSupplier[$email] ?? $order->supplier_name,
             ], $customEmails);
@@ -702,7 +702,7 @@ class PurchaseOrderController extends Controller
                 ->select('por.email', 'pos.name as supplier_name')
                 ->orderBy('por.id')
                 ->get()
-                ->map(fn($r) => [
+                ->map(fn ($r) => [
                     'email' => $r->email,
                     'supplier_name' => $r->supplier_name ?? $order->supplier_name,
                 ])
@@ -715,7 +715,7 @@ class PurchaseOrderController extends Controller
 
         $subject = trim((string) ($validated['subject'] ?? ''));
         if ($subject === '') {
-            $subject = 'Cotización ' . ($order->order_number ?? ('#' . $order->id));
+            $subject = 'Cotización '.($order->order_number ?? ('#'.$order->id));
         }
 
         $messageTemplate = trim((string) ($validated['message'] ?? ''));
@@ -726,34 +726,34 @@ class PurchaseOrderController extends Controller
 
                 // ── Generar PDF personalizado para este destinatario ──
                 $pdf = Pdf::loadView('purchase_orders.pdf', [
-                    'order'        => $order,
-                    'items'        => $items,
+                    'order' => $order,
+                    'items' => $items,
                     'supplierName' => $recipient['supplier_name'],
-                    'supplierEmail'=> $recipient['email'],
-                    'message'      => $personalizedMsg,
+                    'supplierEmail' => $recipient['email'],
+                    'message' => $personalizedMsg,
                 ])->setOptions(['dpi' => 150, 'isHtml5ParserEnabled' => true])
-                  ->setPaper('a4', 'portrait');
+                    ->setPaper('a4', 'portrait');
 
-                $pdfFilename = 'Cotizacion_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number) . '.pdf';
-                $pdfContent  = $pdf->output();
+                $pdfFilename = 'Cotizacion_'.preg_replace('/[^A-Za-z0-9_-]/', '_', $order->order_number).'.pdf';
+                $pdfContent = $pdf->output();
 
                 // ── Cuerpo del correo: limpio y profesional ──
                 $bodyHtml = '
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
   <div style="background:#0f766e;padding:20px 24px;border-radius:8px 8px 0 0;">
-    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización ' . e($order->order_number) . '</h1>
+    <h1 style="margin:0;color:#fff;font-size:20px;">Cotización '.e($order->order_number).'</h1>
     <p style="margin:4px 0 0;color:#ccfbf1;font-size:13px;">Solicitud de cotización de precios</p>
   </div>
   <div style="background:#f8fafc;padding:20px 24px;border:1px solid #e2e8f0;border-top:none;">
-    <p style="margin:0 0 10px;font-size:14px;"><strong>Estimado/a:</strong> ' . e($recipient['supplier_name']) . '</p>'
-    . ($personalizedMsg !== '' ? '<p style="margin:10px 0;font-size:13px;line-height:1.6;white-space:pre-line;">' . e($personalizedMsg) . '</p>' : '') . '
+    <p style="margin:0 0 10px;font-size:14px;"><strong>Estimado/a:</strong> '.e($recipient['supplier_name']).'</p>'
+    .($personalizedMsg !== '' ? '<p style="margin:10px 0;font-size:13px;line-height:1.6;white-space:pre-line;">'.e($personalizedMsg).'</p>' : '').'
     <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
       Adjunto encontrará el detalle completo de los productos solicitados en formato PDF.<br>
       Por favor responda indicando sus precios unitarios por ítem.
     </p>
   </div>
   <div style="padding:12px 24px;background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#94a3b8;text-align:center;">
-    ' . config('app.name', 'Sistema') . ' &mdash; Cotización N° ' . e($order->order_number) . '
+    '.config('app.name', 'Sistema').' &mdash; Cotización N° '.e($order->order_number).'
   </div>
 </div>';
 
@@ -766,7 +766,7 @@ class PurchaseOrderController extends Controller
                 });
             }
         } catch (\Throwable $e) {
-            return back()->with('warning', 'No se pudo enviar el correo: ' . $e->getMessage());
+            return back()->with('warning', 'No se pudo enviar el correo: '.$e->getMessage());
         }
 
         $db->table('purchase_orders')->where('id', $id)->update([
@@ -775,7 +775,7 @@ class PurchaseOrderController extends Controller
             'updated_at' => now(),
         ]);
 
-        return back()->with('success', 'Orden enviada a ' . count($recipientList) . ' destinatario(s).');
+        return back()->with('success', 'Orden enviada a '.count($recipientList).' destinatario(s).');
     }
 
     private function normalizeEmails(string $raw): array
@@ -804,6 +804,7 @@ class PurchaseOrderController extends Controller
         }
 
         $trimmed = trim($value);
+
         return $trimmed === '' ? null : $trimmed;
     }
 
@@ -813,15 +814,17 @@ class PurchaseOrderController extends Controller
     {
         $db = DB::connection('fuelcontrol');
         $order = $db->table('purchase_orders')->where('id', $id)->first();
-        if (!$order) abort(404);
+        if (! $order) {
+            abort(404);
+        }
 
         $request->validate([
             'supplier_name' => ['required', 'string', 'max:255'],
-            'notes'         => ['nullable', 'string', 'max:8000'],
-            'total_quoted'  => ['nullable', 'numeric', 'min:0'],
-            'currency'      => ['nullable', 'string', 'max:10'],
-            'pdf'           => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'],
-            'item_prices'   => ['nullable', 'array'],
+            'notes' => ['nullable', 'string', 'max:8000'],
+            'total_quoted' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'max:10'],
+            'pdf' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'],
+            'item_prices' => ['nullable', 'array'],
             'item_prices.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
@@ -835,11 +838,11 @@ class PurchaseOrderController extends Controller
 
         // Calcular total desde ítems si se ingresaron precios por ítem
         $itemPrices = $request->input('item_prices', []);
-        $currency   = $request->input('currency') ?: ($order->currency ?? 'CLP');
-        $items      = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
+        $currency = $request->input('currency') ?: ($order->currency ?? 'CLP');
+        $items = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
 
         $totalFromItems = null;
-        if (!empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''))) {
+        if (! empty(array_filter($itemPrices, fn ($v) => $v !== null && $v !== ''))) {
             $totalFromItems = 0;
             foreach ($items as $item) {
                 $unitPrice = isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== ''
@@ -852,14 +855,14 @@ class PurchaseOrderController extends Controller
 
         $replyId = $db->table('purchase_order_replies')->insertGetId([
             'purchase_order_id' => $id,
-            'supplier_name'     => $request->input('supplier_name'),
-            'notes'             => $request->input('notes') ?: null,
-            'total_quoted'      => $totalQuoted,
-            'currency'          => $currency,
-            'pdf_path'          => $pdfPath,
+            'supplier_name' => $request->input('supplier_name'),
+            'notes' => $request->input('notes') ?: null,
+            'total_quoted' => $totalQuoted,
+            'currency' => $currency,
+            'pdf_path' => $pdfPath,
             'pdf_original_name' => $pdfOriginalName,
-            'created_at'        => now(),
-            'updated_at'        => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         // Guardar precios por ítem
@@ -868,21 +871,21 @@ class PurchaseOrderController extends Controller
                 $unitPrice = (float) $itemPrices[$item->id];
                 $lineTotal = round($unitPrice * (float) $item->quantity, 2);
                 $db->table('purchase_order_reply_items')->insert([
-                    'reply_id'               => $replyId,
+                    'reply_id' => $replyId,
                     'purchase_order_item_id' => $item->id,
-                    'product_name'           => $item->product_name,
-                    'unit'                   => $item->unit,
-                    'quantity'               => $item->quantity,
-                    'unit_price_quoted'      => $unitPrice,
-                    'line_total_quoted'      => $lineTotal,
-                    'created_at'             => now(),
-                    'updated_at'             => now(),
+                    'product_name' => $item->product_name,
+                    'unit' => $item->unit,
+                    'quantity' => $item->quantity,
+                    'unit_price_quoted' => $unitPrice,
+                    'line_total_quoted' => $lineTotal,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
         }
 
-        $hasManualItemPrices = !empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''));
-        if ($pdfPath && !$hasManualItemPrices) {
+        $hasManualItemPrices = ! empty(array_filter($itemPrices, fn ($v) => $v !== null && $v !== ''));
+        if ($pdfPath && ! $hasManualItemPrices) {
             $autofill = $this->autofillService->autofillFromStoredAttachment(
                 $db,
                 $order,
@@ -895,7 +898,7 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        return back()->with('success', 'Respuesta de ' . $request->input('supplier_name') . ' registrada.');
+        return back()->with('success', 'Respuesta de '.$request->input('supplier_name').' registrada.');
     }
 
     public function autofillReplyFromPdf(int $id, int $replyId)
@@ -915,7 +918,7 @@ class PurchaseOrderController extends Controller
             $reply->pdf_path
         );
 
-        if (!$result['ok']) {
+        if (! $result['ok']) {
             return back()->with('warning', $result['message']);
         }
 
@@ -927,16 +930,16 @@ class PurchaseOrderController extends Controller
         $db = DB::connection('fuelcontrol');
 
         $request->validate([
-            'item_prices'   => ['nullable', 'array'],
+            'item_prices' => ['nullable', 'array'],
             'item_prices.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $itemPrices = $request->input('item_prices', []);
-        $items      = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
+        $items = $db->table('purchase_order_items')->where('purchase_order_id', $id)->orderBy('id')->get();
 
         // Recalcular total desde ítems
         $totalFromItems = null;
-        if (!empty(array_filter($itemPrices, fn($v) => $v !== null && $v !== ''))) {
+        if (! empty(array_filter($itemPrices, fn ($v) => $v !== null && $v !== ''))) {
             $totalFromItems = 0;
             foreach ($items as $item) {
                 $unitPrice = isset($itemPrices[$item->id]) && $itemPrices[$item->id] !== ''
@@ -974,13 +977,13 @@ class PurchaseOrderController extends Controller
                 $db->table('purchase_order_reply_items')->updateOrInsert(
                     ['reply_id' => $replyId, 'purchase_order_item_id' => $item->id],
                     [
-                        'product_name'      => $item->product_name,
-                        'unit'              => $item->unit,
-                        'quantity'          => $item->quantity,
+                        'product_name' => $item->product_name,
+                        'unit' => $item->unit,
+                        'quantity' => $item->quantity,
                         'unit_price_quoted' => $unitPrice,
                         'line_total_quoted' => $lineTotal,
-                        'updated_at'        => now(),
-                        'created_at'        => now(),
+                        'updated_at' => now(),
+                        'created_at' => now(),
                     ]
                 );
             } else {
@@ -1001,9 +1004,9 @@ class PurchaseOrderController extends Controller
 
         $validated = $request->validate([
             'product_name' => ['required', 'string', 'max:255'],
-            'unit'         => ['nullable', 'string', 'max:30'],
-            'quantity'     => ['required', 'numeric', 'gt:0'],
-            'unit_price'   => ['required', 'numeric', 'gte:0'],
+            'unit' => ['nullable', 'string', 'max:30'],
+            'quantity' => ['required', 'numeric', 'gt:0'],
+            'unit_price' => ['required', 'numeric', 'gte:0'],
         ]);
 
         $item = $db->table('purchase_order_items')
@@ -1011,11 +1014,11 @@ class PurchaseOrderController extends Controller
             ->where('purchase_order_id', $id)
             ->first();
 
-        if (!$item) {
+        if (! $item) {
             abort(404);
         }
 
-        $quantity  = (float) $validated['quantity'];
+        $quantity = (float) $validated['quantity'];
         $unitPrice = (float) $validated['unit_price'];
         $lineTotal = round($quantity * $unitPrice, 2);
 
@@ -1024,11 +1027,11 @@ class PurchaseOrderController extends Controller
             ->where('purchase_order_id', $id)
             ->update([
                 'product_name' => trim($validated['product_name']),
-                'unit'         => trim($validated['unit'] ?? '') ?: 'UN',
-                'quantity'     => $quantity,
-                'unit_price'   => $unitPrice,
-                'line_total'   => $lineTotal,
-                'updated_at'   => now(),
+                'unit' => trim($validated['unit'] ?? '') ?: 'UN',
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'line_total' => $lineTotal,
+                'updated_at' => now(),
             ]);
 
         // Recalculate order total from all items
@@ -1037,7 +1040,7 @@ class PurchaseOrderController extends Controller
             ->sum('line_total');
 
         $db->table('purchase_orders')->where('id', $id)->update([
-            'total'      => round((float) $newTotal, 2),
+            'total' => round((float) $newTotal, 2),
             'updated_at' => now(),
         ]);
 
@@ -1066,13 +1069,13 @@ class PurchaseOrderController extends Controller
 
     public function serveAttachment(int $replyId)
     {
-        $db    = DB::connection('fuelcontrol');
+        $db = DB::connection('fuelcontrol');
         $reply = $db->table('purchase_order_replies')->where('id', $replyId)->first();
 
-        if (!$reply || !$reply->pdf_path) {
+        if (! $reply || ! $reply->pdf_path) {
             abort(404);
         }
-        if (!Storage::disk('public')->exists($reply->pdf_path)) {
+        if (! Storage::disk('public')->exists($reply->pdf_path)) {
             abort(404, 'Archivo no encontrado en el servidor.');
         }
 
@@ -1081,8 +1084,8 @@ class PurchaseOrderController extends Controller
         $mime = Storage::disk('public')->mimeType($reply->pdf_path) ?: 'application/octet-stream';
 
         return response()->file($path, [
-            'Content-Type'        => $mime,
-            'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
         ]);
     }
 }

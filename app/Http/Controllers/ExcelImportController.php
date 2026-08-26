@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AgrakRegistro;
 use App\Models\PdfImport;
 use App\Models\PdfLine;
-use App\Models\AgrakRegistro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -54,14 +54,21 @@ class ExcelImportController extends Controller
         $get = function (array $row, string $header) use ($headerToCol) {
             $h = mb_strtolower(trim($header));
             $col = $headerToCol[$h] ?? null;
+
             return $col ? ($row[$col] ?? null) : null;
         };
 
         $parseNumber = function ($v): ?float {
-            if ($v === null) return null;
-            if (is_int($v) || is_float($v)) return (float) $v;
+            if ($v === null) {
+                return null;
+            }
+            if (is_int($v) || is_float($v)) {
+                return (float) $v;
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
+            if ($s === '') {
+                return null;
+            }
             $s = str_replace("\xc2\xa0", '', $s);
             $hasDot = str_contains($s, '.');
             $hasComma = str_contains($s, ',');
@@ -71,15 +78,25 @@ class ExcelImportController extends Controller
             } elseif ($hasComma) {
                 $s = str_replace(',', '.', $s);
             }
+
             return is_numeric($s) ? (float) $s : null;
         };
 
         $parseDate = function ($v): ?string {
-            if ($v === null) return null;
+            if ($v === null) {
+                return null;
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
-            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $s, $m)) return "{$m[3]}-{$m[2]}-{$m[1]}";
-            if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $s, $m)) return "{$m[3]}-{$m[2]}-{$m[1]}";
+            if ($s === '') {
+                return null;
+            }
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $s, $m)) {
+                return "{$m[3]}-{$m[2]}-{$m[1]}";
+            }
+            if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $s, $m)) {
+                return "{$m[3]}-{$m[2]}-{$m[1]}";
+            }
+
             return null;
         };
 
@@ -102,6 +119,7 @@ class ExcelImportController extends Controller
                     'guia' => null,
                     'reason' => "Fila {$i}: sin GDD",
                 ];
+
                 continue;
             }
 
@@ -109,7 +127,7 @@ class ExcelImportController extends Controller
             $rutProd = trim((string) $get($r, 'RUT Productor'));
             $razonProd = trim((string) $get($r, 'Razón Social Productor'));
             $kgs = $parseNumber($get($r, 'Cantidad Recepcionada'));
-            $unidad = trim((string) $get($r, 'Kilos')); 
+            $unidad = trim((string) $get($r, 'Kilos'));
 
             $exists = PdfImport::where('guia_no', $guia)->exists();
 
@@ -122,6 +140,7 @@ class ExcelImportController extends Controller
                     'guia' => $guia,
                     'reason' => "Fila {$i}: guía ya importada",
                 ];
+
                 continue;
             }
 
@@ -143,35 +162,39 @@ class ExcelImportController extends Controller
 
             DB::transaction(function () use ($file, $storedPath, $template, $guia, $fecha, $rutProd, $razonProd, $kgs, $unidad, $meta, $i, $r, &$created) {
                 $import = PdfImport::create([
-                    'original_name' => 'EXCEL: ' . $file->getClientOriginalName() . " (GDD {$guia})",
+                    'original_name' => 'EXCEL: '.$file->getClientOriginalName()." (GDD {$guia})",
                     'stored_path' => $storedPath,
                     'template' => $template,
                     'guia_no' => $guia,
                     'doc_fecha' => $fecha,
-                    'productor' => trim(($rutProd ? $rutProd . ' - ' : '') . $razonProd) ?: null,
+                    'productor' => trim(($rutProd ? $rutProd.' - ' : '').$razonProd) ?: null,
                     'meta' => json_encode($meta, JSON_UNESCAPED_UNICODE),
                 ]);
 
                 $detailLines = [
                     "EXCEL_ROW: {$i}",
                     "GDD: {$guia}",
-                    "Fecha Recepción: " . ($fecha ?? '—'),
-                    "RUT Productor: " . ($rutProd !== '' ? $rutProd : '—'),
-                    "Razón Social Productor: " . ($razonProd !== '' ? $razonProd : '—'),
-                    "Kgs recibidos: " . (is_null($kgs) ? '—' : (string) $kgs),
-                    "Unidad: " . ($unidad !== '' ? $unidad : '—'),
-                    "Empresa: " . (!empty($meta['empresa']) ? $meta['empresa'] : '—'),
-                    "Sucursal: " . (!empty($meta['sucursal']) ? $meta['sucursal'] : '—'),
-                    "Guía de pesaje: " . (!empty($meta['guia_pesaje']) ? $meta['guia_pesaje'] : '—'),
-                    "Producto: " . (!empty($meta['producto']) ? $meta['producto'] : '—'),
-                    "Cantidad recepcionada: " . (is_null($meta['cantidad_recepcionada'] ?? null) ? '—' : (string) $meta['cantidad_recepcionada']),
+                    'Fecha Recepción: '.($fecha ?? '—'),
+                    'RUT Productor: '.($rutProd !== '' ? $rutProd : '—'),
+                    'Razón Social Productor: '.($razonProd !== '' ? $razonProd : '—'),
+                    'Kgs recibidos: '.(is_null($kgs) ? '—' : (string) $kgs),
+                    'Unidad: '.($unidad !== '' ? $unidad : '—'),
+                    'Empresa: '.(! empty($meta['empresa']) ? $meta['empresa'] : '—'),
+                    'Sucursal: '.(! empty($meta['sucursal']) ? $meta['sucursal'] : '—'),
+                    'Guía de pesaje: '.(! empty($meta['guia_pesaje']) ? $meta['guia_pesaje'] : '—'),
+                    'Producto: '.(! empty($meta['producto']) ? $meta['producto'] : '—'),
+                    'Cantidad recepcionada: '.(is_null($meta['cantidad_recepcionada'] ?? null) ? '—' : (string) $meta['cantidad_recepcionada']),
                 ];
 
-                $detailLines[] = "— DETALLE COMPLETO FILA —";
+                $detailLines[] = '— DETALLE COMPLETO FILA —';
                 foreach ($r as $col => $val) {
-                    if ($val === null) continue;
+                    if ($val === null) {
+                        continue;
+                    }
                     $valStr = is_string($val) ? trim($val) : (string) $val;
-                    if ($valStr === '') continue;
+                    if ($valStr === '') {
+                        continue;
+                    }
                     $detailLines[] = "COL {$col}: {$valStr}";
                 }
 
@@ -186,7 +209,7 @@ class ExcelImportController extends Controller
                     ];
                 }
 
-                if (!empty($rowsToInsert)) {
+                if (! empty($rowsToInsert)) {
                     PdfLine::insert($rowsToInsert);
                 }
 
@@ -236,7 +259,7 @@ class ExcelImportController extends Controller
             $tmp = $ws->toArray(null, true, true, true);
             for ($r = 1; $r <= min(30, count($tmp)); $r++) {
                 $row = $tmp[$r] ?? [];
-                $joined = mb_strtolower(implode(' ', array_map(fn($v) => trim((string) $v), $row)));
+                $joined = mb_strtolower(implode(' ', array_map(fn ($v) => trim((string) $v), $row)));
                 if (str_contains($joined, 'bin')) {
                     $sheet = $ws;
                     $found = true;
@@ -262,20 +285,27 @@ class ExcelImportController extends Controller
             if ($noAcc !== false && $noAcc !== '') {
                 $s = mb_strtolower($noAcc);
             }
+
             return $s;
         };
 
         $headerRowIndex = null;
         for ($r = 1; $r <= min(30, count($rows)); $r++) {
             $row = $rows[$r] ?? [];
-            $keys = array_map(fn($v) => $norm($v), $row);
+            $keys = array_map(fn ($v) => $norm($v), $row);
             $hasBin = false;
             $hasFecha = false;
 
             foreach ($keys as $k) {
-                if ($k === '') continue;
-                if (str_contains($k, 'bin')) $hasBin = true;
-                if (str_contains($k, 'fecha') && str_contains($k, 'registro')) $hasFecha = true;
+                if ($k === '') {
+                    continue;
+                }
+                if (str_contains($k, 'bin')) {
+                    $hasBin = true;
+                }
+                if (str_contains($k, 'fecha') && str_contains($k, 'registro')) {
+                    $hasFecha = true;
+                }
             }
 
             if ($hasBin && $hasFecha) {
@@ -284,9 +314,9 @@ class ExcelImportController extends Controller
             }
         }
 
-        if (!$headerRowIndex) {
+        if (! $headerRowIndex) {
             return back()->withErrors([
-                'excel' => 'No pude detectar la fila de encabezados (busqué "bin" y "fecha registro" en las primeras 30 filas).'
+                'excel' => 'No pude detectar la fila de encabezados (busqué "bin" y "fecha registro" en las primeras 30 filas).',
             ]);
         }
 
@@ -294,12 +324,15 @@ class ExcelImportController extends Controller
         $headerToCol = [];
         foreach ($headerRow as $colLetter => $headerName) {
             $k = $norm($headerName);
-            if ($k !== '') $headerToCol[$k] = $colLetter;
+            if ($k !== '') {
+                $headerToCol[$k] = $colLetter;
+            }
         }
 
         $get = function (array $row, string $headerExact) use ($headerToCol, $norm) {
             $h = $norm($headerExact);
             $col = $headerToCol[$h] ?? null;
+
             return $col ? ($row[$col] ?? null) : null;
         };
 
@@ -308,8 +341,11 @@ class ExcelImportController extends Controller
             $cols = [];
             foreach ($headerRow as $col => $name) {
                 $n = $norm($name);
-                if ($n !== '' && str_contains($n, $needle)) $cols[] = $col;
+                if ($n !== '' && str_contains($n, $needle)) {
+                    $cols[] = $col;
+                }
             }
+
             return $cols;
         };
 
@@ -319,40 +355,70 @@ class ExcelImportController extends Controller
         $binCol = $binCols[0] ?? null;
 
         $parseDate = function ($v): ?string {
-            if ($v === null) return null;
+            if ($v === null) {
+                return null;
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) return $s;
-            if (preg_match('/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/', $s, $m)) return "{$m[3]}-{$m[2]}-{$m[1]}";
+            if ($s === '') {
+                return null;
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+                return $s;
+            }
+            if (preg_match('/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/', $s, $m)) {
+                return "{$m[3]}-{$m[2]}-{$m[1]}";
+            }
+
             return null;
         };
 
         $parseTime = function ($v): ?string {
-            if ($v === null) return null;
+            if ($v === null) {
+                return null;
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
-            if (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $s)) return strlen($s) === 5 ? ($s . ':00') : $s;
+            if ($s === '') {
+                return null;
+            }
+            if (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $s)) {
+                return strlen($s) === 5 ? ($s.':00') : $s;
+            }
+
             return null;
         };
 
         $parseInt = function ($v): ?int {
-            if ($v === null) return null;
-            if (is_int($v)) return $v;
-            if (is_float($v)) return (int) round($v);
+            if ($v === null) {
+                return null;
+            }
+            if (is_int($v)) {
+                return $v;
+            }
+            if (is_float($v)) {
+                return (int) round($v);
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
+            if ($s === '') {
+                return null;
+            }
             $s = str_replace(['.', ' '], '', $s);
+
             return ctype_digit($s) ? (int) $s : null;
         };
 
         $normalizeBin = function ($v): ?string {
-            if ($v === null) return null;
+            if ($v === null) {
+                return null;
+            }
             $s = trim((string) $v);
-            if ($s === '') return null;
+            if ($s === '') {
+                return null;
+            }
             if (str_contains($s, ';')) {
                 $parts = explode(';', $s, 2);
                 $s = trim($parts[1] ?? $s);
             }
+
             return $s !== '' ? $s : null;
         };
 
@@ -367,13 +433,14 @@ class ExcelImportController extends Controller
             $rawBin = $binCol ? ($r[$binCol] ?? null) : null;
             $codigoBin = $normalizeBin($rawBin);
 
-            if (!$codigoBin) {
+            if (! $codigoBin) {
                 $skipped++;
                 $importReport[] = [
                     'file' => $file->getClientOriginalName(),
                     'status' => 'skip',
                     'reason' => "Fila {$i}: sin Código bin",
                 ];
+
                 continue;
             }
 
@@ -393,6 +460,7 @@ class ExcelImportController extends Controller
                     'reason' => "Fila {$i}: duplicado (bin+fecha+hora)",
                     'codigo_bin' => $codigoBin,
                 ];
+
                 continue;
             }
 
@@ -486,6 +554,7 @@ class ExcelImportController extends Controller
             $s = str_replace(["\xc2\xa0", 'í', 'Í'], [' ', 'i', 'i'], $s);
             $s = preg_replace('/\s+/u', ' ', $s);
             $s = trim($s);
+
             return mb_strtolower($s);
         };
 
@@ -501,14 +570,21 @@ class ExcelImportController extends Controller
 
         $get = function (array $row, array $aliases) use ($headerToCol) {
             foreach ($aliases as $a) {
-                if (isset($headerToCol[$a])) return $row[$headerToCol[$a]] ?? null;
+                if (isset($headerToCol[$a])) {
+                    return $row[$headerToCol[$a]] ?? null;
+                }
             }
+
             return null;
         };
 
         $parseNumber = function ($v): ?float {
-            if ($v === null || $v === '') return null;
-            if (is_int($v) || is_float($v)) return (float) $v;
+            if ($v === null || $v === '') {
+                return null;
+            }
+            if (is_int($v) || is_float($v)) {
+                return (float) $v;
+            }
             $s = trim((string) $v);
             if (preg_match('/^\d{1,3}(\.\d{3})*,\d+$/', $s)) {
                 $s = str_replace('.', '', $s);
@@ -516,11 +592,15 @@ class ExcelImportController extends Controller
             } elseif (str_contains($s, ',')) {
                 $s = str_replace(',', '.', $s);
             }
+
             return is_numeric($s) ? (float) $s : null;
         };
 
         $parseDate = function ($v): ?string {
-            if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})/', (string) $v, $m)) return "{$m[3]}-{$m[2]}-{$m[1]}";
+            if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})/', (string) $v, $m)) {
+                return "{$m[3]}-{$m[2]}-{$m[1]}";
+            }
+
             return null;
         };
 
@@ -539,6 +619,7 @@ class ExcelImportController extends Controller
                     'status' => 'skip',
                     'reason' => 'Guía vacía / no detectada',
                 ];
+
                 continue;
             }
 
@@ -549,6 +630,7 @@ class ExcelImportController extends Controller
                     'status' => 'duplicate',
                     'guia' => $guia,
                 ];
+
                 continue;
             }
 
@@ -568,7 +650,7 @@ class ExcelImportController extends Controller
 
             DB::transaction(function () use ($file, $storedPath, $template, $guia, $fecha, $productor, $meta, &$created) {
                 $import = PdfImport::create([
-                    'original_name' => 'EXCEL RFP: ' . $file->getClientOriginalName(),
+                    'original_name' => 'EXCEL RFP: '.$file->getClientOriginalName(),
                     'stored_path' => $storedPath,
                     'template' => $template,
                     'guia_no' => $guia,

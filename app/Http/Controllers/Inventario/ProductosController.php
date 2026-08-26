@@ -19,9 +19,9 @@ class ProductosController extends Controller
 
         $productos = $this->db()->table('gmail_inventory_products')
             ->select('id', 'nombre', 'codigo', 'unidad', 'stock_actual', 'costo_promedio', 'is_active', 'created_at')
-            ->when($q !== '', fn($query) => $query->where(function ($qq) use ($q) {
+            ->when($q !== '', fn ($query) => $query->where(function ($qq) use ($q) {
                 $qq->where('nombre', 'like', "%{$q}%")
-                   ->orWhere('codigo', 'like', "%{$q}%");
+                    ->orWhere('codigo', 'like', "%{$q}%");
             }))
             ->orderBy('nombre', 'asc')
             ->paginate(25)
@@ -33,19 +33,19 @@ class ProductosController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nombre'    => ['required', 'string', 'max:255'],
-            'codigo'    => ['nullable', 'string', 'max:64'],
-            'unidad'    => ['nullable', 'string', 'max:20'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'codigo' => ['nullable', 'string', 'max:64'],
+            'unidad' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable'],
         ], [
             'nombre.required' => 'El nombre es obligatorio.',
         ]);
 
         $this->db()->table('gmail_inventory_products')->insert([
-            'nombre'     => trim($data['nombre']),
-            'codigo'     => $data['codigo'] ? strtoupper(trim($data['codigo'])) : null,
-            'unidad'     => strtoupper(trim($data['unidad'] ?? 'UN')),
-            'is_active'  => isset($data['is_active']) ? 1 : 0,
+            'nombre' => trim($data['nombre']),
+            'codigo' => $data['codigo'] ? strtoupper(trim($data['codigo'])) : null,
+            'unidad' => strtoupper(trim($data['unidad'] ?? 'UN')),
+            'is_active' => isset($data['is_active']) ? 1 : 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -60,7 +60,7 @@ class ProductosController extends Controller
         $db = $this->db();
 
         $producto = $db->table('gmail_inventory_products')->where('id', $id)->first();
-        abort_if(!$producto, 404);
+        abort_if(! $producto, 404);
 
         // ── Lotes activos FIFO (más antiguos primero = se consumen primero) ──
         $lotes = $db->table('gmail_inventory_lots as l')
@@ -117,13 +117,13 @@ class ProductosController extends Controller
             ->get();
 
         // ── KPIs (stock y costo promedio ya calculados en el producto) ──
-        $stockTotal    = (float) $producto->stock_actual;
+        $stockTotal = (float) $producto->stock_actual;
         $costoPromedio = (float) $producto->costo_promedio;
-        $valorTotal    = $stockTotal * $costoPromedio;
-        $ultimoPrecio  = $historialPrecios->last()?->costo_unitario ?? 0;
-        $primerPrecio  = $historialPrecios->first()?->costo_unitario ?? 0;
-        $variacion     = ($primerPrecio > 0 && $ultimoPrecio > 0)
-            ? (((float)$ultimoPrecio - (float)$primerPrecio) / (float)$primerPrecio) * 100
+        $valorTotal = $stockTotal * $costoPromedio;
+        $ultimoPrecio = $historialPrecios->last()?->costo_unitario ?? 0;
+        $primerPrecio = $historialPrecios->first()?->costo_unitario ?? 0;
+        $variacion = ($primerPrecio > 0 && $ultimoPrecio > 0)
+            ? (((float) $ultimoPrecio - (float) $primerPrecio) / (float) $primerPrecio) * 100
             : null;
 
         return view('inventario.producto_detalle', compact(
@@ -137,17 +137,18 @@ class ProductosController extends Controller
     public function toggle(Request $request, $id)
     {
         $producto = $this->db()->table('gmail_inventory_products')->where('id', $id)->first();
-        if (!$producto) {
+        if (! $producto) {
             if ($request->expectsJson()) {
                 return response()->json(['success' => false], 404);
             }
+
             return back()->with('warning', 'Producto no encontrado.');
         }
 
-        $nuevo = !(bool) $producto->is_active;
+        $nuevo = ! (bool) $producto->is_active;
 
         $this->db()->table('gmail_inventory_products')->where('id', $id)->update([
-            'is_active'  => $nuevo,
+            'is_active' => $nuevo,
             'updated_at' => now(),
         ]);
 
@@ -172,7 +173,7 @@ class ProductosController extends Controller
 
         $this->db()->table('gmail_inventory_products')->where('id', $id)->update([
             'stock_minimo' => ($data['stock_minimo'] !== null && $data['stock_minimo'] > 0) ? $data['stock_minimo'] : null,
-            'updated_at'   => now(),
+            'updated_at' => now(),
         ]);
 
         return back()->with('ok', 'Stock mínimo actualizado.');

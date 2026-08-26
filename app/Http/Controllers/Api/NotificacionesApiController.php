@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class NotificacionesApiController extends Controller
 {
@@ -19,10 +18,10 @@ class NotificacionesApiController extends Controller
         $userId = $request->query('user_id');
         $limit = (int) $request->query('limit', 20);
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'ok' => false,
-                'message' => 'user_id es requerido'
+                'message' => 'user_id es requerido',
             ], 400);
         }
 
@@ -53,7 +52,7 @@ class NotificacionesApiController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $notificaciones,
-            'count' => $notificaciones->count()
+            'count' => $notificaciones->count(),
         ]);
     }
 
@@ -66,10 +65,10 @@ class NotificacionesApiController extends Controller
     {
         $userId = $request->input('user_id');
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'ok' => false,
-                'message' => 'user_id es requerido'
+                'message' => 'user_id es requerido',
             ], 400);
         }
 
@@ -79,13 +78,13 @@ class NotificacionesApiController extends Controller
             ->where('user_id', $userId)
             ->update([
                 'leido' => 1,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
         return response()->json([
             'ok' => true,
             'message' => 'Notificación marcada como leída',
-            'updated' => $updated > 0
+            'updated' => $updated > 0,
         ]);
     }
 
@@ -125,7 +124,7 @@ class NotificacionesApiController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $movimientos,
-            'count' => $movimientos->count()
+            'count' => $movimientos->count(),
         ]);
     }
 
@@ -141,7 +140,7 @@ class NotificacionesApiController extends Controller
             'user_id' => 'required|integer',
             'fcm_token' => 'required|string',
             'device_type' => 'required|in:android,ios',
-            'device_name' => 'nullable|string|max:255'
+            'device_name' => 'nullable|string|max:255',
         ]);
 
         // Insertar o actualizar token
@@ -150,20 +149,20 @@ class NotificacionesApiController extends Controller
             ->updateOrInsert(
                 [
                     'user_id' => $validated['user_id'],
-                    'fcm_token' => $validated['fcm_token']
+                    'fcm_token' => $validated['fcm_token'],
                 ],
                 [
                     'device_type' => $validated['device_type'],
                     'device_name' => $validated['device_name'] ?? null,
                     'active' => true,
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]
             );
 
         return response()->json([
             'ok' => true,
             'message' => 'Token FCM registrado correctamente',
-            'user_id' => $validated['user_id']
+            'user_id' => $validated['user_id'],
         ]);
     }
 
@@ -177,7 +176,7 @@ class NotificacionesApiController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|integer',
-            'fcm_token' => 'required|string'
+            'fcm_token' => 'required|string',
         ]);
 
         DB::connection('fuelcontrol')
@@ -188,7 +187,7 @@ class NotificacionesApiController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Token desactivado correctamente'
+            'message' => 'Token desactivado correctamente',
         ]);
     }
 
@@ -207,7 +206,7 @@ class NotificacionesApiController extends Controller
 
         return response()->json([
             'ok' => true,
-            'data' => $productos
+            'data' => $productos,
         ]);
     }
 }

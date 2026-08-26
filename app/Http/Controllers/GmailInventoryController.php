@@ -2,15 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\DteGeneratorService;
-use App\Services\GmailDteInventoryService;
 use App\Services\InventoryConfigService;
-use App\Services\SiiClientService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 class GmailInventoryController extends Controller
 {
@@ -27,9 +22,6 @@ class GmailInventoryController extends Controller
 
     /**
      * Muestra el dashboard de configuraciones y estado del SII.
-     *
-     * @param InventoryConfigService $settings
-     * @return \Illuminate\View\View
      */
     public function siiStatus(InventoryConfigService $settings): \Illuminate\View\View
     {
@@ -52,7 +44,7 @@ class GmailInventoryController extends Controller
             ? \Carbon\Carbon::parse($bcTokenRow->expires_at)->diffForHumans()
             : 'Desconocido';
         $bcTokenGuardado = $bcTokenActivo
-            ? substr($bcTokenRow->token, 0, 30) . '...'
+            ? substr($bcTokenRow->token, 0, 30).'...'
             : null;
 
         // Cargar variables de ambiente activo
@@ -98,89 +90,85 @@ class GmailInventoryController extends Controller
             'tokenUrl' => config('dte.sii.endpoints.token') ? true : false,
             'recepcionUrl' => config('dte.sii.endpoints.recepcion') ? true : false,
             'estadoUrl' => config('dte.sii.endpoints.estado') ? true : false,
-            'lowStockEmails'    => implode(', ', $settings->getLowStockEmails()),
-            'hasPfxPassword'    => $settings->getDtePfxPassword() !== null,
-            'fuelMinimoDiesel'  => $settings->getFuelMinimo('diesel'),
-            'fuelMinimoGasolina'=> $settings->getFuelMinimo('gasolina'),
-            'bcTokenActivo'     => $bcTokenActivo,
-            'bcTokenExpira'     => $bcTokenExpira,
-            'bcTokenGuardado'   => $bcTokenGuardado,
-            
-            // Ambientes
-            'bcEnv'             => $bcEnv,
-            'qaOdooUrl'         => $qaOdooUrl,
-            'qaOdooDb'          => $qaOdooDb,
-            'qaOdooUser'        => $qaOdooUser,
-            'qaOdooPassword'    => $qaOdooPassword,
-            'qaOdooJournalId'   => $qaOdooJournalId,
-            'qaBcClientId'      => $qaBcClientId,
-            'qaBcClientSecret'  => $qaBcClientSecret,
-            'qaBcApiUrl'        => $qaBcApiUrl,
-            'qaBcCuentaOrigen'  => $qaBcCuentaOrigen,
-            'qaBcRutOrigen'     => $qaBcRutOrigen,
-            'qaBcUsuario'       => $qaBcUsuario,
-            'qaBcRutApoderado'  => $qaBcRutApoderado,
+            'lowStockEmails' => implode(', ', $settings->getLowStockEmails()),
+            'hasPfxPassword' => $settings->getDtePfxPassword() !== null,
+            'fuelMinimoDiesel' => $settings->getFuelMinimo('diesel'),
+            'fuelMinimoGasolina' => $settings->getFuelMinimo('gasolina'),
+            'bcTokenActivo' => $bcTokenActivo,
+            'bcTokenExpira' => $bcTokenExpira,
+            'bcTokenGuardado' => $bcTokenGuardado,
 
-            'prodOdooUrl'       => $prodOdooUrl,
-            'prodOdooDb'        => $prodOdooDb,
-            'prodOdooUser'      => $prodOdooUser,
-            'prodOdooPassword'  => $prodOdooPassword,
+            // Ambientes
+            'bcEnv' => $bcEnv,
+            'qaOdooUrl' => $qaOdooUrl,
+            'qaOdooDb' => $qaOdooDb,
+            'qaOdooUser' => $qaOdooUser,
+            'qaOdooPassword' => $qaOdooPassword,
+            'qaOdooJournalId' => $qaOdooJournalId,
+            'qaBcClientId' => $qaBcClientId,
+            'qaBcClientSecret' => $qaBcClientSecret,
+            'qaBcApiUrl' => $qaBcApiUrl,
+            'qaBcCuentaOrigen' => $qaBcCuentaOrigen,
+            'qaBcRutOrigen' => $qaBcRutOrigen,
+            'qaBcUsuario' => $qaBcUsuario,
+            'qaBcRutApoderado' => $qaBcRutApoderado,
+
+            'prodOdooUrl' => $prodOdooUrl,
+            'prodOdooDb' => $prodOdooDb,
+            'prodOdooUser' => $prodOdooUser,
+            'prodOdooPassword' => $prodOdooPassword,
             'prodOdooJournalId' => $prodOdooJournalId,
-            'prodBcClientId'    => $prodBcClientId,
-            'prodBcClientSecret'=> $prodBcClientSecret,
-            'prodBcApiUrl'      => $prodBcApiUrl,
-            'prodBcCuentaOrigen'=> $prodBcCuentaOrigen,
-            'prodBcRutOrigen'   => $prodBcRutOrigen,
-            'prodBcUsuario'     => $prodBcUsuario,
-            'prodBcRutApoderado'=> $prodBcRutApoderado,
+            'prodBcClientId' => $prodBcClientId,
+            'prodBcClientSecret' => $prodBcClientSecret,
+            'prodBcApiUrl' => $prodBcApiUrl,
+            'prodBcCuentaOrigen' => $prodBcCuentaOrigen,
+            'prodBcRutOrigen' => $prodBcRutOrigen,
+            'prodBcUsuario' => $prodBcUsuario,
+            'prodBcRutApoderado' => $prodBcRutApoderado,
         ]);
     }
 
     /**
      * Actualiza la configuración guardada sobre SII y Banco de Chile.
-     *
-     * @param Request $request
-     * @param InventoryConfigService $settings
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function siiConfigUpdate(Request $request, InventoryConfigService $settings): \Illuminate\Http\RedirectResponse
     {
         $validated = $request->validate([
-            'low_stock_emails'           => 'nullable|string|max:2000',
+            'low_stock_emails' => 'nullable|string|max:2000',
             'dte_signature_pfx_password' => 'nullable|string|max:255',
-            'fuel_minimo_diesel'         => 'nullable|numeric|min:0',
-            'fuel_minimo_gasolina'       => 'nullable|numeric|min:0',
+            'fuel_minimo_diesel' => 'nullable|numeric|min:0',
+            'fuel_minimo_gasolina' => 'nullable|numeric|min:0',
 
             // Multiambiente Banco de Chile
-            'banco_chile_env'            => 'nullable|string|in:qa,production',
-            
+            'banco_chile_env' => 'nullable|string|in:qa,production',
+
             // QA
-            'qa_odoo_url'                => 'nullable|string|max:255',
-            'qa_odoo_db'                 => 'nullable|string|max:255',
-            'qa_odoo_user'               => 'nullable|string|max:255',
-            'qa_odoo_password'           => 'nullable|string|max:255',
-            'qa_odoo_journal_id'         => 'nullable|integer',
-            'qa_bc_client_id'            => 'nullable|string|max:255',
-            'qa_bc_client_secret'        => 'nullable|string|max:255',
-            'qa_bc_api_url'              => 'nullable|string|max:500',
-            'qa_bc_cuenta_origen'        => 'nullable|string|max:255',
-            'qa_bc_rut_origen'           => 'nullable|string|max:255',
-            'qa_bc_usuario'              => 'nullable|string|max:255',
-            'qa_bc_rut_apoderado'        => 'nullable|string|max:255',
+            'qa_odoo_url' => 'nullable|string|max:255',
+            'qa_odoo_db' => 'nullable|string|max:255',
+            'qa_odoo_user' => 'nullable|string|max:255',
+            'qa_odoo_password' => 'nullable|string|max:255',
+            'qa_odoo_journal_id' => 'nullable|integer',
+            'qa_bc_client_id' => 'nullable|string|max:255',
+            'qa_bc_client_secret' => 'nullable|string|max:255',
+            'qa_bc_api_url' => 'nullable|string|max:500',
+            'qa_bc_cuenta_origen' => 'nullable|string|max:255',
+            'qa_bc_rut_origen' => 'nullable|string|max:255',
+            'qa_bc_usuario' => 'nullable|string|max:255',
+            'qa_bc_rut_apoderado' => 'nullable|string|max:255',
 
             // PROD
-            'prod_odoo_url'              => 'nullable|string|max:255',
-            'prod_odoo_db'               => 'nullable|string|max:255',
-            'prod_odoo_user'             => 'nullable|string|max:255',
-            'prod_odoo_password'         => 'nullable|string|max:255',
-            'prod_odoo_journal_id'       => 'nullable|integer',
-            'prod_bc_client_id'          => 'nullable|string|max:255',
-            'prod_bc_client_secret'      => 'nullable|string|max:255',
-            'prod_bc_api_url'            => 'nullable|string|max:500',
-            'prod_bc_cuenta_origen'      => 'nullable|string|max:255',
-            'prod_bc_rut_origen'         => 'nullable|string|max:255',
-            'prod_bc_usuario'            => 'nullable|string|max:255',
-            'prod_bc_rut_apoderado'      => 'nullable|string|max:255',
+            'prod_odoo_url' => 'nullable|string|max:255',
+            'prod_odoo_db' => 'nullable|string|max:255',
+            'prod_odoo_user' => 'nullable|string|max:255',
+            'prod_odoo_password' => 'nullable|string|max:255',
+            'prod_odoo_journal_id' => 'nullable|integer',
+            'prod_bc_client_id' => 'nullable|string|max:255',
+            'prod_bc_client_secret' => 'nullable|string|max:255',
+            'prod_bc_api_url' => 'nullable|string|max:500',
+            'prod_bc_cuenta_origen' => 'nullable|string|max:255',
+            'prod_bc_rut_origen' => 'nullable|string|max:255',
+            'prod_bc_usuario' => 'nullable|string|max:255',
+            'prod_bc_rut_apoderado' => 'nullable|string|max:255',
         ]);
 
         $emails = trim((string) ($validated['low_stock_emails'] ?? ''));
@@ -223,9 +211,6 @@ class GmailInventoryController extends Controller
 
     /**
      * Procesa la subida del archivo CAF (Certificate Authorization Factor).
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function uploadCaf(Request $request): \Illuminate\Http\RedirectResponse
     {
@@ -246,9 +231,6 @@ class GmailInventoryController extends Controller
 
     /**
      * Sube y valida el certificado PFX para operaciones del SII.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function uploadPfx(Request $request): \Illuminate\Http\RedirectResponse
     {
@@ -267,7 +249,6 @@ class GmailInventoryController extends Controller
         return back()->with('success', 'Certificado PFX cargado correctamente.');
     }
 
-
     private function resolveQuickRange(string $range): array
     {
         return match ($range) {
@@ -280,13 +261,10 @@ class GmailInventoryController extends Controller
 
     /**
      * API - Devuelve productos de inventario.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function productsApi(Request $request): \Illuminate\Http\JsonResponse
     {
-        $q     = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $limit = min(50, max(1, (int) $request->query('limit', 6)));
 
         $withStock = (string) $request->query('with_stock', '1');
@@ -294,14 +272,14 @@ class GmailInventoryController extends Controller
         $query = $this->db()
             ->table('gmail_inventory_products')
             ->where('is_active', 1)
-            ->when($withStock !== '0', fn($qb) => $qb->where('stock_actual', '>', 0))
+            ->when($withStock !== '0', fn ($qb) => $qb->where('stock_actual', '>', 0))
             ->orderBy('nombre')
             ->limit($limit);
 
         if ($q !== '') {
             $query->where(function ($qb) use ($q) {
                 $qb->where('nombre', 'like', "%{$q}%")
-                   ->orWhere('codigo', 'like', "%{$q}%");
+                    ->orWhere('codigo', 'like', "%{$q}%");
             });
         }
 
@@ -312,9 +290,6 @@ class GmailInventoryController extends Controller
 
     /**
      * API - Crea un producto desde el modal.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function createProductApi(Request $request): \Illuminate\Http\JsonResponse
     {
@@ -337,35 +312,35 @@ class GmailInventoryController extends Controller
 
         if ($existing) {
             return response()->json([
-                'id'             => $existing->id,
-                'nombre'         => $existing->nombre,
-                'codigo'         => $existing->codigo,
-                'unidad'         => $existing->unidad,
-                'stock_actual'   => $existing->stock_actual,
+                'id' => $existing->id,
+                'nombre' => $existing->nombre,
+                'codigo' => $existing->codigo,
+                'unidad' => $existing->unidad,
+                'stock_actual' => $existing->stock_actual,
                 'costo_promedio' => $existing->costo_promedio,
                 'already_existed' => true,
             ]);
         }
 
         $id = $this->db()->table('gmail_inventory_products')->insertGetId([
-            'nombre'         => $nombre,
-            'codigo'         => $codigo,
-            'unidad'         => $unidad,
-            'stock_actual'   => 0,
+            'nombre' => $nombre,
+            'codigo' => $codigo,
+            'unidad' => $unidad,
+            'stock_actual' => 0,
             'costo_promedio' => 0,
-            'is_active'      => 1,
-            'created_at'     => now(),
-            'updated_at'     => now(),
+            'is_active' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $product = $this->db()->table('gmail_inventory_products')->find($id);
 
         return response()->json([
-            'id'             => $product->id,
-            'nombre'         => $product->nombre,
-            'codigo'         => $product->codigo,
-            'unidad'         => $product->unidad,
-            'stock_actual'   => $product->stock_actual,
+            'id' => $product->id,
+            'nombre' => $product->nombre,
+            'codigo' => $product->codigo,
+            'unidad' => $product->unidad,
+            'stock_actual' => $product->stock_actual,
             'costo_promedio' => $product->costo_promedio,
             'already_existed' => false,
         ], 201);
@@ -373,13 +348,10 @@ class GmailInventoryController extends Controller
 
     /**
      * API - Obtiene los destinatarios.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function destinatariosApi(Request $request): \Illuminate\Http\JsonResponse
     {
-        $q    = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $tipo = trim((string) $request->query('tipo', ''));
 
         $query = $this->db()
@@ -404,9 +376,6 @@ class GmailInventoryController extends Controller
 
     /**
      * API - Muestra los lotes asociados a un producto.
-     *
-     * @param int $productId
-     * @return \Illuminate\Http\JsonResponse
      */
     public function lotsApi(int $productId): \Illuminate\Http\JsonResponse
     {
@@ -422,16 +391,12 @@ class GmailInventoryController extends Controller
         return response()->json($lots);
     }
 
-
     /**
      * API - Obtiene la lista de contactos.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function contactsApi(Request $request): \Illuminate\Http\JsonResponse
     {
-        $q    = trim((string) $request->query('q', ''));
+        $q = trim((string) $request->query('q', ''));
         $tipo = trim((string) $request->query('tipo', ''));
 
         $query = $this->db()
@@ -445,8 +410,8 @@ class GmailInventoryController extends Controller
         if ($q !== '') {
             $query->where(function ($qb) use ($q) {
                 $qb->where('nombre', 'like', "%{$q}%")
-                   ->orWhere('rut', 'like', "%{$q}%")
-                   ->orWhere('empresa', 'like', "%{$q}%");
+                    ->orWhere('rut', 'like', "%{$q}%")
+                    ->orWhere('empresa', 'like', "%{$q}%");
             });
         }
 
@@ -455,26 +420,22 @@ class GmailInventoryController extends Controller
         );
     }
 
-
     /**
      * Guarda un nuevo contacto vía API.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function contactStore(Request $request): \Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
-            'id'       => 'nullable|integer|exists:fuelcontrol.gmail_inventory_contacts,id',
-            'tipo'     => 'required|string|in:cliente,trabajador,destinatario',
-            'nombre'   => 'required|string|max:200',
-            'rut'      => 'nullable|string|max:30',
-            'empresa'  => 'nullable|string|max:200',
-            'cargo'    => 'nullable|string|max:100',
-            'area'     => 'nullable|string|max:100',
+            'id' => 'nullable|integer|exists:fuelcontrol.gmail_inventory_contacts,id',
+            'tipo' => 'required|string|in:cliente,trabajador,destinatario',
+            'nombre' => 'required|string|max:200',
+            'rut' => 'nullable|string|max:30',
+            'empresa' => 'nullable|string|max:200',
+            'cargo' => 'nullable|string|max:100',
+            'area' => 'nullable|string|max:100',
             'telefono' => 'nullable|string|max:50',
-            'email'    => 'nullable|email|max:200',
-            'notas'    => 'nullable|string|max:1000',
+            'email' => 'nullable|email|max:200',
+            'notas' => 'nullable|string|max:1000',
         ]);
 
         if (empty($validated['id'])) {
@@ -500,9 +461,6 @@ class GmailInventoryController extends Controller
 
     /**
      * Muestra la valoración actual del stock (Valorizado).
-     *
-     * @param Request $request
-     * @return \Illuminate\View\View
      */
     public function stockValuation(Request $request): \Illuminate\View\View
     {
@@ -511,21 +469,20 @@ class GmailInventoryController extends Controller
         $products = $this->db()
             ->table('gmail_inventory_products')
             ->where('is_active', true)
-            ->when($q !== '', fn($query) => $query->where(function ($sub) use ($q) {
+            ->when($q !== '', fn ($query) => $query->where(function ($sub) use ($q) {
                 $sub->where('nombre', 'like', "%{$q}%")
                     ->orWhere('codigo', 'like', "%{$q}%");
             }))
             ->orderByDesc(DB::raw('stock_actual * costo_promedio'))
             ->get(['id', 'nombre', 'codigo', 'unidad', 'stock_actual', 'costo_promedio', 'stock_minimo']);
 
-        $totalValor      = $products->sum(fn($p) => (float)$p->stock_actual * (float)$p->costo_promedio);
-        $totalProductos  = $products->count();
-        $totalConStock   = $products->where('stock_actual', '>', 0)->count();
-        $totalBajoMinimo = $products->filter(fn($p) => $p->stock_minimo !== null && (float)$p->stock_actual < (float)$p->stock_minimo)->count();
+        $totalValor = $products->sum(fn ($p) => (float) $p->stock_actual * (float) $p->costo_promedio);
+        $totalProductos = $products->count();
+        $totalConStock = $products->where('stock_actual', '>', 0)->count();
+        $totalBajoMinimo = $products->filter(fn ($p) => $p->stock_minimo !== null && (float) $p->stock_actual < (float) $p->stock_minimo)->count();
 
         return view('gmail.inventory.stock_valuation', compact(
             'products', 'totalValor', 'totalProductos', 'totalConStock', 'totalBajoMinimo', 'q'
         ));
     }
-
 }

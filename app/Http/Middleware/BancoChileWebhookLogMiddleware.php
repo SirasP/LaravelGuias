@@ -24,7 +24,7 @@ class BancoChileWebhookLogMiddleware
 
         // 3. Registrar respuesta devuelta por Laravel a Odoo
         Log::channel('bch_webhook')->info("[$requestId] === RESPUESTA DEVUELTA A ODOO ===");
-        Log::channel('bch_webhook')->info("[$requestId] Status Code: " . $response->status());
+        Log::channel('bch_webhook')->info("[$requestId] Status Code: ".$response->status());
         Log::channel('bch_webhook')->info("[$requestId] Cuerpo de Respuesta:", json_decode($response->getContent(), true) ?: [$response->getContent()]);
         Log::channel('bch_webhook')->info("[$requestId] =======================================\n");
 

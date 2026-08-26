@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\AgrakRegistro;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\AgrakOdooMatcher;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AgrakController extends Controller
 {
@@ -22,7 +21,7 @@ class AgrakController extends Controller
         // Rango de fechas de cosecha (columna date `fecha_registro`).
         // Cualquiera de los dos extremos puede venir solo. Solo se acepta
         // ISO yyyy-mm-dd; cualquier otra cosa en la URL se ignora.
-        $esFecha = fn($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
+        $esFecha = fn ($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
         $desde = trim((string) $request->get('desde', ''));
         $hasta = trim((string) $request->get('hasta', ''));
         $desde = $esFecha($desde) ? $desde : '';
@@ -40,17 +39,17 @@ class AgrakController extends Controller
         $currentYear = $now->year;
         $currentMonth = $now->month;
         if ($currentMonth >= 6) {
-            $currentSeason = $currentYear . '/' . ($currentYear + 1);
-            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+            $currentSeason = $currentYear.'/'.($currentYear + 1);
+            $nextSeason = ($currentYear + 1).'/'.($currentYear + 2);
         } else {
-            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
-            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+            $currentSeason = ($currentYear - 1).'/'.$currentYear;
+            $nextSeason = $currentYear.'/'.($currentYear + 1);
         }
 
-        if (!in_array($currentSeason, $availableSeasons)) {
+        if (! in_array($currentSeason, $availableSeasons)) {
             $availableSeasons[] = $currentSeason;
         }
-        if (!in_array($nextSeason, $availableSeasons)) {
+        if (! in_array($nextSeason, $availableSeasons)) {
             $availableSeasons[] = $nextSeason;
         }
 
@@ -85,8 +84,7 @@ class AgrakController extends Controller
                 });
             }
 
-            //$base->whereNotNull('patente_camion')->where('patente_camion', '!=', '');
-
+            // $base->whereNotNull('patente_camion')->where('patente_camion', '!=', '');
 
             // 2) Paginamos por "grupo" (fecha + patente), no por bins
             $groupQuery = (clone $base)
@@ -95,11 +93,8 @@ class AgrakController extends Controller
                 ->orderByDesc('fecha_registro')
                 ->orderByDesc('last_hora');
 
-
-
             $perPage = 15;
             $page = (int) $request->get('page', 1);
-
 
             $groupKeys = (clone $groupQuery)->get();
 
@@ -137,18 +132,17 @@ class AgrakController extends Controller
                 ];
             }
 
-
             $modo = $request->get('modo', 'all'); // all | pendientes | ok
 
             if ($modo !== 'all') {
                 $groups = array_values(array_filter($groups, function ($g) use ($modo) {
 
                     $tienePendientes = collect($g->trips)
-                        ->contains(fn($t) => !$t['camion_existe']);
+                        ->contains(fn ($t) => ! $t['camion_existe']);
 
                     return $modo === 'pendientes'
                         ? $tienePendientes
-                        : !$tienePendientes;
+                        : ! $tienePendientes;
                 }));
             }
 
@@ -167,7 +161,6 @@ class AgrakController extends Controller
                 $page,
                 ['path' => $request->url(), 'query' => $request->query()]
             );
-
 
             // combos filtros
             $campos = AgrakRegistro::select('nombre_campo')->whereNotNull('nombre_campo')->distinct()->orderBy('nombre_campo')->pluck('nombre_campo');
@@ -202,8 +195,9 @@ class AgrakController extends Controller
         );
 
         $allowed = ['fecha_registro', 'created_at', 'codigo_bin'];
-        if (!in_array($orderBy, $allowed, true))
+        if (! in_array($orderBy, $allowed, true)) {
             $orderBy = 'fecha_registro';
+        }
         $dir = $dir === 'asc' ? 'asc' : 'desc';
 
         if ($orderBy === 'fecha_registro') {
@@ -216,7 +210,7 @@ class AgrakController extends Controller
         }
 
         $query->orderBy('id', 'desc');
-        
+
         // ===== KPIs =====
         $stats = [
             'total_bins' => (clone $query)->count(),
@@ -237,6 +231,7 @@ class AgrakController extends Controller
     public function show(int $id)
     {
         $item = AgrakRegistro::findOrFail($id);
+
         return view('agrak.show', compact('item'));
     }
 
@@ -258,7 +253,7 @@ class AgrakController extends Controller
                 $gap = $t - $prev;
                 if ($gap > ($gapMinutes * 60)) {
                     // cerramos viaje actual
-                    if (!empty($current)) {
+                    if (! empty($current)) {
                         $trips[] = $this->summarizeTrip($current);
                     }
                     $current = [];
@@ -269,7 +264,7 @@ class AgrakController extends Controller
             $prev = $t;
         }
 
-        if (!empty($current)) {
+        if (! empty($current)) {
             $trips[] = $this->summarizeTrip($current);
         }
 
@@ -290,17 +285,17 @@ class AgrakController extends Controller
 
         // ===== valores dominantes =====
         $chofer = $this->mode(array_map(
-            fn($x) => $x->chofer_norm,
+            fn ($x) => $x->chofer_norm,
             $items
         )) ?: null;
 
         $export = $this->mode(array_map(
-            fn($x) => $x->exportadora_norm,
+            fn ($x) => $x->exportadora_norm,
             $items
         )) ?: null;
 
         $patente = $this->mode(array_map(
-            fn($x) => $x->patente_norm,
+            fn ($x) => $x->patente_norm,
             $items
         ));
 
@@ -335,12 +330,12 @@ class AgrakController extends Controller
         ];
     }
 
-
     private function timeToSeconds(?string $hhmmss): int
     {
         $s = trim((string) $hhmmss);
-        if ($s === '')
+        if ($s === '') {
             return 0;
+        }
 
         // soporta HH:MM o HH:MM:SS
         $parts = explode(':', $s);
@@ -353,15 +348,17 @@ class AgrakController extends Controller
 
     private function mode(array $values): ?string
     {
-        $values = array_values(array_filter($values, fn($v) => $v !== '' && $v !== '0'));
-        if (!$values)
+        $values = array_values(array_filter($values, fn ($v) => $v !== '' && $v !== '0'));
+        if (! $values) {
             return null;
+        }
 
         $count = [];
         foreach ($values as $v) {
             $count[$v] = ($count[$v] ?? 0) + 1;
         }
         arsort($count);
+
         return array_key_first($count);
     }
 }

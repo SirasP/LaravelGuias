@@ -12,11 +12,12 @@
         'specification' => $item->specification,
         'quantity' => $item->quantity,
         'unit' => $item->unit,
+        'unit_price' => $item->unit_price,
         'quantity_note' => $item->quantity_note,
         'destination' => $item->destination,
     ])->values()->all() ?? []);
     $requestItems = count($requestItems) ? $requestItems : [[
-        'product_service' => '', 'specification' => '', 'quantity' => '', 'unit' => 'Unidades', 'quantity_note' => '', 'destination' => '',
+        'product_service' => '', 'specification' => '', 'quantity' => '', 'unit' => 'Unidades', 'unit_price' => '', 'quantity_note' => '', 'destination' => '',
     ]];
     $suppliers = old('suggested_suppliers', $purchaseRequest?->suggested_suppliers ?? []);
     $suppliers = is_array($suppliers) ? array_values($suppliers) : [];
@@ -143,6 +144,7 @@
                                         specification: i.specification ?? '',
                                         quantity: i.quantity ?? '',
                                         unit: i.unit ?? '',
+                                        unit_price: i.unit_price ?? '',
                                         quantity_note: '', destination: ''
                                     }));
                                     items = vacias ? nuevas : items.concat(nuevas);
@@ -291,6 +293,8 @@
                                 <th class="px-5 py-3">Producto / servicio</th>
                                 <th class="px-5 py-3">Especificación</th>
                                 <th class="px-5 py-3 text-right">Cantidad</th>
+                                <th class="px-5 py-3 text-right">Precio unit.</th>
+                                <th class="px-5 py-3 text-right">Total</th>
                                 <th class="px-5 py-3">Destino</th>
                             </tr>
                         </thead>
@@ -301,10 +305,21 @@
                                     <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100" x-text="item.product_service || '—'"></td>
                                     <td class="px-5 py-4 text-slate-600 dark:text-slate-300" x-text="item.specification || '—'"></td>
                                     <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100" x-text="(item.quantity || '—') + ' ' + (item.unit || '')"></td>
+                                    <td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300" x-text="item.unit_price ? comoPesos(aNumero(item.unit_price)) : '—'"></td>
+                                    <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100" x-text="totalLinea(item) || '—'"></td>
                                     <td class="px-5 py-4 text-slate-600 dark:text-slate-300" x-text="item.destination || '—'"></td>
                                 </tr>
                             </template>
                         </tbody>
+                        <template x-if="totalSolicitud()">
+                            <tfoot>
+                                <tr class="border-t-2 border-slate-200 dark:border-slate-700">
+                                    <td colspan="4" class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Total</td>
+                                    <td class="px-5 py-3 text-right font-extrabold text-slate-900 dark:text-white" x-text="'$' + totalSolicitud()"></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </template>
                     </table>
                 </div>
 
@@ -400,7 +415,13 @@
                 <h2 class="font-extrabold text-slate-900 dark:text-white">2. ¿Qué necesitas?</h2>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Usa coma o punto para decimales. Puedes repetir productos si tienen distinto destino.</p>
             </div>
-            <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
+            <div class="flex shrink-0 items-center gap-2">
+                <template x-if="totalSolicitud()">
+                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        x-text="'Total: $' + totalSolicitud()"></span>
+                </template>
+                <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
+            </div>
         </div>
         <div class="space-y-3 p-4 sm:p-5">
             <template x-for="(item, index) in items" :key="item.key">
@@ -420,7 +441,7 @@
                     {{-- En pantalla ancha las tres van en una línea: el producto se
                          lleva el espacio, y cantidad y unidad piden poco. --}}
                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-                        <div class="sm:col-span-2 lg:col-span-7">
+                        <div class="sm:col-span-2 lg:col-span-5">
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Producto o servicio <span class="text-rose-500">*</span></label>
                             <input :name="`items[${index}][product_service]`" x-model="item.product_service" required
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Tubo PVC sanitario">
@@ -432,11 +453,24 @@
                                 class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. 1,5">
                             <template x-if="fieldError(`items.${index}.quantity`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.quantity`)"></p></template>
                         </div>
-                        <div class="lg:col-span-3">
+                        <div class="lg:col-span-2">
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">Unidad <span class="text-rose-500">*</span></label>
                             <input :name="`items[${index}][unit]`" x-model="item.unit" required list="units-catalog"
-                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Metros, Unidades, Paquetes">
+                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. Metros">
                             <template x-if="fieldError(`items.${index}.unit`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.unit`)"></p></template>
+                        </div>
+                        {{-- Opcional: se pide algo antes de tener cotización, y eso
+                             es normal. Con precio, la ficha suma el total sola. --}}
+                        <div class="lg:col-span-3">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                                Precio unitario <span class="font-normal text-slate-400">(opcional)</span>
+                            </label>
+                            <input :name="`items[${index}][unit_price]`" x-model="item.unit_price" inputmode="decimal"
+                                class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej. 12.500">
+                            <template x-if="fieldError(`items.${index}.unit_price`)"><p class="mt-1 text-xs font-medium text-rose-600" x-text="fieldError(`items.${index}.unit_price`)"></p></template>
+                            <template x-if="item.unit_price && item.quantity">
+                                <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400" x-text="'Total línea: ' + totalLinea(item)"></p>
+                            </template>
                         </div>
                         <div class="sm:col-span-2 lg:col-span-12" x-data="{ detalle: !!(item.specification || item.quantity_note || item.destination) }">
                             <button type="button" @click="detalle = !detalle" :aria-expanded="detalle.toString()"
@@ -603,13 +637,70 @@
 
             addItem() {
                 // La unidad más común, para no obligar a elegirla en cada línea.
-                this.items.push({ key: Date.now() + Math.random(), product_service: '', specification: '', quantity: '', unit: 'Unidades', quantity_note: '', destination: '' });
+                this.items.push({ key: Date.now() + Math.random(), product_service: '', specification: '', quantity: '', unit: 'Unidades', unit_price: '', quantity_note: '', destination: '' });
             },
             removeItem(index) {
                 if (this.items.length > 1) this.items.splice(index, 1);
             },
             fieldError(key) {
                 return this.errors[key] ? this.errors[key][0] : '';
+            },
+
+            /** Lo escrito «12.500» o «12,5» a número, con la convención chilena. */
+            aNumero(valor) {
+                if (valor === null || valor === undefined || valor === '') return null;
+
+                let texto = String(valor).replace(/[\s\u00A0]/g, '');
+                const coma = texto.lastIndexOf(',');
+                const punto = texto.lastIndexOf('.');
+
+                if (coma !== -1 && punto !== -1) {
+                    texto = coma > punto
+                        ? texto.replace(/\./g, '').replace(',', '.')
+                        : texto.replace(/,/g, '');
+                } else if (coma !== -1) {
+                    texto = texto.replace(/\./g, '').replace(',', '.');
+                } else if ((texto.match(/\./g) || []).length > 1) {
+                    texto = texto.replace(/\./g, '');
+                }
+
+                const numero = parseFloat(texto);
+
+                return Number.isFinite(numero) ? numero : null;
+            },
+
+            comoPesos(numero) {
+                return numero.toLocaleString('es-CL', { maximumFractionDigits: 2 });
+            },
+
+            totalLinea(item) {
+                const precio = this.aNumero(item.unit_price);
+                const cantidad = this.aNumero(item.quantity);
+
+                if (precio === null || cantidad === null) return '';
+
+                return this.comoPesos(Math.round(precio * cantidad * 100) / 100);
+            },
+
+            /**
+             * Suma de las partidas con precio. Vacío si ninguna lo tiene:
+             * mostrar «0» en una solicitud sin cotizar diria algo falso.
+             */
+            totalSolicitud() {
+                let suma = 0;
+                let hayAlguno = false;
+
+                for (const item of this.items) {
+                    const precio = this.aNumero(item.unit_price);
+                    const cantidad = this.aNumero(item.quantity);
+
+                    if (precio === null || cantidad === null) continue;
+
+                    suma += precio * cantidad;
+                    hayAlguno = true;
+                }
+
+                return hayAlguno ? this.comoPesos(Math.round(suma * 100) / 100) : '';
             },
         };
     }

@@ -24,4 +24,3 @@ class ComfrutGuiaDetalle extends Model
         return $this->belongsTo(ComfrutGuia::class, 'comfrut_guia_id');
     }
 }
-

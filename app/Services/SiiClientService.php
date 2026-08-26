@@ -8,7 +8,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Services\InventoryConfigService;
 use RuntimeException;
 
 class SiiClientService
@@ -16,7 +15,7 @@ class SiiClientService
     public function getSeed(): string
     {
         if ($this->isDevMode()) {
-            return 'DEV_SEED_' . now()->format('YmdHis');
+            return 'DEV_SEED_'.now()->format('YmdHis');
         }
 
         $xml = $this->soapCall(
@@ -36,7 +35,7 @@ class SiiClientService
     public function signSeed(string $seed): string
     {
         if ($this->isDevMode()) {
-            return '<getToken><item><Semilla>' . htmlspecialchars($seed, ENT_XML1) . '</Semilla></item></getToken>';
+            return '<getToken><item><Semilla>'.htmlspecialchars($seed, ENT_XML1).'</Semilla></item></getToken>';
         }
 
         if (trim($seed) === '') {
@@ -60,7 +59,7 @@ class SiiClientService
         $getToken->appendChild($signature);
 
         $signed = $doc->saveXML();
-        if (!is_string($signed) || trim($signed) === '') {
+        if (! is_string($signed) || trim($signed) === '') {
             throw new RuntimeException('No se pudo serializar semilla firmada.');
         }
 
@@ -70,14 +69,14 @@ class SiiClientService
     public function getToken(?string $signedSeedXml = null): string
     {
         if ($this->isDevMode()) {
-            return 'DEV_TOKEN_' . now()->format('YmdHis');
+            return 'DEV_TOKEN_'.now()->format('YmdHis');
         }
 
         if ($signedSeedXml === null || trim($signedSeedXml) === '') {
             $signedSeedXml = $this->signSeed($this->getSeed());
         }
 
-        $body = '<pszXml>' . htmlspecialchars($signedSeedXml, ENT_XML1) . '</pszXml>';
+        $body = '<pszXml>'.htmlspecialchars($signedSeedXml, ENT_XML1).'</pszXml>';
         $xml = $this->soapCall(
             (string) config('dte.sii.endpoints.token'),
             'getToken',
@@ -98,7 +97,7 @@ class SiiClientService
     public function enviarDte(string $xmlPath): array
     {
         if ($this->isDevMode()) {
-            $trackId = 'DEV-' . now()->format('YmdHis');
+            $trackId = 'DEV-'.now()->format('YmdHis');
             Log::info('Envio SII omitido (DEV MODE)', [
                 'track_id' => $trackId,
                 'xml_path' => $xmlPath,
@@ -106,7 +105,7 @@ class SiiClientService
 
             return [
                 'track_id' => $trackId,
-                'response_xml' => '<SII><ESTADO>DEV_NO_ENVIADO</ESTADO><TRACKID>' . $trackId . '</TRACKID></SII>',
+                'response_xml' => '<SII><ESTADO>DEV_NO_ENVIADO</ESTADO><TRACKID>'.$trackId.'</TRACKID></SII>',
                 'token' => 'DEV_TOKEN',
                 'sii_estado' => 'DEV_NO_ENVIADO',
             ];
@@ -115,11 +114,11 @@ class SiiClientService
         $token = $this->getToken();
 
         $disk = (string) config('dte.storage_disk', 'local');
-        if (!Storage::disk($disk)->exists($xmlPath)) {
+        if (! Storage::disk($disk)->exists($xmlPath)) {
             throw new RuntimeException("No existe XML DTE para envío: {$xmlPath}");
         }
         $xml = Storage::disk($disk)->get($xmlPath);
-        if (!is_string($xml) || trim($xml) === '') {
+        if (! is_string($xml) || trim($xml) === '') {
             throw new RuntimeException("XML DTE vacío: {$xmlPath}");
         }
 
@@ -132,7 +131,7 @@ class SiiClientService
         $filename = basename($xmlPath);
         $response = Http::asMultipart()
             ->withHeaders([
-                'Cookie' => 'TOKEN=' . $token,
+                'Cookie' => 'TOKEN='.$token,
                 'Accept' => 'text/xml, application/xml',
             ])
             ->attach('archivo', $xml, $filename, ['Content-Type' => 'text/xml'])
@@ -182,7 +181,7 @@ class SiiClientService
             return [
                 'track_id' => $trackId,
                 'estado' => 'DEV_NO_ENVIADO',
-                'response_xml' => '<SII><ESTADO>DEV_NO_ENVIADO</ESTADO><TRACKID>' . htmlspecialchars($trackId, ENT_XML1) . '</TRACKID></SII>',
+                'response_xml' => '<SII><ESTADO>DEV_NO_ENVIADO</ESTADO><TRACKID>'.htmlspecialchars($trackId, ENT_XML1).'</TRACKID></SII>',
             ];
         }
 
@@ -192,10 +191,10 @@ class SiiClientService
             throw new RuntimeException('RUT emisor inválido para consulta de estado SII.');
         }
 
-        $body = '<rutCompania>' . $rutCompany . '</rutCompania>'
-            . '<dvCompania>' . $dvCompany . '</dvCompania>'
-            . '<trackId>' . htmlspecialchars($trackId, ENT_XML1) . '</trackId>'
-            . '<token>' . htmlspecialchars($token, ENT_XML1) . '</token>';
+        $body = '<rutCompania>'.$rutCompany.'</rutCompania>'
+            .'<dvCompania>'.$dvCompany.'</dvCompania>'
+            .'<trackId>'.htmlspecialchars($trackId, ENT_XML1).'</trackId>'
+            .'<token>'.htmlspecialchars($token, ENT_XML1).'</token>';
 
         $xml = $this->soapCall(
             (string) config('dte.sii.endpoints.estado'),
@@ -227,14 +226,14 @@ class SiiClientService
         }
 
         $envelope = '<?xml version="1.0" encoding="UTF-8"?>'
-            . '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:dte="http://DefaultNamespace">'
-            . '<soapenv:Header/>'
-            . '<soapenv:Body>'
-            . '<dte:' . $method . '>'
-            . $innerXml
-            . '</dte:' . $method . '>'
-            . '</soapenv:Body>'
-            . '</soapenv:Envelope>';
+            .'<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:dte="http://DefaultNamespace">'
+            .'<soapenv:Header/>'
+            .'<soapenv:Body>'
+            .'<dte:'.$method.'>'
+            .$innerXml
+            .'</dte:'.$method.'>'
+            .'</soapenv:Body>'
+            .'</soapenv:Envelope>';
 
         $response = Http::withHeaders([
             'Content-Type' => 'text/xml; charset=UTF-8',
@@ -289,13 +288,13 @@ class SiiClientService
 
     private function extractTagValueFromString(string $xml, string $tagName): string
     {
-        $pattern = '/<' . preg_quote($tagName, '/') . '>\s*(.*?)\s*<\/' . preg_quote($tagName, '/') . '>/is';
+        $pattern = '/<'.preg_quote($tagName, '/').'>\s*(.*?)\s*<\/'.preg_quote($tagName, '/').'>/is';
         if (preg_match($pattern, $xml, $m)) {
             return (string) $m[1];
         }
 
-        $patternNs = '/<([a-z0-9_]+:)?' . preg_quote($tagName, '/') . '>\s*(.*?)\s*<\/([a-z0-9_]+:)?'
-            . preg_quote($tagName, '/') . '>/is';
+        $patternNs = '/<([a-z0-9_]+:)?'.preg_quote($tagName, '/').'>\s*(.*?)\s*<\/([a-z0-9_]+:)?'
+            .preg_quote($tagName, '/').'>/is';
         if (preg_match($patternNs, $xml, $m)) {
             return (string) $m[2];
         }
@@ -313,13 +312,13 @@ class SiiClientService
         $settings = app(InventoryConfigService::class);
         $pass = $settings->getDtePfxPassword() ?? (string) config('dte.signature.pfx_password', '');
 
-        if ($path === '' || !Storage::disk($disk)->exists($path)) {
+        if ($path === '' || ! Storage::disk($disk)->exists($path)) {
             throw new RuntimeException('Certificado .pfx no encontrado para firma de semilla.');
         }
 
         $pfx = Storage::disk($disk)->get($path);
         $certs = [];
-        if (!is_string($pfx) || !openssl_pkcs12_read($pfx, $certs, $pass)) {
+        if (! is_string($pfx) || ! openssl_pkcs12_read($pfx, $certs, $pass)) {
             throw new RuntimeException('No se pudo abrir .pfx para firma de semilla.');
         }
 
@@ -339,12 +338,12 @@ class SiiClientService
             $expiresAt = (int) $certData['validTo_time_t'];
             if ($expiresAt < time()) {
                 throw new RuntimeException(
-                    'El certificado PFX expiró el ' . date('d/m/Y', $expiresAt) . '. Sube un certificado vigente.'
+                    'El certificado PFX expiró el '.date('d/m/Y', $expiresAt).'. Sube un certificado vigente.'
                 );
             }
             $daysLeft = (int) (($expiresAt - time()) / 86400);
             if ($daysLeft <= 30) {
-                Log::warning("Certificado PFX expira en {$daysLeft} días (el " . date('d/m/Y', $expiresAt) . ").");
+                Log::warning("Certificado PFX expira en {$daysLeft} días (el ".date('d/m/Y', $expiresAt).').');
             }
         }
 
@@ -380,7 +379,7 @@ class SiiClientService
         }
 
         $canon = $tmpDoc->C14N(false, false);
-        if (!is_string($canon) || $canon === '') {
+        if (! is_string($canon) || $canon === '') {
             throw new RuntimeException('No se pudo canonicalizar semilla para DigestValue.');
         }
 
@@ -427,12 +426,12 @@ class SiiClientService
         $ref->appendChild($doc->createElementNS($ns, 'ds:DigestValue', $digestValue));
 
         $canonSignedInfo = $signedInfo->C14N(false, false);
-        if (!is_string($canonSignedInfo) || $canonSignedInfo === '') {
+        if (! is_string($canonSignedInfo) || $canonSignedInfo === '') {
             throw new RuntimeException('No se pudo canonicalizar SignedInfo para semilla.');
         }
 
         $sigBin = '';
-        if (!openssl_sign($canonSignedInfo, $sigBin, $privateKey, OPENSSL_ALGO_SHA1)) {
+        if (! openssl_sign($canonSignedInfo, $sigBin, $privateKey, OPENSSL_ALGO_SHA1)) {
             throw new RuntimeException('No se pudo firmar semilla con RSA-SHA1.');
         }
         $signature->appendChild($doc->createElementNS($ns, 'ds:SignatureValue', base64_encode($sigBin)));
@@ -452,7 +451,7 @@ class SiiClientService
     private function splitRut(string $rut): array
     {
         $rut = trim($rut);
-        if ($rut === '' || !str_contains($rut, '-')) {
+        if ($rut === '' || ! str_contains($rut, '-')) {
             return ['', ''];
         }
         [$body, $dv] = explode('-', strtoupper($rut), 2);
@@ -471,8 +470,9 @@ class SiiClientService
         $disk = (string) config('dte.signature.disk', 'local');
         $path = trim((string) config('dte.signature.pfx_path', ''));
 
-        if ($path === '' || !Storage::disk($disk)->exists($path)) {
+        if ($path === '' || ! Storage::disk($disk)->exists($path)) {
             Log::warning('SII: PFX no encontrado, operando en modo desarrollo. Configura DTE_DEV_MODE=false y sube el certificado para producción.');
+
             return true;
         }
 

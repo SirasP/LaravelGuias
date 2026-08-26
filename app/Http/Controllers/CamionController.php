@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Camion;
 use App\Models\AgrakRegistro;
+use App\Models\Camion;
+use Illuminate\Http\Request;
+
 class CamionController extends Controller
 {
-
     public function create(Request $request)
     {
         $patente = $request->get('patente');
@@ -30,11 +30,11 @@ class CamionController extends Controller
         // 1️⃣ Resolver patente correcta
         $patenteCorrecta = $request->patente_norm;
 
-        if (!$patenteCorrecta && $request->patente_nueva) {
+        if (! $patenteCorrecta && $request->patente_nueva) {
             $patenteCorrecta = strtoupper(trim($request->patente_nueva));
         }
 
-        if (!$patenteCorrecta) {
+        if (! $patenteCorrecta) {
             return back()
                 ->withErrors(['patente_norm' => 'Debes seleccionar o ingresar una patente válida.'])
                 ->withInput();
@@ -60,6 +60,4 @@ class CamionController extends Controller
             ->route('agrak.index', ['view' => 'group'])
             ->with('ok', "Patente corregida: {$request->patente_detectada} → {$patenteCorrecta}");
     }
-
-
 }

@@ -12,8 +12,7 @@ final readonly class PurchaseRequestExportResult
         public string $status,
         public ?string $remoteReference,
         public string $message,
-    ) {
-    }
+    ) {}
 
     public static function skipped(string $message): self
     {

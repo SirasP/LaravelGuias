@@ -40,7 +40,7 @@ class PurchaseReplyPdfAutofillService
         int $replyId,
         ?string $storedPath
     ): array {
-        if (!$storedPath) {
+        if (! $storedPath) {
             return ['ok' => false, 'message' => 'La respuesta no tiene adjunto.'];
         }
 
@@ -49,7 +49,7 @@ class PurchaseReplyPdfAutofillService
             return ['ok' => false, 'message' => 'El autocompletado solo aplica para PDF.'];
         }
 
-        if (!Storage::disk('public')->exists($storedPath)) {
+        if (! Storage::disk('public')->exists($storedPath)) {
             return ['ok' => false, 'message' => 'No se encontró el archivo PDF en storage.'];
         }
 
@@ -107,7 +107,7 @@ class PurchaseReplyPdfAutofillService
         $process->setTimeout(120);
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             return '';
         }
 
@@ -121,7 +121,7 @@ class PurchaseReplyPdfAutofillService
     {
         $rows = [];
         $matchedCount = 0;
-        $lineNorm = array_map(fn($line) => $this->normalizeText($line), $lines);
+        $lineNorm = array_map(fn ($line) => $this->normalizeText($line), $lines);
 
         foreach ($items as $item) {
             $itemName = (string) $item->product_name;
@@ -209,15 +209,17 @@ class PurchaseReplyPdfAutofillService
         $from = max(0, $index - $radius);
         $to = min(count($lines) - 1, $index + $radius);
         $slice = array_slice($lines, $from, $to - $from + 1);
+
         return implode(' ', $slice);
     }
 
     private function detectUnit(string $text): ?string
     {
-        if (!preg_match('/\b(KGS?|KG|UNID(?:AD)?|UND|UN|CAJAS?|CJ|LTS?|LT|L|MTS?|MT|M)\b/ui', $text, $m)) {
+        if (! preg_match('/\b(KGS?|KG|UNID(?:AD)?|UND|UN|CAJAS?|CJ|LTS?|LT|L|MTS?|MT|M)\b/ui', $text, $m)) {
             return null;
         }
         $k = strtoupper(trim((string) $m[1]));
+
         return $this->unitMap[$k] ?? $k;
     }
 
@@ -257,7 +259,7 @@ class PurchaseReplyPdfAutofillService
     private function detectUnitPrice(string $text, float $quantity): ?float
     {
         $currencyNums = [];
-        if (preg_match_all('/(?:\$|clp|usd|eur)\s*([0-9][0-9\.\,\s]*)/iu', $text, $m) && !empty($m[1])) {
+        if (preg_match_all('/(?:\$|clp|usd|eur)\s*([0-9][0-9\.\,\s]*)/iu', $text, $m) && ! empty($m[1])) {
             foreach ($m[1] as $raw) {
                 $n = $this->parseNumber((string) $raw);
                 if ($n !== null && $n > 0) {
@@ -265,17 +267,17 @@ class PurchaseReplyPdfAutofillService
                 }
             }
         }
-        if (!empty($currencyNums)) {
+        if (! empty($currencyNums)) {
             return min($currencyNums);
         }
 
-        $nums = array_values(array_filter($this->extractNumbers($text), fn($n) => $n > 0));
+        $nums = array_values(array_filter($this->extractNumbers($text), fn ($n) => $n > 0));
         if (empty($nums)) {
             return null;
         }
 
         $qtyTol = max(0.1, $quantity * 0.1);
-        $candidates = array_values(array_filter($nums, fn($n) => abs($n - $quantity) > $qtyTol));
+        $candidates = array_values(array_filter($nums, fn ($n) => abs($n - $quantity) > $qtyTol));
         if (empty($candidates)) {
             return null;
         }
@@ -296,6 +298,7 @@ class PurchaseReplyPdfAutofillService
         }
 
         sort($candidates);
+
         return $candidates[0] ?? null;
     }
 
@@ -312,6 +315,7 @@ class PurchaseReplyPdfAutofillService
                 $nums[] = $n;
             }
         }
+
         return $nums;
     }
 
@@ -328,6 +332,7 @@ class PurchaseReplyPdfAutofillService
         if ($comma && $dot) {
             $raw = str_replace('.', '', $raw);
             $raw = str_replace(',', '.', $raw);
+
             return is_numeric($raw) ? (float) $raw : null;
         }
 
@@ -340,6 +345,7 @@ class PurchaseReplyPdfAutofillService
             } else {
                 $raw = str_replace(',', '', $raw);
             }
+
             return is_numeric($raw) ? (float) $raw : null;
         }
 
@@ -349,6 +355,7 @@ class PurchaseReplyPdfAutofillService
             if ($last !== false && strlen((string) $last) > 3) {
                 $raw = str_replace('.', '', $raw);
             }
+
             return is_numeric($raw) ? (float) $raw : null;
         }
 
@@ -368,6 +375,7 @@ class PurchaseReplyPdfAutofillService
                 $out[] = $line;
             }
         }
+
         return $out;
     }
 
@@ -377,6 +385,7 @@ class PurchaseReplyPdfAutofillService
         $text = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text) ?: $text;
         $text = preg_replace('/[^a-z0-9\s]/', ' ', $text) ?? $text;
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
         return trim($text);
     }
 
@@ -389,7 +398,8 @@ class PurchaseReplyPdfAutofillService
             if (strlen($part) < 2) {
                 return false;
             }
-            return !in_array($part, $this->stopwords, true);
+
+            return ! in_array($part, $this->stopwords, true);
         }));
 
         if (empty($parts)) {
@@ -399,4 +409,3 @@ class PurchaseReplyPdfAutofillService
         return $parts;
     }
 }
-

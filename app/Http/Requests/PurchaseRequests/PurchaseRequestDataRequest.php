@@ -3,6 +3,7 @@
 namespace App\Http\Requests\PurchaseRequests;
 
 use App\Models\PurchaseRequest;
+use App\Support\ChileanMoney;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -61,6 +62,13 @@ abstract class PurchaseRequestDataRequest extends FormRequest
                 'regex:/^\d{1,12}(?:\.\d{1,6})?$/',
             ],
             'items.*.unit' => ['required', 'string', 'max:80'],
+            // Opcional: se pide algo antes de tener cotización, y eso es normal.
+            'items.*.unit_price' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'regex:/^\d{1,12}(?:\.\d{1,2})?$/',
+            ],
             'items.*.quantity_note' => ['nullable', 'string', 'max:255'],
             'items.*.destination' => ['nullable', 'string', 'max:255'],
             'attachments' => ['nullable', 'array', 'max:10'],
@@ -86,6 +94,9 @@ abstract class PurchaseRequestDataRequest extends FormRequest
             'items.*.product_service.required' => 'Escribe qué producto o servicio necesitas en la partida N° :position.',
             'items.*.quantity.required' => 'Indica la cantidad de la partida N° :position.',
             'items.*.quantity.gt' => 'La cantidad de la partida N° :position debe ser mayor que cero.',
+            'items.*.unit_price.regex' => 'El precio admite hasta 12 enteros y 2 decimales.',
+            'items.*.unit_price.min' => 'El precio de la partida N° :position no puede ser negativo.',
+            'items.*.unit_price.numeric' => 'El precio de la partida N° :position debe ser un número.',
             'items.*.unit.required' => 'Elige la unidad de la partida N° :position.',
         ];
     }
@@ -124,6 +135,7 @@ abstract class PurchaseRequestDataRequest extends FormRequest
             'product_service' => 'el producto o servicio',
             'specification' => 'la especificación',
             'quantity' => 'la cantidad',
+            'unit_price' => 'el precio unitario',
             'unit' => 'la unidad',
             'quantity_note' => 'la nota de cantidad',
             'destination' => 'el destino',
@@ -153,12 +165,17 @@ abstract class PurchaseRequestDataRequest extends FormRequest
                 // primeros formularios de trabajo, sin persistir dos campos.
                 $item['product_service'] ??= $item['description'] ?? null;
                 $item['quantity'] = $this->normalizeDecimal($item['quantity'] ?? null);
+                // Ojo: NO se usa normalizeDecimal. Para una cantidad «12.500»
+                // son doce coma cinco; para un precio, doce mil quinientos.
+                $item['unit_price'] = blank($item['unit_price'] ?? null)
+                    ? null
+                    : ChileanMoney::toDecimalString((string) $item['unit_price']);
                 $item['sort_order'] = ((int) $position) + 1;
 
                 return $item;
             })
             ->filter(function (array $item): bool {
-                foreach (['product_service', 'specification', 'quantity', 'unit', 'quantity_note', 'destination'] as $field) {
+                foreach (['product_service', 'specification', 'quantity', 'unit', 'unit_price', 'quantity_note', 'destination'] as $field) {
                     if (filled($item[$field] ?? null)) {
                         return true;
                     }

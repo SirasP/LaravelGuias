@@ -33,5 +33,4 @@ class StockController extends Controller
 
         return view('inventario.stock', compact('stock', 'q'));
     }
-   
 }

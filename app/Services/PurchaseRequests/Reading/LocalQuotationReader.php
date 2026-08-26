@@ -266,7 +266,11 @@ class LocalQuotationReader implements QuotationReader
         - Respeta la coma decimal chilena: 1,5 se escribe "1,5".
         - Si dos líneas repiten el mismo producto, devuélvelas como dos partidas separadas. No las sumes.
         - No traduzcas los nombres de productos ni las unidades. Mantén el español del documento.
-        - Ignora precios, totales, impuestos y descuentos: esta solicitud no los lleva.
+        - "unit_price" es el precio POR UNIDAD, sin puntos de miles ni signo peso: «$ 12.500»
+          es "12500". Si la línea sólo muestra el total, divídelo NO: deja "unit_price" vacío.
+          Si la línea no trae precio, déjalo vacío. Nunca lo deduzcas de otra línea.
+        - Ignora totales del documento, impuestos y descuentos: sólo interesa el precio
+          unitario de cada partida.
 
         PROVEEDOR:
         - "supplier" es la EMPRESA que emite el documento, la que aparece en el encabezado
@@ -305,12 +309,13 @@ class LocalQuotationReader implements QuotationReader
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
-                        'required' => ['product_service', 'specification', 'quantity', 'unit'],
+                        'required' => ['product_service', 'specification', 'quantity', 'unit', 'unit_price'],
                         'properties' => [
                             'product_service' => ['type' => 'string'],
                             'specification' => ['type' => 'string'],
                             'quantity' => ['type' => 'string'],
                             'unit' => ['type' => 'string'],
+                            'unit_price' => ['type' => 'string'],
                         ],
                     ],
                 ],

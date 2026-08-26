@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgrakRegistro;
-use App\Models\AgrakOdooMatch;
 use App\Services\AgrakOdooMatcher;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -15,7 +14,7 @@ class AgrakExportController extends Controller
     {
         // 1️⃣ Traer bins ordenados, respetando los filtros de la vista
         //    (llegan en la query string desde el botón "Exportar Excel").
-        $esFecha = fn($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
+        $esFecha = fn ($v) => $v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1;
         $desde = trim((string) $request->get('desde', ''));
         $hasta = trim((string) $request->get('hasta', ''));
 
@@ -35,12 +34,12 @@ class AgrakExportController extends Controller
             ->orderBy('patente_norm')
             ->orderBy('hora_registro')
             ->get()
-            ->groupBy(fn($b) => $b->fecha_registro . '|' . $b->patente_norm);
+            ->groupBy(fn ($b) => $b->fecha_registro.'|'.$b->patente_norm);
 
         $matcher = app(AgrakOdooMatcher::class);
 
         // 2️⃣ Excel
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // 3️⃣ Headers
@@ -108,7 +107,7 @@ class AgrakExportController extends Controller
                         $bin->numero_bandejas_palet,
                         $estado,
                         $odooId,
-                    ], $palets)
+                    ], $palets),
                 ], null, "A{$row}");
 
                 $row++;
@@ -116,11 +115,11 @@ class AgrakExportController extends Controller
         }
 
         // 6️⃣ Descargar
-        $filename = 'AGRak_Odoo_CONSOLIDADO_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'AGRak_Odoo_CONSOLIDADO_'.now()->format('Ymd_His').'.xlsx';
         $writer = new Xlsx($spreadsheet);
 
         return response()->streamDownload(
-            fn() => $writer->save('php://output'),
+            fn () => $writer->save('php://output'),
             $filename,
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
         );

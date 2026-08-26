@@ -26,5 +26,4 @@ class PdfImport extends Model
     {
         return $this->hasMany(PdfLine::class);
     }
-
 }

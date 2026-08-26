@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\FuelControl;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
@@ -21,7 +21,7 @@ class DashboardController extends Controller
 
         try {
             /* =========================
-             * PRODUCTOS 
+             * PRODUCTOS
              * ========================= */
             $productos = DB::connection('fuelcontrol')
                 ->table('productos')
@@ -44,7 +44,6 @@ class DashboardController extends Controller
 
                 ->get();
 
-
             /* =========================
              * NOTIFICACIONES (SOLO ADMIN)
              * ========================= */
@@ -65,10 +64,9 @@ class DashboardController extends Controller
                     'n.movimiento_id',
                     'n.mensaje',
                     'n.created_at',
-                    'm.estado' // 🔥 IMPORTANTE
+                    'm.estado', // 🔥 IMPORTANTE
 
                 ]);
-
 
             /* =========================
              * RESUMEN
@@ -110,11 +108,11 @@ class DashboardController extends Controller
              * GASOLINA
              * ========================= */
 
-            $gasolina = $consumo->filter(fn($r) => str_contains($r->producto, 'gas'));
+            $gasolina = $consumo->filter(fn ($r) => str_contains($r->producto, 'gas'));
 
             $labelsGasolina = $gasolina
                 ->pluck('fecha')
-                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
                 ->values();
 
             $dataGasolina = $gasolina
@@ -125,11 +123,11 @@ class DashboardController extends Controller
              * DIESEL
              * ========================= */
 
-            $diesel = $consumo->filter(fn($r) => str_contains($r->producto, 'die'));
+            $diesel = $consumo->filter(fn ($r) => str_contains($r->producto, 'die'));
 
             $labelsDiesel = $diesel
                 ->pluck('fecha')
-                ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
                 ->values();
 
             $dataDiesel = $diesel
@@ -199,12 +197,12 @@ class DashboardController extends Controller
                         $fecha = Carbon::parse($r->fecha_movimiento)->toDateString();
 
                         $vehLitros += $litros;
-                        if (!isset($daily[$fecha])) {
+                        if (! isset($daily[$fecha])) {
                             $daily[$fecha] = ['litros' => 0.0, 'km' => 0.0];
                         }
                         $daily[$fecha]['litros'] += $litros;
 
-                        if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
+                        if ($odo > 0 && ! is_null($prevOdo) && $odo > $prevOdo) {
                             $deltaKm = $odo - $prevOdo;
                             $vehKm += $deltaKm;
                             $daily[$fecha]['km'] += $deltaKm;
@@ -213,7 +211,7 @@ class DashboardController extends Controller
                             $prevOdo = $odo;
                         }
 
-                        if (!is_null($prevCarga) && $litros > 0) {
+                        if (! is_null($prevCarga) && $litros > 0) {
                             $prevCargaOdo = (float) ($prevCarga['odo'] ?? 0);
                             if ($prevCargaOdo > 0 && $odo > $prevCargaOdo) {
                                 $kmCiclo = $odo - $prevCargaOdo;
@@ -251,7 +249,7 @@ class DashboardController extends Controller
 
                 $topVehiculosLabels = $top
                     ->pluck('vehiculo')
-                    ->map(fn($v) => mb_strimwidth((string) $v, 0, 18, '…'))
+                    ->map(fn ($v) => mb_strimwidth((string) $v, 0, 18, '…'))
                     ->values();
 
                 $topVehiculosLitros = $top
@@ -266,6 +264,7 @@ class DashboardController extends Controller
                 $usoDiarioAgg = collect($daily)->map(function ($r) {
                     $litros = (float) ($r['litros'] ?? 0);
                     $km = (float) ($r['km'] ?? 0);
+
                     return [
                         'litros' => round($litros, 2),
                         'kml' => ($litros > 0 && $km > 0) ? round($km / $litros, 2) : null,
@@ -274,7 +273,7 @@ class DashboardController extends Controller
 
                 $usoDiarioLabels = $usoDiarioAgg
                     ->keys()
-                    ->map(fn($f) => Carbon::parse($f)->format('d-m'))
+                    ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
                     ->values();
 
                 $usoDiarioLitros = $usoDiarioAgg
@@ -298,8 +297,8 @@ class DashboardController extends Controller
                     'rows_source' => $vehRows->count(),
                     'rows_top' => $top->count(),
                     'rows_daily_grouped' => $usoDiarioAgg->count(),
-                    'litros_top' => round($top->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),
-                    'litros_daily' => round($usoDiarioAgg->sum(fn($r) => (float) ($r['litros'] ?? 0)), 2),
+                    'litros_top' => round($top->sum(fn ($r) => (float) ($r['litros'] ?? 0)), 2),
+                    'litros_daily' => round($usoDiarioAgg->sum(fn ($r) => (float) ($r['litros'] ?? 0)), 2),
                     'labels_top' => $topVehiculosLabels->count(),
                     'labels_daily' => $usoDiarioLabels->count(),
                     'ciclos_total' => $ciclosEstanque->count(),
@@ -405,12 +404,12 @@ class DashboardController extends Controller
                         $combustibles[$k] = ($combustibles[$k] ?? 0) + $litros;
                     }
 
-                    if (!isset($daily[$fecha])) {
+                    if (! isset($daily[$fecha])) {
                         $daily[$fecha] = ['litros' => 0.0, 'km' => 0.0];
                     }
                     $daily[$fecha]['litros'] += $litros;
 
-                    if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
+                    if ($odo > 0 && ! is_null($prevOdo) && $odo > $prevOdo) {
                         $deltaKm = $odo - $prevOdo;
                         $vehKm += $deltaKm;
                         $daily[$fecha]['km'] += $deltaKm;
@@ -436,12 +435,12 @@ class DashboardController extends Controller
 
                 $combustiblePrincipal = '—';
                 $combustiblesUsados = '—';
-                if (!empty($combustibles)) {
+                if (! empty($combustibles)) {
                     arsort($combustibles);
                     $principalKey = array_key_first($combustibles);
                     $combustiblePrincipal = ucfirst((string) $principalKey);
                     $combustiblesUsados = collect(array_keys($combustibles))
-                        ->map(fn($k) => ucfirst((string) $k))
+                        ->map(fn ($k) => ucfirst((string) $k))
                         ->join(', ');
                 }
 
@@ -466,6 +465,7 @@ class DashboardController extends Controller
         $dailyRows = collect($daily)->map(function ($r, $fecha) {
             $litros = (float) ($r['litros'] ?? 0);
             $km = (float) ($r['km'] ?? 0);
+
             return [
                 'fecha' => $fecha,
                 'litros' => round($litros, 2),
@@ -474,12 +474,12 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet1 = $spreadsheet->getActiveSheet();
         $sheet1->setTitle('Vehiculos');
         $sheet1->mergeCells('A1:K1');
         $sheet1->setCellValue('A1', 'FuelControl - Consumo de Vehículos (últimos 30 días)');
-        $sheet1->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+        $sheet1->setCellValue('A2', 'Generado: '.now()->format('d-m-Y H:i'));
         $sheet1->fromArray(
             ['Vehículo', 'Combustible principal', 'Combustibles usados', 'Cargas', 'Litros', 'Km', 'Km/L', 'Odómetro inicial', 'Odómetro final', 'Odómetro bomba inicial', 'Odómetro bomba final'],
             null,
@@ -541,7 +541,7 @@ class DashboardController extends Controller
         $sheet2->setTitle('Diario');
         $sheet2->mergeCells('A1:D1');
         $sheet2->setCellValue('A1', 'FuelControl - Resumen Diario');
-        $sheet2->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+        $sheet2->setCellValue('A2', 'Generado: '.now()->format('d-m-Y H:i'));
         $sheet2->fromArray(['Fecha', 'Litros', 'Km', 'Km/L'], null, 'A4');
 
         $row = 5;
@@ -575,7 +575,7 @@ class DashboardController extends Controller
         $sheet2->getStyle("B5:C{$lastDailyRow}")->getNumberFormat()->setFormatCode('#,##0.00');
         $sheet2->getStyle("D5:D{$lastDailyRow}")->getNumberFormat()->setFormatCode('#,##0.00');
 
-        $filename = 'fuelcontrol_vehiculos_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'fuelcontrol_vehiculos_'.now()->format('Ymd_His').'.xlsx';
 
         return new StreamedResponse(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
@@ -591,7 +591,6 @@ class DashboardController extends Controller
      * VER XML (MODAL)
      * ========================= */
 
-
     public function show($movimientoId)
     {
         $movimiento = DB::connection('fuelcontrol')
@@ -599,9 +598,9 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->firstOrFail();
 
-        $ruta = 'xml/' . $movimiento->xml_path;
+        $ruta = 'xml/'.$movimiento->xml_path;
 
-        if (!Storage::disk('local')->exists($ruta)) {
+        if (! Storage::disk('local')->exists($ruta)) {
             abort(404, 'Archivo XML no encontrado');
         }
 
@@ -609,7 +608,7 @@ class DashboardController extends Controller
 
         return view('fuelcontrol.xml.modal', [
             'xml' => $contenidoXml,
-            'movimiento' => $movimiento
+            'movimiento' => $movimiento,
         ]);
     }
 
@@ -620,9 +619,9 @@ class DashboardController extends Controller
             ->where('id', $dteId)
             ->firstOrFail();
 
-        $ruta = 'xml/' . $dte->xml_filename;
+        $ruta = 'xml/'.$dte->xml_filename;
 
-        if (!Storage::disk('local')->exists($ruta)) {
+        if (! Storage::disk('local')->exists($ruta)) {
             abort(404, 'Archivo XML no encontrado');
         }
 
@@ -636,7 +635,7 @@ class DashboardController extends Controller
         return view('fuelcontrol.xml.modal', [
             'xml' => $contenidoXml,
             'movimiento' => $movimiento,
-            'dte' => $dte
+            'dte' => $dte,
         ]);
     }
 
@@ -648,14 +647,14 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->first();
 
-        if (!$movimiento) {
+        if (! $movimiento) {
             return response()->json(['error' => 'Movimiento no encontrado'], 404);
         }
 
         // 🔒 Evitar doble proceso
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
-                'error' => 'Este documento ya fue procesado'
+                'error' => 'Este documento ya fue procesado',
             ], 400);
         }
 
@@ -675,7 +674,7 @@ class DashboardController extends Controller
                 ->where('id', $movimientoId)
                 ->update([
                     'estado' => 'aprobado',
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
             $db->commit();
@@ -690,7 +689,7 @@ class DashboardController extends Controller
                 'error' => true,
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
             ], 500);
         }
 
@@ -704,14 +703,14 @@ class DashboardController extends Controller
             ->where('id', $movimientoId)
             ->first();
 
-        if (!$movimiento) {
+        if (! $movimiento) {
             return response()->json(['error' => 'Movimiento no encontrado'], 404);
         }
 
         // 🔒 Evitar doble proceso
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
-                'error' => 'Este documento ya fue procesado'
+                'error' => 'Este documento ya fue procesado',
             ], 400);
         }
 
@@ -721,7 +720,7 @@ class DashboardController extends Controller
                 ->where('id', $movimientoId)
                 ->update([
                     'estado' => 'rechazado',
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
             return response()->json(['ok' => true]);
@@ -729,14 +728,10 @@ class DashboardController extends Controller
         } catch (\Throwable $e) {
 
             return response()->json([
-                'error' => 'Error interno al rechazar'
+                'error' => 'Error interno al rechazar',
             ], 500);
         }
     }
-
-
-
-
 
     public function leerNotificacion($id)
     {
@@ -746,8 +741,9 @@ class DashboardController extends Controller
             ->where('user_id', auth()->id())
             ->update([
                 'leido' => 1,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
+
         return response()->json(['ok' => true]);
     }
 }

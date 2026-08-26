@@ -7,16 +7,20 @@ use Illuminate\Support\Facades\Http;
 class OdooService
 {
     private string $url;
+
     private string $db;
+
     private string $user;
+
     private string $password;
+
     private ?int $uid = null;
 
     public function __construct()
     {
-        $this->url      = rtrim(config('odoo.url'), '/');
-        $this->db       = config('odoo.db');
-        $this->user     = config('odoo.user');
+        $this->url = rtrim(config('odoo.url'), '/');
+        $this->db = config('odoo.db');
+        $this->user = config('odoo.user');
         $this->password = config('odoo.password');
     }
 
@@ -43,11 +47,10 @@ class OdooService
     /**
      * search_read sobre un modelo Odoo.
      *
-     * @param  string  $model     Modelo Odoo (ej: 'account.move.line')
-     * @param  array   $domain    Dominio de búsqueda
-     * @param  array   $fields    Campos a retornar
-     * @param  array   $options   Opciones adicionales (limit, order, offset…)
-     * @return array
+     * @param  string  $model  Modelo Odoo (ej: 'account.move.line')
+     * @param  array  $domain  Dominio de búsqueda
+     * @param  array  $fields  Campos a retornar
+     * @param  array  $options  Opciones adicionales (limit, order, offset…)
      */
     public function searchRead(string $model, array $domain, array $fields, array $options = []): array
     {
@@ -71,9 +74,9 @@ class OdooService
     {
         $response = Http::timeout(20)->post("{$this->url}/jsonrpc", [
             'jsonrpc' => '2.0',
-            'method'  => 'call',
-            'params'  => compact('service', 'method', 'args'),
-            'id'      => 1,
+            'method' => 'call',
+            'params' => compact('service', 'method', 'args'),
+            'id' => 1,
         ]);
 
         $data = $response->json();

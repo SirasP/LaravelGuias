@@ -23,8 +23,7 @@ final readonly class DraftSuggestion
         public ?string $urgentReason = null,
         public ?string $deliveryLocation = null,
         public ?string $error = null,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  list<array<string, string|null>>  $items

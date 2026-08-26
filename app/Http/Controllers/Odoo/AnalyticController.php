@@ -17,19 +17,19 @@ class AnalyticController extends Controller
             ->orderBy('name_es')
             ->get();
 
-        $allPlans      = OdooAnalyticPlan::orderBy('complete_name')->get();
-        $totalPlans    = OdooAnalyticPlan::count();
+        $allPlans = OdooAnalyticPlan::orderBy('complete_name')->get();
+        $totalPlans = OdooAnalyticPlan::count();
         $totalAccounts = OdooAnalyticAccount::count();
-        $lastSync      = OdooAnalyticAccount::max('updated_at');
+        $lastSync = OdooAnalyticAccount::max('updated_at');
 
         // Plan de cuentas contables agrupado por categoría
         $accountGroups = [
-            'Activo'            => ['asset_receivable','asset_cash','asset_current','asset_non_current','asset_prepayments','asset_fixed'],
-            'Pasivo'            => ['liability_payable','liability_credit_card','liability_current','liability_non_current'],
-            'Patrimonio'        => ['equity','equity_unaffected'],
-            'Ingresos'          => ['income','income_other'],
-            'Gastos'            => ['expense','expense_depreciation','expense_direct_cost'],
-            'Fuera de balance'  => ['off_balance'],
+            'Activo' => ['asset_receivable', 'asset_cash', 'asset_current', 'asset_non_current', 'asset_prepayments', 'asset_fixed'],
+            'Pasivo' => ['liability_payable', 'liability_credit_card', 'liability_current', 'liability_non_current'],
+            'Patrimonio' => ['equity', 'equity_unaffected'],
+            'Ingresos' => ['income', 'income_other'],
+            'Gastos' => ['expense', 'expense_depreciation', 'expense_direct_cost'],
+            'Fuera de balance' => ['off_balance'],
         ];
 
         $chartOfAccounts = [];
@@ -58,9 +58,9 @@ class AnalyticController extends Controller
     public function storeAccount(Request $request)
     {
         $data = $request->validate([
-            'name_es'      => 'required|string|max:255',
-            'name'         => 'required|string|max:255',
-            'code'         => 'nullable|string|max:50',
+            'name_es' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50',
             'plan_odoo_id' => 'required|integer|exists:odoo_analytic_plans,odoo_id',
         ]);
 
@@ -70,14 +70,14 @@ class AnalyticController extends Controller
         $minId = OdooAnalyticAccount::where('odoo_id', '<', 0)->min('odoo_id') ?? 0;
 
         OdooAnalyticAccount::create([
-            'odoo_id'            => $minId - 1,
-            'name'               => $data['name'],
-            'name_es'            => $data['name_es'],
-            'code'               => $data['code'] ?? null,
-            'plan_odoo_id'       => $plan->odoo_id,
-            'plan_name'          => $plan->name,
+            'odoo_id' => $minId - 1,
+            'name' => $data['name'],
+            'name_es' => $data['name_es'],
+            'code' => $data['code'] ?? null,
+            'plan_odoo_id' => $plan->odoo_id,
+            'plan_name' => $plan->name,
             'plan_complete_name' => $plan->complete_name,
-            'color'              => $plan->color,
+            'color' => $plan->color,
         ]);
 
         return back()->with('success', 'Cuenta analítica creada correctamente.');
@@ -86,8 +86,8 @@ class AnalyticController extends Controller
     public function storePlan(Request $request)
     {
         $data = $request->validate([
-            'name_es'        => 'required|string|max:255',
-            'name'           => 'required|string|max:255',
+            'name_es' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'parent_odoo_id' => 'nullable|integer|exists:odoo_analytic_plans,odoo_id',
         ]);
 
@@ -98,13 +98,13 @@ class AnalyticController extends Controller
             : null;
 
         OdooAnalyticPlan::create([
-            'odoo_id'               => $minId - 1,
-            'name'                  => $data['name'],
-            'name_es'               => $data['name_es'],
-            'complete_name'         => $parent ? $parent->complete_name . ' / ' . $data['name'] : $data['name'],
-            'parent_odoo_id'        => $data['parent_odoo_id'] ?? null,
-            'parent_name'           => $parent?->name,
-            'color'                 => $parent?->color ?? 0,
+            'odoo_id' => $minId - 1,
+            'name' => $data['name'],
+            'name_es' => $data['name_es'],
+            'complete_name' => $parent ? $parent->complete_name.' / '.$data['name'] : $data['name'],
+            'parent_odoo_id' => $data['parent_odoo_id'] ?? null,
+            'parent_name' => $parent?->name,
+            'color' => $parent?->color ?? 0,
             'default_applicability' => 'optional',
         ]);
 

@@ -50,7 +50,7 @@ class MovimientoController extends Controller
                 case 'semana':
                     $query->whereBetween('m.fecha_movimiento', [
                         now()->startOfWeek(),
-                        now()->endOfWeek()
+                        now()->endOfWeek(),
                     ]);
                     break;
 
@@ -62,7 +62,7 @@ class MovimientoController extends Controller
                 case 'trimestre':
                     $query->whereBetween('m.fecha_movimiento', [
                         now()->startOfQuarter(),
-                        now()->endOfQuarter()
+                        now()->endOfQuarter(),
                     ]);
                     break;
             }
@@ -81,7 +81,7 @@ class MovimientoController extends Controller
 
         return view('fuelcontrol.movimientos.index', compact('movimientos', 'productos'));
     }
-    
+
     /**
      * Vista de detalle completa (Odómetros, Historial, Gráficos)
      */
@@ -102,7 +102,7 @@ class MovimientoController extends Controller
             ->where('m.id', $id)
             ->first();
 
-        if (!$movimiento || !$movimiento->vehiculo_id) {
+        if (! $movimiento || ! $movimiento->vehiculo_id) {
             return redirect()->route('fuelcontrol.movimientos')->with('error', 'Vehículo no encontrado');
         }
 
@@ -129,7 +129,7 @@ class MovimientoController extends Controller
 
         foreach ($historialRaw as $h) {
             // 🔥 Para rendimiento USAR SOLO el odómetro del vehículo (no el de la bomba)
-            $odo = (float) ($h->odometro ?? 0); 
+            $odo = (float) ($h->odometro ?? 0);
             $dif = null;
             $rendimiento = null;
             $frecuencia = null;
@@ -138,7 +138,7 @@ class MovimientoController extends Controller
                 $frecuencia = \Carbon\Carbon::parse($h->fecha_movimiento)->diffForHumans($prevFecha, true);
             }
 
-            if ($odo > 0 && !is_null($prevOdo) && $odo > $prevOdo) {
+            if ($odo > 0 && ! is_null($prevOdo) && $odo > $prevOdo) {
                 $dif = $odo - $prevOdo;
                 $litros = abs((float) $h->cantidad);
                 if ($litros > 0) {
@@ -162,7 +162,7 @@ class MovimientoController extends Controller
                 'odo_usado' => $odo,
                 'dif' => $dif,
                 'rendimiento' => $rendimiento,
-                'frecuencia' => $frecuencia
+                'frecuencia' => $frecuencia,
             ]);
 
             if ($odo > 0) {
@@ -173,9 +173,9 @@ class MovimientoController extends Controller
 
         // Datos para el gráfico (últimos 15 movimientos con rendimiento)
         $chartData = $historial->whereNotNull('rendimiento')->take(-15);
-        $labels = $chartData->map(fn($item) => \Carbon\Carbon::parse($item['fecha'])->format('d/m'))->values();
+        $labels = $chartData->map(fn ($item) => \Carbon\Carbon::parse($item['fecha'])->format('d/m'))->values();
         $dataRendimiento = $chartData->pluck('rendimiento')->values();
-        $dataLitros = $chartData->map(fn($item) => abs($item['cantidad']))->values();
+        $dataLitros = $chartData->map(fn ($item) => abs($item['cantidad']))->values();
 
         // El historial para la tabla (reverso para ver lo más reciente primero)
         $historialTable = $historial->reverse();
@@ -202,7 +202,6 @@ class MovimientoController extends Controller
         ));
     }
 
-
     /**
      * Mostrar detalle XML
      */
@@ -214,23 +213,23 @@ class MovimientoController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$movimiento) {
+        if (! $movimiento) {
             abort(404);
         }
 
         if (empty($movimiento->xml_path)) {
             return response()->json([
                 'error' => true,
-                'message' => 'Este movimiento no tiene XML'
+                'message' => 'Este movimiento no tiene XML',
             ], 404);
         }
 
-        $ruta = storage_path('app/' . $movimiento->xml_path);
+        $ruta = storage_path('app/'.$movimiento->xml_path);
 
-        if (!file_exists($ruta)) {
+        if (! file_exists($ruta)) {
             return response()->json([
                 'error' => true,
-                'message' => 'Archivo XML no encontrado'
+                'message' => 'Archivo XML no encontrado',
             ], 404);
         }
 
@@ -250,14 +249,14 @@ class MovimientoController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$movimiento) {
+        if (! $movimiento) {
             abort(404);
         }
 
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
                 'error' => true,
-                'message' => 'Ya fue procesado'
+                'message' => 'Ya fue procesado',
             ], 400);
         }
 
@@ -267,25 +266,25 @@ class MovimientoController extends Controller
                 ->where('id', $movimiento->producto_id)
                 ->first();
 
-            if (!$producto) {
+            if (! $producto) {
                 throw new \Exception('Producto no encontrado');
             }
 
             $conexion->table('productos')
                 ->where('id', $producto->id)
                 ->update([
-                    'cantidad' => $producto->cantidad + $movimiento->cantidad
+                    'cantidad' => $producto->cantidad + $movimiento->cantidad,
                 ]);
 
             $conexion->table('movimientos')
                 ->where('id', $movimiento->id)
                 ->update([
-                    'estado' => 'aprobado'
+                    'estado' => 'aprobado',
                 ]);
         });
 
         return response()->json([
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -300,25 +299,25 @@ class MovimientoController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$movimiento) {
+        if (! $movimiento) {
             abort(404);
         }
 
         if ($movimiento->estado !== 'pendiente') {
             return response()->json([
                 'error' => true,
-                'message' => 'Ya fue procesado'
+                'message' => 'Ya fue procesado',
             ], 400);
         }
 
         $conexion->table('movimientos')
             ->where('id', $movimiento->id)
             ->update([
-                'estado' => 'rechazado'
+                'estado' => 'rechazado',
             ]);
 
         return response()->json([
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -341,7 +340,7 @@ class MovimientoController extends Controller
                 ->where('id', $request->producto_id)
                 ->first();
 
-            if (!$producto) {
+            if (! $producto) {
                 throw new \Exception('Producto no encontrado');
             }
 
@@ -361,12 +360,13 @@ class MovimientoController extends Controller
             $conexion->table('productos')
                 ->where('id', $producto->id)
                 ->update([
-                    'cantidad' => $nuevaCantidad
+                    'cantidad' => $nuevaCantidad,
                 ]);
         });
 
         return back()->with('success', 'Movimiento registrado correctamente');
     }
+
     /**
      * Listado de ingresos de combustible
      */
@@ -411,37 +411,37 @@ class MovimientoController extends Controller
     public function ingresarDesdeDte(Request $request, $id)
     {
         $db = DB::connection('fuelcontrol');
-        
+
         // 1. Obtener la factura
         $dte = $db->table('gmail_dte_documents')
             ->where('id', $id)
             ->first();
-            
-        if (!$dte) {
+
+        if (! $dte) {
             return response()->json(['error' => 'Factura no encontrada'], 404);
         }
-        
+
         // Evitar doble proceso
         $alreadyMatched = $db->table('movimientos')
             ->where('xml_path', $dte->xml_filename)
             ->exists();
-            
+
         if ($alreadyMatched) {
             return response()->json(['error' => 'Esta factura ya fue ingresada a stock'], 400);
         }
-        
+
         // 2. Parsea el XML
-        $ruta = 'xml/' . $dte->xml_filename;
-        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($ruta)) {
+        $ruta = 'xml/'.$dte->xml_filename;
+        if (! \Illuminate\Support\Facades\Storage::disk('local')->exists($ruta)) {
             return response()->json(['error' => 'Archivo XML físico no encontrado en el servidor'], 404);
         }
-        
+
         $xmlContent = \Illuminate\Support\Facades\Storage::disk('local')->get($ruta);
-        
+
         try {
             libxml_use_internal_errors(true);
             $xml = simplexml_load_string($xmlContent);
-            if (!$xml) {
+            if (! $xml) {
                 return response()->json(['error' => 'El archivo XML contiene un formato inválido'], 400);
             }
             $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
@@ -452,17 +452,17 @@ class MovimientoController extends Controller
             $sucursalEmisor = strtoupper((string) ($xml->xpath('//sii:Emisor/sii:Sucursal')[0] ?? ''));
             if (str_contains($termPago, 'PREPAGO') || str_contains($sucursalEmisor, 'CUPON')) {
                 return response()->json([
-                    'error' => 'Esta factura es una recarga de tarjeta prepago: el combustible no entró al estanque.'
+                    'error' => 'Esta factura es una recarga de tarjeta prepago: el combustible no entró al estanque.',
                 ], 400);
             }
 
             $detalles = $xml->xpath('//sii:Detalle') ?? [];
             $fuelDetails = [];
-            
+
             foreach ($detalles as $detalle) {
                 $nombre = strtoupper((string) $detalle->NmbItem);
                 $cantidad = (float) $detalle->QtyItem;
-                
+
                 // Excluir herramientas, repuestos, aceites y bidones que no son combustible real
                 $exclusiones = ['FILTRO', 'JUEGO', 'JGO', 'COMPRESIMETRO', 'ACEITE', 'ADITIVO', 'BOMBA', 'MANGUERA', 'BIDON', 'LIMPIADOR', 'INYECTOR', 'TAPA', 'SERVICIO', 'FLETE', 'HERRAMIENTA', 'EQUIPO'];
                 $esExcluido = false;
@@ -472,7 +472,7 @@ class MovimientoController extends Controller
                         break;
                     }
                 }
-                
+
                 // El combustible siempre se factura en litros; un repuesto con
                 // "DIESEL" en el nombre viene en UNID y no debe entrar al estanque.
                 $unidad = strtoupper(trim((string) $detalle->UnmdItem));
@@ -481,91 +481,92 @@ class MovimientoController extends Controller
                     || str_starts_with($unidad, 'LITR');
 
                 $productoNombre = null;
-                if (!$esExcluido && $esLitros) {
+                if (! $esExcluido && $esLitros) {
                     $productoNombre = match (true) {
-                        str_contains($nombre, 'DIESEL')   => 'Diesel',
+                        str_contains($nombre, 'DIESEL') => 'Diesel',
                         str_contains($nombre, 'GASOLINA') => 'Gasolina',
-                        default                            => null,
+                        default => null,
                     };
                 }
 
                 if ($productoNombre && $cantidad > 0) {
                     $fuelDetails[] = [
                         'producto' => $productoNombre,
-                        'cantidad' => $cantidad
+                        'cantidad' => $cantidad,
                     ];
                 }
             }
-            
+
             if (empty($fuelDetails)) {
                 return response()->json(['error' => 'No se encontraron líneas de Diesel o Gasolina en esta factura'], 400);
             }
-            
+
             // Iniciar transacción
             $db->beginTransaction();
-            
+
             $movimientoIds = [];
-            
+
             foreach ($fuelDetails as $fuel) {
                 $productoNombre = $fuel['producto'];
                 $cantidad = $fuel['cantidad'];
-                
+
                 $producto = $db->table('productos')->where('nombre', $productoNombre)->first();
-                if (!$producto) {
+                if (! $producto) {
                     throw new \Exception("El producto '{$productoNombre}' no está registrado en FuelControl.");
                 }
-                
+
                 // Actualizar stock del producto
                 $db->table('productos')
                     ->where('id', $producto->id)
                     ->increment('cantidad', $cantidad);
-                    
+
                 // Generar hash único
                 $hash = hash('sha256', implode('|', [
-                    $dte->gmail_message_id ?? 'reconciliation', $dte->xml_filename, $productoNombre, $cantidad
+                    $dte->gmail_message_id ?? 'reconciliation', $dte->xml_filename, $productoNombre, $cantidad,
                 ]));
-                
+
                 // Insertar movimiento
                 $movimientoId = $db->table('movimientos')->insertGetId([
-                    'producto_id'      => $producto->id,
-                    'vehiculo_id'      => null,
-                    'cantidad'         => $cantidad,
-                    'tipo'             => 'entrada',
-                    'origen'           => 'xml_estanque',
-                    'referencia'       => $dte->xml_filename,
-                    'requiere_revision'=> 0,
-                    'estado'           => 'aprobado',
-                    'xml_path'         => $dte->xml_filename,
-                    'usuario'          => 'manual_reconcile',
+                    'producto_id' => $producto->id,
+                    'vehiculo_id' => null,
+                    'cantidad' => $cantidad,
+                    'tipo' => 'entrada',
+                    'origen' => 'xml_estanque',
+                    'referencia' => $dte->xml_filename,
+                    'requiere_revision' => 0,
+                    'estado' => 'aprobado',
+                    'xml_path' => $dte->xml_filename,
+                    'usuario' => 'manual_reconcile',
                     'fecha_movimiento' => $dte->fecha_factura,
-                    'hash_unico'       => $hash,
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
+                    'hash_unico' => $hash,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
-                
+
                 $movimientoIds[] = $movimientoId;
             }
-            
+
             // Actualizar estado del DTE
             $db->table('gmail_dte_documents')
                 ->where('id', $id)
                 ->update([
                     'inventory_status' => 'combustible',
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
-                
+
             $db->commit();
-            
+
             return response()->json([
                 'ok' => true,
                 'message' => 'Ingreso registrado correctamente en stock',
-                'movements' => $movimientoIds
+                'movements' => $movimientoIds,
             ]);
-            
+
         } catch (\Throwable $e) {
             $db->rollBack();
+
             return response()->json([
-                'error' => 'Error al procesar el ingreso: ' . $e->getMessage()
+                'error' => 'Error al procesar el ingreso: '.$e->getMessage(),
             ], 500);
         }
     }

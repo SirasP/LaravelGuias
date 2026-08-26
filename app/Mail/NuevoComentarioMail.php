@@ -18,7 +18,7 @@ class NuevoComentarioMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $emoji   = $this->comentario->tipo === 'sugerencia' ? '💡' : '📢';
+        $emoji = $this->comentario->tipo === 'sugerencia' ? '💡' : '📢';
         $tipoCap = ucfirst($this->comentario->tipo);
 
         return new Envelope(

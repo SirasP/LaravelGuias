@@ -10,12 +10,14 @@ class ServicioCalculoImpuestosCompra
     public function calcularLinea(int $documentoId, int $productoId, float $cantidad, int $unidadLineaId, ?float $precioUnitario, float $descuento = 0.0): array
     {
         $doc = DB::table('documentos_compra')->where('id', $documentoId)->first();
-        if (!$doc)
+        if (! $doc) {
             throw new RuntimeException("Documento no existe: {$documentoId}");
+        }
 
         $prod = DB::table('productos')->where('id', $productoId)->first();
-        if (!$prod)
+        if (! $prod) {
             throw new RuntimeException("Producto no existe: {$productoId}");
+        }
 
         $perfil = $prod->perfil_impuesto_id
             ? DB::table('perfiles_impuestos')->where('id', $prod->perfil_impuesto_id)->first()
@@ -58,7 +60,7 @@ class ServicioCalculoImpuestosCompra
         }
 
         // 2) Neto / IVA / Total
-        if (!$preciosIncluyenIva) {
+        if (! $preciosIncluyenIva) {
             $montoNeto = max(0.0, ($cantidad * $precioUnitario) - $descuento);
 
             if ($aplicaEsp && $tipoEsp === 'PORCENTAJE') {
@@ -83,10 +85,12 @@ class ServicioCalculoImpuestosCompra
 
         // 3) Costo FIFO
         $costoInv = $montoNeto;
-        if ($inclEspCosto)
+        if ($inclEspCosto) {
             $costoInv += $montoEsp;
-        if ($inclIvaCosto || !$ivaRecuperable)
+        }
+        if ($inclIvaCosto || ! $ivaRecuperable) {
             $costoInv += $montoIva;
+        }
 
         return [
             'monto_neto' => round($montoNeto, 6),

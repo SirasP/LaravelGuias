@@ -59,7 +59,7 @@ class ComprasController extends Controller
     public function ver(int $id)
     {
         $doc = DB::table('documentos_compra')->where('id', $id)->first();
-        abort_if(!$doc, 404);
+        abort_if(! $doc, 404);
 
         $proveedor = DB::table('proveedores')->where('id', $doc->proveedor_id)->first();
         $bodega = DB::table('bodegas')->where('id', $doc->bodega_id)->first();
@@ -75,7 +75,7 @@ class ComprasController extends Controller
     public function agregarLinea(int $id, Request $request)
     {
         $doc = DB::table('documentos_compra')->where('id', $id)->first();
-        abort_if(!$doc, 404);
+        abort_if(! $doc, 404);
 
         if ($doc->estado !== 'BORRADOR') {
             return back()->withErrors(['estado' => 'El documento no está en BORRADOR.']);
@@ -116,6 +116,7 @@ class ComprasController extends Controller
     {
         try {
             $servicio->contabilizar($id);
+
             return redirect()->route('compras.documentos.ver', $id)->with('ok', 'Documento contabilizado. Inventario actualizado.');
         } catch (\Throwable $e) {
             return back()->withErrors(['contabilizar' => $e->getMessage()]);

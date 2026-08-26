@@ -42,7 +42,7 @@ class ProductoController extends Controller
                 })
                 ->get();
 
-            $totalDiesel = $movimientosDiesel->sum(fn($m) => abs($m->cantidad));
+            $totalDiesel = $movimientosDiesel->sum(fn ($m) => abs($m->cantidad));
             $avgDiesel = $totalDiesel / $diaActual;
 
             // Fleet Performance (L/h and km/L)
@@ -70,10 +70,12 @@ class ProductoController extends Controller
 
             foreach ($vehicleStats as $stat) {
                 $delta = $stat->max_odo - $stat->min_odo;
-                if ($delta <= 0) continue;
+                if ($delta <= 0) {
+                    continue;
+                }
 
                 $isMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto\s?bomba|retro|generador|mini/i', $stat->descripcion);
-                
+
                 if ($isMaquinaria) {
                     $totalHours += $delta;
                     $litersHours += $stat->total_litros;
@@ -106,8 +108,8 @@ class ProductoController extends Controller
         }
 
         return view('fuelcontrol.productos.index', compact(
-            'productos', 
-            'totalDiesel', 'avgDiesel', 
+            'productos',
+            'totalDiesel', 'avgDiesel',
             'totalGasolina', 'avgGasolina',
             'fleetDieselAvgLh', 'fleetDieselAvgKmL', 'totalDieselKm'
         ));
@@ -146,6 +148,7 @@ class ProductoController extends Controller
                     ]);
 
                 session()->flash('success', 'Stock actualizado correctamente');
+
                 return;
             }
 
@@ -164,12 +167,14 @@ class ProductoController extends Controller
 
         return redirect()->route('fuelcontrol.productos');
     }
+
     public function edit($id)
     {
         return redirect()
             ->route('fuelcontrol.productos')
             ->with('warning', 'La edicion se realiza desde el modal en la lista de productos.');
     }
+
     public function destroy($id)
     {
         $producto = DB::connection('fuelcontrol')
@@ -177,7 +182,7 @@ class ProductoController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$producto, 404);
+        abort_if(! $producto, 404);
 
         DB::connection('fuelcontrol')
             ->table('productos')
@@ -210,7 +215,6 @@ class ProductoController extends Controller
             ->with('success', 'Producto actualizado correctamente');
     }
 
-
     public function importarXml($id)
     {
         $producto = DB::connection('fuelcontrol')
@@ -218,7 +222,7 @@ class ProductoController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$producto, 404);
+        abort_if(! $producto, 404);
 
         // buscar XML pendientes
         $xmls = DB::table('xml_facturas')
@@ -228,7 +232,7 @@ class ProductoController extends Controller
 
         foreach ($xmls as $xml) {
 
-            $data = simplexml_load_file(storage_path('app/' . $xml->archivo));
+            $data = simplexml_load_file(storage_path('app/'.$xml->archivo));
 
             $descripcion = strtolower((string) $data->Detalle->NmbItem);
             $litros = (float) $data->Detalle->QtyItem;
@@ -236,14 +240,14 @@ class ProductoController extends Controller
             // validar producto
             if (
                 str_contains($producto->nombre, 'diesel') &&
-                !str_contains($descripcion, 'diesel')
+                ! str_contains($descripcion, 'diesel')
             ) {
                 continue;
             }
 
             if (
                 str_contains($producto->nombre, 'gasolina') &&
-                !str_contains($descripcion, 'gasolina')
+                ! str_contains($descripcion, 'gasolina')
             ) {
                 continue;
             }
@@ -299,7 +303,7 @@ class ProductoController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$producto, 404, 'Producto no encontrado');
+        abort_if(! $producto, 404, 'Producto no encontrado');
 
         $isDiesel = str_contains(strtolower($producto->nombre), 'diesel');
 
@@ -324,7 +328,7 @@ class ProductoController extends Controller
             $descuadrado = false;
             $diferencia = 0;
 
-            if ($odo > 0 && !is_null($prevOdo)) {
+            if ($odo > 0 && ! is_null($prevOdo)) {
                 // Consideramos una salida tanto si la cantidad es negativa como si el tipo es 'salida'
                 if ($isDiesel && ($m->tipo === 'salida' || $cantidad < 0)) {
                     $esperado = (float) $prevOdo + abs($cantidad);
@@ -339,9 +343,13 @@ class ProductoController extends Controller
             $maquinaNombre = 'N/A';
             if ($m->vehiculo_id) {
                 $parts = [];
-                if ($m->vehiculo_nombre) $parts[] = $m->vehiculo_nombre;
-                if ($m->vehiculo_patente) $parts[] = $m->vehiculo_patente;
-                $maquinaNombre = !empty($parts) ? implode(' - ', $parts) : "Vehículo #{$m->vehiculo_id}";
+                if ($m->vehiculo_nombre) {
+                    $parts[] = $m->vehiculo_nombre;
+                }
+                if ($m->vehiculo_patente) {
+                    $parts[] = $m->vehiculo_patente;
+                }
+                $maquinaNombre = ! empty($parts) ? implode(' - ', $parts) : "Vehículo #{$m->vehiculo_id}";
             }
 
             $auditData->push([
@@ -354,7 +362,7 @@ class ProductoController extends Controller
                 'diferencia' => $diferencia,
                 'tipo' => $m->tipo,
                 'usuario' => $m->usuario ?? 'N/A',
-                'maquina' => $maquinaNombre
+                'maquina' => $maquinaNombre,
             ]);
 
             if ($odo > 0) {
@@ -365,7 +373,7 @@ class ProductoController extends Controller
         return [
             'producto' => $producto,
             'auditData' => $auditData,
-            'isDiesel' => $isDiesel
+            'isDiesel' => $isDiesel,
         ];
     }
 
@@ -378,14 +386,14 @@ class ProductoController extends Controller
         $producto = $data['producto'];
         $auditData = $data['auditData']->reverse();
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Auditoria de Flujo');
 
         // Encabezados
         $sheet->mergeCells('A1:G1');
-        $sheet->setCellValue('A1', 'FuelControl - Auditoría de Flujo: ' . strtoupper($producto->nombre));
-        $sheet->setCellValue('A2', 'Generado: ' . now()->format('d-m-Y H:i'));
+        $sheet->setCellValue('A1', 'FuelControl - Auditoría de Flujo: '.strtoupper($producto->nombre));
+        $sheet->setCellValue('A2', 'Generado: '.now()->format('d-m-Y H:i'));
 
         $headers = ['Fecha / Hora', 'Máquina', 'Operación', 'Cantidad (L)', 'Secuencia Bomba', 'Anterior', 'Estado', 'Diferencia (L)'];
         $sheet->fromArray($headers, null, 'A4');
@@ -423,7 +431,7 @@ class ProductoController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $filename = 'auditoria_' . str_replace(' ', '_', strtolower($producto->nombre)) . '_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'auditoria_'.str_replace(' ', '_', strtolower($producto->nombre)).'_'.now()->format('Ymd_His').'.xlsx';
 
         return new \Symfony\Component\HttpFoundation\StreamedResponse(function () use ($spreadsheet) {
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);

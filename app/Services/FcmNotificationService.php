@@ -12,18 +12,17 @@ class FcmNotificationService
     /**
      * Envía una notificación push FCM a todos los tokens activos de una app.
      *
-     * @param  string  $appType   'combustible' | 'mantencion'
-     * @param  string  $title
-     * @param  string  $body
-     * @param  array   $data      Payload adicional (key/value strings)
+     * @param  string  $appType  'combustible' | 'mantencion'
+     * @param  array  $data  Payload adicional (key/value strings)
      * @return array{sent: int, failed: int}
      */
     public function send(string $appType, string $title, string $body, array $data = []): array
     {
         $credentialsPath = storage_path('app/firebase/firebase-credentials.json');
 
-        if (!file_exists($credentialsPath)) {
+        if (! file_exists($credentialsPath)) {
             Log::warning('[FCM] firebase-credentials.json no encontrado. Push desactivado.');
+
             return ['sent' => 0, 'failed' => 0];
         }
 
@@ -36,30 +35,32 @@ class FcmNotificationService
 
         if (empty($tokens)) {
             Log::info("[FCM] No hay tokens activos para app_type={$appType}");
+
             return ['sent' => 0, 'failed' => 0];
         }
 
         try {
-            $factory   = (new Factory)->withServiceAccount($credentialsPath);
+            $factory = (new Factory)->withServiceAccount($credentialsPath);
             $messaging = $factory->createMessaging();
         } catch (\Throwable $e) {
-            Log::error('[FCM] Error inicializando Firebase: ' . $e->getMessage());
+            Log::error('[FCM] Error inicializando Firebase: '.$e->getMessage());
+
             return ['sent' => 0, 'failed' => count($tokens)];
         }
 
         // Todos los valores del payload deben ser strings
         $stringData = array_map('strval', $data);
 
-        $sent   = 0;
+        $sent = 0;
         $failed = 0;
 
         foreach ($tokens as $token) {
             try {
                 $message = CloudMessage::fromArray([
-                    'token'        => $token,
+                    'token' => $token,
                     'notification' => [
                         'title' => $title,
-                        'body'  => $body,
+                        'body' => $body,
                     ],
                     'data' => $stringData,
                 ]);
@@ -84,6 +85,7 @@ class FcmNotificationService
         }
 
         Log::info("[FCM] app={$appType} enviadas={$sent} fallidas={$failed}");
+
         return ['sent' => $sent, 'failed' => $failed];
     }
 }

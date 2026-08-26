@@ -46,10 +46,12 @@ class DocumentosCompraController extends Controller
     public function agregarLinea(int $id, Request $request)
     {
         $doc = DB::table('documentos_compra')->where('id', $id)->first();
-        if (!$doc)
+        if (! $doc) {
             return response()->json(['message' => 'Documento no existe'], 404);
-        if ($doc->estado !== 'BORRADOR')
+        }
+        if ($doc->estado !== 'BORRADOR') {
             return response()->json(['message' => 'Documento no está en BORRADOR'], 409);
+        }
 
         $data = $request->validate([
             'producto_id' => ['required', 'integer', 'exists:productos,id'],
@@ -81,6 +83,7 @@ class DocumentosCompraController extends Controller
     {
         try {
             $servicio->contabilizar($id);
+
             return response()->json(['ok' => true]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -93,8 +96,9 @@ class DocumentosCompraController extends Controller
     public function ver(int $id)
     {
         $doc = DB::table('documentos_compra')->where('id', $id)->first();
-        if (!$doc)
+        if (! $doc) {
             return response()->json(['message' => 'No existe'], 404);
+        }
 
         $lineas = DB::table('lineas_documento_compra')->where('documento_compra_id', $id)->get();
 

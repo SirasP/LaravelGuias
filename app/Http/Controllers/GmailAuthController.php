@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Artisan;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 class GmailAuthController extends Controller
 {
@@ -15,7 +15,7 @@ class GmailAuthController extends Controller
      */
     private function makeClient(): GoogleClient
     {
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_MODIFY]);
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
@@ -41,7 +41,7 @@ class GmailAuthController extends Controller
     {
         $client = $this->makeClient();
         $tokenPath = storage_path('app/gmail/token.json');
-        $connected = file_exists($tokenPath) && !$client->isAccessTokenExpired();
+        $connected = file_exists($tokenPath) && ! $client->isAccessTokenExpired();
 
         // Último proceso
         $lastRun = DB::connection('fuelcontrol')
@@ -76,8 +76,8 @@ class GmailAuthController extends Controller
         $authUrl = $client->createAuthUrl();
 
         // Log temporal para debug
-        \Log::info('Gmail OAuth URL: ' . $authUrl);
-        \Log::info('Redirect URI configurada: ' . route('gmail.callback'));
+        \Log::info('Gmail OAuth URL: '.$authUrl);
+        \Log::info('Redirect URI configurada: '.route('gmail.callback'));
 
         return redirect()->away($authUrl);
     }
@@ -90,7 +90,7 @@ class GmailAuthController extends Controller
     {
         if ($request->has('error')) {
             return redirect()->route('gmail.index')
-                ->with('error', 'Autorización cancelada: ' . $request->get('error'));
+                ->with('error', 'Autorización cancelada: '.$request->get('error'));
         }
 
         $code = $request->get('code');
@@ -100,7 +100,7 @@ class GmailAuthController extends Controller
 
         if (isset($token['error'])) {
             return redirect()->route('gmail.index')
-                ->with('error', 'Error al obtener token: ' . $token['error_description']);
+                ->with('error', 'Error al obtener token: '.$token['error_description']);
         }
 
         // Guardar token
@@ -159,7 +159,7 @@ class GmailAuthController extends Controller
     {
         $client = $this->makeClient();
         $tokenPath = storage_path('app/gmail/token.json');
-        $connected = file_exists($tokenPath) && !$client->isAccessTokenExpired();
+        $connected = file_exists($tokenPath) && ! $client->isAccessTokenExpired();
 
         $lastRun = DB::connection('fuelcontrol')
             ->table('gmail_imports')

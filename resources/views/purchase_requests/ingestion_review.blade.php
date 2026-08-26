@@ -126,14 +126,15 @@
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-[54rem] text-sm">
+                        <table class="w-full min-w-[64rem] text-sm">
                             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
                                 <tr>
                                     <th class="px-3 py-2 text-left font-bold" style="width:2.5rem">N°</th>
                                     <th class="px-3 py-2 text-left font-bold">Producto / Servicio</th>
                                     <th class="px-3 py-2 text-left font-bold" style="width:12rem">Especificación</th>
                                     <th class="px-3 py-2 text-left font-bold" style="width:7rem">Cantidad</th>
-                                    <th class="px-3 py-2 text-left font-bold" style="width:11rem">Unidad</th>
+                                    <th class="px-3 py-2 text-left font-bold" style="width:9rem">Unidad</th>
+                                    <th class="px-3 py-2 text-left font-bold" style="width:9rem">Precio unit.</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -154,6 +155,13 @@
                                         </td>
                                         <td class="px-2 py-2">
                                             <input name="items[{{ $i }}][unit]" value="{{ $item['unit'] ?? '' }}" list="units-review"
+                                                class="min-h-11 w-full rounded-lg border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            {{-- Vacío cuando la cotización no lo traía, o
+                                                 cuando el precio leído no aparecía escrito. --}}
+                                            <input name="items[{{ $i }}][unit_price]" value="{{ $item['unit_price'] ?? '' }}" inputmode="decimal"
+                                                placeholder="—"
                                                 class="min-h-11 w-full rounded-lg border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                         </td>
                                     </tr>

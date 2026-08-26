@@ -11,7 +11,7 @@ class CentroController extends Controller
     {
         $contacto = $request->query('contacto');
 
-        if (!$contacto) {
+        if (! $contacto) {
             abort(404, 'Centro no especificado');
         }
         $qtyNorm = "(
@@ -43,7 +43,6 @@ class CentroController extends Controller
       CAST(CAST(l.cantidad AS CHAR) AS UNSIGNED)
   END
 )";
-
 
         // 🔒 Normalizamos el centro (CLAVE)
         $contactoNormalizado = trim(mb_strtoupper($contacto));
@@ -169,7 +168,6 @@ THEN 'BANDEJON'
             ->orderByDesc('total_unidades')
             ->get();
 
-
         /**
          * ============================================================
          * 🧮 TOTALES GUÍAS (BANDEJAS / PALLETS)
@@ -202,8 +200,6 @@ THEN 'BANDEJON'
          * 👉 USANDO RAW->L (NO cantidad)
          * ============================================================
          */
-
-
         $bandejasPorTipo = DB::table('excel_out_transfer_lines as l')
             ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
 
@@ -241,15 +237,11 @@ THEN 'BANDEJON'
             ->orderByDesc('total_bandejas')
             ->get();
 
-
-
         /**
          * ============================================================
          * 🔥 TOTAL GENERAL SALIDAS (MISMO CÁLCULO, MISMO CENTRO)
          * ============================================================
          */
-
-
         $totalBandejasOut = DB::table('excel_out_transfer_lines as l')
             ->join('excel_out_transfers as t', 't.id', '=', 'l.excel_out_transfer_id')
 
@@ -395,19 +387,13 @@ THEN 'BANDEJON'
                 ->get();
         }
 
-
-
-
-
-
-
         $diferenciaPorTipo = [];
 
         foreach ($guiasPorTipo as $g) {
             $tipo = trim(mb_strtoupper($g->tipo_bandeja));
 
             $odoo = (int) $bandejasPorTipo
-                ->filter(fn($o) => trim(mb_strtoupper($o->tipo_bandeja)) === $tipo)
+                ->filter(fn ($o) => trim(mb_strtoupper($o->tipo_bandeja)) === $tipo)
                 ->sum('total_bandejas');
 
             $diferenciaPorTipo[] = [
@@ -421,7 +407,7 @@ THEN 'BANDEJON'
         // ✅ AGREGAR TIPOS QUE EXISTEN EN ODOO PERO NO EN GUÍAS (para que no "desaparezcan")
         $tiposEnGuias = collect($guiasPorTipo)
             ->pluck('tipo_bandeja')
-            ->map(fn($t) => trim(mb_strtoupper($t)))
+            ->map(fn ($t) => trim(mb_strtoupper($t)))
             ->unique()
             ->values();
 
@@ -441,7 +427,6 @@ THEN 'BANDEJON'
                 'diff' => 0 - (int) $o->total_bandejas,
             ];
         }
-
 
         $totalBandejasGuia = (int) ($totales->total_bandejas ?? 0);
         $diferenciaBandejas = ($totalBandejasGuia ?? 0) - ($totalBandejasOut ?? 0);

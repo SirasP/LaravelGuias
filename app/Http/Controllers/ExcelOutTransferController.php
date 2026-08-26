@@ -3,19 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExcelOutTransfer;
+use App\Models\ExcelOutTransferLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use App\Models\PdfImport;
-use App\Models\ExcelOutTransferLine;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
+
 class ExcelOutTransferController extends Controller
 {
-
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -36,17 +34,17 @@ class ExcelOutTransferController extends Controller
         $currentYear = $now->year;
         $currentMonth = $now->month;
         if ($currentMonth >= 6) {
-            $currentSeason = $currentYear . '/' . ($currentYear + 1);
-            $nextSeason = ($currentYear + 1) . '/' . ($currentYear + 2);
+            $currentSeason = $currentYear.'/'.($currentYear + 1);
+            $nextSeason = ($currentYear + 1).'/'.($currentYear + 2);
         } else {
-            $currentSeason = ($currentYear - 1) . '/' . $currentYear;
-            $nextSeason = $currentYear . '/' . ($currentYear + 1);
+            $currentSeason = ($currentYear - 1).'/'.$currentYear;
+            $nextSeason = $currentYear.'/'.($currentYear + 1);
         }
 
-        if (!in_array($currentSeason, $availableSeasons)) {
+        if (! in_array($currentSeason, $availableSeasons)) {
             $availableSeasons[] = $currentSeason;
         }
-        if (!in_array($nextSeason, $availableSeasons)) {
+        if (! in_array($nextSeason, $availableSeasons)) {
             $availableSeasons[] = $nextSeason;
         }
 
@@ -85,8 +83,6 @@ class ExcelOutTransferController extends Controller
         END as exists_guia
     ");
 
-
-
         // ============================
         // BÚSQUEDA
         // ============================
@@ -107,7 +103,7 @@ class ExcelOutTransferController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $query->whereBetween('fecha_prevista', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -162,7 +158,7 @@ class ExcelOutTransferController extends Controller
             [$startYear, $endYear] = explode('/', $season);
             $baseCountQuery->whereBetween('fecha_prevista', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -219,35 +215,43 @@ class ExcelOutTransferController extends Controller
         $headerToCol = [];
         foreach ($headerRow as $col => $name) {
             $key = trim((string) $name);
-            if ($key !== '')
+            if ($key !== '') {
                 $headerToCol[mb_strtolower($key)] = $col;
+            }
         }
 
         $get = function (array $row, string $header) use ($headerToCol) {
             $h = mb_strtolower(trim($header));
             $col = $headerToCol[$h] ?? null;
+
             return $col ? ($row[$col] ?? null) : null;
         };
 
         $val = function ($v) {
-            if ($v === null)
+            if ($v === null) {
                 return null;
+            }
             if (is_string($v)) {
                 $v = trim($v);
+
                 return $v === '' ? null : $v;
             }
+
             return $v;
         };
 
         $parseDateTime = function ($v): ?string {
-            if ($v === null)
+            if ($v === null) {
                 return null;
+            }
             $s = trim((string) $v);
-            if ($s === '')
+            if ($s === '') {
                 return null;
+            }
 
-            if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/', $s))
+            if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/', $s)) {
                 return $s;
+            }
 
             if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2}:\d{2})$/', $s, $m)) {
                 return "{$m[3]}-{$m[2]}-{$m[1]} {$m[4]}";
@@ -258,30 +262,37 @@ class ExcelOutTransferController extends Controller
 
         $normalizeGuia = function ($v): ?string {
             $s = trim((string) $v);
-            if ($s === '')
+            if ($s === '') {
                 return null;
+            }
             $s = preg_replace('/\D+/', '', $s);
             $s = ltrim($s, '0');
+
             return $s ?: null;
         };
 
         $normalizeRef = function ($v): ?string {
             $s = trim((string) $v);
-            if ($s === '')
+            if ($s === '') {
                 return null;
+            }
             $s = preg_replace('/\s+/', ' ', $s);
+
             return mb_strtoupper($s);
         };
 
         $parseNumber = function ($v): ?float {
-            if ($v === null)
+            if ($v === null) {
                 return null;
-            if (is_int($v) || is_float($v))
+            }
+            if (is_int($v) || is_float($v)) {
                 return (float) $v;
+            }
 
             $s = trim((string) $v);
-            if ($s === '')
+            if ($s === '') {
                 return null;
+            }
 
             $hasDot = str_contains($s, '.');
             $hasComma = str_contains($s, ',');
@@ -321,16 +332,17 @@ class ExcelOutTransferController extends Controller
                     $currentKey = $guiaRow;         // guía real
                     $currentHeaderId = null;
                 } elseif ($refRow) {
-                    $currentKey = "REF:" . $refRow; // SIN guía => por referencia
+                    $currentKey = 'REF:'.$refRow; // SIN guía => por referencia
                     $currentHeaderId = null;
                 }
                 // si viene fila sin guía y sin referencia, seguimos usando el contexto anterior (si existe)
 
                 // 2) Si no hay contexto, skip
-                if (!$currentKey) {
+                if (! $currentKey) {
                     // fila realmente vacía => skip silencioso
                     if ($producto === '' && $cantidad === null) {
                         $skipped++;
+
                         continue;
                     }
 
@@ -342,6 +354,7 @@ class ExcelOutTransferController extends Controller
                         'guia' => null,
                         'reason' => "Fila {$i}: sin guía y sin referencia (no se puede agrupar)",
                     ];
+
                     continue;
                 }
 
@@ -357,31 +370,41 @@ class ExcelOutTransferController extends Controller
                     'raw' => $r,
                 ];
 
-                if ($v = $val($get($r, 'Contacto')))
+                if ($v = $val($get($r, 'Contacto'))) {
                     $headerData['contacto'] = $v;
-                if ($v = $val($get($r, 'Patente')))
+                }
+                if ($v = $val($get($r, 'Patente'))) {
                     $headerData['patente'] = $v;
-                if ($v = $val($get($r, 'Chofer')))
+                }
+                if ($v = $val($get($r, 'Chofer'))) {
                     $headerData['chofer'] = $v;
-                if ($v = $normalizeRef($get($r, 'Referencia')))
+                }
+                if ($v = $normalizeRef($get($r, 'Referencia'))) {
                     $headerData['referencia'] = $v;
+                }
 
-
-                if ($v = $val($get($r, 'Documento origen')))
+                if ($v = $val($get($r, 'Documento origen'))) {
                     $headerData['documento_origen'] = $v;
-                if ($v = $val($get($r, 'Prioridad')))
+                }
+                if ($v = $val($get($r, 'Prioridad'))) {
                     $headerData['prioridad'] = $v;
-                if ($v = $val($get($r, 'Archivo DTE')))
+                }
+                if ($v = $val($get($r, 'Archivo DTE'))) {
                     $headerData['archivo_dte'] = $v;
-                if ($v = $val($get($r, 'Ubicación origen')))
+                }
+                if ($v = $val($get($r, 'Ubicación origen'))) {
                     $headerData['ubicacion_origen'] = $v;
-                if ($v = $val($get($r, 'Ubicación de destino')))
+                }
+                if ($v = $val($get($r, 'Ubicación de destino'))) {
                     $headerData['ubicacion_destino'] = $v;
+                }
 
-                if ($fechaPrev = $parseDateTime($get($r, 'Fecha prevista')))
+                if ($fechaPrev = $parseDateTime($get($r, 'Fecha prevista'))) {
                     $headerData['fecha_prevista'] = $fechaPrev;
-                if ($fechaTras = $parseDateTime($get($r, 'Fecha de traslado')))
+                }
+                if ($fechaTras = $parseDateTime($get($r, 'Fecha de traslado'))) {
                     $headerData['fecha_traslado'] = $fechaTras;
+                }
 
                 // 4) Buscar cabecera existente
                 if ($isNumericGuia) {
@@ -390,7 +413,7 @@ class ExcelOutTransferController extends Controller
                     $transfer = ExcelOutTransfer::where('import_key', $importKey)->first();
                 }
 
-                if (!$transfer) {
+                if (! $transfer) {
                     // 👉 SOLO aquí se crea
                     if ($v = $val($get($r, 'Estado'))) {
                         $headerData['estado'] = $v;
@@ -416,7 +439,7 @@ class ExcelOutTransferController extends Controller
 
                 static $linesCleared = [];
 
-                if (!isset($linesCleared[$currentHeaderId])) {
+                if (! isset($linesCleared[$currentHeaderId])) {
                     ExcelOutTransferLine::where('excel_out_transfer_id', $currentHeaderId)->delete();
                     $linesCleared[$currentHeaderId] = true;
                 }
@@ -438,7 +461,6 @@ class ExcelOutTransferController extends Controller
 
                     $createdLines++;
 
-
                 }
             }
         });
@@ -455,6 +477,7 @@ class ExcelOutTransferController extends Controller
 
         return view('excel_out_transfers.show', compact('transfer'));
     }
+
     public function export(Request $request)
     {
 
@@ -470,7 +493,7 @@ class ExcelOutTransferController extends Controller
             ->where('producto', '!=', '')
             ->whereRaw("UPPER(producto) LIKE '%BANDE%'")
 
-            ->selectRaw("TRIM(UPPER(producto)) as t")
+            ->selectRaw('TRIM(UPPER(producto)) as t')
             ->distinct()
             ->orderBy('t')
             ->pluck('t')
@@ -485,7 +508,7 @@ class ExcelOutTransferController extends Controller
             ->where('producto', '!=', '')
             ->whereRaw("UPPER(producto) NOT LIKE '%BANDE%'") // <- todo lo que NO sea bandeja/bandejón
             ->whereRaw("UPPER(producto) NOT LIKE '%HONDA TRX 250 TM%'")
-            ->selectRaw("TRIM(UPPER(producto)) as t")
+            ->selectRaw('TRIM(UPPER(producto)) as t')
             ->distinct()
             ->orderBy('t')
             ->pluck('t')
@@ -523,9 +546,6 @@ class ExcelOutTransferController extends Controller
       CAST(CAST(l.cantidad AS CHAR) AS UNSIGNED)
   END
 )";
-
-        ;
-
 
         $kgNorm = "(
   CASE
@@ -573,7 +593,6 @@ class ExcelOutTransferController extends Controller
   END
 )";
 
-        ;
         $kgText = "(
   CASE
     WHEN MOD({$kgNormFixed}, 1) = 0 THEN CAST({$kgNormFixed} AS UNSIGNED)
@@ -589,11 +608,11 @@ class ExcelOutTransferController extends Controller
     ) AS DECIMAL(18,3)
   ) / 1000
 )";
-        ;
+
         // ===== 2) Subquery agregado con columnas dinámicas =====
         $linesAgg = DB::table('excel_out_transfer_lines as l')
-            ->selectRaw("l.excel_out_transfer_id as transfer_id")
-            ->selectRaw("COUNT(*) as items_count")
+            ->selectRaw('l.excel_out_transfer_id as transfer_id')
+            ->selectRaw('COUNT(*) as items_count')
             ->selectRaw("
                                     SUM(
                                         CASE
@@ -628,11 +647,10 @@ class ExcelOutTransferController extends Controller
     SEPARATOR ' | '
   ) as items_detalle
 ");
-        ;
 
         // 2a) Columnas por bandeja (UNIDADES enteras)
         foreach ($trayTypes as $t) {
-            $alias = 'tray_' . substr(md5($t), 0, 10);
+            $alias = 'tray_'.substr(md5($t), 0, 10);
 
             $linesAgg->selectRaw("
         SUM(
@@ -645,10 +663,9 @@ class ExcelOutTransferController extends Controller
     ", [$t]);
         }
 
-
         // 2b) Columnas por producto (KG decimales)
         foreach ($productTypes as $t) {
-            $alias = 'prod_' . substr(md5($t), 0, 10);
+            $alias = 'prod_'.substr(md5($t), 0, 10);
 
             $linesAgg->selectRaw("
       SUM(
@@ -669,7 +686,6 @@ class ExcelOutTransferController extends Controller
       ) as {$alias}
     ", [$t, $t]);
         }
-
 
         // ===== 2c) Subquery BANDEJAS desde PDF =====
         $pdfBandejasAgg = DB::table('pdf_lines as pl')
@@ -713,7 +729,6 @@ THEN CAST(
     ")
             ->groupBy('pl.pdf_import_id');
 
-
         $pdfKgsAgg = DB::table('pdf_lines as pl')
             ->selectRaw('pl.pdf_import_id')
             ->selectRaw("
@@ -751,9 +766,6 @@ THEN CAST(
         ) AS kgs_qtyref
     ")
             ->groupBy('pl.pdf_import_id');
-
-
-        ;
 
         $linesAgg->groupBy('l.excel_out_transfer_id');
 
@@ -806,7 +818,7 @@ THEN CAST(
             ->leftJoinSub($pdfBandejasAgg, 'pb', function ($join) {
                 $join->on('pb.pdf_import_id', '=', 'p.id');
             })
-            ->leftJoinSub($pdfKgsQtyRef, 'kq', fn($j) => $j->on('kq.pdf_import_id', '=', 'p.id'))
+            ->leftJoinSub($pdfKgsQtyRef, 'kq', fn ($j) => $j->on('kq.pdf_import_id', '=', 'p.id'))
 
             ->leftJoinSub($pdfKgsAgg, 'pk', function ($join) {
                 $join->on('pk.pdf_import_id', '=', 'p.id');
@@ -822,7 +834,7 @@ THEN CAST(
                 'e.guia_entrega',
                 'e.referencia',
 
-                DB::raw("CASE WHEN p.id IS NULL THEN 0 ELSE 1 END as exists_guia"),
+                DB::raw('CASE WHEN p.id IS NULL THEN 0 ELSE 1 END as exists_guia'),
                 'p.id as pdf_id',
                 'p.guia_no as pdf_guia_no',
                 'p.doc_fecha as pdf_doc_fecha',
@@ -871,7 +883,6 @@ THEN CAST(
     ) AS pdf_kgs_recibido
 "),
 
-
                 DB::raw("
     COALESCE(
         CAST(
@@ -887,24 +898,22 @@ THEN CAST(
     ) as pdf_bandejas_recibidas
 "),
 
-
-
                 DB::raw("JSON_UNQUOTE(JSON_EXTRACT($metaClean, '$.guia_pesaje')) as pdf_guia_pesaje"),
 
-                DB::raw("COALESCE(la.bandejas_total, 0) as excel_bandejas_total"),
+                DB::raw('COALESCE(la.bandejas_total, 0) as excel_bandejas_total'),
                 DB::raw("COALESCE(la.bandejas_detalle, '') as excel_bandejas_detalle"),
                 DB::raw("COALESCE(la.items_detalle, '') as excel_items_detalle"),
             ]);
 
         // 4a) incluir columnas dinámicas bandejas
         foreach ($trayTypes as $t) {
-            $alias = 'tray_' . substr(md5($t), 0, 10);
+            $alias = 'tray_'.substr(md5($t), 0, 10);
             $query->addSelect(DB::raw("COALESCE(la.{$alias}, 0) as {$alias}"));
         }
 
         // 4b) incluir columnas dinámicas productos KG
         foreach ($productTypes as $t) {
-            $alias = 'prod_' . substr(md5($t), 0, 10);
+            $alias = 'prod_'.substr(md5($t), 0, 10);
             $query->addSelect(DB::raw("COALESCE(la.{$alias}, 0) as {$alias}"));
         }
 
@@ -919,17 +928,19 @@ THEN CAST(
             });
         }
 
-        if ($exists === '1')
+        if ($exists === '1') {
             $query->whereNotNull('p.id');
-        if ($exists === '0')
+        }
+        if ($exists === '0') {
             $query->whereNull('p.id');
+        }
 
         $season = $request->get('season');
         if ($season && str_contains($season, '/')) {
             [$startYear, $endYear] = explode('/', $season);
             $query->whereBetween('e.fecha_prevista', [
                 "{$startYear}-06-01 00:00:00",
-                "{$endYear}-05-31 23:59:59"
+                "{$endYear}-05-31 23:59:59",
             ]);
         }
 
@@ -955,7 +966,7 @@ THEN CAST(
         ];
 
         // ===== 5) Excel =====
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('OUT Transfers');
 
@@ -987,29 +998,24 @@ THEN CAST(
         // headers de palets calculados
         foreach ($trayTypes as $t) {
             if (isset($paletRules[$t])) {
-                $headers[] = 'Palets ' . ucwords(mb_strtolower($t));
+                $headers[] = 'Palets '.ucwords(mb_strtolower($t));
             }
         }
         // headers por producto KG
         foreach ($productTypes as $t) {
             $nice = ucwords(mb_strtolower($t));
-            $headers[] = $nice . ' (KG)';
+            $headers[] = $nice.' (KG)';
         }
 
         foreach ($headers as $i => $h) {
-            $cell = Coordinate::stringFromColumnIndex($i + 1) . '1';
+            $cell = Coordinate::stringFromColumnIndex($i + 1).'1';
             $sheet->setCellValue($cell, $h);
         }
 
         $rowNum = 2;
 
-
         foreach ($rows as $r) {
             $pdfKgs = $this->normalizePdfKg($r->pdf_kgs_recibido);
-
-
-
-
 
             $values = [
                 $r->contacto ?? '',
@@ -1035,7 +1041,7 @@ THEN CAST(
             $bandejaValues = [];
 
             foreach ($trayTypes as $t) {
-                $alias = 'tray_' . substr(md5($t), 0, 10);
+                $alias = 'tray_'.substr(md5($t), 0, 10);
                 $v = (float) ($r->{$alias} ?? 0);
                 $bandejaValues[$t] = $v;
                 $values[] = $v;
@@ -1043,7 +1049,7 @@ THEN CAST(
 
             // ===== PALETS CALCULADOS =====
             foreach ($trayTypes as $t) {
-                if (!isset($paletRules[$t])) {
+                if (! isset($paletRules[$t])) {
                     continue;
                 }
 
@@ -1058,10 +1064,9 @@ THEN CAST(
                 $values[] = $palets;
             }
 
-
             // valores por producto KG (desde Odoo / BD)
             foreach ($productTypes as $t) {
-                $alias = 'prod_' . substr(md5($t), 0, 10);
+                $alias = 'prod_'.substr(md5($t), 0, 10);
                 $raw = $r->{$alias} ?? null;
 
                 $kg = $this->kgFromOdoo($raw);
@@ -1079,11 +1084,8 @@ THEN CAST(
                 // $text = $this->formatKgCL($kg); // string
             }
 
-
-
-
             foreach ($values as $i => $v) {
-                $cell = Coordinate::stringFromColumnIndex($i + 1) . $rowNum;
+                $cell = Coordinate::stringFromColumnIndex($i + 1).$rowNum;
 
                 $sheet->setCellValue($cell, $v ?? '');
             }
@@ -1102,15 +1104,12 @@ THEN CAST(
             ->getNumberFormat()
             ->setFormatCode('0');
 
-
-
-
         for ($i = 1; $i <= count($headers); $i++) {
             $col = Coordinate::stringFromColumnIndex($i);
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $filename = 'out_transfers_bandejas_productos_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'out_transfers_bandejas_productos_'.now()->format('Ymd_His').'.xlsx';
 
         return new StreamedResponse(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
@@ -1121,7 +1120,6 @@ THEN CAST(
             'Cache-Control' => 'max-age=0',
         ]);
     }
-
 
     public function formatKgCL($value): string
     {
@@ -1145,8 +1143,9 @@ THEN CAST(
 
     public function kgFromOdoo($raw): ?float
     {
-        if ($raw === null)
+        if ($raw === null) {
             return null;
+        }
 
         // viene de BD / Odoo → ya es decimal con punto
         if (is_int($raw) || is_float($raw)) {
@@ -1154,8 +1153,9 @@ THEN CAST(
         }
 
         $raw = trim((string) $raw);
-        if ($raw === '')
+        if ($raw === '') {
             return null;
+        }
 
         // texto tipo "971.100" / "249.000" / "1.673"
         if (is_numeric($raw)) {
@@ -1216,8 +1216,4 @@ THEN CAST(
 
         return $num;
     }
-
 }
-
-
-

@@ -39,8 +39,7 @@ class PurchaseRequestController extends Controller
 {
     public function __construct(
         private readonly PurchaseRequestSnapshotService $snapshots,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -749,7 +748,7 @@ class PurchaseRequestController extends Controller
         $purchaseRequest->items()->delete();
         $purchaseRequest->items()->createMany(array_map(
             fn (array $item): array => Arr::only($item, [
-                'sort_order', 'product_service', 'specification', 'quantity', 'unit', 'quantity_note', 'destination',
+                'sort_order', 'product_service', 'specification', 'quantity', 'unit', 'unit_price', 'quantity_note', 'destination',
             ]),
             $items,
         ));

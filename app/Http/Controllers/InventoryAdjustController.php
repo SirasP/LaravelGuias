@@ -27,15 +27,15 @@ class InventoryAdjustController extends Controller
     {
         $validated = $request->validate([
             'product_id' => 'required|integer',
-            'quantity'   => 'required|numeric|gt:0',
-            'direccion'  => 'required|in:POSITIVO,NEGATIVO',
-            'motivo'     => 'required|string|max:100',
-            'notas'      => 'nullable|string|max:1000',
-            'bodega_id'  => 'nullable|integer',
+            'quantity' => 'required|numeric|gt:0',
+            'direccion' => 'required|in:POSITIVO,NEGATIVO',
+            'motivo' => 'required|string|max:100',
+            'notas' => 'nullable|string|max:1000',
+            'bodega_id' => 'nullable|integer',
         ]);
 
         $exists = $this->db()->table('gmail_inventory_products')->where('id', $validated['product_id'])->exists();
-        if (!$exists) {
+        if (! $exists) {
             return back()->withInput()->withErrors(['product_id' => 'Producto no válido.']);
         }
 
@@ -43,10 +43,10 @@ class InventoryAdjustController extends Controller
 
         try {
             $result = $service->processAdjustment(
-                (int)   $validated['product_id'],
+                (int) $validated['product_id'],
                 (float) $validated['quantity'],
-                        $validated['direccion'],
-                        $validated['motivo'],
+                $validated['direccion'],
+                $validated['motivo'],
                 auth()->id(),
                 $validated['notas'] ?? null,
                 $bodegaId
@@ -62,8 +62,8 @@ class InventoryAdjustController extends Controller
 
     public function adjustList(Request $request)
     {
-        $q     = trim((string) $request->query('q', ''));
-        $dir   = trim((string) $request->query('dir', ''));   // AJUSTE+ | AJUSTE-
+        $q = trim((string) $request->query('q', ''));
+        $dir = trim((string) $request->query('dir', ''));   // AJUSTE+ | AJUSTE-
         $desde = trim((string) $request->query('desde', ''));
         $hasta = trim((string) $request->query('hasta', ''));
 
@@ -79,7 +79,7 @@ class InventoryAdjustController extends Controller
         if ($q !== '') {
             $query->where(function ($qb) use ($q) {
                 $qb->where('m.destinatario', 'like', "%{$q}%")
-                   ->orWhere('m.notas', 'like', "%{$q}%");
+                    ->orWhere('m.notas', 'like', "%{$q}%");
             });
         }
         if ($desde !== '') {
@@ -90,7 +90,7 @@ class InventoryAdjustController extends Controller
         }
 
         $movements = $query->limit(300)->get();
-        $ids       = $movements->pluck('id')->all();
+        $ids = $movements->pluck('id')->all();
 
         $lines = $ids
             ? $this->db()
@@ -104,7 +104,7 @@ class InventoryAdjustController extends Controller
 
         // KPIs mes actual
         $mesInicio = now()->startOfMonth()->toDateString();
-        $mesFin    = now()->endOfMonth()->toDateString();
+        $mesFin = now()->endOfMonth()->toDateString();
 
         $kpiPos = $this->db()->table('gmail_inventory_movements')
             ->where('tipo', 'AJUSTE')->where('tipo_salida', 'AJUSTE+')

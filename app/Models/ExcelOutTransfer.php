@@ -31,10 +31,12 @@ class ExcelOutTransfer extends Model
         'fecha_traslado' => 'datetime',
         'raw' => 'array',
     ];
+
     public function lines()
     {
         return $this->hasMany(\App\Models\ExcelOutTransferLine::class);
     }
+
     /**
      * Alias para compatibilidad con exportExcelPhpSpreadsheet
      */

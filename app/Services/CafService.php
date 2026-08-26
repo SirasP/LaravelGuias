@@ -29,12 +29,12 @@ class CafService
         $disk = (string) config('dte.caf_disk', 'local');
         $path = $cafPath ?: (string) config("dte.caf_paths.{$tipoDte}", '');
 
-        if ($path === '' || !Storage::disk($disk)->exists($path)) {
+        if ($path === '' || ! Storage::disk($disk)->exists($path)) {
             return $this->buildDevCafData($tipoDte, $path);
         }
 
         $raw = Storage::disk($disk)->get($path);
-        if (!is_string($raw) || trim($raw) === '') {
+        if (! is_string($raw) || trim($raw) === '') {
             return $this->buildDevCafData($tipoDte, $path);
         }
 
@@ -67,13 +67,13 @@ class CafService
     public function importCafNode(DOMDocument $targetDoc, string $cafXml): DOMElement
     {
         $cafDoc = new DOMDocument('1.0', 'UTF-8');
-        if (!@$cafDoc->loadXML($cafXml)) {
+        if (! @$cafDoc->loadXML($cafXml)) {
             throw new RuntimeException('No se pudo parsear el nodo CAF para insertar TED.');
         }
 
         /** @var DOMElement|null $cafNode */
         $cafNode = $cafDoc->documentElement;
-        if (!$cafNode || strtoupper($cafNode->localName ?? '') !== 'CAF') {
+        if (! $cafNode || strtoupper($cafNode->localName ?? '') !== 'CAF') {
             throw new RuntimeException('El XML CAF no contiene nodo <CAF> válido.');
         }
 
@@ -109,17 +109,17 @@ class CafService
         }
 
         $cafXml = '<CAF version="1.0">'
-            . '<DA>'
-            . '<RE>' . htmlspecialchars($rutEmisor, ENT_XML1) . '</RE>'
-            . '<RS>SIN_CAF_DEV</RS>'
-            . '<TD>' . $tipoDte . '</TD>'
-            . '<RNG><D>' . $folioDesde . '</D><H>' . $folioHasta . '</H></RNG>'
-            . '<FA>' . now()->toDateString() . '</FA>'
-            . '<RSAPK><M>SIN_CAF_DEV</M><E>SIN_CAF_DEV</E></RSAPK>'
-            . '<IDK>0</IDK>'
-            . '</DA>'
-            . '<FRMA algoritmo="SHA1withRSA">SIN_CAF_DEV</FRMA>'
-            . '</CAF>';
+            .'<DA>'
+            .'<RE>'.htmlspecialchars($rutEmisor, ENT_XML1).'</RE>'
+            .'<RS>SIN_CAF_DEV</RS>'
+            .'<TD>'.$tipoDte.'</TD>'
+            .'<RNG><D>'.$folioDesde.'</D><H>'.$folioHasta.'</H></RNG>'
+            .'<FA>'.now()->toDateString().'</FA>'
+            .'<RSAPK><M>SIN_CAF_DEV</M><E>SIN_CAF_DEV</E></RSAPK>'
+            .'<IDK>0</IDK>'
+            .'</DA>'
+            .'<FRMA algoritmo="SHA1withRSA">SIN_CAF_DEV</FRMA>'
+            .'</CAF>';
 
         return [
             'tipo_dte' => $tipoDte,
@@ -153,7 +153,7 @@ class CafService
     private function parseCafXml(string $xml, int $expectedTipoDte, string $path): array
     {
         $dom = new DOMDocument('1.0', 'UTF-8');
-        if (!@$dom->loadXML($xml)) {
+        if (! @$dom->loadXML($xml)) {
             throw new RuntimeException("CAF mal formado: {$path}");
         }
 
@@ -162,13 +162,13 @@ class CafService
         $cafNode = $this->queryNode($xp, '//*[local-name()="CAF"]');
         $daPrefix = '//*[local-name()="CAF"]/*[local-name()="DA"]';
 
-        $tipoDte = (int) $this->queryValue($xp, $daPrefix . '/*[local-name()="TD"]');
-        $rutEmisor = trim($this->queryValue($xp, $daPrefix . '/*[local-name()="RE"]'));
-        $folioDesde = (int) $this->queryValue($xp, $daPrefix . '/*[local-name()="RNG"]/*[local-name()="D"]');
-        $folioHasta = (int) $this->queryValue($xp, $daPrefix . '/*[local-name()="RNG"]/*[local-name()="H"]');
-        $idk = trim($this->queryValue($xp, $daPrefix . '/*[local-name()="IDK"]'));
-        $rsapkM = trim($this->queryValue($xp, $daPrefix . '/*[local-name()="RSAPK"]/*[local-name()="M"]'));
-        $rsapkE = trim($this->queryValue($xp, $daPrefix . '/*[local-name()="RSAPK"]/*[local-name()="E"]'));
+        $tipoDte = (int) $this->queryValue($xp, $daPrefix.'/*[local-name()="TD"]');
+        $rutEmisor = trim($this->queryValue($xp, $daPrefix.'/*[local-name()="RE"]'));
+        $folioDesde = (int) $this->queryValue($xp, $daPrefix.'/*[local-name()="RNG"]/*[local-name()="D"]');
+        $folioHasta = (int) $this->queryValue($xp, $daPrefix.'/*[local-name()="RNG"]/*[local-name()="H"]');
+        $idk = trim($this->queryValue($xp, $daPrefix.'/*[local-name()="IDK"]'));
+        $rsapkM = trim($this->queryValue($xp, $daPrefix.'/*[local-name()="RSAPK"]/*[local-name()="M"]'));
+        $rsapkE = trim($this->queryValue($xp, $daPrefix.'/*[local-name()="RSAPK"]/*[local-name()="E"]'));
         $frma = trim($this->queryValue($xp, '//*[local-name()="CAF"]/*[local-name()="FRMA"]'));
 
         if ($tipoDte !== $expectedTipoDte) {
@@ -199,7 +199,7 @@ class CafService
     private function queryValue(DOMXPath $xp, string $expr): string
     {
         $nodes = $xp->query($expr);
-        if (!$nodes || $nodes->length === 0) {
+        if (! $nodes || $nodes->length === 0) {
             return '';
         }
 
@@ -210,7 +210,7 @@ class CafService
     {
         $nodes = $xp->query($expr);
         $node = $nodes?->item(0);
-        if (!$node instanceof DOMElement) {
+        if (! $node instanceof DOMElement) {
             throw new RuntimeException('No se encontró nodo CAF en archivo autorizado.');
         }
 

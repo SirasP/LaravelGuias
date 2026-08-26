@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class ReceptionController extends Controller
 {
-    public function __construct(private ReceptionService $receptions)
-    {
-    }
+    public function __construct(private ReceptionService $receptions) {}
 
     private function db()
     {
@@ -34,6 +32,7 @@ class ReceptionController extends Controller
             $recibido = (float) ($recibidoPorItem[$it->id] ?? 0);
             $it->ya_recibido = $recibido;
             $it->pendiente = max((float) $it->quantity - $recibido, 0);
+
             return $it;
         });
 
@@ -47,21 +46,21 @@ class ReceptionController extends Controller
         $order = $this->db()->table('purchase_orders')->where('id', $orderId)->firstOrFail();
 
         $data = $request->validate([
-            'bodega_id'              => ['nullable', 'integer'],
-            'fecha_recepcion'        => ['nullable', 'date'],
-            'notas'                  => ['nullable', 'string'],
-            'lineas'                 => ['required', 'array', 'min:1'],
-            'lineas.*.item_id'       => ['nullable', 'integer'],
-            'lineas.*.product_name'  => ['required', 'string'],
-            'lineas.*.unidad'        => ['nullable', 'string'],
-            'lineas.*.cantidad_pedida'   => ['nullable', 'numeric'],
+            'bodega_id' => ['nullable', 'integer'],
+            'fecha_recepcion' => ['nullable', 'date'],
+            'notas' => ['nullable', 'string'],
+            'lineas' => ['required', 'array', 'min:1'],
+            'lineas.*.item_id' => ['nullable', 'integer'],
+            'lineas.*.product_name' => ['required', 'string'],
+            'lineas.*.unidad' => ['nullable', 'string'],
+            'lineas.*.cantidad_pedida' => ['nullable', 'numeric'],
             'lineas.*.cantidad_recibida' => ['required', 'numeric', 'min:0'],
-            'lineas.*.costo_unitario'    => ['nullable', 'numeric', 'min:0'],
+            'lineas.*.costo_unitario' => ['nullable', 'numeric', 'min:0'],
             'lineas.*.inventory_product_id' => ['nullable', 'integer'],
         ]);
 
         // Descartar líneas con cantidad 0
-        $lineas = collect($data['lineas'])->filter(fn($l) => (float) $l['cantidad_recibida'] > 0)->values();
+        $lineas = collect($data['lineas'])->filter(fn ($l) => (float) $l['cantidad_recibida'] > 0)->values();
         if ($lineas->isEmpty()) {
             return back()->withInput()->with('error', 'Debes recibir al menos una unidad.');
         }
@@ -69,29 +68,29 @@ class ReceptionController extends Controller
         $recepcionId = $this->db()->transaction(function () use ($order, $data, $lineas) {
             $recepcionId = $this->db()->table('recepciones')->insertGetId([
                 'purchase_order_id' => $order->id,
-                'proveedor_rut'     => null,
-                'proveedor_nombre'  => $order->supplier_name,
-                'bodega_id'         => $data['bodega_id'] ?? null,
-                'estado'            => 'BORRADOR',
-                'fecha_recepcion'   => $data['fecha_recepcion'] ?? now(),
-                'usuario_id'        => auth()->id(),
-                'notas'             => $data['notas'] ?? null,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'proveedor_rut' => null,
+                'proveedor_nombre' => $order->supplier_name,
+                'bodega_id' => $data['bodega_id'] ?? null,
+                'estado' => 'BORRADOR',
+                'fecha_recepcion' => $data['fecha_recepcion'] ?? now(),
+                'usuario_id' => auth()->id(),
+                'notas' => $data['notas'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             foreach ($lineas as $l) {
                 $this->db()->table('recepcion_lineas')->insert([
-                    'recepcion_id'           => $recepcionId,
+                    'recepcion_id' => $recepcionId,
                     'purchase_order_item_id' => $l['item_id'] ?? null,
-                    'inventory_product_id'   => $l['inventory_product_id'] ?? null,
-                    'product_name'           => $l['product_name'],
-                    'unidad'                 => $l['unidad'] ?? 'UN',
-                    'cantidad_pedida'        => $l['cantidad_pedida'] ?? null,
-                    'cantidad_recibida'      => $l['cantidad_recibida'],
-                    'costo_unitario'         => $l['costo_unitario'] ?? null,
-                    'created_at'             => now(),
-                    'updated_at'             => now(),
+                    'inventory_product_id' => $l['inventory_product_id'] ?? null,
+                    'product_name' => $l['product_name'],
+                    'unidad' => $l['unidad'] ?? 'UN',
+                    'cantidad_pedida' => $l['cantidad_pedida'] ?? null,
+                    'cantidad_recibida' => $l['cantidad_recibida'],
+                    'costo_unitario' => $l['costo_unitario'] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
@@ -108,7 +107,7 @@ class ReceptionController extends Controller
         try {
             $this->receptions->confirmReception($id, auth()->id());
         } catch (\Throwable $e) {
-            return back()->with('error', 'No se pudo confirmar: ' . $e->getMessage());
+            return back()->with('error', 'No se pudo confirmar: '.$e->getMessage());
         }
 
         return back()->with('success', 'Recepción confirmada. Stock ingresado.');
@@ -140,22 +139,23 @@ class ReceptionController extends Controller
                 'monto_total', 'payment_status',
             ])
             ->map(function ($f) {
-                $clp = fn($n) => '$' . number_format((float) $n, 0, ',', '.');
+                $clp = fn ($n) => '$'.number_format((float) $n, 0, ',', '.');
+
                 return [
-                    'id'         => $f->id,
-                    'folio'      => $f->folio,
-                    'tipo'       => $this->tipoDteLabel($f->tipo_dte),
-                    'proveedor'  => $f->proveedor_nombre ?? 'Sin proveedor',
-                    'rut'        => $f->proveedor_rut,
-                    'fecha'      => $f->fecha_factura,
-                    'vence'      => $f->fecha_vencimiento,
-                    'neto_fmt'   => $clp($f->monto_neto),
-                    'iva_fmt'    => $clp($f->monto_iva),
-                    'monto'      => (float) $f->monto_total,
-                    'monto_fmt'  => $clp($f->monto_total),
-                    'pagado'     => ($f->payment_status ?? 'sin_pagar') === 'pagado',
-                    'search'     => mb_strtolower(trim(
-                        ($f->folio ?? '') . ' ' . ($f->proveedor_nombre ?? '') . ' ' . ($f->proveedor_rut ?? '')
+                    'id' => $f->id,
+                    'folio' => $f->folio,
+                    'tipo' => $this->tipoDteLabel($f->tipo_dte),
+                    'proveedor' => $f->proveedor_nombre ?? 'Sin proveedor',
+                    'rut' => $f->proveedor_rut,
+                    'fecha' => $f->fecha_factura,
+                    'vence' => $f->fecha_vencimiento,
+                    'neto_fmt' => $clp($f->monto_neto),
+                    'iva_fmt' => $clp($f->monto_iva),
+                    'monto' => (float) $f->monto_total,
+                    'monto_fmt' => $clp($f->monto_total),
+                    'pagado' => ($f->payment_status ?? 'sin_pagar') === 'pagado',
+                    'search' => mb_strtolower(trim(
+                        ($f->folio ?? '').' '.($f->proveedor_nombre ?? '').' '.($f->proveedor_rut ?? '')
                     )),
                 ];
             })
@@ -182,19 +182,19 @@ class ReceptionController extends Controller
         ]);
 
         $factura = $this->db()->table('gmail_dte_documents')->where('id', $data['gmail_document_id'])->first();
-        if (!$factura) {
+        if (! $factura) {
             return back()->with('error', 'Factura no encontrada.');
         }
 
         $this->db()->transaction(function () use ($recepcion, $factura) {
             $this->db()->table('recepciones')->where('id', $recepcion->id)->update([
                 'gmail_document_id' => $factura->id,
-                'updated_at'        => now(),
+                'updated_at' => now(),
             ]);
             $this->db()->table('gmail_dte_documents')->where('id', $factura->id)->update([
-                'recepcion_id'      => $recepcion->id,
+                'recepcion_id' => $recepcion->id,
                 'purchase_order_id' => $recepcion->purchase_order_id,
-                'updated_at'        => now(),
+                'updated_at' => now(),
             ]);
         });
 
@@ -208,14 +208,14 @@ class ReceptionController extends Controller
         $this->db()->transaction(function () use ($recepcion) {
             if ($recepcion->gmail_document_id) {
                 $this->db()->table('gmail_dte_documents')->where('id', $recepcion->gmail_document_id)->update([
-                    'recepcion_id'      => null,
+                    'recepcion_id' => null,
                     'purchase_order_id' => null,
-                    'updated_at'        => now(),
+                    'updated_at' => now(),
                 ]);
             }
             $this->db()->table('recepciones')->where('id', $recepcion->id)->update([
                 'gmail_document_id' => null,
-                'updated_at'        => now(),
+                'updated_at' => now(),
             ]);
         });
 
@@ -234,7 +234,7 @@ class ReceptionController extends Controller
             52 => 'Guía despacho',
             56 => 'Nota débito',
             61 => 'Nota crédito',
-            default => $tipo ? ('DTE ' . $tipo) : 'DTE',
+            default => $tipo ? ('DTE '.$tipo) : 'DTE',
         };
     }
 

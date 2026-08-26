@@ -22,7 +22,7 @@ class DraftFromIngestionService
 {
     /**
      * @param  list<array<string, string|null>>  $items  las partidas tal como
-     *   quedaron en pantalla, ya corregidas por quien confirma
+     *                                                   quedaron en pantalla, ya corregidas por quien confirma
      */
     public function create(
         PurchaseRequestIngestion $ingestion,
@@ -67,6 +67,7 @@ class DraftFromIngestionService
                     'specification' => $this->limpiar($item['specification'] ?? null),
                     'quantity' => $this->normalizarCantidad($item['quantity'] ?? null),
                     'unit' => trim((string) ($item['unit'] ?? '')),
+                    'unit_price' => $this->normalizarPrecio($item['unit_price'] ?? null),
                     'quantity_note' => null,
                     'destination' => null,
                 ]);
@@ -153,6 +154,20 @@ class DraftFromIngestionService
             ->value('department');
 
         return $ultima ?: 'Administración';
+    }
+
+    /**
+     * El precio puede venir de la lectura o corregido a mano en la tabla, así
+     * que llega en cualquier formato. Vacío es vacío: una solicitud sin
+     * cotizar es perfectamente válida.
+     */
+    private function normalizarPrecio(mixed $valor): ?string
+    {
+        if (blank($valor)) {
+            return null;
+        }
+
+        return \App\Support\ChileanMoney::toDecimalString((string) $valor);
     }
 
     private function normalizarCantidad(?string $valor): string

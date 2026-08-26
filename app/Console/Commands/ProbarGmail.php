@@ -2,18 +2,19 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
+use Illuminate\Console\Command;
 
 class ProbarGmail extends Command
 {
     protected $signature = 'gmail:test';
+
     protected $description = 'Prueba conexión con Gmail API';
 
     public function handle()
     {
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setApplicationName('FuelControl Gmail Import');
         $client->setScopes([Gmail::GMAIL_READONLY]);
         $client->setAuthConfig(storage_path('app/gmail/credentials.json'));
@@ -31,10 +32,10 @@ class ProbarGmail extends Command
                 $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
             } else {
                 $authUrl = $client->createAuthUrl();
-                $this->info("Abre esta URL en el navegador:");
+                $this->info('Abre esta URL en el navegador:');
                 $this->line($authUrl);
 
-                $this->info("Pega aquí el código:");
+                $this->info('Pega aquí el código:');
                 $authCode = trim(fgets(STDIN));
 
                 $accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
@@ -46,14 +47,14 @@ class ProbarGmail extends Command
 
         $service = new Gmail($client);
         $messages = $service->users_messages->listUsersMessages('me', [
-            'maxResults' => 5
+            'maxResults' => 5,
         ]);
 
         $this->info('✅ Conectado a Gmail API');
-        $this->info('Correos encontrados: ' . count($messages->getMessages()));
+        $this->info('Correos encontrados: '.count($messages->getMessages()));
 
         foreach ($messages->getMessages() as $msg) {
-            $this->line('Mensaje ID: ' . $msg->getId());
+            $this->line('Mensaje ID: '.$msg->getId());
         }
 
         return 0;
