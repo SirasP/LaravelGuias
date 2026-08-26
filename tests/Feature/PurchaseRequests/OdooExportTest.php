@@ -118,15 +118,19 @@ it('never creates a second RFQ for the same request', function () {
 });
 
 it('stops instead of inventing a supplier Odoo does not know', function () {
-    odooResponde([8, []]);   // login, y la búsqueda no encuentra a nadie
+    // El RUT está escrito, así que sí se busca por RUT; Odoo no lo tiene. Y no
+    // quedan palabras con que buscar parecidos: «RUT» es ruido y los números
+    // no son un nombre.
+    odooResponde([8, []]);
 
     $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
     $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades']);
 
     $resultado = exportador()->exportApproved($solicitud);
 
-    expect($resultado->status)->toBe('failed')
-        ->and($resultado->message)->toContain('No se encontró el proveedor');
+    expect($resultado->status)->toBe('needs_supplier')
+        ->and($resultado->candidates)->toBeEmpty()
+        ->and($resultado->message)->toContain('Regístralo allá');
 
     expect($solicitud->fresh()->odoo_order_id)->toBeNull();
 });
@@ -153,4 +157,56 @@ it('refuses anything that is not approved, and touches nothing', function () {
 
     expect(exportador()->exportApproved($solicitud)->status)->toBe('skipped');
     Http::assertNothingSent();
+});
+
+it('offers the suppliers Odoo does have instead of guessing', function () {
+    // Sin RUT escrito ni alias conocido no hay nada que buscar por RUT: la
+    // primera llamada tras el login ya es la búsqueda por nombre.
+    odooResponde([8, [['id' => 1721, 'name' => 'ARIDOS VICAT SUR SPA', 'vat' => '76893540-8']]]);
+
+    // Tal como lo escribe una persona: sin RUT y sin el nombre legal.
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['Vicat']]);
+    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'arena', 'quantity' => '4', 'unit' => 'Cubos']);
+
+    $resultado = exportador()->exportApproved($solicitud);
+
+    expect($resultado->status)->toBe('needs_supplier')
+        ->and($resultado->performed)->toBeFalse()
+        ->and($resultado->candidates)->toHaveCount(1)
+        ->and($resultado->candidates[0]['name'])->toBe('ARIDOS VICAT SUR SPA')
+        ->and($resultado->candidates[0]['vat'])->toBe('76893540-8');
+
+    // Nada se creó ni se vinculó mientras no haya respuesta humana.
+    expect($solicitud->fresh()->odoo_order_id)->toBeNull();
+});
+
+it('remembers the answer so nobody is asked twice', function () {
+    // Una sola secuencia para las dos exportaciones del test: login y búsqueda
+    // por nombre la primera vez; login, búsqueda por RUT, creación y lectura
+    // la segunda, que ya no pregunta nada.
+    odooResponde([
+        8, [['id' => 1721, 'name' => 'ARIDOS VICAT SUR SPA', 'vat' => '76893540-8']],
+        8, [1721], 219, [['id' => 219, 'name' => 'P00219']],
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['Vicat']]);
+    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'arena', 'quantity' => '4', 'unit' => 'Cubos']);
+
+    $candidato = exportador()->exportApproved($solicitud)->candidates[0];
+
+    // Una persona confirma cuál era.
+    $proveedor = app(App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier::class)(
+        $solicitud, $candidato['id'], $candidato['name'], $candidato['vat'],
+    );
+
+    expect($proveedor->tax_id)->toBe('76893540-8')
+        ->and($proveedor->odoo_partner_id)->toBe(1721)
+        // «Vicat» queda anotado como una forma válida de nombrarlo.
+        ->and($proveedor->aliases)->toContain('vicat');
+
+    // Y otra solicitud que diga «VICAT» resuelve sola, sin volver a preguntar.
+    $otra = solicitudAprobadaCon(['suggested_suppliers' => ['VICAT']]);
+    $otra->items()->create(['sort_order' => 1, 'product_service' => 'bolones', 'quantity' => '5', 'unit' => 'Cubos', 'unit_price' => '32130']);
+
+    expect(exportador()->exportApproved($otra)->status)->toBe('created');
 });

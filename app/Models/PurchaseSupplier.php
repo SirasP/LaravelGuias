@@ -22,12 +22,14 @@ class PurchaseSupplier extends Model
 
     protected $fillable = [
         'company_code', 'tax_id', 'name', 'trade_name',
+        'aliases',
         'email', 'phone', 'odoo_partner_id', 'source', 'notes', 'is_active',
     ];
 
     protected function casts(): array
     {
         return [
+            'aliases' => 'array',
             'is_active' => 'boolean',
             'odoo_partner_id' => 'integer',
         ];

@@ -61,8 +61,16 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $proveedor = $this->buscarProveedor($purchaseRequest);
 
             if ($proveedor === null) {
-                return PurchaseRequestExportResult::failed(
-                    'No se encontró el proveedor en Odoo. Regístralo allá con su RUT, o corrige el RUT en el catálogo.',
+                // Nadie escribe el nombre legal completo: se pide «Vicat» y en
+                // Odoo está «ARIDOS VICAT SUR SPA». Se ofrecen los parecidos
+                // para que una persona diga cuál, en vez de acertar solos.
+                $candidatos = $this->candidatos($purchaseRequest);
+
+                return PurchaseRequestExportResult::needsSupplier(
+                    $candidatos === []
+                        ? 'Odoo no tiene ningún proveedor que se parezca al escrito. Regístralo allá antes de exportar.'
+                        : 'Falta decir cuál es el proveedor en Odoo antes de crear la cotización.',
+                    $candidatos,
                 );
             }
 
@@ -113,6 +121,62 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         return is_array($encontrados) && $encontrados !== [] ? (int) $encontrados[0] : null;
     }
 
+    /**
+     * Proveedores de Odoo que se parecen a lo escrito en la solicitud.
+     *
+     * Busca por cada palabra con peso: «Vicat» encuentra «ARIDOS VICAT SUR
+     * SPA». Se limita a quienes ya son proveedores para no ofrecer clientes.
+     *
+     * @return list<array{id: int, name: string, vat: string|null}>
+     */
+    public function candidatos(PurchaseRequest $purchaseRequest): array
+    {
+        $encontrados = [];
+
+        foreach ((array) ($purchaseRequest->suggested_suppliers ?? []) as $sugerido) {
+            foreach ($this->palabrasConPeso((string) $sugerido) as $palabra) {
+                $filas = $this->client->execute(
+                    'res.partner',
+                    'search_read',
+                    [[['name', 'ilike', $palabra], ['supplier_rank', '>', 0]]],
+                    ['fields' => ['id', 'name', 'vat'], 'limit' => 5],
+                );
+
+                foreach (is_array($filas) ? $filas : [] as $fila) {
+                    $encontrados[(int) $fila['id']] = [
+                        'id' => (int) $fila['id'],
+                        'name' => (string) $fila['name'],
+                        'vat' => filled($fila['vat'] ?? null) ? (string) $fila['vat'] : null,
+                    ];
+                }
+            }
+        }
+
+        return array_values($encontrados);
+    }
+
+    /**
+     * Las palabras que sirven para buscar.
+     *
+     * Fuera las formas societarias y las de menos de cuatro letras: buscar
+     * «SPA» devolvería medio Odoo.
+     *
+     * @return list<string>
+     */
+    private function palabrasConPeso(string $texto): array
+    {
+        $ruido = ['spa', 'ltda', 'limitada', 'sociedad', 'comercial', 'servicios', 'rut'];
+        $palabras = [];
+
+        foreach (preg_split('/[^\p{L}\p{N}]+/u', Str::lower($texto)) ?: [] as $palabra) {
+            if (mb_strlen($palabra) >= 4 && ! in_array($palabra, $ruido, true)) {
+                $palabras[$palabra] = true;
+            }
+        }
+
+        return array_keys($palabras);
+    }
+
     private function rutDelProveedor(PurchaseRequest $purchaseRequest): ?string
     {
         foreach ((array) ($purchaseRequest->suggested_suppliers ?? []) as $sugerido) {
@@ -125,8 +189,16 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
             // El proveedor pudo escribirse sólo por nombre; el RUT está en el
             // catálogo, que es donde se registró al leer la cotización.
+            $escrito = Str::lower(trim((string) $sugerido));
+
             $delCatalogo = PurchaseSupplier::query()
-                ->whereRaw('LOWER(name) = ?', [Str::lower(trim((string) $sugerido))])
+                ->where(function ($q) use ($escrito): void {
+                    // Por su nombre, o por cualquiera de los alias con que ya
+                    // se confirmó antes: quien escribió «Vicat» una vez y lo
+                    // resolvió, no debería volver a resolverlo nunca.
+                    $q->whereRaw('LOWER(name) = ?', [$escrito])
+                        ->orWhereJsonContains('aliases', $escrito);
+                })
                 ->value('tax_id');
 
             if (filled($delCatalogo)) {
