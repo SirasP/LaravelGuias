@@ -10,6 +10,12 @@ return [
     | dentro del sistema funcionan siempre, con esto encendido o apagado.
     |
     */
+    /*
+     * El IVA con que se calcula el desglose en pantalla. No decide nada por sí
+     * solo: si el documento declara otro, manda el del documento.
+     */
+    'tax_rate' => (float) env('PURCHASE_REQUESTS_TAX_RATE', 0.19),
+
     'mail_enabled' => (bool) env('PURCHASE_REQUESTS_MAIL', true),
 
     /*

@@ -24,10 +24,22 @@ it('recognises prices that already carry the tax', function () {
         ->and($t->pricesIncludeTax())->toBeTrue();
 });
 
-it('says it does not know instead of guessing', function () {
-    // Las partidas no cuadran con nada del documento: alguien lo corrigió a
-    // mano, o el documento trae descuentos que no leímos.
-    $t = TaxTreatment::infer(partidas(['1', 50000.0]), 19990.0, 3798.0, 23788.0);
+it('trusts a declared tax line when the arithmetic does not add up', function () {
+    // Motorman, tal cual: el documento trae un 5% de descuento por línea que
+    // no leemos, así que la suma no cuadra con el neto. Pero el IVA aparece
+    // desglosado, y eso ya dice que el precio va sin él: es la señal que usa
+    // cualquiera que mire la cotización.
+    $t = TaxTreatment::infer(partidas(['4', 73990.0]), 535686.0, 101780.0, 637466.0);
+
+    expect($t->kind)->toBe(TaxTreatment::NETO)
+        ->and($t->pricesIncludeTax())->toBeFalse()
+        // Pero se avisa: la suma no cuadró y alguien tiene que mirarla.
+        ->and($t->explanation)->toContain('revísala antes de enviar');
+});
+
+it('says it does not know when the document declares no tax at all', function () {
+    // Sin IVA declarado y sin que la suma cuadre, no hay de dónde concluir.
+    $t = TaxTreatment::infer(partidas(['1', 50000.0]), 19990.0, null, 23788.0);
 
     expect($t->kind)->toBe(TaxTreatment::SIN_DETERMINAR)
         ->and($t->pricesIncludeTax())->toBeNull()

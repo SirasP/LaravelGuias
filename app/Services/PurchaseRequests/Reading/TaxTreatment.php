@@ -79,6 +79,19 @@ final readonly class TaxTreatment
             );
         }
 
+        // La aritmética no cuadró —descuentos que no leímos, un recargo, una
+        // línea que se descartó—, pero el documento declara un IVA aparte. Que
+        // el IVA aparezca desglosado significa que no está dentro del precio:
+        // es la señal que usa cualquiera que mire la cotización.
+        if ($iva !== null && $iva > 0) {
+            return new self(
+                self::NETO,
+                ($neto !== null && $neto > 0) ? round($iva / $neto, 4) : null,
+                'El documento declara el IVA por separado, así que los precios van netos. '
+                    .'No se pudo cuadrar la suma de las partidas: revísala antes de enviar.',
+            );
+        }
+
         return new self(
             self::SIN_DETERMINAR,
             null,

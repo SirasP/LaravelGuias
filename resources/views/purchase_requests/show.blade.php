@@ -113,7 +113,24 @@
                 </section>
 
                 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Partidas</h2><div class="flex items-center gap-3">@if(filled($purchaseRequest->total()))<span class="text-sm font-extrabold text-slate-800 dark:text-slate-100">Total: {{ $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ' }}{{ number_format($purchaseRequest->total(), 0, ',', '.') }}</span>@endif<span class="text-xs font-bold text-slate-400">{{ $purchaseRequest->items->count() }} ítem{{ $purchaseRequest->items->count() === 1 ? '' : 's' }}</span></div></div>
+                    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Partidas</h2><div class="flex items-center gap-3">@if(filled($purchaseRequest->total()))
+                        @php
+                            $tasa = (float) config('purchase_requests.tax_rate', 0.19);
+                            $simbolo = $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ';
+                            // El total guardado es la suma de las partidas; si esos
+                            // precios ya traen IVA, el neto se saca hacia atrás.
+                            $neto = $purchaseRequest->prices_include_tax
+                                ? $purchaseRequest->total() / (1 + $tasa)
+                                : $purchaseRequest->total();
+                        @endphp
+                        <span class="flex flex-wrap items-center gap-x-2 text-sm">
+                            <span class="text-slate-500 dark:text-slate-400">Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="text-slate-500 dark:text-slate-400">IVA {{ $simbolo }}{{ number_format($neto * $tasa, 0, ',', '.') }}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="font-extrabold text-slate-900 dark:text-white">Total {{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span>
+                        </span>
+                    @endif<span class="text-xs font-bold text-slate-400">{{ $purchaseRequest->items->count() }} ítem{{ $purchaseRequest->items->count() === 1 ? '' : 's' }}</span></div></div>
                     @if($purchaseRequest->hasPartialPricing())
                         {{-- Un total que sólo suma parte de las partidas engaña más
                              que ayudar: hay que decir que está incompleto. --}}

@@ -86,6 +86,9 @@
     {{-- Compatibility fields used by the request contract; the descriptive names remain visible in the UI. --}}
     <input type="hidden" name="requested_for" x-model="requestedFor">
     <input type="hidden" name="notes" x-model="internalNotes">
+    {{-- Lo que se concluyó al leer la cotización. Nadie lo escribe a mano: si
+         el documento declara IVA aparte, los precios van netos y punto. --}}
+    <input type="hidden" name="prices_include_tax" x-model="pricesIncludeTax">
 
     @if($errors->any())
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
@@ -417,8 +420,13 @@
             </div>
             <div class="flex shrink-0 items-center gap-2">
                 <template x-if="totalSolicitud()">
-                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        x-text="'Total: $' + totalSolicitud()"></span>
+                    <span class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        <span x-text="'Neto $' + comoPesos(netoSolicitud())"></span>
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="font-normal" x-text="'IVA $' + comoPesos(ivaSolicitud())"></span>
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="text-slate-900 dark:text-white" x-text="'Total $' + comoPesos(totalConIva())"></span>
+                    </span>
                 </template>
                 <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" x-text="items.length + (items.length === 1 ? ' partida' : ' partidas')"></span>
             </div>
@@ -498,23 +506,6 @@
                     </div>
                 </article>
             </template>
-            {{-- En Chile se cotiza neto y el IVA va al final; de las cotizaciones
-                 reales revisadas, todas venían así. Se pregunta igual, porque
-                 equivocarse mueve el monto un 19% sin que se note. --}}
-            <template x-if="totalSolicitud()">
-                <label class="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/50">
-                    <input type="checkbox" name="prices_include_tax" value="1"
-                        @checked(old('prices_include_tax', $purchaseRequest?->prices_include_tax))
-                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                    <span class="text-xs text-slate-600 dark:text-slate-300">
-                        <span class="font-bold">Los precios ya incluyen IVA</span>
-                        <span class="block text-slate-500 dark:text-slate-400">
-                            Déjalo sin marcar si son netos, que es lo habitual. Al enviar a Odoo se suma el 19% sólo si están netos.
-                        </span>
-                    </span>
-                </label>
-            </template>
-
             <button type="button" @click="addItem()" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-blue-300 px-4 text-sm font-bold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30 sm:w-auto">
                 <span class="text-lg leading-none">+</span> Agregar producto o servicio
             </button>
@@ -637,6 +628,10 @@
         return {
             items: initialItems.map((item, index) => ({ key: Date.now() + index, ...item })),
             priority: @js(old('priority', $purchaseRequest?->priority ?? 'normal')),
+            // '1' si los precios ya traen el IVA dentro. Lo decide la lectura
+            // del documento, no una persona marcando una casilla.
+            pricesIncludeTax: @js(old('prices_include_tax', $purchaseRequest?->prices_include_tax ? '1' : '0')),
+            tasaIva: @js((float) config('purchase_requests.tax_rate', 0.19)),
             requestedFor: @js($requestedFor),
             internalNotes: @js($internalNotes),
             errors: @js($errors->getMessages()),
@@ -697,6 +692,36 @@
                 if (precio === null || cantidad === null) return '';
 
                 return this.comoPesos(Math.round(precio * cantidad * 100) / 100);
+            },
+
+            /** El neto: lo que suman las partidas cuando los precios van sin IVA. */
+            netoSolicitud() {
+                const suma = this.sumaPartidas();
+
+                return this.pricesIncludeTax === '1'
+                    ? suma / (1 + this.tasaIva)
+                    : suma;
+            },
+
+            ivaSolicitud() {
+                return this.netoSolicitud() * this.tasaIva;
+            },
+
+            totalConIva() {
+                return this.netoSolicitud() * (1 + this.tasaIva);
+            },
+
+            sumaPartidas() {
+                let suma = 0;
+
+                for (const item of this.items) {
+                    const precio = this.aNumero(item.unit_price);
+                    const cantidad = this.aNumero(item.quantity);
+
+                    if (precio !== null && cantidad !== null) suma += precio * cantidad;
+                }
+
+                return suma;
             },
 
             /**
