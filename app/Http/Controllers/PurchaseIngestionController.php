@@ -187,6 +187,9 @@ class PurchaseIngestionController extends Controller
             'items.*.specification' => ['nullable', 'string', 'max:5000'],
             'items.*.quantity' => ['nullable', 'string', 'max:40'],
             'items.*.unit' => ['nullable', 'string', 'max:80'],
+            // Sin esta regla el precio no llega: validate() devuelve sólo lo
+            // declarado, así que omitir un campo lo descarta en silencio.
+            'items.*.unit_price' => ['nullable', 'string', 'max:40'],
         ], [
             'items.required' => 'No quedó ninguna partida que traspasar.',
         ]);

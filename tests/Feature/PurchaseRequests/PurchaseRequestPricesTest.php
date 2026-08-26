@@ -100,3 +100,46 @@ it('shows the prices in the PDF, and no empty columns when there are none', func
     expect($render($conPrecio))->toContain('Precio unit.')
         ->and($render($sinPrecio))->not->toContain('Precio unit.');
 });
+
+it('carries the price from the reading through to the request', function () {
+    // El precio se leía bien, se mostraba bien en la tabla de revisión, y
+    // desaparecía al confirmar: la validación devuelve sólo los campos que
+    // declara, así que omitir uno lo descarta sin decir nada.
+    $owner = User::factory()->create();
+
+    $ingestion = App\Models\PurchaseRequestIngestion::create([
+        'user_id' => $owner->getKey(),
+        'uploader_name_snapshot' => $owner->name,
+        'disk' => 'local',
+        'path' => 'cotizaciones/x.pdf',
+        'original_name' => 'cotizacion.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 1024,
+        'sha256' => hash('sha256', uniqid()),
+        'status' => App\Models\PurchaseRequestIngestion::COMPLETED,
+        'prices_include_tax' => false,
+        'extracted' => ['items' => [[
+            'product_service' => 'MARCADOR TACOM DIESEL',
+            'specification' => 'AR019CVD3500',
+            'quantity' => '1',
+            'unit' => 'Unidades',
+            'unit_price' => 124370,
+        ]]],
+    ]);
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+        'items' => [[
+            'product_service' => 'MARCADOR TACOM DIESEL',
+            'specification' => 'AR019CVD3500',
+            'quantity' => '1',
+            'unit' => 'Unidades',
+            'unit_price' => '124370',
+        ]],
+    ])->assertRedirect();
+
+    $partida = $ingestion->fresh()->purchaseRequest->items()->first();
+
+    expect((float) $partida->unit_price)->toBe(124370.0)
+        // Y lo que se concluyó sobre el IVA viaja con la solicitud.
+        ->and($ingestion->fresh()->purchaseRequest->prices_include_tax)->toBeFalse();
+});
