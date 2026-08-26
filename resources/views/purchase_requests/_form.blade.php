@@ -103,7 +103,8 @@
              nada se guarda hasta que la persona envíe. --}}
         <section x-show="modo === 'ia'" x-cloak
             class="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm dark:border-violet-900/60 dark:bg-slate-900"
-            x-data="{ texto: '', cargando: false, error: '', avisos: [], armado: false, motivo: '' }">
+            x-data="{ texto: '', cargando: false, error: '', avisos: [], armado: false,
+                     motivo: '', paraQuien: '', prioridad: 'normal', porQueUrge: '', lugar: '', proveedor: '' }">
             <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
                 <h2 class="font-extrabold text-violet-900 dark:text-violet-100">Cuéntale qué necesitas</h2>
                 <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
@@ -149,7 +150,36 @@
                                     if (d.reason && !document.getElementById('reason').value) {
                                         document.getElementById('reason').value = d.reason;
                                     }
+                                    // Lo que ya escribió la persona manda: el asistente
+                                    // sólo rellena lo que está en blanco.
+                                    const rellenar = (id, valor) => {
+                                        const campo = document.getElementById(id);
+                                        if (campo && valor && !campo.value) { campo.value = valor; }
+                                    };
+                                    rellenar('urgent_reason', d.urgent_reason);
+                                    rellenar('delivery_location', d.delivery_location);
+
+                                    const primerProveedor = document.querySelector('[name=\'suggested_suppliers[0]\']');
+                                    if (primerProveedor && d.supplier && !primerProveedor.value) {
+                                        primerProveedor.value = d.supplier;
+                                    }
+
+                                    if (d.requested_for_name && !requestedFor) { requestedFor = d.requested_for_name; }
+                                    if (d.priority) { priority = d.priority; }
+
+                                    // Esos campos viven en «3. Más detalles», que está
+                                    // plegado. Rellenarlos sin abrirlo sería esconder lo
+                                    // que el asistente acaba de escribir.
+                                    if (d.requested_for_name || d.delivery_location || d.supplier || d.priority === 'urgent') {
+                                        $dispatch('abrir-detalles');
+                                    }
+
                                     motivo = d.reason ?? '';
+                                    paraQuien = d.requested_for_name ?? '';
+                                    prioridad = d.priority ?? 'normal';
+                                    porQueUrge = d.urgent_reason ?? '';
+                                    lugar = d.delivery_location ?? '';
+                                    proveedor = d.supplier ?? '';
                                     armado = true;
                                     texto = '';
                                 })
@@ -176,6 +206,41 @@
                         <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Motivo propuesto</p>
                         <p class="mt-1 font-extrabold text-slate-900 dark:text-white" x-text="motivo"></p>
                     </div>
+                </template>
+
+                {{-- Sólo se listan los datos que el asistente logró respaldar
+                     con el texto. Lo que no aparezca aquí quedó en blanco a
+                     propósito, y se completa a mano. --}}
+                <template x-if="paraQuien || lugar || proveedor || prioridad === 'urgent'">
+                    <dl class="grid gap-4 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
+                        <template x-if="paraQuien">
+                            <div>
+                                <dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Solicitado para</dt>
+                                <dd class="mt-1 text-sm text-slate-800 dark:text-slate-100" x-text="paraQuien"></dd>
+                            </div>
+                        </template>
+                        <template x-if="prioridad === 'urgent'">
+                            <div>
+                                <dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Prioridad</dt>
+                                <dd class="mt-1">
+                                    <span class="rounded-full bg-rose-100 px-2 py-1 text-xs font-bold text-rose-800 dark:bg-rose-950/50 dark:text-rose-300">Urgente</span>
+                                    <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400" x-text="porQueUrge"></span>
+                                </dd>
+                            </div>
+                        </template>
+                        <template x-if="lugar">
+                            <div>
+                                <dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Entregar en</dt>
+                                <dd class="mt-1 text-sm text-slate-800 dark:text-slate-100" x-text="lugar"></dd>
+                            </div>
+                        </template>
+                        <template x-if="proveedor">
+                            <div>
+                                <dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor sugerido</dt>
+                                <dd class="mt-1 text-sm text-slate-800 dark:text-slate-100" x-text="proveedor"></dd>
+                            </div>
+                        </template>
+                    </dl>
                 </template>
 
                 <template x-if="avisos.length">
@@ -402,7 +467,8 @@
     {{-- Todo lo opcional, plegado. Pedir algo no puede costar dieciséis campos
          en blanco: quien necesita el detalle lo abre; el resto ni lo ve. Se
          despliega solo si hay errores ahí dentro o correcciones marcadas. --}}
-    <section {!! $soloManual !!} x-data="{ abierto: {{ $errors->hasAny(['requested_for_name', 'cost_center', 'priority', 'urgent_reason', 'delivery_location', 'internal_notes', 'suggested_suppliers', 'attachments']) || $correcciones->isNotEmpty() ? 'true' : 'false' }} }"
+    <section {!! $soloManual !!} @abrir-detalles.window="abierto = true"
+        x-data="{ abierto: {{ $errors->hasAny(['requested_for_name', 'cost_center', 'priority', 'urgent_reason', 'delivery_location', 'internal_notes', 'suggested_suppliers', 'attachments']) || $correcciones->isNotEmpty() ? 'true' : 'false' }} }"
         class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         <button type="button" @click="abierto = !abierto" :aria-expanded="abierto.toString()"

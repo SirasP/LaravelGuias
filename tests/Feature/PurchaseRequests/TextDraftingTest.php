@@ -151,3 +151,67 @@ it('accepts a product written with different casing or extra words', function ()
     // Y una palabra corta suelta no basta para dar por bueno un invento.
     expect($metodo->invoke($verificador, 'gel', 'confort 2'))->toBeFalse();
 });
+
+it('only marks a request urgent when the person said it was', function () {
+    $verificador = new App\Services\PurchaseRequests\Drafting\LocalPurchaseRequestDrafter;
+    $metodo = new ReflectionMethod($verificador, 'prioridadVerificada');
+
+    // Lo dijo: se respeta, con su explicación.
+    [$prioridad, $motivo, $aviso] = $metodo->invoke(
+        $verificador,
+        ['priority' => 'urgente', 'urgent_reason' => 'se paró la bomba'],
+        '2 correas urgente, se paró la bomba',
+    );
+    expect($prioridad)->toBe('urgent')
+        ->and($motivo)->toBe('se paró la bomba')
+        ->and($aviso)->toBeNull();
+
+    // No lo dijo: el modelo lee urgencia en cualquier pedido de repuestos, y
+    // una urgencia falsa hace que nadie crea en las de verdad.
+    [$prioridad, $motivo, $aviso] = $metodo->invoke(
+        $verificador,
+        ['priority' => 'urgente', 'urgent_reason' => 'se necesitan pronto'],
+        '2 correas para el tractor',
+    );
+    expect($prioridad)->toBe('normal')
+        ->and($motivo)->toBeNull()
+        ->and($aviso)->toContain('prioridad normal');
+
+    // Y lo normal se queda normal sin ruido.
+    expect($metodo->invoke($verificador, ['priority' => 'normal'], 'cemento 10'))
+        ->toBe(['normal', null, null]);
+});
+
+it('hands the whole request over to the form, not just the lines', function () {
+    asistenteDeTexto(DraftSuggestion::of(
+        reason: 'Reponer correas de la bomba',
+        requestedForName: 'Marco',
+        items: [['product_service' => 'correas', 'specification' => null, 'quantity' => '2', 'unit' => 'Unidades']],
+        supplier: 'Sodimac',
+        priority: 'urgent',
+        urgentReason: 'se paró la bomba del pozo',
+        deliveryLocation: 'casa de operarios',
+    ));
+
+    $respuesta = $this->actingAs(User::factory()->create())
+        ->postJson(route('purchase_requests.ingestions.draft'), ['text' => '2 correas urgente para Marco']);
+
+    $respuesta->assertOk()
+        ->assertJsonPath('reason', 'Reponer correas de la bomba')
+        ->assertJsonPath('requested_for_name', 'Marco')
+        ->assertJsonPath('supplier', 'Sodimac')
+        ->assertJsonPath('priority', 'urgent')
+        ->assertJsonPath('urgent_reason', 'se paró la bomba del pozo')
+        ->assertJsonPath('delivery_location', 'casa de operarios');
+});
+
+it('opens the collapsed details section when the assistant writes inside it', function () {
+    config(['purchase_requests.reader.enabled' => true]);
+
+    $html = $this->actingAs(User::factory()->create())
+        ->get(route('purchase_requests.create'))->getContent();
+
+    // Rellenar esos campos con la sección plegada sería escribir a escondidas.
+    expect($html)->toContain("\$dispatch('abrir-detalles')");
+    expect($html)->toContain('@abrir-detalles.window="abierto = true"');
+});

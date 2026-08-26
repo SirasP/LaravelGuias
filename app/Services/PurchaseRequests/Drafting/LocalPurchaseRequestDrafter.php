@@ -107,13 +107,72 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             $proveedor = null;
         }
 
+        // Dónde se entrega tampoco se deduce: o está escrito, o queda vacío.
+        $lugar = $this->limpiar($crudo['delivery_location'] ?? null);
+
+        if ($lugar !== null && ! $this->apareceEnElTexto($lugar, $texto)) {
+            $avisos[] = sprintf('No se registró «%s» como lugar de entrega porque no aparece en lo que escribiste.', $lugar);
+            $lugar = null;
+        }
+
+        [$prioridad, $motivoUrgencia, $avisoPrioridad] = $this->prioridadVerificada($crudo, $texto);
+
+        if ($avisoPrioridad !== null) {
+            $avisos[] = $avisoPrioridad;
+        }
+
         return DraftSuggestion::of(
             reason: $this->limpiar($crudo['reason'] ?? null),
             requestedForName: $paraQuien,
             items: $items,
             warnings: $avisos,
             supplier: $proveedor,
+            priority: $prioridad,
+            urgentReason: $motivoUrgencia,
+            deliveryLocation: $lugar,
         );
+    }
+
+    /**
+     * Una solicitud sólo nace urgente si quien la escribe dijo que lo era.
+     *
+     * El modelo tiende a leer urgencia en cualquier pedido de repuestos. Y una
+     * urgencia falsa cuesta cara: si todo llega marcado en rojo, el rojo deja
+     * de significar algo y las de verdad se pierden entre las demás.
+     *
+     * @param  array<string, mixed>  $crudo
+     * @return array{0: string, 1: string|null, 2: string|null}
+     */
+    private function prioridadVerificada(array $crudo, string $texto): array
+    {
+        $pedida = Str::lower(trim((string) ($crudo['priority'] ?? 'normal')));
+
+        if ($pedida !== 'urgente' && $pedida !== 'urgent') {
+            return ['normal', null, null];
+        }
+
+        $senales = [
+            'urgente', 'urgencia', 'urgen', 'apura', 'apurad', 'prisa', 'priorid',
+            'para hoy', 'hoy mismo', 'cuanto antes', 'lo antes posible', 'de inmediato',
+            'inmediato', 'emergencia', 'ya mismo', 'se paró', 'se paro', 'parada',
+            'detenid', 'no puede esperar', 'para mañana', 'para manana',
+        ];
+
+        $textoPlano = Str::lower($texto);
+
+        foreach ($senales as $senal) {
+            if (Str::contains($textoPlano, $senal)) {
+                $motivo = $this->limpiar($crudo['urgent_reason'] ?? null);
+
+                return ['urgent', $motivo, null];
+            }
+        }
+
+        return [
+            'normal',
+            null,
+            'Se dejó como prioridad normal: no escribiste que fuera urgente. Puedes cambiarla a mano.',
+        ];
     }
 
     /**
@@ -145,6 +204,12 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         - "supplier" es el proveedor, SÓLO si la persona lo nombra ("en Sodimac", "a Motorman").
           No es el fabricante ni la marca del producto: «guantes 3M» no significa comprarle a 3M.
           Si no nombra un proveedor, déjalo vacío.
+        - "priority" es "urgente" SÓLO si dice que corre prisa ("urgente", "para hoy", "lo antes
+          posible", "se paró la máquina"). En cualquier otro caso es "normal". Ante la duda,
+          "normal": marcar urgente lo que no lo es hace que nadie crea en las urgencias.
+        - "urgent_reason" es por qué no puede esperar, sólo si lo explica. Si no, vacío.
+        - "delivery_location" es dónde se entrega o se usa, sólo si lo dice ("para la casa de
+          operarios", "llevar al galpón"). Si no lo dice, déjalo vacío.
         EJEMPLOS:
         - «pañuelos desechables 2, confort 2» → dos partidas, cantidad "2" cada una, unit vacío.
         - «5 litros de cloro» → UNA partida: product_service "cloro", quantity "5", unit "Litros".
@@ -152,6 +217,10 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         - «295 metros de PVC 200mm» → product_service "PVC 200mm", quantity "295", unit "Metros".
         - «1,5 cubos de bolones» → product_service "bolones", quantity "1,5", unit "Cubos".
         - «cloro en Sodimac» → supplier "Sodimac", sin la preposición.
+        - «2 correas urgente, se paró la bomba» → priority "urgente",
+          urgent_reason "se paró la bomba".
+        - «10 sacos de cemento para la casa de operarios» → delivery_location
+          "casa de operarios", priority "normal".
 
         Responde SOLO el JSON pedido.
         TXT;
@@ -159,11 +228,14 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         $esquema = [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['reason', 'requested_for', 'supplier', 'items'],
+            'required' => ['reason', 'requested_for', 'supplier', 'priority', 'urgent_reason', 'delivery_location', 'items'],
             'properties' => [
                 'reason' => ['type' => 'string'],
                 'requested_for' => ['type' => 'string'],
                 'supplier' => ['type' => 'string'],
+                'priority' => ['type' => 'string', 'enum' => ['normal', 'urgente']],
+                'urgent_reason' => ['type' => 'string'],
+                'delivery_location' => ['type' => 'string'],
                 'items' => [
                     'type' => 'array',
                     'items' => [

@@ -19,6 +19,9 @@ final readonly class DraftSuggestion
         public ?string $supplier,
         public array $items,
         public array $warnings,
+        public string $priority = 'normal',
+        public ?string $urgentReason = null,
+        public ?string $deliveryLocation = null,
         public ?string $error = null,
     ) {
     }
@@ -33,13 +36,19 @@ final readonly class DraftSuggestion
         array $items,
         array $warnings = [],
         ?string $supplier = null,
+        string $priority = 'normal',
+        ?string $urgentReason = null,
+        ?string $deliveryLocation = null,
     ): self {
-        return new self(true, $reason, $requestedForName, $supplier, $items, $warnings);
+        return new self(
+            true, $reason, $requestedForName, $supplier, $items, $warnings,
+            $priority, $urgentReason, $deliveryLocation,
+        );
     }
 
     public static function unavailable(string $error): self
     {
-        return new self(false, null, null, null, [], [], $error);
+        return new self(false, null, null, null, [], [], 'normal', null, null, $error);
     }
 
     /** @return array<string, mixed> */
@@ -50,6 +59,9 @@ final readonly class DraftSuggestion
             'reason' => $this->reason,
             'requested_for_name' => $this->requestedForName,
             'supplier' => $this->supplier,
+            'priority' => $this->priority,
+            'urgent_reason' => $this->urgentReason,
+            'delivery_location' => $this->deliveryLocation,
             'items' => $this->items,
             'warnings' => $this->warnings,
             'error' => $this->error,

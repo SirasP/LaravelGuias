@@ -47,6 +47,9 @@ class RedactarSolicitud extends Command
             'Motivo' => $sugerencia->reason,
             'Para' => $sugerencia->requestedForName,
             'Proveedor' => $sugerencia->supplier,
+            'Prioridad' => $sugerencia->priority === 'urgent' ? 'URGENTE' : null,
+            'Por qué urge' => $sugerencia->urgentReason,
+            'Entregar en' => $sugerencia->deliveryLocation,
         ] as $etiqueta => $valor) {
             if (filled($valor)) {
                 $this->line('  '.$etiqueta.': '.$valor);
