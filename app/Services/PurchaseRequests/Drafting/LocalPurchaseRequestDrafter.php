@@ -69,6 +69,27 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             return DraftSuggestion::unavailable('No se reconoció ningún producto en lo que escribiste.');
         }
 
+        // Aquí el texto de referencia es lo que la persona escribió, así que
+        // TODO lo propuesto tiene que estar respaldado por él. Un modelo
+        // pequeño puede devolver restos de otra petición: pidiendo «confort 2»
+        // llegó a responder «cloro», «Marco» y «Sodimac», ninguno escrito.
+        [$items, $avisosProducto] = $this->descartarProductosNoEscritos($items, $texto);
+        $avisos = array_values(array_unique([...$avisos, ...$avisosProducto]));
+
+        if ($items === []) {
+            return DraftSuggestion::unavailable(
+                'Lo que devolvió el asistente no corresponde a lo que escribiste. Inténtalo de nuevo o escribe las partidas a mano.',
+            );
+        }
+
+        // El destinatario también: si no lo nombraste, no se inventa.
+        $paraQuien = $this->limpiar($crudo['requested_for'] ?? null);
+
+        if ($paraQuien !== null && ! $this->apareceEnElTexto($paraQuien, $texto)) {
+            $avisos[] = sprintf('No se registró «%s» porque no aparece en lo que escribiste.', $paraQuien);
+            $paraQuien = null;
+        }
+
         // El proveedor sólo se acepta si la persona realmente lo escribió: el
         // modelo tiende a confundir la marca del producto con quien lo vende.
         $proveedor = $this->limpiar($crudo['supplier'] ?? null);
@@ -85,7 +106,7 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
 
         return DraftSuggestion::of(
             reason: $this->limpiar($crudo['reason'] ?? null),
-            requestedForName: $this->limpiar($crudo['requested_for'] ?? null),
+            requestedForName: $paraQuien,
             items: $items,
             warnings: $avisos,
             supplier: $proveedor,
@@ -185,6 +206,60 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         }
 
         return $decodificado;
+    }
+
+    /**
+     * Descarta las partidas cuyo producto no figura en el texto escrito.
+     *
+     * Basta con que alguna palabra significativa del nombre aparezca: quien
+     * escribe «confort» acepta «CONFORT», pero no «cloro».
+     *
+     * @param  list<array<string, string|null>>  $items
+     * @return array{0: list<array<string, string|null>>, 1: list<string>}
+     */
+    private function descartarProductosNoEscritos(array $items, string $texto): array
+    {
+        $conservados = [];
+        $avisos = [];
+
+        foreach ($items as $item) {
+            $producto = (string) ($item['product_service'] ?? '');
+
+            if ($producto === '' || $this->apareceEnElTexto($producto, $texto)) {
+                $conservados[] = $item;
+
+                continue;
+            }
+
+            $avisos[] = sprintf('Se descartó «%s»: no aparece en lo que escribiste.', Str::limit($producto, 40));
+        }
+
+        return [$conservados, $avisos];
+    }
+
+    /**
+     * ¿Alguna palabra con peso del valor aparece en el texto?
+     *
+     * Se ignoran las palabras de menos de cuatro letras para no dar por bueno
+     * un «de» o un «la» sueltos.
+     */
+    private function apareceEnElTexto(string $valor, string $texto): bool
+    {
+        $textoPlano = Str::lower($texto);
+
+        if (Str::contains($textoPlano, Str::lower($valor))) {
+            return true;
+        }
+
+        foreach (preg_split('/\s+/u', Str::lower($valor)) ?: [] as $palabra) {
+            $palabra = trim($palabra, " \t.,;:()«»\"'");
+
+            if (mb_strlen($palabra) >= 4 && Str::contains($textoPlano, $palabra)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function limpiar(mixed $valor): ?string

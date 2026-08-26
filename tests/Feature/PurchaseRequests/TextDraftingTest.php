@@ -117,3 +117,37 @@ it('passes the warnings on so nothing is silently wrong', function () {
 
     expect($respuesta->json('warnings.0'))->toContain('falta la cantidad');
 });
+
+it('discards anything the model returned that the person never wrote', function () {
+    // Encontrado en el servidor con un modelo pequeño: pidiendo «confort 2»
+    // devolvió «cloro», con destinatario «Marco» y proveedor «Sodimac»,
+    // restos de una petición anterior. Nada de eso estaba escrito.
+    $verificador = new App\Services\PurchaseRequests\Drafting\LocalPurchaseRequestDrafter;
+    $metodo = new ReflectionMethod($verificador, 'descartarProductosNoEscritos');
+
+    [$items, $avisos] = $metodo->invoke($verificador, [
+        ['product_service' => 'confort', 'specification' => null, 'quantity' => '2', 'unit' => null],
+        ['product_service' => 'cloro', 'specification' => null, 'quantity' => '5', 'unit' => 'Litros'],
+    ], 'confort 2');
+
+    expect($items)->toHaveCount(1)
+        ->and($items[0]['product_service'])->toBe('confort')
+        ->and($avisos[0])->toContain('cloro');
+});
+
+it('accepts a product written with different casing or extra words', function () {
+    $verificador = new App\Services\PurchaseRequests\Drafting\LocalPurchaseRequestDrafter;
+    $metodo = new ReflectionMethod($verificador, 'apareceEnElTexto');
+
+    // Lo escrito, en otra forma: se acepta.
+    expect($metodo->invoke($verificador, 'CONFORT', 'confort 2'))->toBeTrue();
+    expect($metodo->invoke($verificador, 'pañuelos desechables', 'necesito pañuelos 2'))->toBeTrue();
+    expect($metodo->invoke($verificador, 'PVC 200mm', '295 metros de pvc 200mm'))->toBeTrue();
+
+    // Lo no escrito: se rechaza.
+    expect($metodo->invoke($verificador, 'cloro', 'confort 2'))->toBeFalse();
+    expect($metodo->invoke($verificador, 'Marco', 'confort 2'))->toBeFalse();
+
+    // Y una palabra corta suelta no basta para dar por bueno un invento.
+    expect($metodo->invoke($verificador, 'gel', 'confort 2'))->toBeFalse();
+});
