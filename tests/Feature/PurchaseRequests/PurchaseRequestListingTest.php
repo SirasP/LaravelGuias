@@ -310,3 +310,21 @@ it('offers manual and AI modes when creating, and neither when editing', functio
     expect($editar->getContent())->not->toContain('modo ===');
     expect($editar->getContent())->not->toContain('Cuéntale qué necesitas');
 });
+
+it('shows what the assistant built as a table before anything is saved', function () {
+    config(['purchase_requests.reader.enabled' => true]);
+
+    $html = $this->actingAs(User::factory()->create())
+        ->get(route('purchase_requests.create'))->getContent();
+
+    // La tabla del resumen sale de las mismas partidas del formulario, así
+    // que corregir en Manual y guardar operan sobre lo que se está viendo.
+    expect($html)->toContain('Motivo propuesto');
+    expect($html)->toContain('Guardar borrador');
+    expect($html)->toContain('x-show="armado"');
+
+    // Guardar tiene que devolver a Manual antes de enviar: con las secciones
+    // ocultas el navegador no puede señalar un campo obligatorio vacío y el
+    // formulario se queda callado sin enviarse.
+    expect($html)->toContain("modo = 'manual'; \$nextTick(() => \$el.form.requestSubmit())");
+});

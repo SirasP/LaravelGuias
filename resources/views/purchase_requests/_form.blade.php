@@ -103,7 +103,7 @@
              nada se guarda hasta que la persona envíe. --}}
         <section x-show="modo === 'ia'" x-cloak
             class="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm dark:border-violet-900/60 dark:bg-slate-900"
-            x-data="{ texto: '', cargando: false, error: '', avisos: [] }">
+            x-data="{ texto: '', cargando: false, error: '', avisos: [], armado: false, motivo: '' }">
             <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
                 <h2 class="font-extrabold text-violet-900 dark:text-violet-100">Cuéntale qué necesitas</h2>
                 <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
@@ -111,7 +111,7 @@
                 </p>
             </div>
 
-            <div class="space-y-3 p-4 sm:p-5">
+            <div x-show="!armado" class="space-y-3 p-4 sm:p-5">
                 <label for="asistente-texto" class="sr-only">Escribe lo que necesitas</label>
                 <textarea id="asistente-texto" x-model="texto" rows="5"
                     @keydown.ctrl.enter="$refs.armar.click()"
@@ -149,8 +149,9 @@
                                     if (d.reason && !document.getElementById('reason').value) {
                                         document.getElementById('reason').value = d.reason;
                                     }
+                                    motivo = d.reason ?? '';
+                                    armado = true;
                                     texto = '';
-                                    modo = 'manual';
                                 })
                                 .catch(() => error = 'No se pudo contactar al asistente.')
                                 .finally(() => cargando = false)
@@ -165,15 +166,97 @@
                 <template x-if="error">
                     <p class="text-xs font-bold text-rose-700 dark:text-rose-300" x-text="error"></p>
                 </template>
+            </div>
+
+            {{-- Lo que se armó, en limpio. Se ve igual que la ficha de una
+                 solicitud ya guardada, para que revisar sea el mismo gesto. --}}
+            <div x-show="armado" x-cloak>
+                <template x-if="motivo">
+                    <div class="border-b border-violet-100 px-4 py-4 dark:border-violet-900/60 sm:px-5">
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Motivo propuesto</p>
+                        <p class="mt-1 font-extrabold text-slate-900 dark:text-white" x-text="motivo"></p>
+                    </div>
+                </template>
 
                 <template x-if="avisos.length">
-                    <div class="rounded-xl bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
+                    <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-5">
                         <p class="text-xs font-bold text-amber-800 dark:text-amber-300">Revisa esto antes de enviar</p>
                         <ul class="mt-1 list-inside list-disc text-xs text-amber-800 dark:text-amber-300">
                             <template x-for="a in avisos" :key="a"><li x-text="a"></li></template>
                         </ul>
                     </div>
                 </template>
+
+                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
+                    <h3 class="font-extrabold text-slate-900 dark:text-white">Partidas</h3>
+                    <span class="text-xs font-bold text-slate-400" x-text="items.length + (items.length === 1 ? ' ítem' : ' ítems')"></span>
+                </div>
+
+                {{-- Tarjetas para teléfono --}}
+                <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
+                    <template x-for="(item, index) in items" :key="item.key">
+                        <article class="p-4">
+                            <div class="flex gap-3">
+                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-50 text-xs font-extrabold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300" x-text="index + 1"></span>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-slate-900 dark:text-white" x-text="item.product_service || '—'"></p>
+                                    <template x-if="item.specification">
+                                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" x-text="item.specification"></p>
+                                    </template>
+                                    <span class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                        x-text="(item.quantity || '—') + ' ' + (item.unit || '')"></span>
+                                </div>
+                            </div>
+                        </article>
+                    </template>
+                </div>
+
+                <div class="hidden overflow-x-auto md:block">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
+                            <tr>
+                                <th class="px-5 py-3">N°</th>
+                                <th class="px-5 py-3">Producto / servicio</th>
+                                <th class="px-5 py-3">Especificación</th>
+                                <th class="px-5 py-3 text-right">Cantidad</th>
+                                <th class="px-5 py-3">Destino</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <template x-for="(item, index) in items" :key="item.key">
+                                <tr>
+                                    <td class="px-5 py-4 font-bold text-slate-400" x-text="index + 1"></td>
+                                    <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100" x-text="item.product_service || '—'"></td>
+                                    <td class="px-5 py-4 text-slate-600 dark:text-slate-300" x-text="item.specification || '—'"></td>
+                                    <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100" x-text="(item.quantity || '—') + ' ' + (item.unit || '')"></td>
+                                    <td class="px-5 py-4 text-slate-600 dark:text-slate-300" x-text="item.destination || '—'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex flex-col gap-2 border-t border-slate-100 p-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <button type="button" @click="armado = false"
+                        class="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+                        ← Escribir otra cosa
+                    </button>
+
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button type="button" @click="modo = 'manual'"
+                            class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                            Editar
+                        </button>
+
+                        {{-- Guardar valida el formulario entero, así que primero
+                             hay que volver a Manual: si falta el área o el motivo,
+                             el navegador tiene que poder señalar el campo. --}}
+                        <button type="button" @click="modo = 'manual'; $nextTick(() => $el.form.requestSubmit())"
+                            class="inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-5 text-sm font-extrabold text-white hover:bg-violet-700">
+                            Guardar borrador
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
     @endif
