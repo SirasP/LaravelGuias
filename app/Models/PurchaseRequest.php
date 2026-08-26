@@ -32,6 +32,9 @@ class PurchaseRequest extends Model
         'reason',
         'priority',
         'currency',
+        'odoo_order_id',
+        'odoo_reference',
+        'odoo_exported_at',
         'urgent_reason',
         'cost_center',
         'delivery_location',
@@ -67,6 +70,8 @@ class PurchaseRequest extends Model
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'cancellation_requested_at' => 'datetime',
+            'odoo_order_id' => 'integer',
+            'odoo_exported_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
     }

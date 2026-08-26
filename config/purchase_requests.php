@@ -35,6 +35,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Odoo
+    |--------------------------------------------------------------------------
+    |
+    | Apagado por defecto, y a propósito: encenderlo escribe en un sistema que
+    | la empresa usa de verdad. La exportación crea como mucho una RFQ en
+    | borrador, nunca confirma, y siempre la dispara una persona.
+    |
+    | `picking_type_id` es la recepción a la que llegaría la mercadería. Odoo
+    | lo exige y la solicitud no lo dice, así que se fija aquí.
+    |
+    */
+    'odoo' => [
+        'enabled' => (bool) env('PURCHASE_REQUESTS_ODOO', false),
+        'url' => env('ODOO_URL'),
+        'db' => env('ODOO_DB'),
+        'user' => env('ODOO_USER'),
+        'password' => env('ODOO_PASSWORD'),
+        'timeout' => (int) env('PURCHASE_REQUESTS_ODOO_TIMEOUT', 30),
+        'picking_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_PICKING_TYPE', 1),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Empresa compradora
     |--------------------------------------------------------------------------
     |

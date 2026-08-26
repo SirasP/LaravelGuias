@@ -14,11 +14,26 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // El MVP sólo conoce el adaptador simulado. Sustituir este binding es
-        // el punto único donde se enchufaría una integración real con Odoo.
+        // Con la integración apagada —lo normal, y lo que ocurre en la suite—
+        // se usa el adaptador simulado, que no abre ninguna conexión. El real
+        // sólo aparece cuando alguien lo enciende a conciencia en el .env.
         $this->app->bind(
             \App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter::class,
-            \App\Services\PurchaseRequests\Odoo\SimulatedPurchaseRequestExporter::class,
+            function ($app) {
+                if (! config('purchase_requests.odoo.enabled')) {
+                    return new \App\Services\PurchaseRequests\Odoo\SimulatedPurchaseRequestExporter;
+                }
+
+                return new \App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter(
+                    new \App\Services\PurchaseRequests\Odoo\OdooClient(
+                        (string) config('purchase_requests.odoo.url'),
+                        (string) config('purchase_requests.odoo.db'),
+                        (string) config('purchase_requests.odoo.user'),
+                        (string) config('purchase_requests.odoo.password'),
+                        (int) config('purchase_requests.odoo.timeout', 30),
+                    ),
+                );
+            },
         );
 
         // Asistente de captura por IA: preparado pero apagado. Encenderlo es
