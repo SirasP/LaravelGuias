@@ -217,6 +217,7 @@
 
                             <div>
                                 <label for="filter-requester" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Solicitante</label>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Quien la creó o para quién es.</p>
                                 <input id="filter-requester" name="requester" value="{{ $f['requester'] ?? '' }}" placeholder="Nombre"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                             </div>
@@ -302,6 +303,10 @@
                                 <dd class="mt-0.5 text-slate-700 dark:text-slate-300">{{ $formatDate($purchaseRequest->required_date) }}</dd>
                             </div>
                             <div>
+                                <dt class="font-semibold text-slate-400">Solicitante</dt>
+                                <dd class="mt-0.5 truncate text-slate-700 dark:text-slate-300">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</dd>
+                            </div>
+                            <div>
                                 <dt class="font-semibold text-slate-400">Solicitado para</dt>
                                 <dd class="mt-0.5 truncate text-slate-700 dark:text-slate-300">{{ $purchaseRequest->requested_for_name ?: '—' }}</dd>
                             </div>
@@ -344,6 +349,7 @@
                         <tr>
                             <th class="whitespace-nowrap px-5 py-3">Folio</th>
                             <th class="min-w-72 px-5 py-3">Solicitud</th>
+                            <th class="whitespace-nowrap px-5 py-3">Solicitante</th>
                             <th class="whitespace-nowrap px-5 py-3">Departamento</th>
                             <th class="whitespace-nowrap px-5 py-3">Requerida</th>
                             <th class="whitespace-nowrap px-5 py-3">Prioridad</th>
@@ -367,7 +373,12 @@
                                 </td>
                                 <td class="px-5 py-4">
                                     <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">{{ $purchaseRequest->reason }}</p>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Para {{ $purchaseRequest->requested_for_name ?: 'sin especificar' }}</p>
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4">
+                                    <p class="text-slate-700 dark:text-slate-200">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</p>
+                                    @if (filled($purchaseRequest->requested_for_name))
+                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Para {{ $purchaseRequest->requested_for_name }}</p>
+                                    @endif
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $purchaseRequest->department ?: '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $formatDate($purchaseRequest->required_date) }}</td>
@@ -376,7 +387,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                                <td colspan="7" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>
                             </tr>

@@ -139,8 +139,14 @@ class PurchaseRequestController extends Controller
             })
             ->when($filters['department'], fn ($query, string $value) => $query->where('department', $value))
             ->when($filters['requester'], function ($query, string $value): void {
+                // Para quien mira la lista, "solicitante" es la persona metida en
+                // el asunto: da igual si la creó o si la compra era para ella.
+                // Buscar sólo en quien la creó dejaba fuera resultados obvios.
                 $like = '%'.addcslashes($value, '%_\\').'%';
-                $query->where('requester_name_snapshot', 'like', $like);
+                $query->where(function ($query) use ($like): void {
+                    $query->where('requester_name_snapshot', 'like', $like)
+                        ->orWhere('requested_for_name', 'like', $like);
+                });
             })
             ->when($filters['requested_from'], fn ($query, string $value) => $query->whereDate('request_date', '>=', $value))
             ->when($filters['requested_to'], fn ($query, string $value) => $query->whereDate('request_date', '<=', $value))

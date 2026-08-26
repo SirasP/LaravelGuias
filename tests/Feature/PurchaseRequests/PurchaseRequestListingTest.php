@@ -233,3 +233,57 @@ it('keeps the side panel filters inside the form so they still reach the server'
     expect($barra)->toContain('Filtros');
     expect($barra)->not->toContain('type="submit"');
 });
+
+it('filters the list by every field the panel offers', function () {
+    $admin = User::factory()->create(['name' => 'Sebastian Lopez', 'role' => 'admin']);
+    $otro = User::factory()->create(['name' => 'Jose Perez', 'role' => 'user']);
+
+    $this->createPurchaseRequestDraft($admin, [
+        'reason' => 'AGUJA-MIA',
+        'department' => 'Administración',
+    ]);
+    $this->createPurchaseRequestDraft($otro, [
+        'reason' => 'AGUJA-SUYA',
+        'department' => 'Taller',
+        'requested_for_name' => 'Katherin Asencio',
+    ]);
+
+    $ve = function (array $params) use ($admin): string {
+        $html = $this->actingAs($admin)->get(route('purchase_requests.index', $params))->getContent();
+
+        return trim((str_contains($html, 'AGUJA-MIA') ? 'MIA ' : '').(str_contains($html, 'AGUJA-SUYA') ? 'SUYA' : ''));
+    };
+
+    // Sin filtros se ven las dos, que es la línea base de la comparación.
+    expect($ve([]))->toBe('MIA SUYA');
+
+    expect($ve(['search' => 'AGUJA-SUYA']))->toBe('SUYA');
+    expect($ve(['department' => 'Taller']))->toBe('SUYA');
+    expect($ve(['requested_to' => now()->subDay()->toDateString()]))->toBe('');
+    expect($ve(['requested_from' => now()->toDateString()]))->toBe('MIA SUYA');
+    expect($ve(['required_to' => now()->subDay()->toDateString()]))->toBe('');
+    expect($ve(['status' => 'draft']))->toBe('MIA SUYA');
+
+    // Solicitante encuentra tanto a quien la creó como a la persona para
+    // quien se pidió: desde la lista las dos se llaman igual.
+    expect($ve(['requester' => 'Jose']))->toBe('SUYA');
+    expect($ve(['requester' => 'Katherin']))->toBe('SUYA');
+    expect($ve(['requester' => 'Sebastian']))->toBe('MIA');
+
+    // Y dos filtros a la vez se acumulan en vez de pisarse.
+    expect($ve(['requester' => 'Jose', 'department' => 'Administración']))->toBe('');
+});
+
+it('shows who asked for each request in the table', function () {
+    $owner = User::factory()->create(['name' => 'Paola Jara']);
+    $this->createPurchaseRequestDraft($owner, ['requested_for_name' => 'Luis Silva']);
+
+    $html = $this->actingAs($owner)->get(route('purchase_requests.index'))->getContent();
+    $inicio = strpos($html, '<table');
+    $tabla = substr($html, $inicio, strpos($html, '</table>') - $inicio);
+
+    // Sin esta columna no había forma de comprobar que el filtro hizo algo.
+    expect($tabla)->toContain('Solicitante');
+    expect($tabla)->toContain('Paola Jara');
+    expect($tabla)->toContain('Luis Silva');
+});
