@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ReadQuotationDocument;
 use App\Models\PurchaseRequestIngestion;
+use App\Models\Department;
 use App\Models\UnitOfMeasure;
+use App\Services\PurchaseRequests\DraftFromIngestionService;
 use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use Illuminate\Http\JsonResponse;
@@ -79,8 +81,10 @@ class PurchaseIngestionController extends Controller
             ->first();
 
         if ($previo !== null) {
-            return to_route('purchase_requests.ingestions.index')
-                ->with('success', 'Ese documento ya se había subido; abajo está su resultado.');
+            // No se rechaza en silencio: se lleva a la lectura que ya existe,
+            // donde además se puede pedir leerlo de nuevo.
+            return to_route('purchase_requests.ingestions.show', $previo)
+                ->with('info', 'Ese documento ya se había leído. Aquí está el resultado; puedes usarlo o volver a leerlo.');
         }
 
         $path = $file->storeAs(
@@ -137,6 +141,111 @@ class PurchaseIngestionController extends Controller
         );
 
         return response()->json($sugerencia->toArray());
+    }
+
+    /**
+     * La lectura, en una tabla que se puede corregir antes de crear nada.
+     */
+    public function show(Request $request, PurchaseRequestIngestion $ingestion): Response
+    {
+        abort_unless($this->puedeVer($request, $ingestion), 403);
+
+        $ingestion->load('purchaseRequest');
+
+        return response()->view('purchase_requests.ingestion_review', [
+            'ingestion' => $ingestion,
+            'items' => $ingestion->extracted['items'] ?? [],
+            'units' => UnitOfMeasure::query()->forCompany()->active()->ordered()->get(),
+            'departments' => Department::query()->forCompany()->active()->ordered()->get(),
+        ]);
+    }
+
+    /**
+     * Crea la solicitud con lo que quedó en pantalla.
+     *
+     * Es el único punto donde una lectura se convierte en solicitud, y siempre
+     * lo dispara una persona.
+     */
+    public function confirm(
+        Request $request,
+        PurchaseRequestIngestion $ingestion,
+        DraftFromIngestionService $servicio,
+    ): RedirectResponse {
+        abort_unless($ingestion->user_id === $request->user()->getKey(), 403);
+        abort_unless($request->user()->canCreatePurchaseRequests(), 403);
+
+        if ($ingestion->purchase_request_id !== null) {
+            return to_route('purchase_requests.show', $ingestion->purchaseRequest)
+                ->with('info', 'Esta lectura ya había creado una solicitud.');
+        }
+
+        $data = $request->validate([
+            'department' => ['nullable', 'string', 'max:120'],
+            'reason' => ['nullable', 'string', 'max:10000'],
+            'items' => ['required', 'array', 'min:1', 'max:200'],
+            'items.*.product_service' => ['nullable', 'string', 'max:1000'],
+            'items.*.specification' => ['nullable', 'string', 'max:5000'],
+            'items.*.quantity' => ['nullable', 'string', 'max:40'],
+            'items.*.unit' => ['nullable', 'string', 'max:80'],
+        ], [
+            'items.required' => 'No quedó ninguna partida que traspasar.',
+        ]);
+
+        // Las líneas que quedaron sin producto se descartan: quien revisa pudo
+        // haber vaciado una que el asistente leyó de más.
+        $items = array_values(array_filter(
+            $data['items'],
+            fn (array $item): bool => filled($item['product_service'] ?? null),
+        ));
+
+        if ($items === []) {
+            return back()->with('error', 'Deja al menos una partida con producto antes de crear la solicitud.');
+        }
+
+        $solicitud = $servicio->create(
+            $ingestion,
+            $request->user(),
+            $items,
+            $data['reason'] ?? null,
+            $data['department'] ?? null,
+        );
+
+        return to_route('purchase_requests.edit', $solicitud)
+            ->with('success', 'Solicitud creada desde el documento. Revísala y envíala cuando esté lista.');
+    }
+
+    /** Vuelve a leer el mismo documento, por si la primera vez salió mal. */
+    public function reread(Request $request, PurchaseRequestIngestion $ingestion, QuotationReader $reader): RedirectResponse
+    {
+        abort_unless($ingestion->user_id === $request->user()->getKey(), 403);
+
+        if (! $reader->isEnabled()) {
+            return back()->with('error', 'El asistente no está habilitado en este entorno.');
+        }
+
+        if ($ingestion->purchase_request_id !== null) {
+            return back()->with('error', 'Esta lectura ya creó una solicitud: no se puede volver a leer.');
+        }
+
+        $ingestion->forceFill([
+            'status' => PurchaseRequestIngestion::PENDING,
+            'error_message' => null,
+            'started_at' => null,
+            'finished_at' => null,
+            'duration_ms' => null,
+        ])->save();
+
+        ReadQuotationDocument::dispatch($ingestion);
+
+        return to_route('purchase_requests.ingestions.show', $ingestion)
+            ->with('success', 'Estamos leyendo el documento otra vez. Te avisamos al terminar.');
+    }
+
+    private function puedeVer(Request $request, PurchaseRequestIngestion $ingestion): bool
+    {
+        $user = $request->user();
+
+        return $ingestion->user_id === $user->getKey() || $user->canSeeAllPurchaseRequests();
     }
 
     /** El documento original, sólo para quien lo subió. */

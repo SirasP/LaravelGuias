@@ -45,12 +45,17 @@ Route::middleware('auth')
     ->name('purchase_requests.ingestions.')
     ->group(function (): void {
         Route::get('/', [PurchaseIngestionController::class, 'index'])->name('index');
+        Route::get('/{ingestion}', [PurchaseIngestionController::class, 'show'])->name('show');
         Route::get('/{ingestion}/documento', [PurchaseIngestionController::class, 'download'])->name('download');
 
         Route::middleware('throttle:solicitudes-compra')->group(function (): void {
             Route::post('/', [PurchaseIngestionController::class, 'store'])->name('store');
             // Texto libre → partidas sugeridas para el formulario. No guarda nada.
             Route::post('/redactar', [PurchaseIngestionController::class, 'draft'])->name('draft');
+            // Una lectura se convierte en solicitud sólo aquí, y siempre la
+            // dispara una persona tras revisarla.
+            Route::post('/{ingestion}/crear-solicitud', [PurchaseIngestionController::class, 'confirm'])->name('confirm');
+            Route::post('/{ingestion}/releer', [PurchaseIngestionController::class, 'reread'])->name('reread');
         });
     });
 
@@ -91,6 +96,12 @@ Route::middleware('auth')
             Route::post('/{catalog}', [PurchaseCatalogController::class, 'store'])->name('store');
             Route::put('/{catalog}/{entry}', [PurchaseCatalogController::class, 'update'])->name('update');
             Route::post('/{catalog}/{entry}/alternar', [PurchaseCatalogController::class, 'toggle'])->name('toggle');
+
+            // Proveedores: se identifican por RUT, así que llevan sus propias
+            // rutas en lugar de las genéricas de catálogo.
+            Route::post('/proveedores-nuevo/crear', [PurchaseCatalogController::class, 'storeSupplier'])->name('suppliers.store');
+            Route::put('/proveedores-editar/{supplier}', [PurchaseCatalogController::class, 'updateSupplier'])->name('suppliers.update');
+            Route::post('/proveedores-alternar/{supplier}', [PurchaseCatalogController::class, 'toggleSupplier'])->name('suppliers.toggle');
         });
     });
 

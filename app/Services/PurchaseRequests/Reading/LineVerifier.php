@@ -37,7 +37,13 @@ class LineVerifier
      * @param  list<string>  $knownUnits
      * @return array{0: list<array<string, string|null>>, 1: list<string>}
      */
-    public function verificarContraElDocumento(array $items, string $referencia, array $knownUnits, bool $esImagen): array
+    /**
+     * @param  bool  $referenciaEsUnaFrase  cuando el texto es una frase corta
+     *   escrita a mano —«cloro 5 litros»—, la unidad puede estar en cualquier
+     *   parte de ella y no necesariamente pegada al producto. En un documento
+     *   con tabla, en cambio, cada línea responde por lo suyo.
+     */
+    public function verificarContraElDocumento(array $items, string $referencia, array $knownUnits, bool $esImagen, bool $referenciaEsUnaFrase = false): array
     {
         $limpios = [];
         $avisos = [];
@@ -109,6 +115,10 @@ class LineVerifier
             $esNeutra = $this->normalizar($unidad ?? '') === 'unidades';
 
             $textoDeLaLinea = $producto.' '.($item['specification'] ?? '').' '.$cantidadOriginal;
+
+            if ($referenciaEsUnaFrase) {
+                $textoDeLaLinea .= ' '.$referencia;
+            }
 
             if (filled($unidad) && ! $esNeutra && ! $this->unidadRespaldadaPorLaLinea($unidad, $textoDeLaLinea)) {
                 $avisos[] = sprintf(

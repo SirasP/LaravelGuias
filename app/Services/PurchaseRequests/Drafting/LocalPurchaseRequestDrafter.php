@@ -63,6 +63,9 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             $texto,
             $knownUnits,
             false,
+            // Es una frase escrita a mano: «cloro 5 litros» declara la unidad
+            // aunque no vaya pegada al nombre del producto.
+            referenciaEsUnaFrase: true,
         );
 
         if ($items === []) {
@@ -187,6 +190,9 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
             ->post(config('purchase_requests.reader.base_url').'/chat/completions', [
                 'model' => $modelo,
                 'temperature' => 0,
+                // El servidor descarga el modelo tras este silencio, en vez de
+                // dejarlo ocupando memoria todo el día.
+                ...$this->descargaAutomatica(),
                 'messages' => [
                     ['role' => 'system', 'content' => $sistema],
                     ['role' => 'user', 'content' => Str::limit($texto, 4000, '')],
@@ -271,5 +277,21 @@ class LocalPurchaseRequestDrafter implements PurchaseRequestDrafter
         $limpio = trim($valor);
 
         return $limpio === '' ? null : $limpio;
+    }
+
+    /**
+     * Pide al servidor que suelte el modelo tras un rato sin uso.
+     *
+     * LM Studio y los servidores compatibles aceptan `ttl` en segundos: cargan
+     * el modelo cuando llega la petición y lo descargan pasado ese tiempo. Un
+     * servidor que no reconozca el campo simplemente lo ignora.
+     *
+     * @return array<string, int>
+     */
+    private function descargaAutomatica(): array
+    {
+        $minutos = (int) config('purchase_requests.reader.keep_loaded_minutes', 10);
+
+        return $minutos > 0 ? ['ttl' => $minutos * 60] : [];
     }
 }

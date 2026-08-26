@@ -3,6 +3,7 @@
 use App\Enums\PurchaseRequestStatus;
 use App\Jobs\ReadQuotationDocument;
 use App\Models\PurchaseRequestEvent;
+use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
@@ -39,6 +40,26 @@ function lectorFalso(QuotationReading $lectura): void
             return $this->lectura;
         }
     });
+}
+
+/**
+ * Sube un documento y confirma la lectura, que es el flujo completo: el
+ * asistente ya no crea la solicitud por su cuenta, la crea una persona al
+ * revisar lo leído.
+ */
+function subirYConfirmar(object $test, App\Models\User $owner, string $nombre = 'cotizacion.pdf'): App\Models\PurchaseRequest
+{
+    $test->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => Illuminate\Http\UploadedFile::fake()->create($nombre, 90, 'application/pdf'),
+    ])->assertSessionHasNoErrors();
+
+    $ingestion = App\Models\PurchaseRequestIngestion::query()->latest('id')->firstOrFail()->fresh();
+
+    $test->actingAs($owner)->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+        'items' => $ingestion->extracted['items'] ?? [],
+    ])->assertSessionHasNoErrors();
+
+    return $ingestion->fresh()->purchaseRequest;
 }
 
 it('answers immediately and leaves the reading for the background', function () {
@@ -83,11 +104,18 @@ it('creates a draft that nobody sent to review', function () {
         'document' => UploadedFile::fake()->create('cotizacion.pdf', 120, 'application/pdf'),
     ])->assertSessionHasNoErrors();
 
-    $ingestion = PurchaseRequestIngestion::query()->firstOrFail();
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    // Leer no crea nada: la solicitud nace cuando una persona confirma.
+    expect($ingestion->purchase_request_id)->toBeNull();
+    expect(PurchaseRequest::query()->count())->toBe(0);
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+        'items' => $ingestion->extracted['items'],
+    ])->assertSessionHasNoErrors();
+
     $borrador = $ingestion->fresh()->purchaseRequest;
 
-    // Lo que produce es SIEMPRE un borrador: una lectura equivocada se corrige
-    // antes de que exista una solicitud formal.
     expect($borrador)->not->toBeNull()
         ->and($borrador->status)->toBe(PurchaseRequestStatus::DRAFT)
         ->and($borrador->reason)->toBe('Materiales Casa n°2')
@@ -108,9 +136,7 @@ it('records where the draft came from', function () {
 
     $owner = User::factory()->create();
 
-    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
-        'document' => UploadedFile::fake()->create('cotizacion-abril.pdf', 90, 'application/pdf'),
-    ]);
+    subirYConfirmar($this, $owner, 'cotizacion-abril.pdf');
 
     $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
     $evento = $ingestion->purchaseRequest->events()
@@ -142,13 +168,14 @@ it('marks a doubtful reading instead of pretending it went well', function () {
     expect($ingestion->status)->toBe(PurchaseRequestIngestion::NEEDS_REVIEW)
         ->and($ingestion->warnings)->toContain('Partida N° 1: falta la cantidad.');
 
+    $borrador = subirYConfirmar($this, $owner, 'borrosa2.pdf');
+
     // Sin cantidad legible queda en cero, y enviar exige una cantidad mayor
     // que cero: el borrador no puede escaparse a medias.
-    $item = $ingestion->purchaseRequest->items()->firstOrFail();
-    expect((float) $item->quantity)->toBe(0.0);
+    expect((float) $borrador->items()->first()->quantity)->toBe(0.0);
 
     $this->actingAs($owner)
-        ->post(route('purchase_requests.submit', $ingestion->purchaseRequest))
+        ->post(route('purchase_requests.submit', $borrador))
         ->assertSessionHasErrors('items');
 });
 
@@ -364,10 +391,7 @@ it('records who issued the quotation and who it was addressed to', function () {
 
     $owner = User::factory()->create();
 
-    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
-        'document' => UploadedFile::fake()->create('cotizacion-549.pdf', 90, 'application/pdf'),
-    ]);
-
+    $borrador = subirYConfirmar($this, $owner, 'cotizacion-549.pdf');
     $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
 
     expect($ingestion->supplier_tax_id)->toBe('77045469-7')
@@ -376,8 +400,7 @@ it('records who issued the quotation and who it was addressed to', function () {
         ->and($ingestion->customer_matches_company)->toBeTrue();
 
     // El proveedor queda con su RUT: el nombre se escribe de mil formas.
-    expect($ingestion->purchaseRequest->suggested_suppliers)
-        ->toBe(['Derco Repuestos (RUT 77.045.469-7)']);
+    expect($borrador->suggested_suppliers)->toBe(['Derco Repuestos (RUT 77.045.469-7)']);
 });
 
 it('warns when the quotation was addressed to a different company', function () {
@@ -439,11 +462,7 @@ it('never passes off the suppliers line of business as the purchase reason', fun
 
     $owner = User::factory()->create();
 
-    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
-        'document' => UploadedFile::fake()->create('factura.pdf', 90, 'application/pdf'),
-    ]);
-
-    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+    $borrador = subirYConfirmar($this, $owner, 'factura.pdf');
 
     // Un documento comercial dice a qué se dedica quien vende, no por qué
     // compras. Se deja constancia de con quién es la compra y se pide el resto.
@@ -463,9 +482,16 @@ it('keeps a reason the document actually declares', function () {
         'document' => UploadedFile::fake()->create('solicitud.pdf', 90, 'application/pdf'),
     ]);
 
-    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
 
-    expect($borrador->reason)->toBe('Materiales Casa n°2; Materiales Casino de Operarios');
+    // Quien revisa puede escribir el motivo en pantalla, y ése manda.
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+        'items' => $ingestion->extracted['items'],
+        'reason' => 'Materiales Casa n°2; Materiales Casino de Operarios',
+    ])->assertSessionHasNoErrors();
+
+    expect($ingestion->fresh()->purchaseRequest->reason)
+        ->toBe('Materiales Casa n°2; Materiales Casino de Operarios');
 });
 
 it('tells the admin when a worker uploads a quotation', function () {
@@ -509,15 +535,15 @@ it('sends each recipient a link they can actually open', function () {
         'document' => UploadedFile::fake()->create('cotizacion-terreno.pdf', 90, 'application/pdf'),
     ]);
 
-    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
 
     $avisoTrabajador = $trabajador->notifications()->firstOrFail()->data;
     $avisoAdmin = $admin->notifications()->firstOrFail()->data;
 
-    // El autor edita su borrador; el administrador sólo puede verlo, así que
-    // mandarlo a editar sería mandarlo a un «acceso denegado».
-    expect($avisoTrabajador['url'])->toBe(route('purchase_requests.edit', $borrador->public_id));
-    expect($avisoAdmin['url'])->toBe(route('purchase_requests.show', $borrador->public_id));
+    // Todavía no hay solicitud: ambos van a la pantalla donde se revisa.
+    $revision = route('purchase_requests.ingestions.show', $ingestion->public_id);
+    expect($avisoTrabajador['url'])->toBe($revision);
+    expect($avisoAdmin['url'])->toBe($revision);
 
     // Y el texto habla de quién cotizó, que es lo que el administrador necesita.
     expect($avisoAdmin['title'])->toContain('José Ancacura')
@@ -540,11 +566,7 @@ it('does not take the salesperson for the supplier', function () {
 
     $owner = User::factory()->create();
 
-    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
-        'document' => UploadedFile::fake()->create('cot-549.pdf', 90, 'application/pdf'),
-    ]);
-
-    $borrador = PurchaseRequestIngestion::query()->firstOrFail()->fresh()->purchaseRequest;
+    $borrador = subirYConfirmar($this, $owner, 'cot-549.pdf');
 
     expect($borrador->suggested_suppliers)->toBe(['DERCOMAQ S.P.A. (RUT 77.045.469-7)'])
         ->and($borrador->reason)->toContain('DERCOMAQ');
@@ -629,4 +651,150 @@ it('never overrides a unit the document did declare', function () {
         ->and($items[1]['unit'])->toBe('Unidades');
 
     expect($avisos[0])->toContain('N° 2');
+});
+
+it('creates nothing until a person confirms the reading', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Rodamiento 6202', 'specification' => '07297', 'quantity' => '5', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cot.pdf', 90, 'application/pdf'),
+    ]);
+
+    // Leer no crea solicitudes: una lectura equivocada no debe dejar un
+    // borrador que después haya que anular.
+    expect(PurchaseRequest::query()->count())->toBe(0);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    // La pantalla de revisión muestra lo leído.
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.ingestions.show', $ingestion))
+        ->assertOk()
+        ->assertSee('Rodamiento 6202')
+        ->assertSee('Crear la solicitud con estas partidas');
+});
+
+it('creates the request with the corrections made on screen', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Rodamiento 6202', 'specification' => '07297', 'quantity' => '5', 'unit' => 'Unidades'],
+        ['product_service' => 'Fila leída de más', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('cot.pdf', 90, 'application/pdf'),
+    ]);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    // Quien revisa corrige la cantidad y vacía la fila que sobraba.
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+        'items' => [
+            ['product_service' => 'RODAMIENTO 6202 2RS2 C3 NKE', 'specification' => '07297', 'quantity' => '8', 'unit' => 'Unidades'],
+            ['product_service' => '', 'specification' => '', 'quantity' => '', 'unit' => ''],
+        ],
+        'reason' => 'Mantención del tractor',
+    ])->assertSessionHasNoErrors();
+
+    $borrador = $ingestion->fresh()->purchaseRequest;
+
+    expect($borrador->items)->toHaveCount(1)
+        ->and($borrador->items->first()->product_service)->toBe('RODAMIENTO 6202 2RS2 C3 NKE')
+        ->and((float) $borrador->items->first()->quantity)->toBe(8.0)
+        ->and($borrador->reason)->toBe('Mantención del tractor');
+});
+
+it('sends the same file back to its earlier reading instead of rejecting it', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+    $archivo = UploadedFile::fake()->create('repetida.pdf', 90, 'application/pdf');
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), ['document' => $archivo]);
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail();
+
+    // Subirlo otra vez lleva a la lectura que ya existe, con un aviso.
+    $this->actingAs($owner)
+        ->post(route('purchase_requests.ingestions.store'), ['document' => $archivo])
+        ->assertRedirect(route('purchase_requests.ingestions.show', $ingestion))
+        ->assertSessionHas('info');
+
+    expect(PurchaseRequestIngestion::query()->count())->toBe(1);
+});
+
+it('can read the same document again when the first try went wrong', function () {
+    Storage::fake('local');
+    Queue::fake();
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('mala.pdf', 90, 'application/pdf'),
+    ]);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail();
+    $ingestion->forceFill(['status' => PurchaseRequestIngestion::COMPLETED])->save();
+
+    $this->actingAs($owner)
+        ->post(route('purchase_requests.ingestions.reread', $ingestion))
+        ->assertSessionHasNoErrors();
+
+    expect($ingestion->fresh()->status)->toBe(PurchaseRequestIngestion::PENDING);
+    Queue::assertPushed(ReadQuotationDocument::class);
+});
+
+it('refuses to create the request twice from the same reading', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+    $borrador = subirYConfirmar($this, $owner);
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    $this->actingAs($owner)
+        ->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+            'items' => [['product_service' => 'Otro', 'quantity' => '9', 'unit' => 'Unidades']],
+        ])
+        ->assertRedirect(route('purchase_requests.show', $borrador));
+
+    expect(PurchaseRequest::query()->count())->toBe(1);
+});
+
+it('keeps someone else from confirming a reading that is not theirs', function () {
+    Storage::fake('local');
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Tubo', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades'],
+    ]));
+
+    $owner = User::factory()->create();
+    $ajeno = User::factory()->create();
+
+    $this->actingAs($owner)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('mia.pdf', 90, 'application/pdf'),
+    ]);
+
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    $this->actingAs($ajeno)
+        ->post(route('purchase_requests.ingestions.confirm', $ingestion), [
+            'items' => [['product_service' => 'Tubo', 'quantity' => '1', 'unit' => 'Unidades']],
+        ])
+        ->assertForbidden();
+
+    expect(PurchaseRequest::query()->count())->toBe(0);
 });

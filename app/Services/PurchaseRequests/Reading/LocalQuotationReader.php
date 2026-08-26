@@ -93,9 +93,23 @@ class LocalQuotationReader implements QuotationReader
         [$rutProveedor, $rutCliente, $avisosRut] = $this->identificarPartes($referencia);
         $avisos = array_values(array_unique([...$avisos, ...$avisosRut]));
 
+        // El nombre del proveedor también se contrasta contra el documento.
+        // Sin esto, el modelo llegó a nombrar «DERCOMAQ S.P.A.» en una
+        // cotización donde esa palabra no aparece ni una vez: la tomó de otro
+        // documento visto antes. El RUT sí es fiable, porque se extrae con
+        // expresión regular y se valida.
+        [$proveedor, $avisoProveedor] = $this->verificarProveedor(
+            $this->limpiar($crudo['supplier'] ?? null),
+            $referencia,
+        );
+
+        if ($avisoProveedor !== null) {
+            $avisos[] = $avisoProveedor;
+        }
+
         return QuotationReading::of(
             items: $items,
-            supplier: $this->limpiar($crudo['supplier'] ?? null),
+            supplier: $proveedor,
             reason: $this->limpiar($crudo['reason'] ?? null),
             warnings: $avisos,
             model: $modelo,
@@ -270,6 +284,9 @@ class LocalQuotationReader implements QuotationReader
             ->post(config('purchase_requests.reader.base_url').'/chat/completions', [
                 'model' => $modelo,
                 'temperature' => 0,
+                // El servidor descarga el modelo tras este silencio, en vez de
+                // dejarlo ocupando memoria todo el día.
+                ...$this->descargaAutomatica(),
                 'messages' => [
                     ['role' => 'system', 'content' => $sistema],
                     ['role' => 'user', 'content' => $contenidoUsuario],
@@ -369,6 +386,51 @@ class LocalQuotationReader implements QuotationReader
         return [$rutProveedor, $rutCliente, $avisos];
     }
 
+    /**
+     * Acepta el nombre del proveedor sólo si el documento lo respalda.
+     *
+     * Basta con que una palabra distintiva aparezca en el texto: un documento
+     * que dice «serviciotecnico@bobinadosloncomilla.cl» respalda «BOBINADOS
+     * LONCOMILLA S.A.», aunque no lo escriba con ese formato exacto. Se
+     * ignoran las palabras vacías y las formas societarias, que aparecen en
+     * cualquier documento y no distinguen a nadie.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function verificarProveedor(?string $proveedor, string $referencia): array
+    {
+        if ($proveedor === null || trim($referencia) === '') {
+            return [$proveedor, null];
+        }
+
+        // Sin letras y sin espacios: así «BOBINADOS LONCOMILLA» calza con el
+        // dominio de un correo, donde va todo junto.
+        $plano = preg_replace('/[^a-z0-9]/', '', $this->normalizar($referencia)) ?? '';
+
+        $genericas = ['sa', 'spa', 'ltda', 'limitada', 'eirl', 'sociedad', 'comercial',
+            'servicios', 'industrial', 'de', 'del', 'la', 'las', 'los', 'y', 'e'];
+
+        foreach (preg_split('/[\s.,]+/u', $this->normalizar($proveedor)) ?: [] as $palabra) {
+            $palabra = preg_replace('/[^a-z0-9]/', '', $palabra) ?? '';
+
+            if (mb_strlen($palabra) < 4 || in_array($palabra, $genericas, true)) {
+                continue;
+            }
+
+            if (str_contains($plano, $palabra)) {
+                return [$proveedor, null];
+            }
+        }
+
+        return [
+            null,
+            sprintf(
+                'No se registró «%s» como proveedor: ese nombre no aparece en el documento. Se conserva el RUT.',
+                Str::limit($proveedor, 44),
+            ),
+        ];
+    }
+
     private function posicionDeLaEtiquetaDeCliente(string $texto): ?int
     {
         $plano = mb_strtolower($texto);
@@ -398,5 +460,21 @@ class LocalQuotationReader implements QuotationReader
         $limpio = trim($valor);
 
         return $limpio === '' ? null : $limpio;
+    }
+
+    /**
+     * Pide al servidor que suelte el modelo tras un rato sin uso.
+     *
+     * LM Studio y los servidores compatibles aceptan `ttl` en segundos: cargan
+     * el modelo cuando llega la petición y lo descargan pasado ese tiempo. Un
+     * servidor que no reconozca el campo simplemente lo ignora.
+     *
+     * @return array<string, int>
+     */
+    private function descargaAutomatica(): array
+    {
+        $minutos = (int) config('purchase_requests.reader.keep_loaded_minutes', 10);
+
+        return $minutos > 0 ? ['ttl' => $minutos * 60] : [];
     }
 }

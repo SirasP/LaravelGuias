@@ -85,10 +85,10 @@ class ReadQuotationDocument implements ShouldQueue
             return;
         }
 
-        $borrador = $this->crearBorrador($ingestion, $lectura);
-
+        // El job ya NO crea la solicitud. Deja la lectura preparada para que
+        // una persona la revise en pantalla y decida: una lectura equivocada
+        // no debe dejar un borrador que después haya que anular.
         $ingestion->forceFill([
-            'purchase_request_id' => $borrador->getKey(),
             // Una lectura con dudas se marca: el borrador existe, pero hay que
             // mirarlo con más atención antes de enviarlo.
             'status' => $lectura->isDoubtful()
@@ -106,7 +106,7 @@ class ReadQuotationDocument implements ShouldQueue
             'duration_ms' => (int) round((microtime(true) - $comenzo) * 1000),
         ])->save();
 
-        $this->avisar($ingestion, $borrador, $lectura);
+        $this->avisar($ingestion, null, $lectura);
     }
 
     private function crearBorrador(PurchaseRequestIngestion $ingestion, QuotationReading $lectura): PurchaseRequest
@@ -211,22 +211,46 @@ class ReadQuotationDocument implements ShouldQueue
     }
 
     /**
+     * El proveedor de la solicitud, resuelto contra el catálogo.
+     *
+     * El RUT manda: si ya está registrado, se usa el nombre que la empresa le
+     * puso, sin depender de que el modelo lo lea bien. Si es nuevo, se
+     * registra con lo que se haya podido leer para que alguien lo complete
+     * después: así el catálogo se llena solo con el uso.
+     *
      * @return list<string>
      */
     private function proveedorSugerido(QuotationReading $lectura): array
     {
-        $rut = \App\Support\Rut::format($lectura->supplierTaxId);
-        $nombre = $lectura->supplier;
+        $rut = \App\Support\Rut::normalize($lectura->supplierTaxId);
 
-        if ($nombre === null && $rut === null) {
-            return [];
+        // Sin RUT no hay a quién registrar; se deja el nombre leído, si lo hay.
+        if ($rut === null) {
+            return $lectura->supplier !== null ? [$lectura->supplier] : [];
         }
 
-        if ($nombre === null) {
-            return ['RUT '.$rut];
+        $proveedor = \App\Models\PurchaseSupplier::query()
+            ->forCompany()
+            ->where('tax_id', $rut)
+            ->first();
+
+        if ($proveedor === null) {
+            $proveedor = \App\Models\PurchaseSupplier::query()->create([
+                'company_code' => 'EHE',
+                'tax_id' => $rut,
+                'name' => $lectura->supplier,
+                'source' => \App\Models\PurchaseSupplier::SOURCE_DOCUMENT,
+                'notes' => $lectura->supplier === null
+                    ? 'Detectado al leer un documento. Falta ponerle nombre.'
+                    : 'Detectado al leer un documento. Verifica que el nombre sea correcto.',
+            ]);
+        } elseif ($proveedor->needsName() && $lectura->supplier !== null) {
+            // El catálogo lo tenía sin nombre y el documento trajo uno: se
+            // guarda como propuesta, para que alguien lo confirme.
+            $proveedor->forceFill(['name' => $lectura->supplier])->save();
         }
 
-        return [$rut === null ? $nombre : $nombre.' (RUT '.$rut.')'];
+        return [$proveedor->label()];
     }
 
     private function areaDe($autor): string

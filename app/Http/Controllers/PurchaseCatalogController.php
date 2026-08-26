@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\PurchaseSupplier;
+use App\Support\Rut;
 use App\Models\UnitOfMeasure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +50,12 @@ class PurchaseCatalogController extends Controller
                 'plural' => 'Centros de costo y proyectos',
                 'hint' => 'A qué proyecto o faena se imputa la compra. Opcional en la solicitud.',
             ],
+            'proveedores' => [
+                'model' => PurchaseSupplier::class,
+                'singular' => 'Proveedor',
+                'plural' => 'Proveedores',
+                'hint' => 'A quién se le compra, identificado por su RUT. El nombre suele vivir dentro del logo del documento, que es una imagen: registrándolo aquí una vez, deja de depender de que un modelo lo adivine.',
+            ],
             'lugares' => [
                 'model' => Location::class,
                 'singular' => 'Lugar de entrega',
@@ -60,6 +68,13 @@ class PurchaseCatalogController extends Controller
     public function index(Request $request, string $catalog = 'areas'): Response
     {
         $this->authorizeAdmin($request);
+
+        // Los proveedores tienen su propia pantalla: llevan RUT, y ése es su
+        // identificador real, no el nombre.
+        if ($catalog === 'proveedores') {
+            return $this->suppliers($request);
+        }
+
         $config = $this->configFor($catalog);
 
         /** @var class-string<Model> $model */
@@ -78,6 +93,96 @@ class PurchaseCatalogController extends Controller
             'entries' => $entries,
             'isUnit' => $model === UnitOfMeasure::class,
         ]);
+    }
+
+    /** Proveedores: identificados por RUT, no por nombre. */
+    private function suppliers(Request $request): Response
+    {
+        $suppliers = PurchaseSupplier::query()
+            ->forCompany()
+            ->orderByRaw('CASE WHEN (name IS NULL OR name = \'\') AND (trade_name IS NULL OR trade_name = \'\') THEN 0 ELSE 1 END')
+            ->orderByDesc('is_active')
+            ->orderBy('name')
+            ->get();
+
+        return response()->view('purchase_catalogs.suppliers', [
+            'catalog' => 'proveedores',
+            'catalogs' => self::catalogs(),
+            'suppliers' => $suppliers,
+            'sinNombre' => $suppliers->filter->needsName()->count(),
+        ]);
+    }
+
+    public function storeSupplier(Request $request): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $data = $request->validate([
+            'tax_id' => ['required', 'string', 'max:20', function ($attribute, $value, $fail): void {
+                if (! Rut::isValid($value)) {
+                    $fail('Ese RUT no es válido: revisa el número y su dígito verificador.');
+                }
+            }],
+            'name' => ['required', 'string', 'max:200'],
+            'trade_name' => ['nullable', 'string', 'max:200'],
+            'email' => ['nullable', 'email', 'max:200'],
+        ], [], ['tax_id' => 'el RUT', 'name' => 'la razón social', 'trade_name' => 'el nombre de fantasía', 'email' => 'el correo']);
+
+        $rut = Rut::normalize($data['tax_id']);
+
+        $existente = PurchaseSupplier::query()->forCompany()->where('tax_id', $rut)->first();
+
+        if ($existente !== null) {
+            throw ValidationException::withMessages([
+                'tax_id' => 'Ese RUT ya está registrado como «'.($existente->displayName() ?? 'sin nombre').'».',
+            ]);
+        }
+
+        PurchaseSupplier::query()->create([
+            'company_code' => 'EHE',
+            'tax_id' => $rut,
+            'name' => $data['name'],
+            'trade_name' => $data['trade_name'] ?? null,
+            'email' => $data['email'] ?? null,
+            'source' => PurchaseSupplier::SOURCE_MANUAL,
+            'is_active' => true,
+        ]);
+
+        return to_route('purchase_catalogs.index', 'proveedores')
+            ->with('success', 'Proveedor agregado.');
+    }
+
+    public function updateSupplier(Request $request, int $supplier): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $registro = PurchaseSupplier::query()->forCompany()->findOrFail($supplier);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:200'],
+            'trade_name' => ['nullable', 'string', 'max:200'],
+            'email' => ['nullable', 'email', 'max:200'],
+        ], [], ['name' => 'la razón social', 'trade_name' => 'el nombre de fantasía', 'email' => 'el correo']);
+
+        // El RUT no se edita: es la identidad del proveedor. Si está errado,
+        // se desactiva este y se crea el correcto.
+        $registro->fill($data)->save();
+
+        return to_route('purchase_catalogs.index', 'proveedores')
+            ->with('success', 'Proveedor actualizado. Las solicitudes ya emitidas conservan el nombre que tenían.');
+    }
+
+    public function toggleSupplier(Request $request, int $supplier): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $registro = PurchaseSupplier::query()->forCompany()->findOrFail($supplier);
+        $registro->forceFill(['is_active' => ! $registro->is_active])->save();
+
+        return to_route('purchase_catalogs.index', 'proveedores')->with(
+            'success',
+            $registro->is_active ? 'Proveedor reactivado.' : 'Proveedor desactivado.',
+        );
     }
 
     public function store(Request $request, string $catalog): RedirectResponse

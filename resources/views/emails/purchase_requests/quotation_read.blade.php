@@ -32,17 +32,17 @@
 
     <p style="margin:0 0 8px;font-size:13px;color:#334155;line-height:1.6;">
         @if($esElAutor ?? true)
-            El asistente sólo prepara un borrador. Nada se envía a revisión hasta que tú lo confirmes.
+            El asistente sólo leyó el documento. Nada se crea hasta que revises lo leído y lo confirmes.
         @else
-            Te avisamos para que sepas que la cotización llegó y no se pierda. El borrador es de
-            {{ $quienSubio ?? 'quien la subió' }}: aparecerá en tu bandeja de revisión cuando la envíe.
+            Te avisamos para que sepas que la cotización llegó y no se pierda. La revisa
+            {{ $quienSubio ?? 'quien la subió' }}, y aparecerá en tu bandeja cuando la envíe.
         @endif
     </p>
 
     <p style="margin:14px 0 20px;">
         <a href="{{ $url }}"
             style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:bold;">
-            {{ $purchaseRequest ? 'Revisar el borrador' : 'Ver el documento' }}
+            {{ $purchaseRequest ? 'Ver la solicitud' : 'Revisar lo leído' }}
         </a>
     </p>
 

@@ -68,15 +68,17 @@ class QuotationDraftReady extends Notification implements ShouldQueue
      */
     private function enlacePara(object $notifiable): string
     {
-        if ($this->purchaseRequest === null) {
-            return route('purchase_requests.ingestions.index');
+        // Ya no hay solicitud creada al terminar la lectura: se lleva a la
+        // pantalla donde se revisa y se decide si crearla.
+        if ($this->purchaseRequest !== null) {
+            return $this->esElAutor($notifiable)
+                ? route('purchase_requests.edit', $this->purchaseRequest->public_id)
+                : route('purchase_requests.show', $this->purchaseRequest->public_id);
         }
 
-        $esElAutor = ($notifiable->getKey() ?? null) === $this->ingestion->user_id;
-
-        return $esElAutor
-            ? route('purchase_requests.edit', $this->purchaseRequest->public_id)
-            : route('purchase_requests.show', $this->purchaseRequest->public_id);
+        return $this->ingestion->isFinished()
+            ? route('purchase_requests.ingestions.show', $this->ingestion->public_id)
+            : route('purchase_requests.ingestions.index');
     }
 
     private function esElAutor(object $notifiable): bool
@@ -117,8 +119,8 @@ class QuotationDraftReady extends Notification implements ShouldQueue
         }
 
         return match ($this->ingestion->status) {
-            PurchaseRequestIngestion::COMPLETED => 'Borrador listo desde '.$doc,
-            PurchaseRequestIngestion::NEEDS_REVIEW => 'Borrador con dudas desde '.$doc,
+            PurchaseRequestIngestion::COMPLETED => 'Documento leído: '.$doc,
+            PurchaseRequestIngestion::NEEDS_REVIEW => 'Documento leído con dudas: '.$doc,
             default => 'No se pudo leer '.$doc,
         };
     }
@@ -137,7 +139,7 @@ class QuotationDraftReady extends Notification implements ShouldQueue
             return match ($this->ingestion->status) {
                 PurchaseRequestIngestion::COMPLETED,
                 PurchaseRequestIngestion::NEEDS_REVIEW => sprintf(
-                    '%s subió una cotización%s con %d %s. Quedó como borrador suyo: la envía a revisión cuando la confirme.',
+                    '%s subió una cotización%s con %d %s. Aún no es una solicitud: la crea cuando revise lo leído.',
                     $quien,
                     $proveedor !== null ? ' de '.$proveedor : '',
                     $partidas,
@@ -149,12 +151,12 @@ class QuotationDraftReady extends Notification implements ShouldQueue
 
         return match ($this->ingestion->status) {
             PurchaseRequestIngestion::COMPLETED => sprintf(
-                'Se reconocieron %d %s. Revísalas y envía la solicitud cuando estén correctas.',
+                'Se reconocieron %d %s. Revísalas y crea la solicitud cuando estén correctas.',
                 $partidas,
                 $partidas === 1 ? 'partida' : 'partidas',
             ),
             PurchaseRequestIngestion::NEEDS_REVIEW => sprintf(
-                'Se reconocieron %d %s, pero hay datos que no se pudieron confirmar. Complétalos antes de enviar.',
+                'Se reconocieron %d %s, pero hay datos que no se pudieron confirmar. Revísalas antes de crear la solicitud.',
                 $partidas,
                 $partidas === 1 ? 'partida' : 'partidas',
             ),

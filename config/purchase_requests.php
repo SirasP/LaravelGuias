@@ -74,6 +74,20 @@ return [
         // la pantalla. Con un modelo lento hay que subirlo, asumiendo la espera.
         'draft_timeout' => (int) env('PURCHASE_REQUESTS_READER_DRAFT_TIMEOUT', 45),
 
+        /*
+         * Minutos que el modelo queda en memoria tras la última lectura.
+         *
+         * LM Studio y compatibles aceptan este dato en cada petición: cargan
+         * el modelo al recibirla y lo sueltan pasado este tiempo sin uso. Así
+         * la máquina que lo hospeda no carga con varios gigas ocupados todo el
+         * día por un asistente que se usa unas pocas veces.
+         *
+         * Cargar de nuevo cuesta unos segundos; sólo lo paga la primera
+         * lectura después de un rato de silencio. En 0 se desactiva y el
+         * modelo queda cargado indefinidamente.
+         */
+        'keep_loaded_minutes' => (int) env('PURCHASE_REQUESTS_READER_KEEP_LOADED', 10),
+
         // Cuántas páginas del PDF se miran. Una cotización rara vez pasa de 3.
         'max_pages' => (int) env('PURCHASE_REQUESTS_READER_MAX_PAGES', 3),
 
