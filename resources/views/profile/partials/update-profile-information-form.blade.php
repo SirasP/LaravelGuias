@@ -43,6 +43,8 @@
                             </p>
                         @endif
                     </div>
+                @endif
+            </div>
 
             <div>
                 <label for="notification_email" class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
@@ -60,8 +62,6 @@
                     Déjalo en blanco para recibirlos donde siempre.
                 </p>
                 <x-input-error class="mt-1.5" :messages="$errors->get('notification_email')" />
-            </div>
-                @endif
             </div>
         </div>
 

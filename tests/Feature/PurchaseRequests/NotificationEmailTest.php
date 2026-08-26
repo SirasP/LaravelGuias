@@ -27,6 +27,25 @@ it('keeps using the login address while nobody sets another one', function () {
     expect($user->routeNotificationForMail())->toBe('jose@ejemplo.cl');
 });
 
+it('shows the field on the profile page, verified email or not', function () {
+    // La primera vez quedó dentro del aviso de «correo sin verificar», que sólo
+    // se dibuja cuando el correo NO está verificado: el campo existía, se podía
+    // guardar por la ruta, y en pantalla no aparecía. Los tests de modelo y de
+    // ruta pasaban igual. Por eso este mira la página.
+    $verificado = User::factory()->create(['email_verified_at' => now()]);
+
+    $this->actingAs($verificado)->get(route('profile.edit'))
+        ->assertOk()
+        ->assertSee('Correo para avisos')
+        ->assertSee('name="notification_email"', false);
+
+    $sinVerificar = User::factory()->unverified()->create();
+
+    $this->actingAs($sinVerificar)->get(route('profile.edit'))
+        ->assertOk()
+        ->assertSee('name="notification_email"', false);
+});
+
 it('lets a person set and clear it from their profile', function () {
     $user = User::factory()->create(['email' => 'paola@ejemplo.cl']);
 
