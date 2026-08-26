@@ -219,10 +219,17 @@ it('keeps the side panel filters inside the form so they still reach the server'
     $inicio = strpos($html, '<form method="GET"');
     $formulario = substr($html, $inicio, strpos($html, '</form>', $inicio) - $inicio);
 
-    foreach (['department', 'requester', 'requested_from', 'requested_to', 'required_from', 'required_to'] as $campo) {
+    foreach (['search', 'status', 'department', 'requester', 'requested_from', 'requested_to', 'required_from', 'required_to'] as $campo) {
         expect($formulario)->toContain('name="'.$campo.'"');
     }
 
     // Y el panel entra desde la derecha, no empujando la tabla hacia abajo.
     expect($formulario)->toContain('translate-x-full');
+
+    // Fuera del panel sólo queda el botón que lo abre: nada de enviar el
+    // formulario desde la barra, que era de donde venía el desorden.
+    $barra = substr($formulario, 0, strpos($formulario, 'id="filtros-avanzados"'));
+
+    expect($barra)->toContain('Filtros');
+    expect($barra)->not->toContain('type="submit"');
 });

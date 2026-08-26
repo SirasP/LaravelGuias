@@ -117,13 +117,16 @@
 
                 @php
                     $f = $filters ?? [];
-                    $activeFilters = collect($f)->filter(fn ($v) => filled($v))->count();
+                    // El estado también cuenta: desde que vive en el panel, es un
+                    // filtro más y el número del botón tiene que reflejarlo.
+                    $activeFilters = collect($f)->filter(fn ($v) => filled($v))->count()
+                        + (filled($currentStatus) ? 1 : 0);
                 @endphp
 
                 {{--
-                    Los filtros de detalle viven en un panel lateral. Antes se abrían
-                    hacia abajo y empujaban la tabla media pantalla; ahora entran por
-                    la derecha y la lista se queda quieta detrás.
+                    Todos los filtros viven en un panel lateral. Antes se abrían hacia
+                    abajo y empujaban la tabla media pantalla; ahora entran por la
+                    derecha y la lista se queda quieta detrás.
                 --}}
                 <form method="GET" action="{{ route('purchase_requests.index') }}"
                     x-data="{ open: false }"
@@ -131,41 +134,18 @@
                     @keydown.escape.window="open = false"
                     class="w-full sm:w-auto">
 
-                    {{-- Búsqueda y estado siempre visibles; el resto se despliega --}}
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <label for="search" class="sr-only">Buscar por folio, motivo o solicitante</label>
-                        <input id="search" name="search" type="search" value="{{ $f['search'] ?? '' }}"
-                            placeholder="Folio, motivo o solicitante…"
-                            class="min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:w-56">
-
-                        <label for="status-filter" class="sr-only">Filtrar por estado</label>
-                        <select id="status-filter" name="status"
-                            class="min-h-11 w-full rounded-xl border-slate-300 bg-white py-2 pl-3 pr-9 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:w-auto">
-                            <option value="" @selected(blank($currentStatus))>Todos los estados</option>
-                            <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW)>
-                                ⏳ Pendientes de decisión (enviadas y corregidas)
-                            </option>
-                            @foreach (\App\Enums\PurchaseRequestStatus::cases() as $case)
-                                <option value="{{ $case->value }}" @selected($currentStatus === $case->value)>
-                                    {{ $case->icon() }} {{ $case->label() }}
-                                </option>
-                            @endforeach
-                        </select>
-
-                        <button type="button" x-ref="abrirFiltros" @click="open = true"
-                            class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                            :aria-expanded="open.toString()" aria-controls="filtros-avanzados">
-                            Más filtros
-                            @if ($activeFilters > 0)
-                                <span class="rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">{{ $activeFilters }}</span>
-                            @endif
-                        </button>
-
-                        <button type="submit"
-                            class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700">
-                            Filtrar
-                        </button>
-                    </div>
+                    <button type="button" x-ref="abrirFiltros"
+                        @click="open = true; $nextTick(() => $refs.primerCampo?.focus())"
+                        class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
+                        :aria-expanded="open.toString()" aria-controls="filtros-avanzados">
+                        <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12.414V19a1 1 0 01-.553.894l-4 2A1 1 0 019 21v-8.586L3.293 6.707A1 1 0 013 6V4z" />
+                        </svg>
+                        Filtros
+                        @if ($activeFilters > 0)
+                            <span class="rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">{{ $activeFilters }}</span>
+                        @endif
+                    </button>
 
                     {{-- Fondo oscuro: atenúa la lista y sirve para cerrar --}}
                     <div x-show="open" x-cloak x-transition.opacity.duration.200ms
@@ -187,7 +167,7 @@
                         <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                             <div>
                                 <h3 id="filtros-avanzados-titulo" class="font-extrabold text-slate-900 dark:text-white">Más filtros</h3>
-                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Se suman a la búsqueda y al estado.</p>
+                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Se aplican sobre todos los registros.</p>
                             </div>
                             <button type="button" @click="open = false; $refs.abrirFiltros?.focus()"
                                 class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200">
@@ -199,6 +179,29 @@
                         </div>
 
                         <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                            <div>
+                                <label for="search" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Buscar</label>
+                                <input id="search" name="search" type="search" x-ref="primerCampo" value="{{ $f['search'] ?? '' }}"
+                                    placeholder="Folio, motivo o solicitante…"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                            </div>
+
+                            <div>
+                                <label for="status-filter" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Estado</label>
+                                <select id="status-filter" name="status"
+                                    class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white py-2 pl-3 pr-9 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    <option value="" @selected(blank($currentStatus))>Todos los estados</option>
+                                    <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW)>
+                                        ⏳ Pendientes de decisión (enviadas y corregidas)
+                                    </option>
+                                    @foreach (\App\Enums\PurchaseRequestStatus::cases() as $case)
+                                        <option value="{{ $case->value }}" @selected($currentStatus === $case->value)>
+                                            {{ $case->icon() }} {{ $case->label() }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div>
                                 <label for="filter-department" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Área</label>
                                 <select id="filter-department" name="department"
@@ -252,7 +255,7 @@
                         </div>
 
                         <div class="flex items-center gap-2 border-t border-slate-100 px-5 py-4 dark:border-slate-800">
-                            @if ($activeFilters > 0 || filled($currentStatus))
+                            @if ($activeFilters > 0)
                                 <a href="{{ route('purchase_requests.index') }}"
                                     class="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                                     Limpiar
