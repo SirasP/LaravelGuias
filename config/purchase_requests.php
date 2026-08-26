@@ -43,7 +43,19 @@ return [
     'reader' => [
         'enabled' => (bool) env('PURCHASE_REQUESTS_READER', false),
 
-        // Servidor compatible con la API de OpenAI: LM Studio, Ollama, vLLM.
+        /*
+         * Cualquier servidor que hable el protocolo de OpenAI. Sirven todos
+         * sin cambiar una línea de código, sólo estas dos variables:
+         *
+         *   LM Studio local   http://localhost:1234/v1
+         *   Ollama local      http://localhost:11434/v1
+         *   Google Gemini     https://generativelanguage.googleapis.com/v1beta/openai
+         *   Groq              https://api.groq.com/openai/v1
+         *
+         * Con un proveedor externo, los documentos de compra salen de la red
+         * de la empresa. Es una decisión a tomar a conciencia, no un detalle
+         * de configuración.
+         */
         'base_url' => rtrim((string) env('PURCHASE_REQUESTS_READER_URL', 'http://localhost:1234/v1'), '/'),
         'api_key' => env('PURCHASE_REQUESTS_READER_KEY', 'lm-studio'),
 
