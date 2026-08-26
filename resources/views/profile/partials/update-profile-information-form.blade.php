@@ -20,7 +20,7 @@
             </div>
 
             <div>
-                <label for="email" class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">Correo electrónico</label>
+                <label for="email" class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">Correo electrónico <span class="font-normal text-gray-400">(con el que inicias sesión)</span></label>
                 <input id="email" name="email" type="email" required autocomplete="username"
                     value="{{ old('email', $user->email) }}"
                     class="w-full rounded-xl border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50
@@ -43,6 +43,24 @@
                             </p>
                         @endif
                     </div>
+
+            <div>
+                <label for="notification_email" class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                    Correo para avisos <span class="font-normal text-gray-400">(opcional)</span>
+                </label>
+                <input id="notification_email" name="notification_email" type="email" autocomplete="email"
+                    value="{{ old('notification_email', $user->notification_email) }}"
+                    placeholder="{{ $user->email }}"
+                    class="w-full rounded-xl border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50
+                           text-sm text-gray-900 dark:text-gray-100
+                           focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20
+                           placeholder-gray-400 transition" />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Si lo completas, los avisos de solicitudes de compra llegan aquí en vez de a tu correo de acceso.
+                    Déjalo en blanco para recibirlos donde siempre.
+                </p>
+                <x-input-error class="mt-1.5" :messages="$errors->get('notification_email')" />
+            </div>
                 @endif
             </div>
         </div>

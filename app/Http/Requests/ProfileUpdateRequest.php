@@ -25,6 +25,9 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            // Opcional y sin exigir que sea única: varias personas de un área
+            // pueden querer los avisos en un mismo buzón compartido.
+            'notification_email' => ['nullable', 'string', 'lowercase', 'email', 'max:255'],
         ];
     }
 }

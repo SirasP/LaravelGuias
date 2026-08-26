@@ -18,9 +18,22 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    /**
+     * A dónde van los avisos por correo.
+     *
+     * Laravel consulta este método antes de mirar la propiedad `email`, así que
+     * basta con definirlo para que todas las notificaciones lo respeten.
+     * Sin dirección de avisos se usa la de acceso, que es como funcionaba antes.
+     */
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->notification_email ?: $this->email;
+    }
+
     protected $fillable = [
         'name',
         'email',
+        'notification_email',
         'password',
         'role',
     ];
