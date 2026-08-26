@@ -14,6 +14,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Correo restringido a unas pocas direcciones
+    |--------------------------------------------------------------------------
+    |
+    | Sirve para probar en un sistema con gente real trabajando: mientras haya
+    | direcciones en esta lista, el correo sale SÓLO hacia ellas. Las demás
+    | personas siguen viendo sus avisos dentro del sistema, en Avisos, igual
+    | que siempre; lo único que no reciben es el correo.
+    |
+    | Vacío —lo normal— significa que el correo va a todo el mundo. Es una
+    | medida temporal: cuando terminen las pruebas hay que quitar la variable
+    | del .env, o el resto del equipo se queda sin correos sin que nadie
+    | recuerde por qué.
+    |
+    */
+    'mail_only' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('PURCHASE_REQUESTS_MAIL_ONLY', '')),
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Empresa compradora
     |--------------------------------------------------------------------------
     |

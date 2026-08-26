@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\PurchaseRequest;
 use App\Models\User;
+use App\Support\PurchaseMailRouting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -22,8 +23,7 @@ class PurchaseRequestReviewed extends Notification implements ShouldQueue
         public readonly User $actor,
         public readonly string $outcome,
         public readonly ?string $comment = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Dentro del sistema siempre; por correo sólo si la persona tiene una
@@ -35,10 +35,7 @@ class PurchaseRequestReviewed extends Notification implements ShouldQueue
     {
         $channels = ['database'];
 
-        // `routeNotificationFor` resuelve la dirección tanto para un User
-        // como para un destinatario anónimo creado con Notification::route().
-        // Mirar $notifiable->email directamente dejaba fuera el segundo caso.
-        if (config('purchase_requests.mail_enabled') && filled($notifiable->routeNotificationFor('mail'))) {
+        if (PurchaseMailRouting::alcanza($notifiable)) {
             $channels[] = 'mail';
         }
 

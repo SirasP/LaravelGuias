@@ -86,3 +86,44 @@ it('actually delivers a purchase notice to the chosen address', function () {
     expect($destino)->toContain('mail')
         ->and($revisor->routeNotificationForMail())->toBe('compras@ehe.cl');
 });
+
+it('can restrict outgoing mail to a few addresses while testing', function () {
+    config(['purchase_requests.mail_enabled' => true]);
+
+    $yo = User::factory()->create(['email' => 's.lopez.epple@gmail.com']);
+    $otra = User::factory()->create(['email' => 'adm.agricolae.h@gmail.com']);
+
+    $solicitud = $this->submitPurchaseRequest($yo, $this->createPurchaseRequestDraft($yo));
+    $aviso = new PurchaseRequestSubmitted($solicitud, $yo);
+
+    // Sin restricción, el correo sale a todo el mundo.
+    expect($aviso->via($yo))->toContain('mail')
+        ->and($aviso->via($otra))->toContain('mail');
+
+    config(['purchase_requests.mail_only' => ['s.lopez.epple@gmail.com']]);
+
+    expect($aviso->via($yo))->toContain('mail');
+
+    // La otra persona deja de recibir correo, pero NO deja de estar avisada:
+    // su notificación en pantalla sigue llegando igual.
+    expect($aviso->via($otra))->not->toContain('mail')
+        ->and($aviso->via($otra))->toContain('database');
+});
+
+it('matches the address the notices actually go to, not the login one', function () {
+    config([
+        'purchase_requests.mail_enabled' => true,
+        'purchase_requests.mail_only' => ['sebastian.lopez@ehe.cl'],
+    ]);
+
+    // Si la lista se comparara contra el correo de acceso, poner el @ehe.cl
+    // dejaría sin correo justo a la persona que está haciendo las pruebas.
+    $conReenvio = User::factory()->create([
+        'email' => 's.lopez.epple@gmail.com',
+        'notification_email' => 'sebastian.lopez@ehe.cl',
+    ]);
+
+    $solicitud = $this->submitPurchaseRequest($conReenvio, $this->createPurchaseRequestDraft($conReenvio));
+
+    expect((new PurchaseRequestSubmitted($solicitud, $conReenvio))->via($conReenvio))->toContain('mail');
+});

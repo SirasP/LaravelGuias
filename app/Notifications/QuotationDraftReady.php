@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
+use App\Support\PurchaseMailRouting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -20,15 +21,14 @@ class QuotationDraftReady extends Notification implements ShouldQueue
     public function __construct(
         public readonly PurchaseRequestIngestion $ingestion,
         public readonly ?PurchaseRequest $purchaseRequest = null,
-    ) {
-    }
+    ) {}
 
     /** @return list<string> */
     public function via(object $notifiable): array
     {
         $channels = ['database'];
 
-        if (config('purchase_requests.mail_enabled') && filled($notifiable->routeNotificationFor('mail'))) {
+        if (PurchaseMailRouting::alcanza($notifiable)) {
             $channels[] = 'mail';
         }
 
