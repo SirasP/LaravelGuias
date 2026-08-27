@@ -215,7 +215,10 @@
                                 Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
                                 No se vuelve a enviar: habría dos cotizaciones para la misma compra.
                             </p>
-                        @elseif(filled($candidatos) || session('odoo_query'))
+                        {{-- `exists` y no `filled`: cuando Odoo no encontró nada
+                             la lista llega vacía, y es justo el momento en que
+                             más falta hace el buscador. --}}
+                        @elseif(session()->exists('odoo_candidates') || session('odoo_query'))
                             <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
                                 Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}».
                                 Búscalo tú, que sabes a quién buscas.

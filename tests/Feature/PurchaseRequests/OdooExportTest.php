@@ -384,3 +384,24 @@ it('never writes to the supplier master in Odoo', function () {
             || ! in_array($args[4] ?? null, ['create', 'write'], true);
     });
 });
+
+it('offers the search box precisely when Odoo found nothing', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    $compras = User::factory()->create(['role' => 'admin']);
+    $solicitud = PurchaseRequest::factory()->forUser($compras)->approved()->create();
+
+    // Sin candidatos, que es cuando más falta hace: la primera versión
+    // comprobaba `filled($candidatos)` y con la lista vacía mostraba de nuevo
+    // el botón de enviar, dejando el aviso sin ninguna salida.
+    $this->actingAs($compras)
+        ->withSession(['odoo_candidates' => []])
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('Buscar en Odoo por nombre o RUT')
+        ->assertDontSee('Enviar a Odoo');
+});
