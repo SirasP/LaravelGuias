@@ -3,6 +3,7 @@
 namespace App\Services\PurchaseRequests\Odoo;
 
 use App\Enums\PurchaseRequestStatus;
+use App\Models\OdooProduct;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
@@ -328,6 +329,25 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
         if ($emparejado->resolved()) {
             $linea['product_id'] = $emparejado->odooProductId;
+
+            /*
+             * Con producto, la unidad la manda el producto.
+             *
+             * Odoo exige que la unidad de la línea sea de la misma categoría
+             * que la del producto, y rechaza la orden entera si no lo es:
+             * «m³ no pertenece a la misma categoría que Units». Nuestra
+             * equivalencia dice que Cubos es m³, y el producto Bolones está
+             * declarado en Units. Las dos afirmaciones son razonables y no se
+             * pueden sostener a la vez, así que gana la de Odoo, que es donde
+             * la línea va a vivir.
+             */
+            $unidadDelProducto = OdooProduct::query()
+                ->where('odoo_id', $emparejado->odooProductId)
+                ->value('uom_id');
+
+            if (filled($unidadDelProducto)) {
+                $linea['product_uom'] = (int) $unidadDelProducto;
+            }
         }
 
         // La fecha requerida de la solicitud es la entrega esperada de Odoo:

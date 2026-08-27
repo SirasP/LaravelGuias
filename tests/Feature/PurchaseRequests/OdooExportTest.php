@@ -543,3 +543,72 @@ it('leaves the line without product when it is only a guess', function () {
         return ! array_key_exists('product_id', $args[5][0]['order_line'][0][2]);
     });
 });
+
+it('takes the unit from the product, because Odoo rejects the order otherwise', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    // Nuestro catálogo dice que Cubos es m³…
+    unidadMapeada('Cubos', 'cubo', 11);
+
+    // …y el producto de Odoo está declarado en Units. Las dos afirmaciones son
+    // razonables y no se sostienen a la vez: Odoo rechaza la orden entera con
+    // «m³ no pertenece a la misma categoría que Units».
+    App\Models\OdooProduct::create([
+        'odoo_id' => 8633, 'name' => 'Bolones', 'uom_id' => 1, 'uom_name' => 'Units',
+        'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+    App\Models\PurchaseProductLink::create([
+        'company_code' => 'EHE', 'odoo_partner_id' => null,
+        'source_text' => 'bolones', 'normalized_text' => 'bolones',
+        'odoo_product_id' => 8633, 'odoo_product_name' => 'Bolones',
+        'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'bolones',
+        'quantity' => '5', 'unit' => 'Cubos', 'unit_price' => '32130',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        $linea = $args[5][0]['order_line'][0][2];
+
+        // Gana la del producto: es donde la línea va a vivir.
+        return $linea['product_id'] === 8633 && $linea['product_uom'] === 1;
+    });
+});
+
+it('keeps our own unit when the line carries no product', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    unidadMapeada('Cubos', 'cubo', 11);
+
+    // Sin producto no hay con qué chocar, y m³ describe mejor la compra.
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'arena gruesa',
+        'quantity' => '4', 'unit' => 'Cubos', 'unit_price' => '31535',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        $linea = $args[5][0]['order_line'][0][2];
+
+        return ! array_key_exists('product_id', $linea) && $linea['product_uom'] === 11;
+    });
+});
