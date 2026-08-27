@@ -67,11 +67,16 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 // para que una persona diga cuál, en vez de acertar solos.
                 $candidatos = $this->candidatos($purchaseRequest);
 
+                $paraCrear = $this->datosParaCrear($purchaseRequest);
+
                 return PurchaseRequestExportResult::needsSupplier(
-                    $candidatos === []
-                        ? 'Odoo no tiene ningún proveedor que se parezca al escrito. Regístralo allá antes de exportar.'
-                        : 'Falta decir cuál es el proveedor en Odoo antes de crear la cotización.',
+                    match (true) {
+                        $candidatos !== [] => 'Falta decir cuál es el proveedor en Odoo antes de crear la cotización.',
+                        $paraCrear !== null => 'Odoo no conoce a este proveedor. Puedes darlo de alta con los datos de la cotización.',
+                        default => 'Odoo no tiene este proveedor y la cotización no trae un RUT válido con que darlo de alta. Regístralo allá.',
+                    },
                     $candidatos,
+                    $paraCrear,
                 );
             }
 
@@ -176,6 +181,133 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         }
 
         return array_keys($palabras);
+    }
+
+    /**
+     * Busca proveedores en Odoo por nombre o por RUT.
+     *
+     * Es la salida cuando lo que el sistema propone no sirve: nombres de
+     * fantasía, razones sociales que no se parecen a como se le llama, o un
+     * proveedor cargado con otro nombre. Buscar lo hace una persona, que sabe
+     * a quién está buscando.
+     *
+     * @return list<array{id: int, name: string, vat: string|null}>
+     */
+    public function buscarProveedores(string $texto): array
+    {
+        $texto = trim($texto);
+
+        if ($texto === '') {
+            return [];
+        }
+
+        // Si escribió un RUT, se busca por RUT: es exacto y no se presta a
+        // confusión con nombres parecidos.
+        $rut = Rut::normalize($texto);
+
+        $criterio = $rut !== null && Rut::isValid($rut)
+            ? [['vat', '=', $rut]]
+            : [['name', 'ilike', $texto], ['supplier_rank', '>', 0]];
+
+        $filas = $this->client->execute(
+            'res.partner',
+            'search_read',
+            [$criterio],
+            ['fields' => ['id', 'name', 'vat'], 'limit' => 15, 'order' => 'name'],
+        );
+
+        return array_map(fn (array $f): array => [
+            'id' => (int) $f['id'],
+            'name' => (string) $f['name'],
+            'vat' => filled($f['vat'] ?? null) ? (string) $f['vat'] : null,
+        ], is_array($filas) ? $filas : []);
+    }
+
+    /**
+     * Le escribe el RUT a un proveedor de Odoo que no lo tenía.
+     *
+     * De los 665 proveedores, catorce están sin RUT. Sin él no hay forma de
+     * reconocerlos automáticamente, y esta es la manera de arreglarlo desde
+     * aquí en vez de ir a Odoo a mano.
+     */
+    public function ponerRutAProveedor(int $odooPartnerId, string $rut): void
+    {
+        $normalizado = Rut::normalize($rut);
+
+        if ($normalizado === null || ! Rut::isValid($normalizado)) {
+            throw new \InvalidArgumentException('El RUT no es válido.');
+        }
+
+        $this->client->execute('res.partner', 'write', [[$odooPartnerId], [
+            'vat' => $normalizado,
+            'l10n_latam_identification_type_id' => (int) config('purchase_requests.odoo.rut_type_id', 4),
+            'country_id' => (int) config('purchase_requests.odoo.country_id', 46),
+        ]]);
+    }
+
+    /**
+     * Crea el proveedor en Odoo y devuelve su id.
+     *
+     * Sólo se llama cuando una persona lo pidió. No es una excepción a la regla
+     * de «no inventar proveedores»: el nombre legal y el RUT vienen escritos en
+     * la cotización que mandó el propio proveedor, y el RUT se comprueba con su
+     * dígito verificador antes de llegar aquí.
+     */
+    public function crearProveedor(string $nombre, string $rut): int
+    {
+        $normalizado = Rut::normalize($rut);
+
+        if ($normalizado === null || ! Rut::isValid($normalizado)) {
+            throw new \InvalidArgumentException('El RUT no es válido, así que no se crea nada.');
+        }
+
+        // Puede haberse creado entretanto, o existir sin que la búsqueda por
+        // nombre lo encontrara. Dos fichas del mismo proveedor son un lío que
+        // después hay que deshacer a mano.
+        $existe = $this->client->execute('res.partner', 'search', [[['vat', '=', $normalizado]]], ['limit' => 1]);
+
+        if (is_array($existe) && $existe !== []) {
+            return (int) $existe[0];
+        }
+
+        return (int) $this->client->execute('res.partner', 'create', [[
+            'name' => trim($nombre),
+            'vat' => $normalizado,
+            'l10n_latam_identification_type_id' => (int) config('purchase_requests.odoo.rut_type_id', 4),
+            'country_id' => (int) config('purchase_requests.odoo.country_id', 46),
+            // Sin esto no cuenta como proveedor y no aparece donde debe.
+            'supplier_rank' => 1,
+            'company_type' => 'company',
+        ]]);
+    }
+
+    /**
+     * Nombre y RUT con que se podría dar de alta, si la cotización los trae.
+     *
+     * @return array{name: string, vat: string}|null
+     */
+    private function datosParaCrear(PurchaseRequest $purchaseRequest): ?array
+    {
+        foreach ((array) ($purchaseRequest->suggested_suppliers ?? []) as $sugerido) {
+            $texto = trim((string) $sugerido);
+            $ruts = Rut::findAll($texto);
+
+            if ($ruts === [] || ! Rut::isValid($ruts[0]['rut'])) {
+                continue;
+            }
+
+            // El nombre es lo escrito sin el RUT ni su envoltorio.
+            $nombre = trim(preg_replace('/\(?\s*R\.?U\.?T\.?\s*:?\s*[\d.]+\s*-?\s*[\dkK]\s*\)?/iu', '', $texto) ?? '');
+            $nombre = trim($nombre, " \t.,;:-()");
+
+            if ($nombre === '') {
+                continue;
+            }
+
+            return ['name' => $nombre, 'vat' => (string) $ruts[0]['rut']];
+        }
+
+        return null;
     }
 
     private function rutDelProveedor(PurchaseRequest $purchaseRequest): ?string

@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Notifications\PurchaseRequestReviewed;
 use App\Notifications\PurchaseRequestSubmitted;
 use App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier;
+use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
 use App\Services\PurchaseRequests\PurchaseRequestSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -762,6 +763,7 @@ class PurchaseRequestController extends Controller
             // No es un error: falta un dato que sólo una persona puede dar.
             return back()
                 ->with('odoo_candidates', $resultado->candidates)
+                ->with('odoo_creatable', $resultado->creatable)
                 ->with('warning', $resultado->message);
         }
 
@@ -782,6 +784,104 @@ class PurchaseRequestController extends Controller
         ]);
 
         return back()->with($resultado->performed ? 'success' : 'info', $resultado->message);
+    }
+
+    /**
+     * Busca proveedores en Odoo desde la propia pantalla.
+     *
+     * Es la salida cuando lo que el sistema propone no sirve. Quien revisa
+     * sabe a quién está buscando; el sistema sólo sabe parecidos.
+     */
+    public function searchOdooSupplier(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestExporter $exporter): RedirectResponse
+    {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $datos = $request->validate([
+            'q' => ['required', 'string', 'min:2', 'max:120'],
+        ], [], ['q' => 'la búsqueda']);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        $encontrados = $exporter->buscarProveedores($datos['q']);
+
+        return back()
+            ->with('odoo_candidates', $encontrados)
+            ->with('odoo_query', $datos['q'])
+            ->with($encontrados === [] ? 'warning' : 'info', $encontrados === []
+                ? 'Odoo no tiene ningún proveedor que coincida con «'.$datos['q'].'».'
+                : 'Odoo encontró '.count($encontrados).' proveedor'.(count($encontrados) === 1 ? '' : 'es').'.');
+    }
+
+    /**
+     * Da de alta el proveedor en Odoo con los datos de la cotización.
+     *
+     * No es inventar un proveedor: el nombre legal y el RUT vienen escritos en
+     * el documento que mandó el propio proveedor, y el RUT se comprueba con su
+     * dígito verificador. Lo dispara una persona, nunca el sistema solo.
+     */
+    public function createOdooSupplier(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestExporter $exporter,
+        ConfirmOdooSupplier $confirmar,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $datos = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'vat' => ['required', 'string', 'max:32'],
+        ]);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        try {
+            $id = $exporter->crearProveedor($datos['name'], $datos['vat']);
+        } catch (Throwable $e) {
+            return back()->with('error', 'No se pudo crear el proveedor en Odoo: '.$e->getMessage());
+        }
+
+        $confirmar($purchaseRequest, $id, $datos['name'], $datos['vat']);
+
+        return $this->exportToOdoo($request, $purchaseRequest->fresh(), $exporter);
+    }
+
+    /**
+     * Le escribe el RUT a un proveedor de Odoo que estaba sin él.
+     *
+     * Sin RUT no hay forma de reconocerlo automáticamente, y arreglarlo desde
+     * aquí evita el viaje a Odoo que esta pantalla existe para ahorrar.
+     */
+    public function setOdooSupplierRut(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestExporter $exporter,
+        ConfirmOdooSupplier $confirmar,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $datos = $request->validate([
+            'odoo_partner_id' => ['required', 'integer', 'min:1'],
+            'name' => ['required', 'string', 'max:255'],
+            'vat' => ['required', 'string', 'max:32'],
+        ]);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        try {
+            $exporter->ponerRutAProveedor((int) $datos['odoo_partner_id'], $datos['vat']);
+        } catch (Throwable $e) {
+            return back()->with('error', 'No se pudo guardar el RUT en Odoo: '.$e->getMessage());
+        }
+
+        $confirmar($purchaseRequest, (int) $datos['odoo_partner_id'], $datos['name'], $datos['vat']);
+
+        return $this->exportToOdoo($request, $purchaseRequest->fresh(), $exporter);
     }
 
     /**

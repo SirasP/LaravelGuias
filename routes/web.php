@@ -145,6 +145,12 @@ Route::middleware('auth')
                 ->name('odoo.export');
             Route::post('/{purchaseRequest}/odoo/proveedor', [PurchaseRequestController::class, 'confirmOdooSupplier'])
                 ->name('odoo.supplier');
+            Route::post('/{purchaseRequest}/odoo/buscar-proveedor', [PurchaseRequestController::class, 'searchOdooSupplier'])
+                ->name('odoo.supplier_search');
+            Route::post('/{purchaseRequest}/odoo/crear-proveedor', [PurchaseRequestController::class, 'createOdooSupplier'])
+                ->name('odoo.supplier_create');
+            Route::post('/{purchaseRequest}/odoo/rut-proveedor', [PurchaseRequestController::class, 'setOdooSupplierRut'])
+                ->name('odoo.supplier_rut');
         });
     });
 

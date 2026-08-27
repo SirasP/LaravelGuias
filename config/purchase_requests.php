@@ -83,6 +83,11 @@ return [
          * unidad, que es peor que una unidad aproximada.
          */
         'default_uom_id' => (int) env('PURCHASE_REQUESTS_ODOO_DEFAULT_UOM', 1),
+
+        // Para dar de alta un proveedor chileno: el tipo de identificación
+        // «RUT» y el país. Comprobados iguales en pruebas y en producción.
+        'rut_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_RUT_TYPE', 4),
+        'country_id' => (int) env('PURCHASE_REQUESTS_ODOO_COUNTRY', 46),
     ],
 
     /*
