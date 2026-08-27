@@ -307,6 +307,14 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'product_uom' => $this->unidadOdoo($item),
         ];
 
+        // La fecha requerida de la solicitud es la entrega esperada de Odoo:
+        // el mismo dato con otro nombre. Va en la línea, que es de donde Odoo
+        // deduce la de la cabecera. Sin esto la cotización entra sin fecha y
+        // no aparece en ninguna planificación.
+        if (filled($purchaseRequest->required_date)) {
+            $linea['date_planned'] = $purchaseRequest->required_date->startOfDay()->format('Y-m-d H:i:s');
+        }
+
         // El impuesto no viene del producto —no mandamos producto—, así que sin
         // esto la cotización entraría en cero de IVA. Sólo se pone cuando
         // sabemos que los precios son netos: si ya traen el IVA dentro,

@@ -405,3 +405,28 @@ it('offers the search box precisely when Odoo found nothing', function () {
         ->assertSee('Buscar en Odoo por nombre o RUT')
         ->assertDontSee('Enviar a Odoo');
 });
+
+it('sends the required date as the expected arrival', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    // «Fecha requerida» aquí y «Expected Arrival» en Odoo son el mismo dato.
+    // Sin mandarlo, la cotización entra sin fecha y queda fuera de cualquier
+    // planificación de recepción.
+    $solicitud = solicitudAprobadaCon([
+        'suggested_suppliers' => ['RUT 77.045.469-7'],
+        'required_date' => '2026-09-15',
+    ]);
+    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades']);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        return ($args[5][0]['order_line'][0][2]['date_planned'] ?? null) === '2026-09-15 00:00:00';
+    });
+});
