@@ -300,14 +300,6 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
         $unidad = $this->unidadOdoo($item);
 
-        // La cantidad y la unidad ya van en sus propias columnas de Odoo:
-        // repetirlas en la descripción sólo ensucia la línea. Se conserva la
-        // unidad escrita únicamente cuando no tiene equivalente allá —Sacos,
-        // Rollos, Cada medida—, porque si no se perdería del todo.
-        if ($unidad === $this->unidadPorDefecto() && ! $this->esUnidadNeutra($item)) {
-            $descripcion .= ' ('.$item->unit.')';
-        }
-
         // Sólo va el producto que alguien confirmó o que calzó exacto. Una
         // sugerencia no basta: sin producto la línea entra igual, y eso es
         // mejor que entrar con el producto equivocado, que mueve stock real
@@ -350,6 +342,19 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             }
         }
 
+        /*
+         * La unidad escrita se conserva en la descripción cuando la que acaba
+         * viajando no la representa.
+         *
+         * Se decide al final a propósito: la definitiva no se sabe hasta aquí,
+         * porque el producto puede haber pisado la nuestra. Decidirlo antes
+         * hacía que «5 Cubos de bolones» llegara a Odoo como «bolones · 5
+         * Units», sin rastro de los cubos ni en la unidad ni en el texto.
+         */
+        if ($this->laUnidadSePierde($item, (int) $linea['product_uom'])) {
+            $linea['name'] .= ' ('.$item->unit.')';
+        }
+
         // La fecha requerida de la solicitud es la entrega esperada de Odoo:
         // el mismo dato con otro nombre. Va en la línea, que es de donde Odoo
         // deduce la de la cabecera. Sin esto la cotización entra sin fecha y
@@ -369,6 +374,25 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         }
 
         return $linea;
+    }
+
+    /**
+     * ¿La unidad que se escribió deja de estar representada en Odoo?
+     *
+     * Ocurre en dos casos: cuando la nuestra no tiene equivalente allá —Sacos,
+     * Rollos, Cada medida— y cuando el producto impone otra distinta. En ambos
+     * el dato se perdería, y quien mire la cotización leería «5 unidades» de
+     * algo que se pidió por metros cúbicos.
+     */
+    private function laUnidadSePierde(mixed $item, int $unidadQueViaja): bool
+    {
+        // «Unidades» y «Units» son lo mismo: repetirlo sólo ensucia.
+        if ($this->esUnidadNeutra($item)) {
+            return false;
+        }
+
+        return $unidadQueViaja !== $this->unidadOdoo($item)
+            || $unidadQueViaja === $this->unidadPorDefecto();
     }
 
     private function unidadPorDefecto(): int

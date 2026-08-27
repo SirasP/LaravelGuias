@@ -612,3 +612,70 @@ it('keeps our own unit when the line carries no product', function () {
         return ! array_key_exists('product_id', $linea) && $linea['product_uom'] === 11;
     });
 });
+
+it('keeps the written unit in the text when the product imposes another one', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    unidadMapeada('Cubos', 'cubo', 11);
+
+    // El producto está en Units y la compra se pidió en Cubos. Al ganar la del
+    // producto, «5 Cubos de bolones» llegaría a Odoo como «bolones · 5 Units»
+    // y nadie sabría que son metros cúbicos: ni en la unidad ni en el texto.
+    App\Models\OdooProduct::create([
+        'odoo_id' => 8633, 'name' => 'Bolones', 'uom_id' => 1, 'uom_name' => 'Units',
+        'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+    App\Models\PurchaseProductLink::create([
+        'company_code' => 'EHE', 'odoo_partner_id' => null,
+        'source_text' => 'bolones', 'normalized_text' => 'bolones',
+        'odoo_product_id' => 8633, 'odoo_product_name' => 'Bolones',
+        'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'bolones',
+        'quantity' => '5', 'unit' => 'Cubos', 'unit_price' => '32130',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        $linea = $args[5][0]['order_line'][0][2];
+
+        return $linea['product_uom'] === 1 && $linea['name'] === 'bolones (Cubos)';
+    });
+});
+
+it('does not repeat the unit when Odoo already shows the same one', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    unidadMapeada('Litros', 'lt', 10);
+
+    // Sin producto que la pise, la nuestra viaja tal cual en su columna.
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'aceite hidraulico',
+        'quantity' => '20', 'unit' => 'Litros', 'unit_price' => '8900',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        $linea = $args[5][0]['order_line'][0][2];
+
+        return $linea['product_uom'] === 10 && $linea['name'] === 'aceite hidraulico';
+    });
+});
