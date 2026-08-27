@@ -9,9 +9,12 @@ use App\Http\Requests\PurchaseRequests\UpdatePurchaseRequestRequest;
 use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestAttachment;
 use App\Models\PurchaseRequestEvent;
+use App\Models\PurchaseRequestItem;
+use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Notifications\PurchaseRequestReviewed;
@@ -19,6 +22,7 @@ use App\Notifications\PurchaseRequestSubmitted;
 use App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier;
 use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
+use App\Services\PurchaseRequests\Products\ProductMatcher;
 use App\Services\PurchaseRequests\PurchaseRequestSnapshotService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -783,6 +787,98 @@ class PurchaseRequestController extends Controller
         ]);
 
         return back()->with($resultado->performed ? 'success' : 'info', $resultado->message);
+    }
+
+    /**
+     * Deja registrado qué producto de Odoo es una partida.
+     *
+     * Es el paso que convierte una decisión humana en conocimiento: quien
+     * resuelve una vez que «RODAMIENTO 6202 2RS2 C3 NKE» es el producto 8687
+     * no debería resolverlo nunca más, ni él ni nadie.
+     */
+    public function linkOdooProduct(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestItem $item,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($item->purchase_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'odoo_product_id' => ['required', 'integer', 'min:1'],
+            'odoo_product_name' => ['required', 'string', 'max:500'],
+        ]);
+
+        $proveedor = PurchaseSupplier::query()
+            ->whereNotNull('odoo_partner_id')
+            ->whereIn('tax_id', $this->rutsDe($purchaseRequest))
+            ->first();
+
+        PurchaseProductLink::updateOrCreate(
+            [
+                'company_code' => 'EHE',
+                'odoo_partner_id' => $proveedor?->odoo_partner_id,
+                'normalized_text' => PurchaseProductLink::normalizar((string) $item->product_service),
+            ],
+            [
+                'partner_name' => $proveedor?->name,
+                'source_text' => (string) $item->product_service,
+                'odoo_product_id' => (int) $datos['odoo_product_id'],
+                'odoo_product_name' => $datos['odoo_product_name'],
+                'source' => PurchaseProductLink::CONFIRMADO,
+                'confirmed_by' => $request->user()->getKey(),
+                'confirmed_by_name' => $request->user()->name,
+                'confirmed_at' => now(),
+            ],
+        );
+
+        return back()->with('success', sprintf(
+            '«%s» quedó emparejado con %s. No se volverá a preguntar.',
+            Str::limit((string) $item->product_service, 40),
+            Str::limit($datos['odoo_product_name'], 40),
+        ));
+    }
+
+    /** Busca productos en Odoo para una partida concreta. */
+    public function searchOdooProduct(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestItem $item,
+        ProductMatcher $emparejador,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($item->purchase_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'q' => ['required', 'string', 'min:2', 'max:200'],
+        ], [], ['q' => 'la búsqueda']);
+
+        $encontrados = $emparejador->sugerencias($datos['q'], null);
+
+        return back()
+            ->with('odoo_product_candidates', [$item->getKey() => $encontrados])
+            ->with('odoo_product_query', [$item->getKey() => $datos['q']])
+            ->with($encontrados === [] ? 'warning' : 'info', $encontrados === []
+                ? 'Ningún producto de Odoo se parece a «'.$datos['q'].'».'
+                : 'Odoo tiene '.count($encontrados).' producto(s) parecido(s).');
+    }
+
+    /**
+     * Los RUT que la solicitud declara como proveedor.
+     *
+     * @return list<string>
+     */
+    private function rutsDe(PurchaseRequest $purchaseRequest): array
+    {
+        $ruts = [];
+
+        foreach ((array) ($purchaseRequest->suggested_suppliers ?? []) as $sugerido) {
+            foreach (\App\Support\Rut::findAll((string) $sugerido) as $encontrado) {
+                $ruts[] = $encontrado['rut'];
+            }
+        }
+
+        return $ruts;
     }
 
     /**

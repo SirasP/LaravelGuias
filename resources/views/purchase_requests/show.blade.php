@@ -256,6 +256,71 @@
                             </p>
 
                         @else
+                            @php
+                                $emparejador = app(\App\Services\PurchaseRequests\Products\ProductMatcher::class);
+                                $proveedorOdoo = \App\Models\PurchaseSupplier::query()
+                                    ->whereNotNull('odoo_partner_id')
+                                    ->whereIn('tax_id', collect($purchaseRequest->suggested_suppliers ?? [])
+                                        ->flatMap(fn ($s) => collect(\App\Support\Rut::findAll((string) $s))->pluck('rut'))
+                                        ->all())
+                                    ->value('odoo_partner_id');
+                                $busquedas = session('odoo_product_candidates', []);
+                                $consultas = session('odoo_product_query', []);
+                            @endphp
+
+                            {{-- Sin producto, Odoo no genera recepción al confirmar
+                                 la orden y el stock nunca sube. Por eso se muestra
+                                 partida por partida antes de enviar. --}}
+                            <div class="mt-3 space-y-2">
+                                @foreach($purchaseRequest->items as $partida)
+                                    @php
+                                        $r = $emparejador->match((string) $partida->product_service, $proveedorOdoo, $partida->specification);
+                                        $encontrados = $busquedas[$partida->id] ?? null;
+                                    @endphp
+
+                                    <div class="rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-950">
+                                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $partida->product_service }}</p>
+
+                                        @if($r->resolved())
+                                            <p class="mt-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                                ✓ {{ $r->odooProductName }}
+                                            </p>
+                                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
+                                        @else
+                                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                                Sin producto de Odoo · esta línea no sumará al stock al recibirla
+                                            </p>
+
+                                            @foreach(($encontrados ?? $r->candidates) as $c)
+                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_link', [$purchaseRequest, $partida]) }}" class="mt-1.5">
+                                                    @csrf
+                                                    <input type="hidden" name="odoo_product_id" value="{{ $c['odoo_id'] }}">
+                                                    <input type="hidden" name="odoo_product_name" value="{{ $c['name'] }}">
+                                                    <button type="submit"
+                                                        class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left text-xs hover:bg-violet-50 dark:border-slate-700 dark:hover:bg-violet-950/50">
+                                                        <span class="font-bold text-slate-800 dark:text-slate-100">{{ $c['name'] }}</span>
+                                                        <span class="block text-slate-500 dark:text-slate-400">
+                                                            {{ $c['reason'] }} · parecido {{ number_format($c['score'] * 100, 0) }}%
+                                                        </span>
+                                                    </button>
+                                                </form>
+                                            @endforeach
+
+                                            <form method="POST" action="{{ route('purchase_requests.odoo.product_search', [$purchaseRequest, $partida]) }}" class="mt-2 flex gap-1.5">
+                                                @csrf
+                                                <input name="q" value="{{ $consultas[$partida->id] ?? '' }}"
+                                                    placeholder="Buscar producto en Odoo"
+                                                    class="min-h-10 w-full rounded-lg border-slate-300 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <button type="submit"
+                                                    class="min-h-10 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+                                                    Buscar
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+
                             <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
                                 Crea la cotización en Odoo, en borrador. No la confirma: eso se decide allá.
                             </p>

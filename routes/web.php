@@ -147,6 +147,13 @@ Route::middleware('auth')
                 ->name('odoo.supplier');
             Route::post('/{purchaseRequest}/odoo/buscar-proveedor', [PurchaseRequestController::class, 'searchOdooSupplier'])
                 ->name('odoo.supplier_search');
+
+            // Emparejar una partida con un producto de Odoo. Se guarda, y de
+            // ahí en adelante ya no se pregunta.
+            Route::post('/{purchaseRequest}/odoo/producto/{item}', [PurchaseRequestController::class, 'linkOdooProduct'])
+                ->name('odoo.product_link');
+            Route::post('/{purchaseRequest}/odoo/buscar-producto/{item}', [PurchaseRequestController::class, 'searchOdooProduct'])
+                ->name('odoo.product_search');
         });
     });
 

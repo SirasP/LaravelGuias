@@ -6,6 +6,8 @@ use App\Enums\PurchaseRequestStatus;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
+use App\Services\PurchaseRequests\Products\ProductMatcher;
+use App\Services\PurchaseRequests\Products\ProductSimilarity;
 use App\Support\Rut;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -27,7 +29,10 @@ use Throwable;
  */
 class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 {
-    public function __construct(private readonly OdooClient $client) {}
+    public function __construct(
+        private readonly OdooClient $client,
+        private readonly ProductMatcher $emparejador = new ProductMatcher(new ProductSimilarity),
+    ) {}
 
     public function isEnabled(): bool
     {
@@ -260,7 +265,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'origin' => (string) $purchaseRequest->folio,
             'date_order' => now()->format('Y-m-d H:i:s'),
             'order_line' => $purchaseRequest->items
-                ->map(fn ($item): array => [0, 0, $this->linea($item, $purchaseRequest)])
+                ->map(fn ($item): array => [0, 0, $this->linea($item, $purchaseRequest, $proveedor)])
                 ->values()
                 ->all(),
         ]]);
@@ -284,7 +289,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return array<string, mixed>
      */
-    private function linea(mixed $item, PurchaseRequest $purchaseRequest): array
+    private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $proveedorOdoo): array
     {
         $descripcion = trim((string) $item->product_service);
 
@@ -302,6 +307,16 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $descripcion .= ' ('.$item->unit.')';
         }
 
+        // Sólo va el producto que alguien confirmó o que calzó exacto. Una
+        // sugerencia no basta: sin producto la línea entra igual, y eso es
+        // mejor que entrar con el producto equivocado, que mueve stock real
+        // del artículo que no era.
+        $emparejado = $this->emparejador->match(
+            (string) $item->product_service,
+            $proveedorOdoo,
+            $item->specification,
+        );
+
         $linea = [
             'name' => $descripcion,
             'product_qty' => (float) $item->quantity,
@@ -310,6 +325,10 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'price_unit' => (float) ($item->unit_price ?? 0),
             'product_uom' => $unidad,
         ];
+
+        if ($emparejado->resolved()) {
+            $linea['product_id'] = $emparejado->odooProductId;
+        }
 
         // La fecha requerida de la solicitud es la entrega esperada de Odoo:
         // el mismo dato con otro nombre. Va en la línea, que es de donde Odoo

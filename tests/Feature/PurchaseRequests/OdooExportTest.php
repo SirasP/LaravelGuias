@@ -477,3 +477,69 @@ it('does not repeat in the description what Odoo already shows in its columns', 
             && $lineas[1][2]['name'] === 'Cemento (Sacos)';     // sin cantidad, con unidad
     });
 });
+
+it('sends the product when somebody had already resolved which one it is', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    App\Models\OdooProduct::create([
+        'odoo_id' => 8687, 'name' => 'RODAMIENTO 6202 2RS2 C3 NKE',
+        'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+    App\Models\PurchaseProductLink::create([
+        'company_code' => 'EHE', 'odoo_partner_id' => 3528,
+        'source_text' => 'RODAMIENTO 6202 2RS2 C3 NKE',
+        'normalized_text' => App\Models\PurchaseProductLink::normalizar('RODAMIENTO 6202 2RS2 C3 NKE'),
+        'odoo_product_id' => 8687, 'odoo_product_name' => 'RODAMIENTO 6202 2RS2 C3 NKE',
+        'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'RODAMIENTO 6202 2RS2 C3 NKE',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        // Con producto, confirmar la orden en Odoo genera recepción y el stock
+        // sube. Sin él, la orden se confirma y no pasa nada.
+        return ($args[5][0]['order_line'][0][2]['product_id'] ?? null) === 8687;
+    });
+});
+
+it('leaves the line without product when it is only a guess', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    // Existe algo parecido, pero nadie confirmó que sea eso.
+    App\Models\OdooProduct::create([
+        'odoo_id' => 1, 'name' => 'MONOMANDO LAVATORIO ECO - TAUMM 010100102',
+        'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Monomando Lavamano',
+        'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '15000',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        // Sin producto la línea entra igual. Es mejor que entrar con el
+        // producto equivocado, que mueve stock del artículo que no era.
+        return ! array_key_exists('product_id', $args[5][0]['order_line'][0][2]);
+    });
+});

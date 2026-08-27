@@ -116,3 +116,69 @@ it('never offers a product that is archived or not for purchase', function () {
 
     expect(emparejador()->match('guantes latex', null)->kind)->toBe(ProductMatch::SIN_IDEA);
 });
+
+it('shows each line and its product on the approved request', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    $compras = App\Models\User::factory()->create(['role' => 'admin']);
+    $solicitud = App\Models\PurchaseRequest::factory()->forUser($compras)->approved()->create();
+
+    producto(1, 'Tuberías PVC riego 90/6');
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Tuberia PVC riego 90/6',
+        'quantity' => '10', 'unit' => 'Unidades',
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 2, 'product_service' => 'arena gruesa',
+        'quantity' => '4', 'unit' => 'Cubos',
+    ]);
+
+    $html = $this->actingAs($compras)->get(route('purchase_requests.show', $solicitud))->getContent();
+
+    // La que tiene parecido se ofrece; la que no, se dice claro que no sumará
+    // al stock, que es la consecuencia que a nadie le queda evidente.
+    expect($html)->toContain('Tuberías PVC riego 90/6')
+        ->and($html)->toContain('no sumará al stock');
+});
+
+it('remembers the product a person picked, and stops asking', function () {
+    $compras = App\Models\User::factory()->create(['role' => 'admin']);
+    $solicitud = App\Models\PurchaseRequest::factory()->forUser($compras)->approved()->create();
+
+    producto(8687, 'RODAMIENTO 6202 2RS2 C3 NKE');
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'RODAMIENTO 6202 2RS2 C3 NKE',
+        'quantity' => '5', 'unit' => 'Unidades',
+    ]);
+
+    $this->actingAs($compras)->post(
+        route('purchase_requests.odoo.product_link', [$solicitud, $partida]),
+        ['odoo_product_id' => 8687, 'odoo_product_name' => 'RODAMIENTO 6202 2RS2 C3 NKE'],
+    )->assertRedirect();
+
+    $enlace = App\Models\PurchaseProductLink::firstOrFail();
+    expect($enlace->odoo_product_id)->toBe(8687)
+        ->and($enlace->confirmed_by_name)->toBe($compras->name);
+
+    // Y a partir de aquí ya no se pregunta.
+    expect(emparejador()->match('RODAMIENTO 6202 2RS2 C3 NKE', null)->resolved())->toBeTrue();
+});
+
+it('will not let anyone link a line of somebody else request', function () {
+    $compras = App\Models\User::factory()->create(['role' => 'admin']);
+    $unaSolicitud = App\Models\PurchaseRequest::factory()->forUser($compras)->approved()->create();
+    $otraSolicitud = App\Models\PurchaseRequest::factory()->forUser($compras)->approved()->create();
+
+    $partidaAjena = $otraSolicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades',
+    ]);
+
+    $this->actingAs($compras)->post(
+        route('purchase_requests.odoo.product_link', [$unaSolicitud, $partidaAjena]),
+        ['odoo_product_id' => 1, 'odoo_product_name' => 'x'],
+    )->assertNotFound();
+});
