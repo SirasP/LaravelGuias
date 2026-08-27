@@ -17,7 +17,10 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+
+    // No es el «dashboard» que traía Breeze: esta aplicación manda a `index`,
+    // y a quien tiene rol de bodeguero directo al listado de facturas.
+    $response->assertRedirect(route('index', absolute: false));
 });
 
 test('users can not authenticate with invalid password', function () {
@@ -37,5 +40,8 @@ test('users can logout', function () {
     $response = $this->actingAs($user)->post('/logout');
 
     $this->assertGuest();
-    $response->assertRedirect('/');
+
+    // Al salir se vuelve al login, no a la raíz: la raíz exige sesión y sólo
+    // rebotaría otra vez al login.
+    $response->assertRedirect('/login');
 });
