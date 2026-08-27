@@ -207,31 +207,28 @@ it('turns every table row into a link to its request instead of showing action b
     expect($tabla)->not->toContain(route('purchase_requests.edit', $draft));
 });
 
-it('keeps the side panel filters inside the form so they still reach the server', function () {
+it('keeps every panel filter wired to the form even though it lives outside it', function () {
     $owner = User::factory()->create();
     $this->createPurchaseRequestDraft($owner);
 
-    $listado = $this->actingAs($owner)->get(route('purchase_requests.index'));
-    $html = $listado->getContent();
+    $html = $this->actingAs($owner)->get(route('purchase_requests.index'))->getContent();
 
-    // El panel es un solo formulario con la búsqueda: mover los campos a un
-    // costado no puede dejarlos fuera, o el botón Filtrar los perdería.
-    $inicio = strpos($html, '<form method="GET"');
-    $formulario = substr($html, $inicio, strpos($html, '</form>', $inicio) - $inicio);
+    // El panel se saca al <body> para poder pintarse sobre la barra del
+    // título: dentro del contenedor del tema, con su z-index propio, quedaba
+    // debajo. Al salir deja de estar dentro del <form>, así que cada campo
+    // tiene que declarar a cuál pertenece o el botón Filtrar los pierde.
+    expect($html)->toContain('x-teleport="body"');
+    expect($html)->toContain('<form id="filtros-solicitudes"');
 
     foreach (['search', 'status', 'department', 'requester', 'requested_from', 'requested_to', 'required_from', 'required_to'] as $campo) {
-        expect($formulario)->toContain('name="'.$campo.'"');
+        expect($html)->toContain('name="'.$campo.'" form="filtros-solicitudes"');
     }
 
-    // Y el panel entra desde la derecha, no empujando la tabla hacia abajo.
-    expect($formulario)->toContain('translate-x-full');
+    // Y el botón de aplicar, igual.
+    expect($html)->toContain('type="submit" form="filtros-solicitudes"');
 
-    // Fuera del panel sólo queda el botón que lo abre: nada de enviar el
-    // formulario desde la barra, que era de donde venía el desorden.
-    $barra = substr($formulario, 0, strpos($formulario, 'id="filtros-avanzados"'));
-
-    expect($barra)->toContain('Filtros');
-    expect($barra)->not->toContain('type="submit"');
+    // El panel sigue entrando desde la derecha, no empujando la tabla.
+    expect($html)->toContain('translate-x-full');
 });
 
 it('filters the list by every field the panel offers', function () {

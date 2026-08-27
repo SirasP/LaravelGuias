@@ -128,7 +128,7 @@
                     abajo y empujaban la tabla media pantalla; ahora entran por la
                     derecha y la lista se queda quieta detrás.
                 --}}
-                <form method="GET" action="{{ route('purchase_requests.index') }}"
+                <form id="filtros-solicitudes" method="GET" action="{{ route('purchase_requests.index') }}"
                     x-data="{ open: false }"
                     x-effect="document.querySelector('main')?.classList.toggle('overflow-hidden', open)"
                     @keydown.escape.window="open = false"
@@ -147,7 +147,17 @@
                         @endif
                     </button>
 
-                    {{-- Fondo oscuro: atenúa la lista y sirve para cerrar --}}
+                    {{--
+                        Se sacan al <body>. Dentro del contenedor del tema
+                        —`premium-content`, con position:relative y z-index:10—
+                        el panel no puede pasar por encima de la barra del
+                        título: un z-index alto sólo compite dentro de su
+                        contexto, y ese contexto vale 10 contra los 30 de la
+                        barra. Los campos se quedan enlazados al formulario por
+                        su atributo `form`.
+                    --}}
+                    <template x-teleport="body">
+                    <div>
                     <div x-show="open" x-cloak x-transition.opacity.duration.200ms
                         @click="open = false"
                         class="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-[1px]"
@@ -181,14 +191,14 @@
                         <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
                             <div>
                                 <label for="search" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Buscar</label>
-                                <input id="search" name="search" type="search" x-ref="primerCampo" value="{{ $f['search'] ?? '' }}"
+                                <input id="search" name="search" form="filtros-solicitudes" type="search" x-ref="primerCampo" value="{{ $f['search'] ?? '' }}"
                                     placeholder="Folio, motivo o solicitante…"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                             </div>
 
                             <div>
                                 <label for="status-filter" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Estado</label>
-                                <select id="status-filter" name="status"
+                                <select id="status-filter" name="status" form="filtros-solicitudes"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white py-2 pl-3 pr-9 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     <option value="" @selected(blank($currentStatus))>Todos los estados</option>
                                     <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW)>
@@ -204,7 +214,7 @@
 
                             <div>
                                 <label for="filter-department" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Área</label>
-                                <select id="filter-department" name="department"
+                                <select id="filter-department" name="department" form="filtros-solicitudes"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     <option value="">Todas</option>
                                     @foreach (($departments ?? collect()) as $department)
@@ -218,7 +228,7 @@
                             <div>
                                 <label for="filter-requester" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Solicitante</label>
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Quien la creó o para quién es.</p>
-                                <input id="filter-requester" name="requester" value="{{ $f['requester'] ?? '' }}" placeholder="Nombre"
+                                <input id="filter-requester" name="requester" form="filtros-solicitudes" value="{{ $f['requester'] ?? '' }}" placeholder="Nombre"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                             </div>
 
@@ -227,12 +237,12 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label for="requested_from" class="block text-xs text-slate-500 dark:text-slate-400">Desde</label>
-                                        <input id="requested_from" type="date" name="requested_from" value="{{ $f['requested_from'] ?? '' }}"
+                                        <input id="requested_from" type="date" name="requested_from" form="filtros-solicitudes" value="{{ $f['requested_from'] ?? '' }}"
                                             class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     </div>
                                     <div>
                                         <label for="requested_to" class="block text-xs text-slate-500 dark:text-slate-400">Hasta</label>
-                                        <input id="requested_to" type="date" name="requested_to" value="{{ $f['requested_to'] ?? '' }}"
+                                        <input id="requested_to" type="date" name="requested_to" form="filtros-solicitudes" value="{{ $f['requested_to'] ?? '' }}"
                                             class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     </div>
                                 </div>
@@ -243,12 +253,12 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label for="required_from" class="block text-xs text-slate-500 dark:text-slate-400">Desde</label>
-                                        <input id="required_from" type="date" name="required_from" value="{{ $f['required_from'] ?? '' }}"
+                                        <input id="required_from" type="date" name="required_from" form="filtros-solicitudes" value="{{ $f['required_from'] ?? '' }}"
                                             class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     </div>
                                     <div>
                                         <label for="required_to" class="block text-xs text-slate-500 dark:text-slate-400">Hasta</label>
-                                        <input id="required_to" type="date" name="required_to" value="{{ $f['required_to'] ?? '' }}"
+                                        <input id="required_to" type="date" name="required_to" form="filtros-solicitudes" value="{{ $f['required_to'] ?? '' }}"
                                             class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                     </div>
                                 </div>
@@ -262,12 +272,14 @@
                                     Limpiar
                                 </a>
                             @endif
-                            <button type="submit"
+                            <button type="submit" form="filtros-solicitudes"
                                 class="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700">
                                 Aplicar filtros
                             </button>
                         </div>
                     </div>
+                    </div>
+                    </template>
                 </form>
             </div>
 
