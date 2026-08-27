@@ -2,8 +2,8 @@
 
 use App\Enums\PurchaseRequestStatus;
 use App\Jobs\ReadQuotationDocument;
-use App\Models\PurchaseRequestEvent;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestEvent;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\UnitOfMeasure;
 use App\Models\User;

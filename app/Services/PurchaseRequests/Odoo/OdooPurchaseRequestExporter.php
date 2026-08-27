@@ -292,11 +292,15 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $descripcion .= ' · '.$item->specification;
         }
 
-        $descripcion .= sprintf(
-            ' (%s %s)',
-            rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ','),
-            $item->unit,
-        );
+        $unidad = $this->unidadOdoo($item);
+
+        // La cantidad y la unidad ya van en sus propias columnas de Odoo:
+        // repetirlas en la descripción sólo ensucia la línea. Se conserva la
+        // unidad escrita únicamente cuando no tiene equivalente allá —Sacos,
+        // Rollos, Cada medida—, porque si no se perdería del todo.
+        if ($unidad === $this->unidadPorDefecto() && ! $this->esUnidadNeutra($item)) {
+            $descripcion .= ' ('.$item->unit.')';
+        }
 
         $linea = [
             'name' => $descripcion,
@@ -304,7 +308,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             // Odoo lo exige. Sin cotizar, la RFQ nace en cero y Compras lo
             // completa allá: es preferible a inventar un precio.
             'price_unit' => (float) ($item->unit_price ?? 0),
-            'product_uom' => $this->unidadOdoo($item),
+            'product_uom' => $unidad,
         ];
 
         // La fecha requerida de la solicitud es la entrega esperada de Odoo:
@@ -326,6 +330,21 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         }
 
         return $linea;
+    }
+
+    private function unidadPorDefecto(): int
+    {
+        return (int) config('purchase_requests.odoo.default_uom_id', 1);
+    }
+
+    /**
+     * ¿La unidad es «Unidades», que en Odoo también son «Units»?
+     *
+     * En ese caso no hay nada que conservar: la columna de Odoo dice lo mismo.
+     */
+    private function esUnidadNeutra(mixed $item): bool
+    {
+        return Str::lower(trim((string) $item->unit)) === 'unidades';
     }
 
     /**

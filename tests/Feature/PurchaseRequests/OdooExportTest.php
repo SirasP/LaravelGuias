@@ -39,6 +39,19 @@ function exportador(): OdooPurchaseRequestExporter
     ));
 }
 
+/** Una unidad del catálogo con su equivalente en Odoo ya registrado. */
+function unidadMapeada(string $nombre, string $codigo, int $odooId): void
+{
+    App\Models\UnitOfMeasure::query()->create([
+        'company_code' => 'EHE',
+        'name' => $nombre,
+        'code' => $codigo,
+        'odoo_uom_id' => $odooId,
+        'is_active' => true,
+        'sort_order' => 0,
+    ]);
+}
+
 function solicitudAprobadaCon(array $atributos = []): PurchaseRequest
 {
     $owner = User::factory()->create();
@@ -70,6 +83,10 @@ it('creates one draft RFQ and links it back', function () {
 it('sends the lines as text, without inventing products or units', function () {
     odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
 
+    // «Cajas» sí tiene equivalente en Odoo, así que no hace falta repetirla
+    // en la descripción: su columna UdM ya lo dice.
+    unidadMapeada('Cajas', 'caja', 75);
+
     $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
     $solicitud->items()->create([
         'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
@@ -95,10 +112,11 @@ it('sends the lines as text, without inventing products or units', function () {
         // sin unidad. «Cajas» no tiene equivalente en Odoo, así que entra con
         // la de por defecto y la real viaja en la descripción.
         return ! array_key_exists('product_id', $linea)
-            && $linea['product_uom'] === 1
+            && $linea['product_uom'] === 75
             && str_contains($linea['name'], 'Rodamiento 6202')
             && str_contains($linea['name'], '2RS C3')
-            && str_contains($linea['name'], 'Cajas')   // la unidad viaja en el texto
+            && ! str_contains($linea['name'], '5')     // la cantidad ya va en su columna
+            && ! str_contains($linea['name'], 'Cajas')  // y «Cajas» tiene equivalente en Odoo
             && $linea['product_qty'] === 5.0
             && $linea['price_unit'] === 4500.0;
     });
@@ -339,10 +357,6 @@ it('does not guess the tax when nobody could tell', function () {
     });
 });
 
-
-
-
-
 it('lets a person search Odoo directly, by name or by RUT', function () {
     odooResponde([8, [['id' => 1721, 'name' => 'ARIDOS VICAT SUR SPA', 'vat' => '76893540-8']]]);
 
@@ -428,5 +442,38 @@ it('sends the required date as the expected arrival', function () {
         }
 
         return ($args[5][0]['order_line'][0][2]['date_planned'] ?? null) === '2026-09-15 00:00:00';
+    });
+});
+
+it('does not repeat in the description what Odoo already shows in its columns', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    unidadMapeada('Unidades', 'un', 1);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Monomando Ducha',
+        'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '15000',
+    ]);
+    // Ésta no tiene equivalente en Odoo: entra como Units y su unidad real
+    // se perdería si no quedara escrita.
+    $solicitud->items()->create([
+        'sort_order' => 2, 'product_service' => 'Cemento',
+        'quantity' => '10', 'unit' => 'Sacos', 'unit_price' => '7450',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        $lineas = $args[5][0]['order_line'];
+
+        return $lineas[0][2]['name'] === 'Monomando Ducha'      // sin «(1 Unidades)»
+            && $lineas[1][2]['name'] === 'Cemento (Sacos)';     // sin cantidad, con unidad
     });
 });

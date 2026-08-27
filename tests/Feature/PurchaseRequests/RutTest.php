@@ -34,7 +34,7 @@ it('accepts the K check digit', function () {
 });
 
 it('finds every valid rut in a document, in order and without repeats', function () {
-    $texto = <<<TXT
+    $texto = <<<'TXT'
                                         R.U.T.:77.045.469-7
                                             COTIZACION Nº 549
     Cliente : AGRICOLA EPPLE, HEINRICH Y ENFILD SPA
