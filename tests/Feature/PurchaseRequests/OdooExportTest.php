@@ -135,7 +135,9 @@ it('stops instead of inventing a supplier Odoo does not know', function () {
 
     expect($resultado->status)->toBe('needs_supplier')
         ->and($resultado->candidates)->toBeEmpty()
-        ->and($resultado->message)->toContain('Regístralo allá');
+        // Sin candidatos, la salida es el buscador; darlo de alta se hace en
+        // Odoo, que es donde vive el maestro de proveedores.
+        ->and($resultado->message)->toContain('Búscalo aquí abajo');
 
     expect($solicitud->fresh()->odoo_order_id)->toBeNull();
 });
@@ -337,61 +339,9 @@ it('does not guess the tax when nobody could tell', function () {
     });
 });
 
-it('offers to create the supplier from what the quotation itself says', function () {
-    // Sin candidatos parecidos: el proveedor no está en Odoo. Pero la
-    // cotización trae su nombre legal y su RUT, así que no hay nada que
-    // inventar — sólo que confirmarlo.
-    //
-    // Cuatro respuestas: login, búsqueda por RUT, y una búsqueda por cada
-    // palabra con peso del nombre —«electrosol» y «encendidos»—.
-    odooResponde([8, [], [], []]);
 
-    $solicitud = solicitudAprobadaCon([
-        'suggested_suppliers' => ['ELECTROSOL ENCENDIDOS SPA (RUT 77.118.278-K)'],
-    ]);
-    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades']);
 
-    $resultado = exportador()->exportApproved($solicitud);
 
-    expect($resultado->status)->toBe('needs_supplier')
-        ->and($resultado->creatable)->toBe([
-            'name' => 'ELECTROSOL ENCENDIDOS SPA',
-            'vat' => '77118278-K',
-        ]);
-});
-
-it('will not offer to create anything without a valid RUT', function () {
-    // «Vicat» a secas no basta: crear un proveedor sin RUT ensucia el maestro
-    // de la empresa y no sirve para reconocerlo después.
-    odooResponde([8, []]);
-
-    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['Vicat']]);
-    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades']);
-
-    $resultado = exportador()->exportApproved($solicitud);
-
-    expect($resultado->creatable)->toBeNull()
-        ->and($resultado->message)->toContain('no trae un RUT válido');
-});
-
-it('refuses to create a supplier whose RUT does not check out', function () {
-    odooResponde([8]);
-
-    // Dígito verificador equivocado: si se cuela, Odoo queda con un RUT que
-    // nunca va a cruzar con nada.
-    expect(fn () => exportador()->crearProveedor('FALSA SPA', '77118278-9'))
-        ->toThrow(InvalidArgumentException::class);
-});
-
-it('reuses the supplier instead of creating a second card for it', function () {
-    // Pudo crearse entretanto, o existir con otro nombre. Dos fichas del mismo
-    // proveedor es un lío que después se deshace a mano.
-    odooResponde([8, [1721]]);
-
-    expect(exportador()->crearProveedor('ARIDOS VICAT SUR SPA', '76893540-8'))->toBe(1721);
-
-    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) !== 'create');
-});
 
 it('lets a person search Odoo directly, by name or by RUT', function () {
     odooResponde([8, [['id' => 1721, 'name' => 'ARIDOS VICAT SUR SPA', 'vat' => '76893540-8']]]);
@@ -404,5 +354,33 @@ it('lets a person search Odoo directly, by name or by RUT', function () {
         $args = $r['params']['args'] ?? [];
 
         return ($args[3] ?? null) !== 'res.partner' || $args[5][0][0][0] === 'name';
+    });
+});
+
+it('never writes to the supplier master in Odoo', function () {
+    // El maestro de proveedores se administra en Odoo. Este programa lo lee
+    // para reconocer a quién se le compra, y nada más: una ficha creada desde
+    // aquí, aunque los datos vinieran del documento, es una ficha que nadie
+    // revisó en el sistema donde vive.
+    $exportador = new ReflectionClass(OdooPurchaseRequestExporter::class);
+
+    foreach ($exportador->getMethods() as $metodo) {
+        expect($metodo->getName())->not->toContain('crearProveedor')
+            ->and($metodo->getName())->not->toContain('ponerRut');
+    }
+
+    odooResponde([8, [], []]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['DESCONOCIDA SPA (RUT 77.118.278-K)']]);
+    $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'x', 'quantity' => '1', 'unit' => 'Unidades']);
+
+    exportador()->exportApproved($solicitud);
+
+    // Ni create ni write sobre res.partner, con RUT válido o sin él.
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        return ($args[3] ?? null) !== 'res.partner'
+            || ! in_array($args[4] ?? null, ['create', 'write'], true);
     });
 });

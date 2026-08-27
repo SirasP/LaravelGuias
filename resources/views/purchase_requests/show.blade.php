@@ -215,15 +215,12 @@
                                 Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
                                 No se vuelve a enviar: habría dos cotizaciones para la misma compra.
                             </p>
-                        @elseif(filled($candidatos) || session('odoo_creatable') || session('odoo_query'))
-                            @php $creatable = session('odoo_creatable'); @endphp
-
+                        @elseif(filled($candidatos) || session('odoo_query'))
                             <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
                                 Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}».
-                                Resuélvelo aquí: no hace falta ir a Odoo.
+                                Búscalo tú, que sabes a quién buscas.
                             </p>
 
-                            {{-- 1. Buscarlo, que es lo que hace quien sabe a quién busca --}}
                             <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="mt-3 flex gap-2">
                                 @csrf
                                 <input name="q" value="{{ session('odoo_query') }}" placeholder="Buscar en Odoo por nombre o RUT"
@@ -234,54 +231,26 @@
                                 </button>
                             </form>
 
-                            {{-- 2. Elegirlo. Si no tiene RUT, se le pone de paso --}}
                             @foreach($candidatos as $candidato)
-                                @php
-                                    $sinRut = blank($candidato['vat'] ?? null);
-                                    $rutDelDocumento = $creatable['vat'] ?? null;
-                                    $ruta = $sinRut && $rutDelDocumento
-                                        ? 'purchase_requests.odoo.supplier_rut'
-                                        : 'purchase_requests.odoo.supplier';
-                                @endphp
-                                <form method="POST" action="{{ route($ruta, $purchaseRequest) }}" class="mt-2">
+                                <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}" class="mt-2">
                                     @csrf
                                     <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
                                     <input type="hidden" name="name" value="{{ $candidato['name'] }}">
-                                    <input type="hidden" name="vat" value="{{ $candidato['vat'] ?: $rutDelDocumento }}">
+                                    <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
                                     <button type="submit"
                                         class="w-full rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-left text-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950 dark:hover:bg-violet-950/60">
                                         <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
-                                        @if($sinRut)
-                                            <span class="block text-xs text-amber-700 dark:text-amber-300">
-                                                Sin RUT en Odoo{{ $rutDelDocumento ? ' · se le grabará '.$rutDelDocumento : '' }}
-                                            </span>
-                                        @else
-                                            <span class="block text-xs text-slate-500 dark:text-slate-400">RUT {{ $candidato['vat'] }}</span>
-                                        @endif
+                                        <span class="block text-xs {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
+                                            {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo · habrá que ponérselo allá para que se reconozca solo' }}
+                                        </span>
                                     </button>
                                 </form>
                             @endforeach
 
-                            {{-- 3. Y si de verdad no está, darlo de alta con lo
-                                 que dice su propia cotización --}}
-                            @if($creatable)
-                                <form method="POST" action="{{ route('purchase_requests.odoo.supplier_create', $purchaseRequest) }}"
-                                    class="mt-3 rounded-xl border border-dashed border-violet-300 p-3 dark:border-violet-800">
-                                    @csrf
-                                    <input type="hidden" name="name" value="{{ $creatable['name'] }}">
-                                    <input type="hidden" name="vat" value="{{ $creatable['vat'] }}">
-                                    <p class="text-xs text-violet-900 dark:text-violet-200">
-                                        ¿No está en la lista? Se puede dar de alta con lo que dice la cotización:
-                                    </p>
-                                    <p class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-                                        {{ $creatable['name'] }} · RUT {{ $creatable['vat'] }}
-                                    </p>
-                                    <button type="submit"
-                                        class="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
-                                        Crear en Odoo y enviar
-                                    </button>
-                                </form>
-                            @endif
+                            <p class="mt-3 text-xs text-violet-800 dark:text-violet-300">
+                                Si no aparece, hay que darlo de alta en Odoo. Este programa no crea proveedores:
+                                el maestro de la empresa se administra allá.
+                            </p>
 
                         @else
                             <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">

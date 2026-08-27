@@ -23,16 +23,6 @@ final readonly class PurchaseRequestExportResult
          * «BOBINADOS LONCOMILLA» a una cotización de RODASERVIC.
          */
         public array $candidates = [],
-        /**
-         * Con qué datos se podría dar de alta el proveedor en Odoo.
-         *
-         * Sale del documento del propio proveedor —su nombre legal y su RUT—,
-         * no de una suposición. Null si no hay un RUT válido: sin él, crear
-         * un proveedor es ensuciar el maestro de la empresa.
-         *
-         * @var array{name: string, vat: string}|null
-         */
-        public ?array $creatable = null,
     ) {}
 
     public static function skipped(string $message): self
@@ -64,11 +54,10 @@ final readonly class PurchaseRequestExportResult
      */
     /**
      * @param  list<array{id: int, name: string, vat: string|null}>  $candidates
-     * @param  array{name: string, vat: string}|null  $creatable
      */
-    public static function needsSupplier(string $message, array $candidates = [], ?array $creatable = null): self
+    public static function needsSupplier(string $message, array $candidates = []): self
     {
-        return new self(false, 'needs_supplier', null, $message, $candidates, $creatable);
+        return new self(false, 'needs_supplier', null, $message, $candidates);
     }
 
     public static function alreadyExported(string $remoteReference): self
