@@ -252,11 +252,63 @@ se entere: no hay error, simplemente suma.
 
 ---
 
+## Estado al 27-08-2026
+
+**Fases 1, 2 y 3 hechas y desplegadas.** Falta la 4.
+
+- `odoo:sync-products` copia 2.376 productos y 267 filas de proveedor-producto.
+  Sin programar todavía: se corre a mano.
+- `purchase_product_links` guarda las equivalencias confirmadas.
+- La ficha muestra el emparejado partida por partida, con buscador, y dice
+  «esta línea no sumará al stock al recibirla» cuando no hay producto.
+- El exportador manda `product_id` sólo cuando el emparejado es cierto.
+
+### La regla de la unidad, aprendida a golpes
+
+Odoo rechaza la orden **entera** si la unidad de la línea no es de la misma
+categoría que la del producto: *«m³ no pertenece a la misma categoría que
+Units»*. Nuestro catálogo dice que Cubos es m³; el producto *Bolones* está en
+Units. Ambas afirmaciones son razonables y no se sostienen a la vez.
+
+**Con producto, manda la unidad del producto.** Sin producto, la nuestra.
+
+El fallo estuvo escondido desde que existe la exportación: mientras ninguna
+línea llevaba producto, cualquier unidad pasaba.
+
+### Por qué NO se va a ordenar el maestro de unidades de Odoo
+
+Decidido el 27-08-2026, con los datos delante:
+
+- **543 de 2.347 productos ya están «tocados»** (tienen movimientos de stock o
+  se compraron alguna vez). Odoo **bloquea** el cambio de unidad en ésos, y son
+  justo los que más se usan. Los ~1.800 que sí se dejan cambiar son los que
+  nadie ha comprado nunca.
+- **El 97 % del catálogo está en Units** (2.279 de 2.347). Sólo 25 en `m`, 26 en
+  `Metro`, 15 en `kg`, 6 en `L` y **cero en m³**. La empresa cuenta todo por
+  unidades por convención, no por configuración.
+- Con la regla de arriba, el desajuste **ya no rompe nada**. Ordenar sería por
+  gusto, no por necesidad.
+- Y es un proyecto del maestro de Odoo, que se decide con quienes crean los
+  productos —Luis (1.623), Sebastián (390), Paola (348)—, no un rato.
+
+**Lo que sí:** arreglar el producto concreto cuando su unidad cause un problema
+real, en el momento y con el motivo claro.
+
+### Sobre el stock
+
+De los 2.347 comprables, **1.516 son inventariables** (65 %). Los que no lo son
+—*Bolones* entre ellos— generan recepción al confirmar la orden, pero **no suman
+al saldo**. Se marca uno como inventariable cuando su caso aparezca, no antes.
+
+---
+
 ## Orden sugerido
 
-1. **`odoo:sync-products`** — autónomo, no toca nada, útil por sí solo
-2. **Tabla de alias** en `guias`, sembrada desde el JSON existente
-3. **Emparejado en la pantalla** de la solicitud aprobada, con confirmación
-4. **Marcar líneas que no van a inventario**
+1. ~~`odoo:sync-products`~~ — hecho
+2. ~~Tabla de alias~~ — hecha, falta sembrarla desde el JSON del módulo de facturas
+3. ~~Emparejado en la pantalla~~ — hecho
+4. **Marcar líneas que no van a inventario** — pendiente, y es lo que distingue
+   una decisión de un olvido
+5. Programar `odoo:sync-products` de noche, como `odoo:sync-moves`
 5. *(aparte, y sólo si se decide)* que el módulo de facturas lea la misma tabla,
    trabajando contra una copia de `fuelcontrol`
