@@ -18,10 +18,20 @@ class FcmNotificationService
      */
     public function send(string $appType, string $title, string $body, array $data = []): array
     {
-        $credentialsPath = storage_path('app/firebase/firebase-credentials.json');
+        // Cada app vive en su propio proyecto de Firebase y un token solo es
+        // valido para el proyecto que lo emitio. Antes la ruta era fija, de modo
+        // que cualquier envio que no fuera de mantencion habria fallado aunque
+        // los tokens estuvieran perfectamente registrados.
+        $credentialsPath = config("fcm.credentials.{$appType}");
+
+        if ($credentialsPath === null) {
+            Log::error("[FCM] No hay credenciales configuradas para app_type={$appType}. Revisa config/fcm.php.");
+
+            return ['sent' => 0, 'failed' => 0];
+        }
 
         if (! file_exists($credentialsPath)) {
-            Log::warning('[FCM] firebase-credentials.json no encontrado. Push desactivado.');
+            Log::error("[FCM] Falta la credencial de {$appType} en {$credentialsPath}. Push desactivado para esa app.");
 
             return ['sent' => 0, 'failed' => 0];
         }
