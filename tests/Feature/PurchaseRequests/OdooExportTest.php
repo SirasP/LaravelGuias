@@ -479,7 +479,7 @@ it('does not repeat in the description what Odoo already shows in its columns', 
 });
 
 it('sends the product when somebody had already resolved which one it is', function () {
-    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    odooResponde([8, [3528], [8687], 219, [['id' => 219, 'name' => 'P00219']]]);
 
     App\Models\OdooProduct::create([
         'odoo_id' => 8687, 'name' => 'RODAMIENTO 6202 2RS2 C3 NKE',
@@ -545,7 +545,7 @@ it('leaves the line without product when it is only a guess', function () {
 });
 
 it('takes the unit from the product, because Odoo rejects the order otherwise', function () {
-    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    odooResponde([8, [3528], [8633], 219, [['id' => 219, 'name' => 'P00219']]]);
 
     // Nuestro catálogo dice que Cubos es m³…
     unidadMapeada('Cubos', 'cubo', 11);
@@ -614,7 +614,7 @@ it('keeps our own unit when the line carries no product', function () {
 });
 
 it('keeps the written unit in the text when the product imposes another one', function () {
-    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    odooResponde([8, [3528], [8633], 219, [['id' => 219, 'name' => 'P00219']]]);
 
     unidadMapeada('Cubos', 'cubo', 11);
 
@@ -678,4 +678,88 @@ it('does not repeat the unit when Odoo already shows the same one', function () 
 
         return $linea['product_uom'] === 10 && $linea['name'] === 'aceite hidraulico';
     });
+});
+
+it('drops a product that Odoo no longer recognises at the moment of exporting', function () {
+    // La copia local dice que existe; Odoo, preguntado ahora, dice que no —lo
+    // fusionaron o lo archivaron desde la última sincronización—. Mandarlo
+    // haría que Odoo rechazara la orden entera.
+    //
+    // Secuencia: login, proveedor, confirmación de productos (vacía), create, read.
+    odooResponde([8, [3528], [], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    App\Models\OdooProduct::create([
+        'odoo_id' => 8687, 'name' => 'RODAMIENTO 6202', 'uom_id' => 1,
+        'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+    App\Models\PurchaseProductLink::create([
+        'company_code' => 'EHE', 'odoo_partner_id' => null,
+        'source_text' => 'rodamiento 6202', 'normalized_text' => 'rodamiento 6202',
+        'odoo_product_id' => 8687, 'odoo_product_name' => 'RODAMIENTO 6202',
+        'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'rodamiento 6202',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+
+    $resultado = exportador()->exportApproved($solicitud);
+
+    // La cotización se crea igual, sin producto en esa línea: perder el
+    // emparejado es mucho menos malo que perder la orden entera.
+    expect($resultado->status)->toBe('created');
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) !== 'purchase.order' || ($args[4] ?? null) !== 'create') {
+            return true;
+        }
+
+        return ! array_key_exists('product_id', $args[5][0]['order_line'][0][2]);
+    });
+});
+
+it('asks Odoo once for all the lines, not once per line', function () {
+    odooResponde([8, [3528], [1, 2], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    foreach ([[1, 'uno'], [2, 'dos']] as [$id, $nombre]) {
+        App\Models\OdooProduct::create([
+            'odoo_id' => $id, 'name' => $nombre, 'uom_id' => 1,
+            'purchase_ok' => true, 'active_in_odoo' => true,
+        ]);
+        App\Models\PurchaseProductLink::create([
+            'company_code' => 'EHE', 'odoo_partner_id' => null,
+            'source_text' => $nombre, 'normalized_text' => $nombre,
+            'odoo_product_id' => $id, 'odoo_product_name' => $nombre,
+            'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+        ]);
+    }
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    foreach ([[1, 'uno'], [2, 'dos']] as $n => [$id, $nombre]) {
+        $solicitud->items()->create([
+            'sort_order' => $n + 1, 'product_service' => $nombre,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '100',
+        ]);
+    }
+
+    exportador()->exportApproved($solicitud);
+
+    // Una sola comprobación para las dos partidas: con veinte líneas, veinte
+    // llamadas harían el envío inútilmente lento.
+    $veces = 0;
+    Http::assertSent(function ($request) use (&$veces) {
+        $args = $request['params']['args'] ?? [];
+
+        if (($args[3] ?? null) === 'product.product' && ($args[4] ?? null) === 'search') {
+            $veces++;
+        }
+
+        return true;
+    });
+
+    expect($veces)->toBe(1);
 });

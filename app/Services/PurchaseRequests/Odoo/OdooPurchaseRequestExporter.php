@@ -256,6 +256,37 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         return null;
     }
 
+    /**
+     * Los productos emparejados que Odoo todavía reconoce.
+     *
+     * La copia local puede estar vieja: si alguien fusionó o archivó un
+     * producto allá desde la última sincronización, mandarlo haría que Odoo
+     * rechazara la orden entera. Se pregunta en el momento de exportar, que es
+     * el único instante en que la respuesta no puede quedarse anticuada.
+     *
+     * Una sola llamada para todas las partidas, no una por línea.
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    private function productosQueOdooConfirma(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter($ids)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $vivos = $this->client->execute(
+            'product.product',
+            'search',
+            [[['id', 'in', $ids]]],
+            ['context' => ['active_test' => true]],
+        );
+
+        return is_array($vivos) ? array_map('intval', $vivos) : [];
+    }
+
     /** @return array{0: int, 1: string} */
     private function crearRfq(PurchaseRequest $purchaseRequest, int $proveedor): array
     {
@@ -265,16 +296,43 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             // De dónde viene: deja el rastro visible dentro de Odoo.
             'origin' => (string) $purchaseRequest->folio,
             'date_order' => now()->format('Y-m-d H:i:s'),
-            'order_line' => $purchaseRequest->items
-                ->map(fn ($item): array => [0, 0, $this->linea($item, $purchaseRequest, $proveedor)])
-                ->values()
-                ->all(),
+            'order_line' => $this->lineasDe($purchaseRequest, $proveedor),
         ]]);
 
         $leido = $this->client->execute('purchase.order', 'read', [[$id]], ['fields' => ['name']]);
         $referencia = (string) ($leido[0]['name'] ?? $id);
 
         return [$id, $referencia];
+    }
+
+    /**
+     * Las líneas, con los productos ya confirmados contra Odoo.
+     *
+     * @return list<array{0: int, 1: int, 2: array<string, mixed>}>
+     */
+    private function lineasDe(PurchaseRequest $purchaseRequest, ?int $proveedor): array
+    {
+        $emparejados = [];
+
+        foreach ($purchaseRequest->items as $item) {
+            $m = $this->emparejador->match((string) $item->product_service, $proveedor, $item->specification);
+            $emparejados[$item->getKey()] = $m->resolved() ? $m->odooProductId : null;
+        }
+
+        $confirmados = $this->productosQueOdooConfirma(array_values($emparejados));
+
+        return $purchaseRequest->items
+            ->map(function ($item) use ($purchaseRequest, $emparejados, $confirmados): array {
+                $id = $emparejados[$item->getKey()] ?? null;
+
+                return [0, 0, $this->linea(
+                    $item,
+                    $purchaseRequest,
+                    $id !== null && in_array($id, $confirmados, true) ? $id : null,
+                )];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -290,7 +348,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return array<string, mixed>
      */
-    private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $proveedorOdoo): array
+    private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $productoConfirmado): array
     {
         $descripcion = trim((string) $item->product_service);
 
@@ -299,16 +357,6 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         }
 
         $unidad = $this->unidadOdoo($item);
-
-        // Sólo va el producto que alguien confirmó o que calzó exacto. Una
-        // sugerencia no basta: sin producto la línea entra igual, y eso es
-        // mejor que entrar con el producto equivocado, que mueve stock real
-        // del artículo que no era.
-        $emparejado = $this->emparejador->match(
-            (string) $item->product_service,
-            $proveedorOdoo,
-            $item->specification,
-        );
 
         $linea = [
             'name' => $descripcion,
@@ -319,8 +367,8 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'product_uom' => $unidad,
         ];
 
-        if ($emparejado->resolved()) {
-            $linea['product_id'] = $emparejado->odooProductId;
+        if ($productoConfirmado !== null) {
+            $linea['product_id'] = $productoConfirmado;
 
             /*
              * Con producto, la unidad la manda el producto.
@@ -334,7 +382,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
              * la línea va a vivir.
              */
             $unidadDelProducto = OdooProduct::query()
-                ->where('odoo_id', $emparejado->odooProductId)
+                ->where('odoo_id', $productoConfirmado)
                 ->value('uom_id');
 
             if (filled($unidadDelProducto)) {
