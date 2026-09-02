@@ -102,9 +102,14 @@ class LineVerifier
             // El precio se mide con la misma vara que la cantidad: si no está
             // escrito en el documento, no entra. Un precio inventado no se nota
             // al mirarlo —parece razonable— y termina en una aprobación.
+            //
+            // Se le pasa la cantidad porque muchos presupuestos imprimen sólo
+            // el total de la línea: «9 PULIR CIGÜEÑAL $63.000». Ahí el unitario
+            // correcto —7.000— no está escrito en ninguna parte, y exigirlo al
+            // pie de la letra borraba precios que sí eran ciertos.
             $precio = $this->limpiar($item['unit_price'] ?? null);
 
-            if (filled($precio) && ! $esImagen && ! $this->precioApareceEnElTexto($precio, $referencia)) {
+            if (filled($precio) && ! $esImagen && ! $this->precioApareceEnElTexto($precio, $referencia, $cantidad)) {
                 $avisos[] = sprintf(
                     'Partida N° %d: el precio «%s» no aparece en el documento y se dejó vacío.',
                     $numero,
@@ -466,13 +471,19 @@ class LineVerifier
     }
 
     /**
-     * ¿El precio propuesto está escrito en el documento?
+     * ¿El precio propuesto está respaldado por el documento?
      *
      * No sirve buscar el texto tal cual: el documento dice «$ 12.500» y el
      * modelo devuelve «12500». Se comparan los números ya normalizados, que es
      * lo único que significa lo mismo en ambos lados.
+     *
+     * Vale de dos maneras. La directa: el unitario está impreso. Y la
+     * aritmética: el documento sólo trae el total de la línea, y unitario por
+     * cantidad da exactamente ese total. Lo segundo sigue siendo verificación
+     * —la cifra tiene que estar en el papel—, no confianza en el modelo: un
+     * precio inventado no cuadra con ningún total por casualidad.
      */
-    public function precioApareceEnElTexto(string $precio, string $referencia): bool
+    public function precioApareceEnElTexto(string $precio, string $referencia, ?string $cantidad = null): bool
     {
         $buscado = $this->aNumeroCanonico($precio);
 
@@ -483,10 +494,50 @@ class LineVerifier
         // Todo lo que parezca una cifra en el documento, con o sin separadores.
         preg_match_all('/\d[\d.,]*/u', $referencia, $coincidencias);
 
+        $cifras = [];
+
         foreach ($coincidencias[0] ?? [] as $candidato) {
             $valor = $this->aNumeroCanonico($candidato);
 
-            if ($valor !== null && abs($valor - $buscado) < 0.005) {
+            if ($valor === null) {
+                continue;
+            }
+
+            if (abs($valor - $buscado) < 0.005) {
+                return true;
+            }
+
+            $cifras[] = $valor;
+        }
+
+        return $this->cuadraConAlgunTotal($buscado, $cantidad, $cifras);
+    }
+
+    /**
+     * ¿Unitario por cantidad da algún total impreso en el documento?
+     *
+     * Con cantidad 1 no se comprueba nada: el total sería el propio unitario,
+     * que ya se buscó arriba, y aceptarlo aquí sería dar la vuelta al control.
+     *
+     * @param  list<float>  $cifras
+     */
+    private function cuadraConAlgunTotal(float $unitario, ?string $cantidad, array $cifras): bool
+    {
+        if ($cantidad === null || $unitario <= 0) {
+            return false;
+        }
+
+        $veces = $this->aNumeroCanonico($cantidad);
+
+        if ($veces === null || $veces <= 1) {
+            return false;
+        }
+
+        $total = $unitario * $veces;
+
+        foreach ($cifras as $cifra) {
+            // Un peso de margen: los documentos redondean el total impreso.
+            if (abs($cifra - $total) <= 1.0) {
                 return true;
             }
         }

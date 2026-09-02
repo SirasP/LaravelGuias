@@ -27,6 +27,25 @@ use Throwable;
  */
 class LocalQuotationReader implements QuotationReader
 {
+    /**
+     * Las palabras con que un documento presenta a quien lo recibe.
+     *
+     * Sirven para dos cosas: situar el RUT del cliente y descartar su nombre
+     * cuando el modelo lo confunde con el del proveedor.
+     */
+    private const ETIQUETAS_DE_CLIENTE = [
+        'cliente', 'señor(es)', 'senor(es)', 'señores',
+        'razon social', 'razón social', 'empresa',
+    ];
+
+    /**
+     * Cuánto texto tras la etiqueta se considera «los datos del cliente».
+     *
+     * Da para el nombre, la dirección y la comuna, que es lo que ocupa ese
+     * bloque; más allá empieza el cuerpo del documento.
+     */
+    private const LARGO_FRANJA_CLIENTE = 160;
+
     public function isEnabled(): bool
     {
         return (bool) config('purchase_requests.reader.enabled');
@@ -475,6 +494,20 @@ class LocalQuotationReader implements QuotationReader
         // dominio de un correo, donde va todo junto.
         $plano = preg_replace('/[^a-z0-9]/', '', $this->normalizar($referencia)) ?? '';
 
+        // El error más repetido del modelo es devolver a quien recibe la
+        // cotización en vez de a quien la emite. El nombre pasaba el control
+        // porque sí está escrito en el documento —como cliente—, así que hay
+        // que mirar *dónde* está escrito, no sólo si está.
+        if ($this->esElCliente($proveedor, $referencia)) {
+            return [
+                null,
+                sprintf(
+                    'No se registró «%s» como proveedor: en el documento aparece como el cliente, no como quien emite. Se conserva el RUT.',
+                    Str::limit($proveedor, 44),
+                ),
+            ];
+        }
+
         $genericas = ['sa', 'spa', 'ltda', 'limitada', 'eirl', 'sociedad', 'comercial',
             'servicios', 'industrial', 'de', 'del', 'la', 'las', 'los', 'y', 'e'];
 
@@ -499,11 +532,86 @@ class LocalQuotationReader implements QuotationReader
         ];
     }
 
+    /**
+     * ¿El nombre propuesto es en realidad el destinatario de la cotización?
+     *
+     * Se mira la franja de texto que sigue a la etiqueta que nombra al cliente
+     * («Cliente:», «SEÑOR(ES):», «Empresa»). Si todas las palabras
+     * distintivas del nombre caen ahí dentro y ninguna aparece fuera, lo que
+     * el modelo devolvió es quien recibe, no quien vende.
+     *
+     * La condición de «ninguna fuera» es la que evita el falso positivo: un
+     * proveedor cuyo nombre también encabeza la página aparece en las dos
+     * partes, y entonces no se descarta.
+     */
+    private function esElCliente(string $proveedor, string $referencia): bool
+    {
+        // Se busca sobre el texto ya normalizado y se mide sobre ése mismo:
+        // posicionDeLaEtiquetaDeCliente() informa posiciones del texto crudo,
+        // que la normalización desplaza al colapsar los espacios.
+        $plano = $this->normalizar($referencia);
+        $posicion = null;
+
+        foreach (self::ETIQUETAS_DE_CLIENTE as $etiqueta) {
+            $encontrada = mb_strpos($plano, $etiqueta);
+
+            if ($encontrada !== false) {
+                $posicion = $encontrada;
+
+                break;
+            }
+        }
+
+        if ($posicion === null) {
+            return false;
+        }
+
+        $franja = mb_substr($plano, $posicion, self::LARGO_FRANJA_CLIENTE);
+        $fuera = mb_substr($plano, 0, $posicion).' '.mb_substr($plano, $posicion + self::LARGO_FRANJA_CLIENTE);
+
+        $distintivas = $this->palabrasDistintivas($proveedor);
+
+        if ($distintivas === []) {
+            return false;
+        }
+
+        foreach ($distintivas as $palabra) {
+            if (! str_contains($franja, $palabra) || str_contains($fuera, $palabra)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Las palabras de un nombre que sirven para reconocerlo.
+     *
+     * @return list<string>
+     */
+    private function palabrasDistintivas(string $nombre): array
+    {
+        $genericas = ['sa', 'spa', 'ltda', 'limitada', 'eirl', 'sociedad', 'comercial',
+            'servicios', 'industrial', 'empresa', 'de', 'del', 'la', 'las', 'los', 'y', 'e'];
+
+        $palabras = [];
+
+        foreach (preg_split('/[\s.,]+/u', $this->normalizar($nombre)) ?: [] as $palabra) {
+            $palabra = preg_replace('/[^a-z0-9]/', '', $palabra) ?? '';
+
+            if (mb_strlen($palabra) >= 4 && ! in_array($palabra, $genericas, true)) {
+                $palabras[] = $palabra;
+            }
+        }
+
+        return array_values(array_unique($palabras));
+    }
+
     private function posicionDeLaEtiquetaDeCliente(string $texto): ?int
     {
         $plano = mb_strtolower($texto);
 
-        foreach (['cliente', 'señor(es)', 'senor(es)', 'señores', 'razon social', 'razón social'] as $etiqueta) {
+        foreach (self::ETIQUETAS_DE_CLIENTE as $etiqueta) {
             $posicion = mb_strpos($plano, $etiqueta);
 
             if ($posicion !== false) {

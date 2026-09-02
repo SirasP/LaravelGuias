@@ -143,3 +143,53 @@ it('carries the price from the reading through to the request', function () {
         // Y lo que se concluyó sobre el IVA viaja con la solicitud.
         ->and($ingestion->fresh()->purchaseRequest->prices_include_tax)->toBeFalse();
 });
+
+it('accepts a unit price backed by the line total when the document prints no unit price', function () {
+    $v = new LineVerifier;
+
+    // El presupuesto de un rectificador de motores: la columna «VALOR» es el
+    // total de la partida, no el unitario. El unitario correcto —63.000 entre
+    // 9— no está escrito en ninguna parte, y exigirlo al pie de la letra
+    // borraba precios ciertos, que es justo lo que pasaba en producción.
+    $documento = "CANT.   DESCRIPCION                 VALOR\n"
+        ."   9    PULIR CIGÜEÑAL           \$  63.000\n"
+        ."   4    ENCAMISAR CILINDROS      \$ 304.000\n";
+
+    $leer = fn (string $producto, string $cantidad, ?string $precio) => $v->verificarContraElDocumento(
+        [['product_service' => $producto, 'specification' => null, 'quantity' => $cantidad, 'unit' => 'Unidades', 'unit_price' => $precio]],
+        $documento,
+        ['Unidades'],
+        false,
+        referenciaEsUnaFrase: true,
+    );
+
+    [$items, $avisos] = $leer('PULIR CIGÜEÑAL', '9', '7000');
+    expect($items[0]['unit_price'])->toBe(7000.0)
+        ->and(collect($avisos)->filter(fn ($a) => str_contains($a, 'precio')))->toBeEmpty();
+
+    [$items] = $leer('ENCAMISAR CILINDROS', '4', '76000');
+    expect($items[0]['unit_price'])->toBe(76000.0);
+
+    // Sigue siendo verificación, no confianza: un unitario que no cuadra con
+    // ningún total impreso se descarta igual que antes.
+    [$items, $avisos] = $leer('PULIR CIGÜEÑAL', '9', '8000');
+    expect($items[0]['unit_price'])->toBeNull()
+        ->and($avisos[0])->toContain('no aparece en el documento');
+});
+
+it('does not let quantity one turn any invented price into a valid one', function () {
+    $v = new LineVerifier;
+
+    // Con cantidad 1 el «total» sería el propio unitario. Si se aceptara por
+    // esa vía, el control quedaría anulado para toda partida de una unidad.
+    [$items, $avisos] = $v->verificarContraElDocumento(
+        [['product_service' => 'correa', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '99000']],
+        '1 correa para el tractor, sin precio',
+        ['Unidades'],
+        false,
+        referenciaEsUnaFrase: true,
+    );
+
+    expect($items[0]['unit_price'])->toBeNull()
+        ->and($avisos[0])->toContain('no aparece en el documento');
+});
