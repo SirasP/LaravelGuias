@@ -139,6 +139,21 @@ class LocalQuotationReader implements QuotationReader
             $avisos[] = $avisoProveedor;
         }
 
+        // Si el modelo no dio un nombre utilizable, lo saca el propio
+        // documento. Para eso está el asistente: dejar el campo vacío es
+        // devolverle el trabajo a quien pidió la lectura, y el nombre suele
+        // estar a la vista, en el encabezado o junto al RUT del emisor.
+        if ($proveedor === null) {
+            $proveedor = $this->nombreDelEmisorSegunElTexto($referencia, $rutProveedor);
+
+            if ($proveedor !== null) {
+                $avisos[] = sprintf(
+                    'El proveedor «%s» se tomó del encabezado del documento. Verifícalo.',
+                    Str::limit($proveedor, 44),
+                );
+            }
+        }
+
         return QuotationReading::of(
             items: $items,
             supplier: $proveedor,
@@ -530,6 +545,129 @@ class LocalQuotationReader implements QuotationReader
                 Str::limit($proveedor, 44),
             ),
         ];
+    }
+
+    /**
+     * Saca del propio documento el nombre de quien lo emite.
+     *
+     * Es lo que hace una persona al mirar el papel: el emisor encabeza la
+     * página y su nombre va pegado a su RUT. Dos reglas bastan para los
+     * documentos que llegan aquí:
+     *
+     *  - Con RUT del proveedor: su nombre está en esa misma línea, o en la
+     *    anterior si el RUT va solo. Así sale «IVAN RUDY CANCINO DIAZ», que
+     *    el documento escribe justo encima de «RUT 10.855.569-6».
+     *  - Sin RUT: la primera línea con contenido. Así sale «Wurth Chile
+     *    Ltda.», que es lo único que identifica a ese proveedor.
+     *
+     * Devuelve null cuando el encabezado es una imagen y el texto no trae
+     * ningún nombre: preferible vacío a inventado.
+     */
+    private function nombreDelEmisorSegunElTexto(string $texto, ?string $rutProveedor): ?string
+    {
+        $lineas = preg_split('/\R/u', $texto) ?: [];
+
+        $indice = $rutProveedor === null
+            ? null
+            : $this->lineaDondeEstaElRut($lineas, $rutProveedor);
+
+        // Con RUT: esa línea sin el RUT, y si queda vacía, la de más arriba.
+        if ($indice !== null) {
+            for ($i = $indice; $i >= 0 && $i >= $indice - 3; $i--) {
+                $candidato = $this->comoNombreDeEmpresa(
+                    $i === $indice ? $this->sinElRut($lineas[$i]) : $lineas[$i],
+                );
+
+                if ($candidato !== null && ! $this->esElCliente($candidato, $texto)) {
+                    return $candidato;
+                }
+            }
+
+            return null;
+        }
+
+        // Sin RUT: lo primero que el documento escribe.
+        foreach ($lineas as $linea) {
+            $candidato = $this->comoNombreDeEmpresa($linea);
+
+            if ($candidato !== null && ! $this->esElCliente($candidato, $texto)) {
+                return $candidato;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $lineas
+     */
+    private function lineaDondeEstaElRut(array $lineas, string $rut): ?int
+    {
+        foreach ($lineas as $i => $linea) {
+            foreach (Rut::findAll($linea) as $encontrado) {
+                if ($encontrado['rut'] === $rut) {
+                    return $i;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** La línea sin el RUT ni la etiqueta que lo anuncia. */
+    private function sinElRut(string $linea): string
+    {
+        $limpia = preg_replace('/\b[rR]\.?\s?[uU]\.?\s?[tT]\.?\s*:?/u', ' ', $linea) ?? $linea;
+
+        return preg_replace('/\d[\d.\-]*[\dkK]/u', ' ', $limpia) ?? $limpia;
+    }
+
+    /**
+     * ¿Esta línea sirve como nombre de empresa?
+     *
+     * Se descartan los rótulos que encabezan cualquier documento y los
+     * códigos internos que acompañan al nombre («CL-9720232 Santiago»), que
+     * no forman parte de él.
+     */
+    private function comoNombreDeEmpresa(string $linea): ?string
+    {
+        $texto = trim(preg_replace('/\s+/u', ' ', $linea) ?? '');
+
+        // Se corta en el primer código: letras con números o un número largo.
+        $palabras = [];
+
+        foreach (explode(' ', $texto) as $palabra) {
+            if (preg_match('/^[A-Za-z]{1,3}-?\d{4,}$/u', $palabra) || preg_match('/^\d{4,}$/u', $palabra)) {
+                break;
+            }
+
+            $palabras[] = $palabra;
+        }
+
+        $texto = trim(implode(' ', $palabras), " \t.,:;-–—|");
+
+        if (mb_strlen($texto) < 4 || mb_strlen($texto) > 90) {
+            return null;
+        }
+
+        // Tiene que haber al menos una palabra que no sea un rótulo.
+        $rotulos = ['cotizacion', 'cotización', 'factura', 'electronica', 'electrónica',
+            'presupuesto', 'orden', 'compra', 'guia', 'guía', 'despacho', 'nota',
+            'venta', 'documento', 'fecha', 'senor', 'señor', 'pagina', 'página'];
+
+        $tieneAlgoPropio = false;
+
+        foreach (explode(' ', $this->normalizar($texto)) as $palabra) {
+            $palabra = preg_replace('/[^a-z0-9áéíóúñ]/u', '', $palabra) ?? '';
+
+            if (mb_strlen($palabra) >= 4 && ! in_array($palabra, $rotulos, true)) {
+                $tieneAlgoPropio = true;
+
+                break;
+            }
+        }
+
+        return $tieneAlgoPropio ? $texto : null;
     }
 
     /**
