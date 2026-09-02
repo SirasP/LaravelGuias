@@ -763,3 +763,48 @@ it('asks Odoo once for all the lines, not once per line', function () {
 
     expect($veces)->toBe(1);
 });
+
+it('finds a product created in Odoo a minute ago, without waiting for the nightly sync', function () {
+    // El caso real: «Laravel me dijo que no existía, fui a Odoo, lo creé, y
+    // Laravel seguía diciendo que no». Pasaba porque el buscador miraba la
+    // copia local, que es de anoche.
+    odooResponde([8, [[
+        'id' => 9001, 'name' => 'ARENA GRUESA', 'default_code' => false, 'barcode' => false,
+        'uom_id' => [11, 'm³'], 'type' => 'consu', 'is_storable' => true,
+        'purchase_ok' => true, 'active' => true,
+    ]]]);
+
+    // La copia local no lo tiene: se creó después de la última sincronización.
+    expect(App\Models\OdooProduct::where('odoo_id', 9001)->exists())->toBeFalse();
+
+    $encontrados = exportador()->buscarProductos('arena');
+
+    expect($encontrados)->toHaveCount(1)
+        ->and($encontrados[0]['odoo_id'])->toBe(9001)
+        ->and($encontrados[0]['reason'])->toContain('ahora mismo');
+
+    // Y buscar lo deja en la copia, así que el emparejado automático de la
+    // próxima vez ya lo propone sin llamar a Odoo.
+    $guardado = App\Models\OdooProduct::where('odoo_id', 9001)->first();
+    expect($guardado)->not->toBeNull()
+        ->and($guardado->uom_name)->toBe('m³')
+        ->and($guardado->is_storable)->toBeTrue();
+});
+
+it('revives a product that had been marked as gone', function () {
+    // Se archivó, la sincronización lo marcó, y después lo desarchivaron.
+    App\Models\OdooProduct::create([
+        'odoo_id' => 9001, 'name' => 'ARENA GRUESA',
+        'missing_since' => now()->subWeek(), 'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+
+    odooResponde([8, [[
+        'id' => 9001, 'name' => 'ARENA GRUESA', 'default_code' => false, 'barcode' => false,
+        'uom_id' => [11, 'm³'], 'type' => 'consu', 'is_storable' => true,
+        'purchase_ok' => true, 'active' => true,
+    ]]]);
+
+    exportador()->buscarProductos('arena');
+
+    expect(App\Models\OdooProduct::where('odoo_id', 9001)->first()->missing_since)->toBeNull();
+});

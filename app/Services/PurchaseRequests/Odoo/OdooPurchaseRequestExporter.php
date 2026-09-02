@@ -224,6 +224,85 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         ], is_array($filas) ? $filas : []);
     }
 
+    /**
+     * Busca productos en Odoo, en vivo.
+     *
+     * La copia local sirve para proponer candidatos sin llamar a nadie, pero
+     * envejece hasta la sincronización de la noche. Cuando una persona busca a
+     * mano es porque sabe qué quiere —muchas veces algo que acaba de crear en
+     * Odoo—, y responderle «no existe» porque nuestra copia es de anoche es
+     * justo lo contrario de ayudar.
+     *
+     * Lo encontrado se guarda en la copia, así que buscar también la pone al
+     * día para el emparejado automático de la próxima vez.
+     *
+     * @return list<array{odoo_id: int, name: string, score: float, reason: string}>
+     */
+    public function buscarProductos(string $texto): array
+    {
+        $texto = trim($texto);
+
+        if ($texto === '') {
+            return [];
+        }
+
+        $filas = $this->client->execute('product.product', 'search_read', [[
+            '|', '|',
+            ['name', 'ilike', $texto],
+            ['default_code', 'ilike', $texto],
+            ['barcode', '=', $texto],
+        ]], [
+            'fields' => ['id', 'name', 'default_code', 'barcode', 'uom_id',
+                'type', 'is_storable', 'purchase_ok', 'active'],
+            'limit' => 20,
+            'order' => 'name',
+        ]);
+
+        $encontrados = [];
+
+        foreach (is_array($filas) ? $filas : [] as $fila) {
+            $this->guardarEnLaCopia($fila);
+
+            $encontrados[] = [
+                'odoo_id' => (int) $fila['id'],
+                'name' => (string) ($fila['name'] ?? ''),
+                'score' => 1.0,
+                'reason' => 'Encontrado en Odoo ahora mismo',
+            ];
+        }
+
+        return $encontrados;
+    }
+
+    /**
+     * Lo recién visto en Odoo entra en la copia local.
+     *
+     * Así un producto creado allá hace un minuto queda disponible para el
+     * emparejado automático sin esperar a la sincronización de la noche.
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    private function guardarEnLaCopia(array $fila): void
+    {
+        OdooProduct::query()->updateOrCreate(
+            ['odoo_id' => (int) $fila['id']],
+            [
+                'name' => (string) ($fila['name'] ?? ''),
+                'default_code' => is_string($fila['default_code'] ?? null) ? $fila['default_code'] : null,
+                'barcode' => is_string($fila['barcode'] ?? null) ? $fila['barcode'] : null,
+                'uom_id' => is_array($fila['uom_id'] ?? null) ? (int) $fila['uom_id'][0] : null,
+                'uom_name' => is_array($fila['uom_id'] ?? null) ? (string) $fila['uom_id'][1] : null,
+                'type' => is_string($fila['type'] ?? null) ? $fila['type'] : null,
+                'is_storable' => (bool) ($fila['is_storable'] ?? false),
+                'purchase_ok' => (bool) ($fila['purchase_ok'] ?? true),
+                'active_in_odoo' => (bool) ($fila['active'] ?? true),
+                // Si estaba marcado como desaparecido y Odoo lo devuelve, ya no lo está.
+                'missing_since' => null,
+                'synced_at' => now(),
+            ],
+        );
+    }
+
     private function rutDelProveedor(PurchaseRequest $purchaseRequest): ?string
     {
         foreach ((array) ($purchaseRequest->suggested_suppliers ?? []) as $sugerido) {

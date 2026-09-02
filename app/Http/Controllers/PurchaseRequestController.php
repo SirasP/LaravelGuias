@@ -853,7 +853,14 @@ class PurchaseRequestController extends Controller
             'q' => ['required', 'string', 'min:2', 'max:200'],
         ], [], ['q' => 'la búsqueda']);
 
-        $encontrados = $emparejador->sugerencias($datos['q'], null);
+        // Se busca en Odoo, no en la copia: quien busca a mano suele estar
+        // buscando algo que acaba de crear allá, y responderle «no existe»
+        // porque nuestra copia es de anoche es lo contrario de ayudar.
+        $exportador = app(PurchaseRequestExporter::class);
+
+        $encontrados = $exportador instanceof OdooPurchaseRequestExporter
+            ? $exportador->buscarProductos($datos['q'])
+            : $emparejador->sugerencias($datos['q'], null);
 
         return back()
             ->with('odoo_product_candidates', [$item->getKey() => $encontrados])
