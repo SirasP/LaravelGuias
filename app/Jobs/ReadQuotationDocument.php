@@ -265,23 +265,54 @@ class ReadQuotationDocument implements ShouldQueue
             ->where('tax_id', $rut)
             ->first();
 
+        // Hay documentos cuyo encabezado es una imagen: en el texto no queda
+        // más que el RUT. Antes de dejar el nombre vacío se le pregunta a
+        // Odoo, que ya conoce a la mayoría de los proveedores.
+        $nombre = $lectura->supplier ?? $this->nombreSegunOdoo($rut);
+
         if ($proveedor === null) {
             $proveedor = \App\Models\PurchaseSupplier::query()->create([
                 'company_code' => 'EHE',
                 'tax_id' => $rut,
-                'name' => $lectura->supplier,
+                'name' => $nombre,
                 'source' => \App\Models\PurchaseSupplier::SOURCE_DOCUMENT,
-                'notes' => $lectura->supplier === null
+                'notes' => $nombre === null
                     ? 'Detectado al leer un documento. Falta ponerle nombre.'
                     : 'Detectado al leer un documento. Verifica que el nombre sea correcto.',
             ]);
-        } elseif ($proveedor->needsName() && $lectura->supplier !== null) {
+        } elseif ($proveedor->needsName() && $nombre !== null) {
             // El catálogo lo tenía sin nombre y el documento trajo uno: se
             // guarda como propuesta, para que alguien lo confirme.
-            $proveedor->forceFill(['name' => $lectura->supplier])->save();
+            $proveedor->forceFill(['name' => $nombre])->save();
         }
 
         return [$proveedor->label()];
+    }
+
+    /**
+     * Cómo se llama en Odoo el dueño de ese RUT.
+     *
+     * Sólo lee: es la misma búsqueda que hace una persona en la pantalla de
+     * confirmación, hecha sola. Si Odoo está apagado o no contesta, la
+     * lectura sigue sin nombre, que es lo que pasaba antes.
+     */
+    private function nombreSegunOdoo(string $rut): ?string
+    {
+        $exportador = app(\App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter::class);
+
+        if (! $exportador instanceof \App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter) {
+            return null;
+        }
+
+        try {
+            $encontrados = $exportador->buscarProveedores($rut);
+        } catch (Throwable $e) {
+            Log::warning('[solicitudes] Odoo no respondió al buscar el proveedor '.$rut.': '.$e->getMessage());
+
+            return null;
+        }
+
+        return $encontrados === [] ? null : $encontrados[0]['name'];
     }
 
     private function areaDe($autor): string
