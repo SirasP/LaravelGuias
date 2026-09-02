@@ -19,10 +19,11 @@ use App\Http\Controllers\Inventario\DashboardController as InventarioDashboard;
 use App\Http\Controllers\Inventario\DtesController;
 use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseCatalogController;
 use App\Http\Controllers\PurchaseIngestionController;
 use App\Http\Controllers\PurchaseNotificationController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseQuoteComparisonController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\SugerenciasController;
@@ -141,6 +142,13 @@ Route::middleware('auth')
 
             // Enviar a Odoo: sólo tras aprobar, y siempre por una acción
             // explícita de Compras. Nunca automático al aprobar.
+            // La cotización que manda el proveedor, para contrastarla con lo
+            // pedido. No crea ni modifica nada: deja el documento leído.
+            Route::post('/{purchaseRequest}/cotizacion-recibida', [PurchaseQuoteComparisonController::class, 'store'])
+                ->name('quotes.store');
+            Route::delete('/{purchaseRequest}/cotizacion-recibida/{ingestion}', [PurchaseQuoteComparisonController::class, 'destroy'])
+                ->name('quotes.destroy');
+
             Route::post('/{purchaseRequest}/odoo', [PurchaseRequestController::class, 'exportToOdoo'])
                 ->name('odoo.export');
             Route::post('/{purchaseRequest}/odoo/proveedor', [PurchaseRequestController::class, 'confirmOdooSupplier'])

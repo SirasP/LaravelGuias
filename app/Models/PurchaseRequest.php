@@ -153,6 +153,12 @@ class PurchaseRequest extends Model
         return $this->hasMany(PurchaseRequestAttachment::class)->orderBy('created_at');
     }
 
+    /** Cotizaciones de proveedor subidas para contrastarlas con esta solicitud. */
+    public function receivedQuotes(): HasMany
+    {
+        return $this->hasMany(PurchaseRequestIngestion::class, 'compared_request_id')->latest('id');
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(PurchaseRequestEvent::class)->orderBy('created_at')->orderBy('id');

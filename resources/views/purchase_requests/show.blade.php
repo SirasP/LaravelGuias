@@ -406,6 +406,101 @@
                     </section>
                 @endif
 
+                {{-- La cotización que manda el proveedor, contrastada con lo
+                     pedido. Compara y muestra; no cambia nada de la solicitud. --}}
+                <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
+                    <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotización del proveedor</h2>
+                    <p class="mt-1 text-sm text-sky-800 dark:text-sky-200">
+                        Sube lo que te mandó el proveedor y te digo en qué se diferencia de lo que pediste.
+                        No modifica la solicitud.
+                    </p>
+
+                    <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
+                        enctype="multipart/form-data" class="mt-3 space-y-2">
+                        @csrf
+                        <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
+                            class="block w-full text-sm text-sky-900 file:mr-3 file:min-h-9 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:text-sm file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
+                        @error('quote') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                        <button type="submit"
+                            class="min-h-11 w-full rounded-xl bg-sky-600 px-3 text-sm font-extrabold text-white hover:bg-sky-700">
+                            Comparar con mi solicitud
+                        </button>
+                    </form>
+
+                    @foreach ($comparaciones as $comparacion)
+                        @php($lectura = $comparacion['ingestion'])
+                        @php($resultado = $comparacion['resultado'])
+
+                        <div class="mt-4 rounded-xl border border-sky-200 bg-white p-3 dark:border-sky-900 dark:bg-slate-900">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-extrabold text-slate-900 dark:text-white">{{ $lectura->original_name }}</p>
+                                    <p class="mt-0.5 text-xs {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }} font-bold">
+                                        {{ $resultado->cuadra() ? '✓' : '⚠' }} {{ $resultado->resumen() }}
+                                    </p>
+                                    @if($lectura->supplier_name)
+                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Proveedor leído: {{ $lectura->supplier_name }}</p>
+                                    @endif
+                                </div>
+                                <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="min-h-9 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800">Quitar</button>
+                                </form>
+                            </div>
+
+                            @if($lectura->status === \App\Models\PurchaseRequestIngestion::PENDING || $lectura->status === \App\Models\PurchaseRequestIngestion::PROCESSING)
+                                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Leyéndola… recarga en un momento.</p>
+                            @else
+                                <div class="mt-3 overflow-x-auto">
+                                    <table class="w-full min-w-[34rem] text-left text-xs">
+                                        <thead class="text-slate-500 dark:text-slate-400">
+                                            <tr>
+                                                <th class="pb-1 font-bold">Partida</th>
+                                                <th class="pb-1 font-bold">Pediste</th>
+                                                <th class="pb-1 font-bold">Cotizaron</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                            @foreach ($resultado->todas() as $fila)
+                                                <tr class="align-top">
+                                                    <td class="py-1.5 pr-2">
+                                                        <span class="font-bold text-slate-800 dark:text-slate-100">
+                                                            {{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}
+                                                        </span>
+                                                        @foreach ($fila->diferencias as $diferencia)
+                                                            <span class="mt-0.5 block text-[11px] {{ $fila->estaBien() ? 'text-slate-500' : 'text-amber-700 dark:text-amber-400' }}">{{ $diferencia }}</span>
+                                                        @endforeach
+                                                    </td>
+                                                    <td class="py-1.5 pr-2 text-slate-600 dark:text-slate-300">
+                                                        @if($fila->pedida)
+                                                            {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
+                                                            @if($fila->pedida->unit_price !== null)
+                                                                <span class="block text-[11px]">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="text-slate-400">no la pediste</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="py-1.5 text-slate-600 dark:text-slate-300">
+                                                        @if($fila->cotizada)
+                                                            {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
+                                                            @if(filled($fila->cotizada['unit_price'] ?? null))
+                                                                <span class="block text-[11px]">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="text-slate-400">no la cotizaron</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </section>
+
                 {{-- Aprobada y todavía no enviada: es el último momento para
                      corregirla. Se devuelve en vez de editarla en caliente,
                      para que lo que llegue a Odoo sea lo que alguien aprobó. --}}

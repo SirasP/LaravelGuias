@@ -13,6 +13,7 @@ use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestAttachment;
 use App\Models\PurchaseRequestEvent;
+use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseRequestItem;
 use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
@@ -261,9 +262,42 @@ class PurchaseRequestController extends Controller
     {
         Gate::authorize('view', $purchaseRequest);
 
-        $purchaseRequest->load(['requester', 'reviewer', 'items', 'attachments.uploader', 'events.actor', 'revisions']);
+        $purchaseRequest->load(['requester', 'reviewer', 'items', 'attachments.uploader', 'events.actor', 'revisions', 'receivedQuotes']);
 
-        return response()->view('purchase_requests.show', compact('purchaseRequest'));
+        return response()->view('purchase_requests.show', [
+            'purchaseRequest' => $purchaseRequest,
+            'comparaciones' => $this->comparacionesDe($purchaseRequest),
+        ]);
+    }
+
+    /**
+     * Las cotizaciones recibidas, ya contrastadas con lo que se pidió.
+     *
+     * Se calcula al mostrar y no se guarda: si alguien corrige una partida,
+     * la comparación tiene que reflejarlo la próxima vez que se mire, no
+     * seguir mostrando el resultado de anoche.
+     *
+     * @return list<array{ingestion: PurchaseRequestIngestion, resultado: \App\Services\PurchaseRequests\Quotes\QuotationComparisonResult}>
+     */
+    private function comparacionesDe(PurchaseRequest $purchaseRequest): array
+    {
+        $comparador = app(\App\Services\PurchaseRequests\Quotes\QuotationComparison::class);
+        $listas = [];
+
+        foreach ($purchaseRequest->receivedQuotes as $cotizacion) {
+            $lineas = $cotizacion->extracted['items'] ?? null;
+
+            if (! is_array($lineas)) {
+                continue;
+            }
+
+            $listas[] = [
+                'ingestion' => $cotizacion,
+                'resultado' => $comparador->comparar($purchaseRequest, array_values($lineas)),
+            ];
+        }
+
+        return $listas;
     }
 
     public function edit(Request $request, PurchaseRequest $purchaseRequest): Response

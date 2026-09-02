@@ -39,7 +39,7 @@ class PurchaseRequestIngestion extends Model
 
     protected $fillable = [
         'public_id', 'company_code', 'user_id', 'uploader_name_snapshot',
-        'purchase_request_id', 'disk', 'path', 'original_name', 'mime_type',
+        'purchase_request_id', 'compared_request_id', 'disk', 'path', 'original_name', 'mime_type',
         'size', 'sha256', 'status', 'source_kind', 'model_used',
         'supplier_name', 'supplier_tax_id', 'prices_include_tax', 'customer_tax_id', 'customer_matches_company',
         'extracted', 'warnings', 'error_message', 'attempts',
@@ -81,6 +81,18 @@ class PurchaseRequestIngestion extends Model
     public function purchaseRequest(): BelongsTo
     {
         return $this->belongsTo(PurchaseRequest::class);
+    }
+
+    /** La solicitud contra la que se contrastó este documento, si lo fue. */
+    public function comparedRequest(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseRequest::class, 'compared_request_id');
+    }
+
+    /** Una cotización recibida no genera borrador: se lee para comparar. */
+    public function esUnaComparacion(): bool
+    {
+        return $this->compared_request_id !== null;
     }
 
     public function statusLabel(): string
