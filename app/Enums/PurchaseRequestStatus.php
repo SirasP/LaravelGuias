@@ -85,10 +85,16 @@ enum PurchaseRequestStatus: string
         };
     }
 
-    /** Un estado terminal ya no admite ninguna transición. */
+    /**
+     * Un estado terminal ya no admite ninguna transición.
+     *
+     * Se deduce de la tabla de transiciones en vez de repetir la lista: así
+     * no puede quedar mintiendo cuando la tabla cambia. `APPROVED` dejó de
+     * ser terminal el 02-09-2026, al abrirse la corrección de lo aprobado.
+     */
     public function isFinal(): bool
     {
-        return in_array($this, [self::APPROVED, self::REJECTED, self::CANCELLED], true);
+        return $this->allowedTransitions() === [];
     }
 
     /**
@@ -104,7 +110,14 @@ enum PurchaseRequestStatus: string
             self::SUBMITTED => [self::APPROVED, self::REJECTED, self::CHANGES_REQUESTED, self::CANCELLED],
             self::CHANGES_REQUESTED => [self::RESUBMITTED, self::CANCELLED],
             self::RESUBMITTED => [self::APPROVED, self::REJECTED, self::CHANGES_REQUESTED, self::CANCELLED],
-            self::APPROVED, self::REJECTED, self::CANCELLED => [],
+            // Aprobada no es el final: hasta que se envía a Odoo todavía se
+            // puede devolver para corregir o anular. Quien revisa a veces se
+            // entera después de que faltaba algo, y no tener salida obligaba
+            // a crear otra solicitud y dejar ésta colgada para siempre.
+            // Una vez en Odoo la puerta se cierra, pero eso lo decide la
+            // policy: el estado por sí solo no sabe si ya se exportó.
+            self::APPROVED => [self::CHANGES_REQUESTED, self::CANCELLED],
+            self::REJECTED, self::CANCELLED => [],
         };
     }
 

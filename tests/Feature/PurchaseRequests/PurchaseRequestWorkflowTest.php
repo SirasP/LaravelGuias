@@ -170,21 +170,45 @@ it('forbids every transition out of a final state', function () {
     $reviewer = User::factory()->admin()->create();
     $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
 
+    $this->actingAs($reviewer)->post(route('purchase_requests.reject', $request), [
+        'lock_version' => $request->lock_version,
+        'comment' => 'No corresponde.',
+    ])->assertSessionHasNoErrors();
+
+    $rechazada = $request->fresh();
+    expect($rechazada->status->isFinal())->toBeTrue()
+        ->and($rechazada->status->allowedTransitions())->toBe([]);
+
+    $this->actingAs($reviewer)->post(route('purchase_requests.approve', $rechazada), [
+        'lock_version' => $rechazada->lock_version,
+    ])->assertForbidden();
+
+    $this->actingAs($owner)->put(route('purchase_requests.update', $rechazada),
+        $this->validPurchaseRequestPayload())->assertForbidden();
+});
+
+it('does not let anyone edit an approved request without reopening it first', function () {
+    // Aprobada ya no es terminal, pero tampoco es editable: para corregirla
+    // hay que devolverla, y así lo que llega a Odoo es lo que se aprobó.
+    $owner = User::factory()->create();
+    $reviewer = User::factory()->admin()->create();
+    $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
     $this->actingAs($reviewer)->post(route('purchase_requests.approve', $request), [
         'lock_version' => $request->lock_version,
     ])->assertSessionHasNoErrors();
 
-    $approved = $request->fresh();
-    expect($approved->status->isFinal())->toBeTrue()
-        ->and($approved->status->allowedTransitions())->toBe([]);
+    $aprobada = $request->fresh();
 
-    $this->actingAs($reviewer)->post(route('purchase_requests.reject', $approved), [
-        'lock_version' => $approved->lock_version,
+    $this->actingAs($owner)->put(route('purchase_requests.update', $aprobada),
+        $this->validPurchaseRequestPayload())->assertForbidden();
+
+    // Y arrepentirse de la aprobación tampoco es rechazarla: se devuelve o
+    // se anula, que son las dos salidas que existen.
+    $this->actingAs($reviewer)->post(route('purchase_requests.reject', $aprobada), [
+        'lock_version' => $aprobada->lock_version,
         'comment' => 'Me arrepentí.',
     ])->assertForbidden();
-
-    $this->actingAs($owner)->put(route('purchase_requests.update', $approved),
-        $this->validPurchaseRequestPayload())->assertForbidden();
 });
 
 it('requires the required date to be on or after the request date', function () {

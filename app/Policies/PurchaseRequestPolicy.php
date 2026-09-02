@@ -81,6 +81,12 @@ class PurchaseRequestPolicy
      */
     public function cancel(User $user, PurchaseRequest $purchaseRequest): bool
     {
+        // Lo que ya está en Odoo se anula en Odoo. Anularlo aquí dejaría a
+        // los dos sistemas contando cosas distintas sobre la misma compra.
+        if ($purchaseRequest->hasBeenExportedToOdoo()) {
+            return false;
+        }
+
         if (! $purchaseRequest->status->canTransitionTo(PurchaseRequestStatus::CANCELLED)) {
             return false;
         }
@@ -147,6 +153,7 @@ class PurchaseRequestPolicy
     private function canReview(User $user, PurchaseRequest $purchaseRequest, PurchaseRequestStatus $target): bool
     {
         return $user->isPurchaseReviewer()
+            && ! $purchaseRequest->hasBeenExportedToOdoo()
             && $purchaseRequest->status->canTransitionTo($target);
     }
 }

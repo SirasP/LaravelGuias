@@ -406,6 +406,43 @@
                     </section>
                 @endif
 
+                {{-- Aprobada y todavía no enviada: es el último momento para
+                     corregirla. Se devuelve en vez de editarla en caliente,
+                     para que lo que llegue a Odoo sea lo que alguien aprobó. --}}
+                @can('requestChanges', $purchaseRequest)
+                    @if($purchaseRequest->status === \App\Enums\PurchaseRequestStatus::APPROVED)
+                        <section x-data="{ open: false }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+                            <h2 class="font-extrabold text-amber-950 dark:text-amber-100">Devolver para corregir</h2>
+                            <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                                Todavía no se envía a Odoo, así que aún se puede arreglar. Vuelve a estado
+                                editable y hay que aprobarla de nuevo antes de enviarla.
+                            </p>
+                            <button type="button" x-show="!open" @click="open = true"
+                                class="mt-3 min-h-11 w-full rounded-xl border border-amber-300 px-3 text-sm font-extrabold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40">
+                                Devolver para corregir…
+                            </button>
+                            <form method="POST" action="{{ route('purchase_requests.request_changes', $purchaseRequest) }}"
+                                x-show="open" x-cloak class="mt-3 space-y-3">
+                                @csrf
+                                <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
+                                <label for="reopen-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">
+                                    ¿Qué hay que corregir? <span class="text-rose-600">*</span>
+                                </label>
+                                <textarea id="reopen-comment" name="comment" rows="3" required
+                                    class="w-full rounded-xl border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white"
+                                    placeholder="Ej.: la unidad de la partida 3 no corresponde."></textarea>
+                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" @click="open = false"
+                                        class="min-h-11 rounded-xl border border-amber-200 text-sm font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200">Cancelar</button>
+                                    <button type="submit"
+                                        class="min-h-11 rounded-xl bg-amber-600 text-sm font-extrabold text-white hover:bg-amber-700">Devolver</button>
+                                </div>
+                            </form>
+                        </section>
+                    @endif
+                @endcan
+
                 {{-- Anular: el borrador lo anula su autor; lo enviado, un revisor --}}
                 @can('cancel', $purchaseRequest)
                     <section x-data="{ open: false }" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">

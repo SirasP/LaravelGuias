@@ -131,6 +131,18 @@ class PurchaseRequest extends Model
         return $conPrecio > 0 && $conPrecio < $this->items->count();
     }
 
+    /**
+     * ¿Ya se creó la cotización en Odoo a partir de esta solicitud?
+     *
+     * Es la frontera del módulo: hasta aquí manda este programa, y desde
+     * aquí manda Odoo. Lo que ya cruzó no se corrige ni se anula desde este
+     * lado, porque el documento que cuenta pasó a ser el de allá.
+     */
+    public function hasBeenExportedToOdoo(): bool
+    {
+        return $this->odoo_order_id !== null;
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseRequestItem::class)->orderBy('sort_order');

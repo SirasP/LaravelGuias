@@ -97,8 +97,9 @@ it('does not accept a cancellation request on a resolved request', function () {
 
     $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
 
-    $this->actingAs($admin)->post(route('purchase_requests.approve', $request), [
+    $this->actingAs($admin)->post(route('purchase_requests.reject', $request), [
         'lock_version' => (string) $request->lock_version,
+        'comment' => 'No corresponde.',
     ]);
 
     $this->actingAs($owner)
@@ -106,4 +107,23 @@ it('does not accept a cancellation request on a resolved request', function () {
         ->assertForbidden();
 
     expect($request->fresh()->cancellation_requested_at)->toBeNull();
+});
+
+it('still lets the requester ask to cancel an approved request that has not been sent', function () {
+    // Mientras no cruce a Odoo la compra todavía se puede parar, y quien la
+    // pidió es quien primero se entera de que ya no hace falta.
+    $owner = User::factory()->create();
+    $admin = User::factory()->admin()->create();
+
+    $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
+    $this->actingAs($admin)->post(route('purchase_requests.approve', $request), [
+        'lock_version' => (string) $request->lock_version,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('purchase_requests.request_cancellation', $request), ['comment' => 'Ya no se necesita.'])
+        ->assertSessionHasNoErrors();
+
+    expect($request->fresh()->cancellation_requested_at)->not->toBeNull();
 });
