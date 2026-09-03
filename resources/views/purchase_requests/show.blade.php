@@ -39,7 +39,11 @@
     </x-slot>
 
     <div class="mx-auto max-w-8xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        @include('purchase_requests._module_nav')
+        {{-- Sin la barra de pestañas del módulo: aquí ya no se está eligiendo
+             entre listados, se está dentro de una solicitud. Dejarla marcaba
+             «Mis solicitudes» como si siguieras en el listado, y empujaba el
+             contenido real una fila hacia abajo. Para volver está la flecha
+             del encabezado. --}}
 
         @if(session('success'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">{{ session('success') }}</div>
@@ -67,10 +71,11 @@
                     @if($isEditable)
                         <a href="{{ route('purchase_requests.edit', $purchaseRequest) }}" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700">Editar</a>
                     @endif
-                    @if($purchaseRequest->revisions->isNotEmpty())
-                        {{-- Con una sola revisión esto repetía el botón PDF de al
-                             lado, así que ocupaba una tarjeta entera para no decir
-                             nada nuevo. Como botón sólo estorba cuando se abre. --}}
+                    @if($purchaseRequest->revisions->count() > 1)
+                        {{-- Sólo con más de una revisión. Con una sola, su PDF es
+                             el mismo que el del botón de al lado: dos botones para
+                             el mismo documento, y un desplegable que al abrirse no
+                             añadía nada. --}}
                         <button type="button" @click="revisiones = !revisiones"
                             class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
                             Revisiones
@@ -83,7 +88,7 @@
             {{-- El panel se abre en el flujo normal, debajo del encabezado, y no
                  flotando: una capa flotante aquí queda tapada por el contenedor
                  de la página, que crea su propio contexto de apilamiento. --}}
-            @if($purchaseRequest->revisions->isNotEmpty())
+            @if($purchaseRequest->revisions->count() > 1)
                 <div x-show="revisiones" x-cloak class="border-t border-slate-100 dark:border-slate-800">
                     <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400 sm:px-5">
                         Cada revisión guarda el documento tal como se envió y no se regenera con datos nuevos.
@@ -276,7 +281,12 @@
                 {{-- La cotización que manda el proveedor, contrastada con lo
                      pedido. Compara y muestra; no cambia nada de la solicitud. --}}
                 <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
-                    <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotización del proveedor</h2>
+                    <div class="flex items-baseline justify-between gap-2">
+                        <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotizaciones</h2>
+                        @if(count($comparaciones) > 0)
+                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-extrabold text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">{{ count($comparaciones) }}</span>
+                        @endif
+                    </div>
                     <p class="mt-1 text-sm text-sky-800 dark:text-sky-200">
                         Sube lo que te mandó el proveedor y te digo en qué se diferencia de lo que pediste.
                         No modifica la solicitud.
@@ -550,7 +560,9 @@
                     @endif
                 @endcan
 
+                @if($purchaseRequest->attachments->isNotEmpty())
                 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Adjuntos</h2></div><div class="divide-y divide-slate-100 dark:divide-slate-800">@forelse($purchaseRequest->attachments as $attachment)<div class="p-4"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB</p><div class="mt-3 flex gap-3"><a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}" class="text-xs font-extrabold text-blue-600 hover:text-blue-800 dark:text-blue-400">Descargar</a>@if($isEditable)<form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 dark:text-rose-400">Eliminar</button></form>@endif</div></div>@empty<div class="p-4 text-sm text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>@endforelse</div></section>
+                @endif
 
                 {{-- Anular: el borrador lo anula su autor; lo enviado, un revisor --}}
                 @can('cancel', $purchaseRequest)

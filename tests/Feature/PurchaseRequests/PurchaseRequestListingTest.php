@@ -326,18 +326,34 @@ it('shows what the assistant built as a table before anything is saved', functio
     expect($html)->toContain("modo = 'manual'; \$nextTick(() => \$el.form.requestSubmit())");
 });
 
-it('offers the revisions as a button next to PDF, not as a card of its own', function () {
-    // Con una sola revisión la tarjeta repetía el botón PDF del encabezado:
-    // ocupaba una sección entera para no decir nada nuevo.
+it('does not offer a second PDF button when there is only one revision', function () {
+    // El PDF de la revisión 1 es el mismo documento que el del encabezado.
+    // Ofrecer los dos era repetir el botón y abrir un desplegable vacío.
     $owner = User::factory()->create();
     $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
 
+    $this->actingAs($owner)->get(route('purchase_requests.show', $request))
+        ->assertOk()
+        ->assertDontSee('Revisiones enviadas')
+        ->assertDontSee('revisiones = !revisiones', escape: false);
+});
+
+it('offers the revisions button once there is more than one', function () {
+    $owner = User::factory()->create();
+    $reviewer = User::factory()->admin()->create();
+    $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
+    // Se devuelve y se reenvía: así nace la segunda revisión.
+    $this->actingAs($reviewer)->post(route('purchase_requests.request_changes', $request), [
+        'lock_version' => $request->lock_version,
+        'comment' => 'Falta la cantidad.',
+    ])->assertSessionHasNoErrors();
+
+    $this->submitPurchaseRequest($owner, $request->fresh());
+
     $pantalla = $this->actingAs($owner)->get(route('purchase_requests.show', $request))->assertOk();
 
-    $pantalla->assertDontSee('Revisiones enviadas')
-        // El contenido sigue estando, dentro del panel que abre el botón.
-        ->assertSee('Revisión 1')
-        ->assertSee('no se regenera con datos nuevos');
+    $pantalla->assertSee('Revisión 1')->assertSee('no se regenera con datos nuevos');
 
     // Y el botón vive en el encabezado, donde están PDF y Editar.
     $html = $pantalla->getContent();

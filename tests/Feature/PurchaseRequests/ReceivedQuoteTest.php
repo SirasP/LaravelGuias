@@ -81,7 +81,7 @@ it('shows the differences on the screen of the request', function () {
     $this->actingAs($owner)
         ->get(route('purchase_requests.show', $solicitud))
         ->assertOk()
-        ->assertSee('Cotización del proveedor')
+        ->assertSee('Cotizaciones')
         ->assertSee('cotizacion-sodimac.pdf')
         ->assertSee('Pediste 3 y cotizaron 2.');
 });
