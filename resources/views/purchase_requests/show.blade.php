@@ -462,7 +462,7 @@
                                 <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Leyéndola… recarga en un momento.</p>
                             @else
                                 <div class="mt-3 overflow-x-auto">
-                                    <table class="w-full min-w-[34rem] text-left text-xs">
+                                    <table class="w-full text-left text-xs">
                                         <thead class="text-slate-500 dark:text-slate-400">
                                             <tr>
                                                 <th class="pb-1 font-bold">Partida</th>
