@@ -325,3 +325,23 @@ it('shows what the assistant built as a table before anything is saved', functio
     // formulario se queda callado sin enviarse.
     expect($html)->toContain("modo = 'manual'; \$nextTick(() => \$el.form.requestSubmit())");
 });
+
+it('offers the revisions as a button next to PDF, not as a card of its own', function () {
+    // Con una sola revisión la tarjeta repetía el botón PDF del encabezado:
+    // ocupaba una sección entera para no decir nada nuevo.
+    $owner = User::factory()->create();
+    $request = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
+    $pantalla = $this->actingAs($owner)->get(route('purchase_requests.show', $request))->assertOk();
+
+    $pantalla->assertDontSee('Revisiones enviadas')
+        // El contenido sigue estando, dentro del panel que abre el botón.
+        ->assertSee('Revisión 1')
+        ->assertSee('no se regenera con datos nuevos');
+
+    // Y el botón vive en el encabezado, donde están PDF y Editar.
+    $html = $pantalla->getContent();
+    $encabezado = substr($html, 0, strpos($html, 'Partidas') ?: 6000);
+
+    expect($encabezado)->toContain('revisiones = !revisiones');
+});

@@ -48,7 +48,7 @@
             <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">{{ session('error') }}</div>
         @endif
 
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section x-data="{ revisiones: false }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div class="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
@@ -67,8 +67,53 @@
                     @if($isEditable)
                         <a href="{{ route('purchase_requests.edit', $purchaseRequest) }}" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700">Editar</a>
                     @endif
+                    @if($purchaseRequest->revisions->isNotEmpty())
+                        {{-- Con una sola revisión esto repetía el botón PDF de al
+                             lado, así que ocupaba una tarjeta entera para no decir
+                             nada nuevo. Como botón sólo estorba cuando se abre. --}}
+                        <button type="button" @click="revisiones = !revisiones"
+                            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                            Revisiones
+                            <span class="rounded-full bg-slate-100 px-1.5 text-xs font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $purchaseRequest->revisions->count() }}</span>
+                        </button>
+                    @endif
                 </div>
             </div>
+
+            {{-- El panel se abre en el flujo normal, debajo del encabezado, y no
+                 flotando: una capa flotante aquí queda tapada por el contenedor
+                 de la página, que crea su propio contexto de apilamiento. --}}
+            @if($purchaseRequest->revisions->isNotEmpty())
+                <div x-show="revisiones" x-cloak class="border-t border-slate-100 dark:border-slate-800">
+                    <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400 sm:px-5">
+                        Cada revisión guarda el documento tal como se envió y no se regenera con datos nuevos.
+                    </p>
+                    <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach ($purchaseRequest->revisions as $rev)
+                            <li class="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-900 dark:text-white">
+                                        Revisión {{ $rev->revision_number }}
+                                        @if($rev->revision_number === $purchaseRequest->revision_number)
+                                            <span class="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">vigente</span>
+                                        @endif
+                                    </p>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $rev->submitted_by_name_snapshot }} · {{ optional($rev->submitted_at)->format('d-m-Y H:i') }}
+                                        · {{ $rev->item_count }} {{ \Illuminate\Support\Str::plural('partida', $rev->item_count) }}
+                                    </p>
+                                </div>
+                                @can('downloadPdf', $purchaseRequest)
+                                    <a href="{{ route('purchase_requests.pdf', ['purchaseRequest' => $purchaseRequest, 'revision' => $rev->revision_number]) }}"
+                                        class="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                                        PDF
+                                    </a>
+                                @endcan
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
             @if($rawStatus === 'changes_requested')
                 @php $lastChange = $purchaseRequest->events?->first(fn ($event) => data_get($event, 'event_type') === 'changes_requested'); @endphp
@@ -370,41 +415,6 @@
                 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Adjuntos</h2></div><div class="divide-y divide-slate-100 dark:divide-slate-800">@forelse($purchaseRequest->attachments as $attachment)<div class="p-4"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB</p><div class="mt-3 flex gap-3"><a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}" class="text-xs font-extrabold text-blue-600 hover:text-blue-800 dark:text-blue-400">Descargar</a>@if($isEditable)<form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 dark:text-rose-400">Eliminar</button></form>@endif</div></div>@empty<div class="p-4 text-sm text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>@endforelse</div></section>
 
                 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Historial</h2></div><ol class="space-y-4 p-4">@forelse($purchaseRequest->events as $event)<li class="relative pl-5"><span class="absolute left-0 top-1 h-3 w-3 rounded-full {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->dotClasses() : 'bg-slate-400' }}" aria-hidden="true"></span><p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->label() : (data_get($event, 'label') ?: \Illuminate\Support\Str::headline(data_get($event, 'event_type') ?: 'actualización')) }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ data_get($event, 'actor.name') ?: data_get($event, 'actor_name_snapshot') ?: 'Sistema' }} · {{ $formatDateTime($event->created_at) }}</p>@if(filled(data_get($event, 'comment')))<p class="mt-1 whitespace-pre-line text-xs text-slate-600 dark:text-slate-300">{{ data_get($event, 'comment') }}</p>@endif</li>@empty<li class="text-sm text-slate-500 dark:text-slate-400">Aún no hay eventos registrados.</li>@endforelse</ol></section>
-                {{-- Revisiones enviadas: cada una conserva su propio PDF --}}
-                @if($purchaseRequest->revisions->isNotEmpty())
-                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                            <h2 class="font-extrabold text-slate-900 dark:text-white">Revisiones enviadas</h2>
-                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                Cada revisión guarda el documento tal como se envió y no se regenera con datos nuevos.
-                            </p>
-                        </div>
-                        <ul class="divide-y divide-slate-100 dark:divide-slate-800">
-                            @foreach($purchaseRequest->revisions->sortByDesc('revision_number') as $rev)
-                                <li class="flex items-center justify-between gap-3 px-4 py-3">
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                            Revisión {{ $rev->revision_number }}
-                                            @if($rev->revision_number === $purchaseRequest->revision_number)
-                                                <span class="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">vigente</span>
-                                            @endif
-                                        </p>
-                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                            {{ $rev->submitted_by_name_snapshot }} · {{ optional($rev->submitted_at)->format('d-m-Y H:i') }}
-                                            · {{ $rev->item_count }} {{ \Illuminate\Support\Str::plural('partida', $rev->item_count) }}
-                                        </p>
-                                    </div>
-                                    @can('downloadPdf', $purchaseRequest)
-                                        <a href="{{ route('purchase_requests.pdf', ['purchaseRequest' => $purchaseRequest, 'revision' => $rev->revision_number]) }}"
-                                            class="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                            PDF
-                                        </a>
-                                    @endcan
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
 
                 {{-- La cotización que manda el proveedor, contrastada con lo
                      pedido. Compara y muestra; no cambia nada de la solicitud. --}}
