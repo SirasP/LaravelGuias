@@ -91,18 +91,28 @@ it('keeps the reopening out of reach of everyone else', function () {
     expect($aprobada->fresh()->status)->toBe(PurchaseRequestStatus::APPROVED);
 });
 
-it('shows both ways out on the screen of an approved request', function () {
+it('shows both ways out as buttons in the header, not as cards', function () {
     // La lógica puede estar perfecta y la pantalla no ofrecerla: eso ya pasó
-    // antes en este módulo, así que se comprueba lo que se ve.
+    // antes en este módulo, así que se comprueba lo que se ve. Y viven en el
+    // encabezado: una tarjeta con título y párrafo para envolver un botón
+    // pesaba más que la acción misma.
     $owner = User::factory()->create();
     $reviewer = User::factory()->admin()->create();
     $aprobada = aprobadaSinEnviar($owner, $reviewer);
 
-    $this->actingAs($reviewer)
+    $pantalla = $this->actingAs($reviewer)
         ->get(route('purchase_requests.show', $aprobada))
-        ->assertOk()
-        ->assertSee('Devolver para corregir')
-        ->assertSee('Anular solicitud');
+        ->assertOk();
+
+    $html = $pantalla->getContent();
+    $encabezado = substr($html, 0, strpos($html, 'Información de la solicitud') ?: 8000);
+
+    expect($encabezado)
+        ->toContain("panel === 'devolver'")
+        ->toContain("panel === 'anular'");
+
+    // El motivo sigue siendo obligatorio, sólo que se escribe en otro sitio.
+    $pantalla->assertSee('¿Qué hay que corregir?')->assertSee('Confirmar anulación');
 });
 
 it('hides both once the request is already in Odoo', function () {
@@ -115,6 +125,6 @@ it('hides both once the request is already in Odoo', function () {
     $this->actingAs($reviewer)
         ->get(route('purchase_requests.show', $aprobada))
         ->assertOk()
-        ->assertDontSee('Devolver para corregir')
-        ->assertDontSee('Anular solicitud');
+        ->assertDontSee("panel === 'devolver'", escape: false)
+        ->assertDontSee("panel === 'anular'", escape: false);
 });

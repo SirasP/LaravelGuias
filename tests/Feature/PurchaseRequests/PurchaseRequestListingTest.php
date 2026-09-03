@@ -335,7 +335,7 @@ it('does not offer a second PDF button when there is only one revision', functio
     $this->actingAs($owner)->get(route('purchase_requests.show', $request))
         ->assertOk()
         ->assertDontSee('Revisiones enviadas')
-        ->assertDontSee('revisiones = !revisiones', escape: false);
+        ->assertDontSee("panel === 'revisiones'", escape: false);
 });
 
 it('offers the revisions button once there is more than one', function () {
@@ -359,5 +359,5 @@ it('offers the revisions button once there is more than one', function () {
     $html = $pantalla->getContent();
     $encabezado = substr($html, 0, strpos($html, 'Partidas') ?: 6000);
 
-    expect($encabezado)->toContain('revisiones = !revisiones');
+    expect($encabezado)->toContain("panel === 'revisiones'");
 });
