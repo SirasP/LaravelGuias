@@ -264,9 +264,13 @@ class PurchaseRequestController extends Controller
 
         $purchaseRequest->load(['requester', 'reviewer', 'items', 'attachments.uploader', 'events.actor', 'revisions', 'receivedQuotes']);
 
+        $comparaciones = $this->comparacionesDe($purchaseRequest);
+
         return response()->view('purchase_requests.show', [
             'purchaseRequest' => $purchaseRequest,
-            'comparaciones' => $this->comparacionesDe($purchaseRequest),
+            'comparaciones' => $comparaciones,
+            // Sólo tiene sentido con dos o más: devuelve null si no.
+            'cuadricula' => \App\Services\PurchaseRequests\Quotes\QuoteMatrix::de($comparaciones),
         ]);
     }
 

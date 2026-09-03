@@ -339,6 +339,69 @@
                     <div class="hidden overflow-x-auto md:block"><table class="min-w-full text-sm"><thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400"><tr><th class="px-5 py-3">N°</th><th class="px-5 py-3">Producto / servicio</th><th class="px-5 py-3">Especificación</th><th class="px-5 py-3 text-right">Cantidad</th><th class="px-5 py-3 text-right">Precio unit.</th><th class="px-5 py-3 text-right">Total</th><th class="px-5 py-3">Destino</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800">@foreach($purchaseRequest->items as $index => $item)<tr><td class="px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td><td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">{{ $item->product_service }}@if(filled($item->quantity_note))<p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>@endif</td><td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td><td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</td><td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td><td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td><td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td></tr>@endforeach</tbody></table></div>
                 </section>
 
+                {{-- Con dos o más cotizaciones, unas al lado de otras. Comparar
+                     tabla contra tabla obliga a hacerlo de memoria, que es
+                     justo lo que uno pide tres cotizaciones para no hacer. --}}
+                @if($cuadricula)
+                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+                            <h2 class="font-extrabold text-slate-900 dark:text-white">Quién conviene</h2>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                Precio unitario de cada proveedor. El más barato de cada partida va marcado.
+                            </p>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                    <tr>
+                                        <th class="px-4 py-2 font-bold">Partida</th>
+                                        @foreach ($cuadricula->proveedores as $proveedor)
+                                            <th class="px-4 py-2 font-bold">{{ $proveedor['nombre'] }}</th>
+                                        @endforeach
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    @foreach ($cuadricula->filas as $fila)
+                                        <tr>
+                                            <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
+                                            @foreach ($fila['precios'] as $i => $precio)
+                                                <td class="whitespace-nowrap px-4 py-2.5 {{ $fila['masBarato'] === $i ? 'font-extrabold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
+                                                    @if($precio === null)
+                                                        <span class="text-slate-400">no cotizó</span>
+                                                    @else
+                                                        $ {{ number_format($precio, 0, ',', '.') }}
+                                                        @if($fila['masBarato'] === $i)
+                                                            <span class="ml-1 text-xs font-bold">más barato</span>
+                                                        @endif
+                                                    @endif
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <td class="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
+                                        @foreach ($cuadricula->totales as $total)
+                                            <td class="whitespace-nowrap px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">
+                                                $ {{ number_format($total['total'], 0, ',', '.') }}
+                                                @if($total['faltan'] > 0)
+                                                    {{-- Sin esto el que cotizó menos partidas parece el más
+                                                         conveniente sólo por haber ofrecido menos. --}}
+                                                    <span class="block text-xs font-normal text-amber-700 dark:text-amber-400">
+                                                        le faltan {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </section>
+                @endif
+
                 {{-- Lo que respondió el proveedor, pegado a lo que se le pidió.
                      Aquí hay ancho para las tres columnas y se lee de corrido
                      con la tabla de arriba, que es con lo que se compara. --}}

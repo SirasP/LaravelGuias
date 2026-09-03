@@ -158,3 +158,63 @@ it('keeps the short @php form out of the request screen', function () {
 
     expect($sinComentarios)->not->toMatch('/@php\s*\(/');
 });
+
+it('takes several quotations for the same request and compares each one', function () {
+    // Pedir a tres proveedores y contrastar las tres contra lo mismo es el
+    // caso normal de una cotización, no la excepción.
+    Queue::fake();
+
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+
+    foreach (['sodimac.pdf', 'construmart.pdf', 'easy.pdf'] as $i => $nombre) {
+        $this->actingAs($owner)
+            ->post(route('purchase_requests.quotes.store', $solicitud), [
+                'quote' => UploadedFile::fake()->createWithContent($nombre, 'contenido distinto '.$i),
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    expect($solicitud->receivedQuotes()->count())->toBe(3);
+
+    Queue::assertPushed(ReadQuotationDocument::class, 3);
+});
+
+it('shows one comparison per quotation on the screen', function () {
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'CEMENTO 25 KG',
+        'quantity' => 10, 'unit' => 'Unidades', 'unit_price' => null,
+    ]);
+
+    $cotizacion = function (string $proveedor, string $archivo, int $precio, string $hash) use ($owner, $solicitud) {
+        PurchaseRequestIngestion::query()->create([
+            'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+            'compared_request_id' => $solicitud->getKey(),
+            'disk' => 'local', 'path' => $archivo, 'original_name' => $archivo,
+            'mime_type' => 'application/pdf', 'size' => 10, 'sha256' => str_repeat($hash, 64),
+            'status' => PurchaseRequestIngestion::COMPLETED,
+            'supplier_name' => $proveedor,
+            'extracted' => ['items' => [[
+                'product_service' => 'CEMENTO 25 KG', 'specification' => null,
+                'quantity' => '10', 'unit' => 'Unidades', 'unit_price' => $precio,
+            ]]],
+        ]);
+    };
+
+    $cotizacion('SODIMAC S.A.', 'sodimac.pdf', 4500, 'a');
+    $cotizacion('CONSTRUMART S.A.', 'construmart.pdf', 3900, 'b');
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        // Cada una con su tabla, para poder elegir mirando los dos precios.
+        ->assertSee('Cotizó SODIMAC S.A.')
+        ->assertSee('Cotizó CONSTRUMART S.A.')
+        ->assertSee('4.500')
+        ->assertSee('3.900')
+        // Y el contador de la columna derecha las cuenta.
+        ->assertSee('Cotizaciones');
+});
