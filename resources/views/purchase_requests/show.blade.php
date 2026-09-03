@@ -114,79 +114,117 @@
                 </div>
             </div>
 
-            {{-- El motivo se pide aquí, debajo del encabezado y en el flujo
-                 normal. Cada acción destructiva sigue exigiendo su explicación:
-                 lo que cambia es dónde se escribe, no que se pueda saltar. --}}
+            {{-- Los motivos se piden en un modal. Va teletransportado al body
+                 porque el contenedor de la página crea su propio contexto de
+                 apilamiento y una capa flotante nacida aquí dentro queda
+                 tapada por él, por alto que se le ponga el z-index. Ya nos
+                 pasó con el panel de filtros. --}}
             @can('requestChanges', $purchaseRequest)
                 @if($purchaseRequest->status === \App\Enums\PurchaseRequestStatus::APPROVED)
-                    <form method="POST" action="{{ route('purchase_requests.request_changes', $purchaseRequest) }}"
-                        x-show="panel === 'devolver'" x-cloak
-                        class="space-y-3 border-t border-amber-200 bg-amber-50 p-4 sm:p-5 dark:border-amber-900/60 dark:bg-amber-950/30">
-                        @csrf
-                        <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
-                        <p class="text-sm text-amber-800 dark:text-amber-200">
-                            Todavía no se envía a Odoo, así que aún se puede arreglar. Vuelve a estado editable
-                            y hay que aprobarla de nuevo antes de enviarla.
-                        </p>
-                        <label for="reopen-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">
-                            ¿Qué hay que corregir? <span class="text-rose-600">*</span>
-                        </label>
-                        <textarea id="reopen-comment" name="comment" rows="3" required
-                            class="w-full rounded-xl border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white"
-                            placeholder="Ej.: la unidad de la partida 3 no corresponde."></textarea>
-                        @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" class="min-h-11 rounded-xl bg-amber-600 px-4 text-sm font-extrabold text-white hover:bg-amber-700">Devolver para corregir</button>
-                            <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40">Cancelar</button>
+                    <template x-teleport="body">
+                        <div x-show="panel === 'devolver'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-devolver"
+                            @keydown.escape.window="panel = null"
+                            class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
+                            <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'devolver'"
+                                x-transition.opacity></div>
+                            <form method="POST" action="{{ route('purchase_requests.request_changes', $purchaseRequest) }}"
+                                x-show="panel === 'devolver'"
+                                x-transition:enter="transition ease-out duration-150"
+                                x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                                class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                                @csrf
+                                <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
+                                <h2 id="titulo-devolver" class="text-lg font-extrabold text-slate-900 dark:text-white">Devolver para corregir</h2>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">
+                                    Todavía no se envía a Odoo, así que aún se puede arreglar. Vuelve a estado editable
+                                    y hay que aprobarla de nuevo antes de enviarla.
+                                </p>
+                                <label for="reopen-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    ¿Qué hay que corregir? <span class="text-rose-600">*</span>
+                                </label>
+                                <textarea id="reopen-comment" name="comment" rows="3" required
+                                    class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    placeholder="Ej.: la unidad de la partida 3 no corresponde."></textarea>
+                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                <div class="flex flex-wrap justify-end gap-2 pt-1">
+                                    <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                                    <button type="submit" class="min-h-11 rounded-xl bg-amber-600 px-4 text-sm font-extrabold text-white hover:bg-amber-700">Devolver para corregir</button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </template>
                 @endif
             @endcan
 
             @can('cancel', $purchaseRequest)
-                <form method="POST" action="{{ route('purchase_requests.cancel', $purchaseRequest) }}"
-                    x-show="panel === 'anular'" x-cloak
-                    class="space-y-3 border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800">
-                    @csrf
-                    <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
-                    <p class="text-sm text-slate-500 dark:text-slate-400">
-                        Queda registrada en el historial con su motivo. No se elimina.
-                    </p>
-                    <label for="cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                        Motivo <span class="text-rose-600">*</span>
-                    </label>
-                    <textarea id="cancel-comment" name="comment" rows="3" required
-                        class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        placeholder="Explica por qué se anula."></textarea>
-                    @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                    <div class="flex flex-wrap gap-2">
-                        <button type="submit" class="min-h-11 rounded-xl bg-rose-600 px-4 text-sm font-extrabold text-white hover:bg-rose-700">Confirmar anulación</button>
-                        <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                <template x-teleport="body">
+                    <div x-show="panel === 'anular'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-anular"
+                        @keydown.escape.window="panel = null"
+                        class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
+                        <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'anular'"
+                            x-transition.opacity></div>
+                        <form method="POST" action="{{ route('purchase_requests.cancel', $purchaseRequest) }}"
+                            x-show="panel === 'anular'"
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                            x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                            class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                            @csrf
+                            <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
+                            <h2 id="titulo-anular" class="text-lg font-extrabold text-slate-900 dark:text-white">Anular solicitud</h2>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">
+                                Queda registrada en el historial con su motivo. No se elimina.
+                            </p>
+                            <label for="cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                Motivo <span class="text-rose-600">*</span>
+                            </label>
+                            <textarea id="cancel-comment" name="comment" rows="3" required
+                                class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                placeholder="Explica por qué se anula."></textarea>
+                            @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                            <div class="flex flex-wrap justify-end gap-2 pt-1">
+                                <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                                <button type="submit" class="min-h-11 rounded-xl bg-rose-600 px-4 text-sm font-extrabold text-white hover:bg-rose-700">Confirmar anulación</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </template>
             @endcan
 
             @can('requestCancellation', $purchaseRequest)
                 @if(! $purchaseRequest->cancellation_requested_at)
-                    <form method="POST" action="{{ route('purchase_requests.request_cancellation', $purchaseRequest) }}"
-                        x-show="panel === 'pedir'" x-cloak
-                        class="space-y-3 border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800">
-                        @csrf
-                        <p class="text-sm text-slate-500 dark:text-slate-400">
-                            Como ya fue enviada, la anulación la decide Compras. Tu petición queda registrada.
-                        </p>
-                        <label for="request-cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                            Motivo <span class="text-rose-600">*</span>
-                        </label>
-                        <textarea id="request-cancel-comment" name="comment" rows="3" required
-                            class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                            placeholder="Explica por qué ya no se necesita."></textarea>
-                        @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" class="min-h-11 rounded-xl bg-slate-800 px-4 text-sm font-extrabold text-white hover:bg-slate-900 dark:bg-slate-200 dark:text-slate-900">Pedir anulación</button>
-                            <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                    <template x-teleport="body">
+                        <div x-show="panel === 'pedir'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-pedir"
+                            @keydown.escape.window="panel = null"
+                            class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
+                            <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'pedir'"
+                                x-transition.opacity></div>
+                            <form method="POST" action="{{ route('purchase_requests.request_cancellation', $purchaseRequest) }}"
+                                x-show="panel === 'pedir'"
+                                x-transition:enter="transition ease-out duration-150"
+                                x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                                class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                                @csrf
+                                <h2 id="titulo-pedir" class="text-lg font-extrabold text-slate-900 dark:text-white">Pedir anulación</h2>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">
+                                    Como ya fue enviada, la anulación la decide Compras. Tu petición queda registrada.
+                                </p>
+                                <label for="request-cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    Motivo <span class="text-rose-600">*</span>
+                                </label>
+                                <textarea id="request-cancel-comment" name="comment" rows="3" required
+                                    class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    placeholder="Explica por qué ya no se necesita."></textarea>
+                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                <div class="flex flex-wrap justify-end gap-2 pt-1">
+                                    <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                                    <button type="submit" class="min-h-11 rounded-xl bg-slate-800 px-4 text-sm font-extrabold text-white hover:bg-slate-900 dark:bg-slate-200 dark:text-slate-900">Pedir anulación</button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </template>
                 @endif
             @endcan
 
