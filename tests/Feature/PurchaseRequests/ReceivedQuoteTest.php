@@ -142,3 +142,19 @@ it('keeps someone else out of a request that is not theirs', function () {
 
     expect(PurchaseRequestIngestion::query()->count())->toBe(0);
 });
+
+it('keeps the short @php form out of the request screen', function () {
+    // Blade empareja cada `@php` con el siguiente `@endphp` del archivo. La
+    // forma corta `@php($x = 1)` no tiene cierre propio, así que se traga todo
+    // lo que haya hasta el próximo `@endphp` y el resto de la plantilla queda
+    // sin compilar: la página revienta con un error de sintaxis.
+    //
+    // Pasó de verdad al reordenar las secciones el 03-09-2026: mientras el
+    // bloque de Odoo iba antes, el emparejamiento salía bien por casualidad.
+    $vista = file_get_contents(resource_path('views/purchase_requests/show.blade.php'));
+
+    // Sin los comentarios, que sí pueden nombrar la forma corta para advertir.
+    $sinComentarios = preg_replace('/\{\{--.*?--\}\}/s', '', $vista);
+
+    expect($sinComentarios)->not->toMatch('/@php\s*\(/');
+});
