@@ -254,7 +254,14 @@ class PurchaseIngestionController extends Controller
     /** El documento original, sólo para quien lo subió. */
     public function download(Request $request, PurchaseRequestIngestion $ingestion): StreamedResponse
     {
-        abort_unless($ingestion->user_id === $request->user()->getKey(), 403);
+        // Quien lo subió siempre; y además cualquiera que pueda ver la
+        // solicitud con la que se contrastó. Sin esto, la cotización que
+        // justifica el precio sólo la abre quien la subió, justo cuando
+        // quien revisa es otra persona.
+        $puedeVerla = $ingestion->comparedRequest !== null
+            && $request->user()->can('view', $ingestion->comparedRequest);
+
+        abort_unless($ingestion->user_id === $request->user()->getKey() || $puedeVerla, 403);
         abort_unless(Storage::disk($ingestion->disk)->exists($ingestion->path), 404);
 
         return Storage::disk($ingestion->disk)->download($ingestion->path, $ingestion->original_name);

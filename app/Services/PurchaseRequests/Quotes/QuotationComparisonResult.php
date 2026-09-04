@@ -36,6 +36,29 @@ class QuotationComparisonResult
         return count(array_filter($this->todas(), fn (QuotationComparisonRow $f) => ! $f->estaBien()));
     }
 
+    /**
+     * ¿El documento no aportó ni una partida?
+     *
+     * No es lo mismo que estar vacío: si pediste tres cosas, la comparación
+     * trae tres filas aunque el PDF fuera ilegible, todas marcadas como no
+     * cotizadas. Contarlas como diferencias culparía al proveedor de un
+     * documento que no se pudo leer.
+     */
+    public function elDocumentoNoAporto(): bool
+    {
+        if ($this->sobrantes !== []) {
+            return false;
+        }
+
+        foreach ($this->filas as $fila) {
+            if ($fila->cotizada !== null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** Un resumen en una frase, que es lo primero que se lee. */
     public function resumen(): string
     {

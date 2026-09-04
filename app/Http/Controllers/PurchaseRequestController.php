@@ -291,13 +291,16 @@ class PurchaseRequestController extends Controller
         foreach ($purchaseRequest->receivedQuotes as $cotizacion) {
             $lineas = $cotizacion->extracted['items'] ?? null;
 
-            if (! is_array($lineas)) {
-                continue;
-            }
-
+            // Sin lectura todavía —o con una que falló— igual se lista: el
+            // archivo está subido y tiene que verse. Saltárselo lo hacía
+            // desaparecer de la pantalla justo después de subirlo, como si no
+            // hubiera pasado nada.
             $listas[] = [
                 'ingestion' => $cotizacion,
-                'resultado' => $comparador->comparar($purchaseRequest, array_values($lineas)),
+                'resultado' => $comparador->comparar(
+                    $purchaseRequest,
+                    is_array($lineas) ? array_values($lineas) : [],
+                ),
             ];
         }
 

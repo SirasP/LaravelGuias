@@ -218,3 +218,107 @@ it('shows one comparison per quotation on the screen', function () {
         // Y el contador de la columna derecha las cuenta.
         ->assertSee('Cotizaciones');
 });
+
+it('lets you download the quotation from the request screen', function () {
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+
+    Storage::disk('local')->put('cotizaciones/prueba.pdf', '%PDF-1.4 la cotización');
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(),
+        'disk' => 'local', 'path' => 'cotizaciones/prueba.pdf',
+        'original_name' => 'Cotizacion SODIMAC.pdf', 'mime_type' => 'application/pdf',
+        'size' => 22, 'sha256' => str_repeat('d', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+    ]);
+
+    // El nombre del archivo es el enlace, en la propia tarjeta.
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee(route('purchase_requests.ingestions.download', $lectura), escape: false);
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.ingestions.download', $lectura))
+        ->assertOk()
+        ->assertDownload('Cotizacion SODIMAC.pdf');
+});
+
+it('lets a reviewer open a quotation that somebody else uploaded', function () {
+    // Quien revisa casi nunca es quien subió el papel; si sólo lo abriera el
+    // que lo subió, la cotización no serviría para justificar nada.
+    $owner = User::factory()->create();
+    $revisor = User::factory()->admin()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+
+    Storage::disk('local')->put('cotizaciones/otra.pdf', '%PDF-1.4 la cotización');
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(),
+        'disk' => 'local', 'path' => 'cotizaciones/otra.pdf',
+        'original_name' => 'otra.pdf', 'mime_type' => 'application/pdf',
+        'size' => 22, 'sha256' => str_repeat('e', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+    ]);
+
+    $this->actingAs($revisor)
+        ->get(route('purchase_requests.ingestions.download', $lectura))
+        ->assertOk();
+
+    // Y alguien ajeno a la solicitud sigue sin poder abrirla.
+    $ajeno = User::factory()->create();
+
+    $this->actingAs($ajeno)
+        ->get(route('purchase_requests.ingestions.download', $lectura))
+        ->assertForbidden();
+});
+
+it('keeps a quotation on screen while it is still being read', function () {
+    // Antes desaparecía al subirla y no volvía hasta que la lectura terminaba:
+    // parecía que el archivo no había llegado.
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+
+    PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'cotizaciones/en-curso.pdf', 'original_name' => 'recien-subida.pdf',
+        'mime_type' => 'application/pdf', 'size' => 10, 'sha256' => str_repeat('f', 64),
+        'status' => PurchaseRequestIngestion::PENDING,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('recien-subida.pdf')
+        ->assertSee('Leyéndola');
+});
+
+it('says a reading failed instead of counting every line as a difference', function () {
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'CEMENTO 25 KG',
+        'quantity' => 10, 'unit' => 'Unidades',
+    ]);
+
+    PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'cotizaciones/rota.pdf', 'original_name' => 'ilegible.pdf',
+        'mime_type' => 'application/pdf', 'size' => 10, 'sha256' => str_repeat('9', 64),
+        'status' => PurchaseRequestIngestion::FAILED,
+        'error_message' => 'No se reconoció ninguna partida en el documento.',
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('ilegible.pdf')
+        ->assertSee('No se pudo leer')
+        ->assertDontSee('1 diferencia');
+});

@@ -412,7 +412,10 @@
                         $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
                     @endphp
 
-                    @if(! $leyendo)
+                    {{-- Sin partidas leídas no hay nada que contrastar: la tabla
+                         diría que falta cada una de las que pediste, culpando al
+                         proveedor de un documento que no se pudo leer. --}}
+                    @if(! $leyendo && ! $resultado->elDocumentoNoAporto())
                         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
                                 <div class="min-w-0">
@@ -585,12 +588,20 @@
 
                         <div class="mt-3 flex items-start justify-between gap-2 rounded-xl bg-white p-3 dark:bg-slate-900">
                             <div class="min-w-0">
-                                <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $lectura->original_name }}</p>
+                                <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                    class="block truncate text-sm font-bold text-sky-800 underline decoration-sky-300 underline-offset-2 hover:decoration-sky-600 dark:text-sky-200 dark:decoration-sky-700">{{ $lectura->original_name }}</a>
                                 <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                                     {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
                                 </p>
                                 @if($leyendo)
                                     <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Leyéndola…</p>
+                                {{-- Una lectura fallida no tiene partidas, y sin esto
+                                     la línea diría «N diferencias» contando como
+                                     diferencia cada partida que nunca se leyó. --}}
+                                @elseif($resultado->elDocumentoNoAporto())
+                                    <p class="mt-1 text-xs font-bold text-rose-700 dark:text-rose-400">
+                                        No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
+                                    </p>
                                 @else
                                     <p class="mt-1 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }}">
                                         {{ $resultado->cuadra() ? '✓ Coincide con lo que pediste' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
