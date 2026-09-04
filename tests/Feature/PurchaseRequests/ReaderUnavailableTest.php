@@ -162,3 +162,47 @@ it('treats an unloaded model as something to wait for, not a failure', function 
             ->toBeFalse("«{$definitivo}» no debería quedarse esperando");
     }
 });
+
+it('does not ask the server to force the shape of the answer', function () {
+    // LM Studio compila una gramática desde el esquema y con `strict` se quedó
+    // 300 s sin emitir un byte sobre un documento que sin él contesta en 4.
+    // Medido el 04-09-2026 con la cotización 11299.
+    config([
+        'purchase_requests.reader.enabled' => true,
+        'purchase_requests.reader.base_url' => 'http://modelo.local/v1',
+        'purchase_requests.reader.model' => 'qwen/qwen3-vl-8b',
+        'purchase_requests.reader.timeout' => 30,
+    ]);
+
+    Http::preventStrayRequests();
+    Http::fake(['*/chat/completions' => Http::response(['choices' => [['message' => ['content' => '{"supplier":"","reason":"","net_total":"","tax_total":"","grand_total":"","items":[]}',
+    ]]]])]);
+
+    // Se llama al paso que arma la petición: montar un PDF de verdad sólo
+    // para llegar hasta aquí probaría el extractor, no lo que interesa.
+    $lector = new LocalQuotationReader;
+    $metodo = new ReflectionMethod($lector, 'preguntarAlModelo');
+    $metodo->invoke($lector, 'qwen/qwen3-vl-8b', 'CANTIDAD 2 TEE PVC 63MM 1.138', null, ['Unidades']);
+
+    Http::assertSent(function ($request) {
+        expect($request['response_format'] ?? null)->toBeNull();
+
+        // Y la forma pedida viaja igual, escrita en el mensaje del sistema.
+        return str_contains($request['messages'][0]['content'], '"product_service"');
+    });
+});
+
+it('reads a JSON that came wrapped in prose or fences', function () {
+    // Sin gramática que lo obligue, el modelo a veces envuelve el JSON. Pedirle
+    // que se porte bien es más frágil que quedarse con lo que hay entre llaves.
+    $lector = new LocalQuotationReader;
+    $metodo = new ReflectionMethod($lector, 'soloElJson');
+
+    $envuelto = "Claro, aquí tienes:\n```json\n{\"supplier\":\"WURTH\",\"items\":[]}\n```\nEspero que sirva.";
+
+    expect($metodo->invoke($lector, $envuelto))->toBe('{"supplier":"WURTH","items":[]}')
+        // Y lo que ya viene limpio se devuelve tal cual.
+        ->and($metodo->invoke($lector, '{"a":1}'))->toBe('{"a":1}')
+        // Sin llaves no hay nada que recortar: que falle más adelante y se vea.
+        ->and($metodo->invoke($lector, 'no pude leerlo'))->toBe('no pude leerlo');
+});

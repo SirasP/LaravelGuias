@@ -349,7 +349,12 @@ class LocalQuotationReader implements QuotationReader
           lo es su razón social ni su dirección. Si el documento no declara un motivo,
           deja "reason" vacío.
 
-        Responde SOLO el JSON pedido.
+        FORMA DE LA RESPUESTA:
+        - Responde SOLO este objeto JSON, sin texto alrededor y sin ```:
+          {"supplier":"","reason":"","net_total":"","tax_total":"","grand_total":"",
+           "items":[{"product_service":"","specification":"","quantity":"","unit":"","unit_price":""}]}
+        - Todos los valores son texto, incluidos números y precios. Un dato que no
+          esté en el documento va como cadena vacía, nunca como null ni omitido.
         TXT;
 
         $esquema = [
@@ -400,15 +405,20 @@ class LocalQuotationReader implements QuotationReader
                     ['role' => 'system', 'content' => $sistema],
                     ['role' => 'user', 'content' => $contenidoUsuario],
                 ],
-                'response_format' => [
+                // Apagado por defecto. LM Studio compila una gramática a partir
+                // del esquema y con `strict` se quedó 300 s sin emitir un byte
+                // sobre un documento que sin él contesta en 4. Con `strict`
+                // en falso responde, pero se desborda hasta agotar los tokens.
+                // El esquema viaja igual, escrito en el mensaje del sistema.
+                ...($this->conEsquemaEstricto() ? ['response_format' => [
                     'type' => 'json_schema',
                     'json_schema' => ['name' => 'cotizacion', 'strict' => true, 'schema' => $esquema],
-                ],
+                ]] : []),
             ])
             ->throw();
 
-        $contenido = data_get($respuesta->json(), 'choices.0.message.content');
-        $decodificado = json_decode((string) $contenido, true);
+        $contenido = (string) data_get($respuesta->json(), 'choices.0.message.content');
+        $decodificado = json_decode($this->soloElJson($contenido), true);
 
         if (! is_array($decodificado)) {
             throw new \RuntimeException('El modelo no devolvió un JSON válido.');
@@ -781,6 +791,36 @@ class LocalQuotationReader implements QuotationReader
         $limpio = trim($valor);
 
         return $limpio === '' ? null : $limpio;
+    }
+
+    /**
+     * ¿Se le pide al servidor que fuerce la forma de la respuesta?
+     *
+     * Apagado por defecto: ver el porqué donde se usa. Queda como interruptor
+     * para poder encenderlo si el servidor mejora, sin volver a tocar código.
+     */
+    private function conEsquemaEstricto(): bool
+    {
+        return (bool) config('purchase_requests.reader.strict_json_schema', false);
+    }
+
+    /**
+     * El objeto JSON que venga dentro de la respuesta.
+     *
+     * Sin gramática que lo obligue, un modelo a veces envuelve el JSON en
+     * ```json o le antepone una frase. Quedarse con lo que hay entre la
+     * primera llave y la última es más barato que pedirle que se porte bien.
+     */
+    private function soloElJson(string $contenido): string
+    {
+        $inicio = mb_strpos($contenido, '{');
+        $fin = mb_strrpos($contenido, '}');
+
+        if ($inicio === false || $fin === false || $fin < $inicio) {
+            return $contenido;
+        }
+
+        return mb_substr($contenido, $inicio, $fin - $inicio + 1);
     }
 
     /**
