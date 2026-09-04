@@ -11,6 +11,7 @@ use App\Services\PurchaseRequests\Products\ProductMatcher;
 use App\Services\PurchaseRequests\Products\ProductSimilarity;
 use App\Support\Rut;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -97,10 +98,63 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'odoo_exported_at' => now(),
         ])->save();
 
+        // Los PDF del proveedor viajan con la orden. Va después de guardar el
+        // vínculo y aparte del try de arriba a propósito: la cotización ya
+        // existe en Odoo, y que falle un adjunto no puede deshacerla ni hacer
+        // creer que no se creó. Si falla, queda en el log y se adjunta a mano.
+        $adjuntados = $this->adjuntarCotizaciones($purchaseRequest, $id);
+
         return PurchaseRequestExportResult::created(
             $referencia,
-            'Se creó la cotización '.$referencia.' en Odoo, en borrador y sin confirmar.',
+            'Se creó la cotización '.$referencia.' en Odoo, en borrador y sin confirmar.'
+                .($adjuntados > 0
+                    ? ' Se adjuntaron '.$adjuntados.' '.Str::plural('cotización', $adjuntados).' del proveedor.'
+                    : ''),
         );
+    }
+
+    /**
+     * Cuelga de la orden de Odoo los documentos que mandó el proveedor.
+     *
+     * Es lo que alguien ya venía haciendo a mano: la orden 235 tiene pegada
+     * su cotización. Se escribe un `ir.attachment` sobre la orden que este
+     * mismo programa acaba de crear; no se toca ningún producto ni proveedor.
+     *
+     * @return int cuántos quedaron colgados
+     */
+    private function adjuntarCotizaciones(PurchaseRequest $purchaseRequest, int $ordenId): int
+    {
+        $colgados = 0;
+
+        foreach ($purchaseRequest->receivedQuotes()->get() as $cotizacion) {
+            try {
+                $disco = Storage::disk($cotizacion->disk);
+
+                if (! $disco->exists($cotizacion->path)) {
+                    continue;
+                }
+
+                $this->client->execute('ir.attachment', 'create', [[
+                    'name' => $cotizacion->original_name,
+                    'type' => 'binary',
+                    'datas' => base64_encode($disco->get($cotizacion->path)),
+                    'res_model' => 'purchase.order',
+                    'res_id' => $ordenId,
+                    'mimetype' => $cotizacion->mime_type,
+                ]]);
+
+                $colgados++;
+            } catch (Throwable $e) {
+                Log::warning('No se pudo adjuntar una cotización a la orden de Odoo.', [
+                    'folio' => $purchaseRequest->folio,
+                    'orden' => $ordenId,
+                    'archivo' => $cotizacion->original_name,
+                    'motivo' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $colgados;
     }
 
     /**

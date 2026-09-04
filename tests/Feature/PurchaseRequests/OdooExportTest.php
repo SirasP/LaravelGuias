@@ -808,3 +808,105 @@ it('revives a product that had been marked as gone', function () {
 
     expect(App\Models\OdooProduct::where('odoo_id', 9001)->first()->missing_since)->toBeNull();
 });
+
+/** Deja una cotización del proveedor colgada de la solicitud, con archivo. */
+function cotizacionSubida(PurchaseRequest $solicitud, string $nombre = 'Cotizacion RODASERVIC.pdf'): void
+{
+    Storage::fake('local');
+    Storage::disk('local')->put('cotizaciones/'.$nombre, '%PDF-1.4 contenido de prueba');
+
+    App\Models\PurchaseRequestIngestion::query()->create([
+        'user_id' => $solicitud->user_id,
+        'uploader_name_snapshot' => 'Quien sea',
+        'compared_request_id' => $solicitud->getKey(),
+        'disk' => 'local',
+        'path' => 'cotizaciones/'.$nombre,
+        'original_name' => $nombre,
+        'mime_type' => 'application/pdf',
+        'size' => 27,
+        'sha256' => hash('sha256', $nombre),
+        'status' => App\Models\PurchaseRequestIngestion::COMPLETED,
+    ]);
+}
+
+it('hangs the supplier quotation on the Odoo order', function () {
+    // Alguien ya lo hacía a mano: la orden 235 de producción tiene pegada su
+    // cotización. Esto es eso mismo, sin la mano.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']], 991]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+    cotizacionSubida($solicitud);
+
+    $resultado = exportador()->exportApproved($solicitud);
+
+    expect($resultado->status)->toBe('created')
+        ->and($resultado->message)->toContain('Se adjuntaron 1 cotización del proveedor.');
+
+    // params.args = [db, uid, clave, modelo, método, args, kwargs].
+    Http::assertSent(function ($request) {
+        if (($request['params']['args'][3] ?? null) !== 'ir.attachment') {
+            return false;
+        }
+
+        if (($request['params']['args'][4] ?? null) !== 'create') {
+            return false;
+        }
+
+        $datos = $request['params']['args'][5][0] ?? [];
+
+        return $datos['res_model'] === 'purchase.order'
+            && $datos['res_id'] === 219
+            && $datos['name'] === 'Cotizacion RODASERVIC.pdf'
+            && $datos['mimetype'] === 'application/pdf'
+            // El archivo viaja de verdad, no sólo su nombre.
+            && base64_decode($datos['datas']) === '%PDF-1.4 contenido de prueba';
+    });
+});
+
+it('does not undo the order when the attachment fails', function () {
+    // La cotización ya existe en Odoo. Que falle un adjunto no puede
+    // deshacerla ni hacer creer que no se creó: se avisa y se sigue.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+    Http::fake([
+        '*/jsonrpc' => Http::sequence()
+            ->push(['jsonrpc' => '2.0', 'result' => 8])
+            ->push(['jsonrpc' => '2.0', 'result' => [3528]])
+            ->push(['jsonrpc' => '2.0', 'result' => 219])
+            ->push(['jsonrpc' => '2.0', 'result' => [['id' => 219, 'name' => 'P00219']]])
+            ->push(['jsonrpc' => '2.0', 'error' => ['message' => 'sin permiso para adjuntar']]),
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+    cotizacionSubida($solicitud);
+
+    $resultado = exportador()->exportApproved($solicitud);
+
+    expect($resultado->status)->toBe('created')
+        ->and($resultado->message)->not->toContain('Se adjuntaron')
+        // Y el vínculo queda guardado: no se vuelve a exportar y duplicar.
+        ->and($solicitud->fresh()->odoo_order_id)->toBe(219);
+});
+
+it('attaches nothing when no quotation was uploaded', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+
+    $resultado = exportador()->exportApproved($solicitud);
+
+    expect($resultado->message)->not->toContain('Se adjuntaron');
+
+    Http::assertNotSent(fn ($request) => ($request['params']['args'][3] ?? null) === 'ir.attachment');
+});
