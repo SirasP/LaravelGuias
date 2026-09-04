@@ -130,3 +130,35 @@ it('tells a connection problem apart from a bad answer', function () {
     expect($metodo->invoke($lector, new RuntimeException('El modelo no devolvió un JSON válido.')))->toBeFalse();
     expect($metodo->invoke($lector, new RuntimeException('No se pudo abrir el documento.')))->toBeFalse();
 });
+
+it('treats an unloaded model as something to wait for, not a failure', function () {
+    // LM Studio responde 400 «Model is unloaded» cuando el servidor está vivo
+    // pero soltó el modelo de memoria: es lo que provoca el `ttl` que le
+    // pedimos para no dejar la Mac ocupada. Darlo por fallo perdía la lectura
+    // de un documento perfectamente legible, y así se perdió la cotización
+    // 11299 tras 52 intentos.
+    $lector = new LocalQuotationReader;
+    $metodo = new ReflectionMethod($lector, 'esProblemaDeConexion');
+
+    $pasajeros = [
+        'El modelo no respondió: HTTP request returned status code 400: {"error":"Model is unloaded."}',
+        'no model loaded',
+        'Loading model, please retry',
+        'cURL error 7: Connection refused',
+    ];
+
+    foreach ($pasajeros as $mensaje) {
+        expect($metodo->invoke($lector, new RuntimeException($mensaje)))
+            ->toBeTrue("«{$mensaje}» debería esperarse, no fallar");
+    }
+
+    // Y lo que sí es un fallo de verdad sigue siéndolo: si se tratara como
+    // pasajero, una lectura rota reintentaría doce horas para nada.
+    foreach ([
+        'El documento no tiene texto legible.',
+        'HTTP request returned status code 401: unauthorized',
+    ] as $definitivo) {
+        expect($metodo->invoke($lector, new RuntimeException($definitivo)))
+            ->toBeFalse("«{$definitivo}» no debería quedarse esperando");
+    }
+});

@@ -206,6 +206,13 @@ class LocalQuotationReader implements QuotationReader
             'connection refused', 'could not connect', 'failed to connect',
             'timed out', 'timeout', 'connection reset', 'empty reply',
             'no route to host', 'network is unreachable', 'curl error',
+            // LM Studio contesta 400 «Model is unloaded» cuando el servidor
+            // está vivo pero soltó el modelo de memoria —justo lo que provoca
+            // el `ttl` que le pedimos para no tener la Mac ocupada—. Es tan
+            // pasajero como que la Mac esté durmiendo: se espera y se
+            // reintenta, en vez de dar la lectura por perdida.
+            'model is unloaded', 'model not loaded', 'no model loaded',
+            'model_not_found', 'loading model',
         ] as $senal) {
             if (Str::contains($mensaje, $senal)) {
                 return true;
