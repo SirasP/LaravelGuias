@@ -210,9 +210,12 @@ it('shows one comparison per quotation on the screen', function () {
     $this->actingAs($owner)
         ->get(route('purchase_requests.show', $solicitud))
         ->assertOk()
-        // Cada una con su tabla, para poder elegir mirando los dos precios.
-        ->assertSee('Cotizó SODIMAC S.A.')
-        ->assertSee('Cotizó CONSTRUMART S.A.')
+        // Una pestaña por cotización, para poder elegir sin recorrer dos
+        // tablas de diecinueve filas.
+        ->assertSee('SODIMAC S.A.')
+        ->assertSee('CONSTRUMART S.A.')
+        ->assertSee('cotizacion = 0', escape: false)
+        ->assertSee('cotizacion = 1', escape: false)
         ->assertSee('4.500')
         ->assertSee('3.900')
         // Y el contador de la columna derecha las cuenta.

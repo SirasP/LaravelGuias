@@ -17,7 +17,7 @@
         $asistenteDisponible = (bool) config('purchase_requests.reader.enabled');
     @endphp
 
-    <div class="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8" x-data="{ modo: 'manual' }">
+    <div class="mx-auto max-w-[2000px] px-4 py-6 sm:px-6 lg:px-8" x-data="{ modo: 'manual' }">
         @include('purchase_requests._module_nav')
 
         @if($asistenteDisponible)

@@ -452,110 +452,125 @@
                         </section>
                     @endif
 
-                    {{-- Lo que respondió el proveedor, pegado a lo que se le pidió.
-                         Aquí hay ancho para las tres columnas y se lee de corrido
-                         con la tabla de arriba, que es con lo que se compara. --}}
-                    @foreach ($comparaciones as $comparacion)
-                        @php
-                            $lectura = $comparacion['ingestion'];
-                            $resultado = $comparacion['resultado'];
-                            $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
-                        @endphp
+                    {{-- Una pestaña por cotización en vez de una sección tras otra: con
+                         tres proveedores había que recorrer tres tablas de diecinueve filas
+                         para comparar dos precios, que es justo lo que uno pide tres
+                         cotizaciones para no hacer. --}}
+                    @php
+                        $comparables = collect($comparaciones)->reject(function ($comparacion) {
+                            $enCurso = in_array($comparacion['ingestion']->status, [
+                                \App\Models\PurchaseRequestIngestion::PENDING,
+                                \App\Models\PurchaseRequestIngestion::PROCESSING,
+                            ], true);
 
-                        {{-- Sin partidas leídas no hay nada que contrastar: la tabla
-                             diría que falta cada una de las que pediste, culpando al
-                             proveedor de un documento que no se pudo leer. --}}
-                        @if(! $leyendo && ! $resultado->elDocumentoNoAporto())
-                            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                                    <div class="min-w-0">
-                                        <h2 class="font-extrabold text-slate-900 dark:text-white">
-                                            Cotizó {{ $lectura->supplier_name ?: 'un proveedor sin identificar' }}
-                                        </h2>
-                                        <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
-                                    </div>
-                                    <span class="text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }}">
-                                        {{ $resultado->cuadra() ? '✓' : '⚠' }} {{ $resultado->resumen() }}
-                                    </span>
-                                </div>
+                            return $enCurso || $comparacion['resultado']->elDocumentoNoAporto();
+                        })->values();
+                    @endphp
 
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full text-sm">
-                                        <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                            <tr>
-                                                <th class="px-4 py-2 font-bold">Partida</th>
-                                                <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
-                                                <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
-                                                <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                            @foreach ($resultado->todas() as $fila)
-                                                <tr class="align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
-                                                    <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
-                                                        <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
-                                                        @foreach ($fila->diferencias as $diferencia)
-                                                            <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
-                                                        @endforeach
-                                                    </td>
-                                                    <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                                                        @if($fila->pedida)
-                                                            {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
-                                                            @if($fila->pedida->unit_price !== null)
-                                                                <span class="block text-xs">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
-                                                            @endif
-                                                        @else
-                                                            <span class="text-slate-400">no la pediste</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                                                        @if($fila->cotizada)
-                                                            {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
-                                                            @if(filled($fila->cotizada['unit_price'] ?? null))
-                                                                <span class="block text-xs">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
-                                                            @endif
-                                                        @else
-                                                            <span class="text-slate-400">no la cotizaron</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="hidden px-4 py-2.5 text-xs md:table-cell {{ $fila->estaBien() ? 'text-slate-400' : 'text-amber-800 dark:text-amber-300' }}">
-                                                        @forelse ($fila->diferencias as $diferencia)
-                                                            <span class="block">{{ $diferencia }}</span>
-                                                        @empty
-                                                            —
-                                                        @endforelse
+                    @if($comparables->isNotEmpty())
+                        <section x-data="{ cotizacion: 0 }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="flex flex-wrap gap-1 border-b border-slate-100 p-2 dark:border-slate-800">
+                                @foreach ($comparables as $indice => $comparacion)
+                                    @php
+                                        $lectura = $comparacion['ingestion'];
+                                        $resultado = $comparacion['resultado'];
+                                    @endphp
+                                    <button type="button" @click="cotizacion = {{ $indice }}"
+                                        class="min-h-11 rounded-xl px-3 py-1 text-left transition-colors"
+                                        :class="cotizacion === {{ $indice }} ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
+                                        <span class="block text-sm font-extrabold">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 26) }}</span>
+                                        <span class="block text-xs font-bold">
+                                            {{ $resultado->cuadra() ? '✓ coincide' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
+                                        </span>
+                                    </button>
+                                @endforeach
+                            </div>
 
-                                                        {{-- Una línea que el proveedor trae y no calza con
-                                                             ninguna partida: aquí se dice cuál es. Se aprende
-                                                             una vez y la próxima se cruza sola. --}}
-                                                        @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
-                                                            <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
-                                                                class="mt-2 flex flex-wrap items-center gap-1.5">
-                                                                @csrf
-                                                                <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
-                                                                <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
-                                                                <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
-                                                                    class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                                                                    <option value="">¿Es alguna de tus partidas?</option>
-                                                                    @foreach ($purchaseRequest->items as $partida)
-                                                                        <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                                <button type="submit"
-                                                                    class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                                                    Es la misma
-                                                                </button>
-                                                            </form>
-                                                        @endif
-                                                    </td>
+                            @foreach ($comparables as $indice => $comparacion)
+                                @php
+                                    $lectura = $comparacion['ingestion'];
+                                    $resultado = $comparacion['resultado'];
+                                @endphp
+                                <div x-show="cotizacion === {{ $indice }}" x-cloak>
+                                    <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full text-sm">
+                                            <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                                <tr>
+                                                    <th class="px-4 py-2 font-bold">Partida</th>
+                                                    <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
+                                                    <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
+                                                    <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
                                                 </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                @foreach ($resultado->todas() as $fila)
+                                                    <tr class="align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
+                                                        <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
+                                                            <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
+                                                            @foreach ($fila->diferencias as $diferencia)
+                                                                <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
+                                                            @endforeach
+                                                        </td>
+                                                        <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                            @if($fila->pedida)
+                                                                {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
+                                                                @if($fila->pedida->unit_price !== null)
+                                                                    <span class="block text-xs">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-slate-400">no la pediste</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                            @if($fila->cotizada)
+                                                                {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
+                                                                @if(filled($fila->cotizada['unit_price'] ?? null))
+                                                                    <span class="block text-xs">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-slate-400">no la cotizaron</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="hidden px-4 py-2.5 text-xs md:table-cell {{ $fila->estaBien() ? 'text-slate-400' : 'text-amber-800 dark:text-amber-300' }}">
+                                                            @forelse ($fila->diferencias as $diferencia)
+                                                                <span class="block">{{ $diferencia }}</span>
+                                                            @empty
+                                                                —
+                                                            @endforelse
+
+                                                            {{-- Una línea que el proveedor trae y no calza con
+                                                                 ninguna partida: aquí se dice cuál es. Se aprende
+                                                                 una vez y la próxima se cruza sola. --}}
+                                                            @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
+                                                                    class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                                    @csrf
+                                                                    <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                    <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
+                                                                    <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
+                                                                        class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                                                                        <option value="">¿Es alguna de tus partidas?</option>
+                                                                        @foreach ($purchaseRequest->items as $partida)
+                                                                            <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                    <button type="submit"
+                                                                        class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                                                                        Es la misma
+                                                                    </button>
+                                                                </form>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </section>
-                        @endif
-                    @endforeach
+                            @endforeach
+                        </section>
+                    @endif
 
 
                     @if(count($suggestedSuppliers))
