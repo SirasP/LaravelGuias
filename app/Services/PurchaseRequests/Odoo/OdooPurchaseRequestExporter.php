@@ -420,6 +420,76 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         return is_array($vivos) ? array_map('intval', $vivos) : [];
     }
 
+    /**
+     * Escribe en la cotización de Odoo los precios que cotizó el proveedor.
+     *
+     * Sólo `price_unit`, y sólo mientras la orden siga en borrador: una vez
+     * confirmada hay compromisos detrás —recepciones, facturas— y cambiarle el
+     * precio por detrás desde aquí sería mover algo que allá ya se dio por
+     * cerrado.
+     *
+     * Las líneas se localizan por producto, no por texto: la línea de Odoo y
+     * la partida apuntan al mismo producto aunque se llamen distinto, que es
+     * justamente el caso que motivó todo esto.
+     *
+     * @param  array<int, float>  $preciosPorProducto  id de producto de Odoo => precio unitario
+     * @return array{0: int, 1: ?string} cuántas líneas se actualizaron y el motivo si no
+     */
+    public function actualizarPrecios(PurchaseRequest $purchaseRequest, array $preciosPorProducto): array
+    {
+        $orden = (int) $purchaseRequest->odoo_order_id;
+
+        if ($orden === 0) {
+            return [0, 'Esta solicitud todavía no está en Odoo.'];
+        }
+
+        if ($preciosPorProducto === []) {
+            return [0, 'Ninguna partida tiene precio cotizado que llevar.'];
+        }
+
+        try {
+            $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['state', 'order_line']]);
+            $estado = (string) ($cabecera[0]['state'] ?? '');
+
+            if ($estado !== 'draft') {
+                return [0, 'La orden ya no está en borrador en Odoo, así que no se le tocan los precios desde aquí.'];
+            }
+
+            $lineas = $this->client->execute(
+                'purchase.order.line',
+                'read',
+                [$cabecera[0]['order_line'] ?? []],
+                ['fields' => ['id', 'product_id', 'price_unit']],
+            );
+
+            $actualizadas = 0;
+
+            foreach ($lineas ?: [] as $linea) {
+                $producto = is_array($linea['product_id'] ?? null) ? (int) $linea['product_id'][0] : null;
+                $nuevo = $producto === null ? null : ($preciosPorProducto[$producto] ?? null);
+
+                // Escribir el mismo número que ya está sería ensuciar el
+                // historial de Odoo sin cambiar nada.
+                if ($nuevo === null || abs((float) $linea['price_unit'] - $nuevo) < 0.005) {
+                    continue;
+                }
+
+                $this->client->execute('purchase.order.line', 'write', [[(int) $linea['id']], ['price_unit' => $nuevo]]);
+                $actualizadas++;
+            }
+
+            return [$actualizadas, null];
+        } catch (Throwable $e) {
+            Log::warning('No se pudieron actualizar los precios en Odoo.', [
+                'folio' => $purchaseRequest->folio,
+                'orden' => $orden,
+                'motivo' => $e->getMessage(),
+            ]);
+
+            return [0, 'Odoo no aceptó el cambio: '.$e->getMessage()];
+        }
+    }
+
     /** @return array{0: int, 1: string} */
     private function crearRfq(PurchaseRequest $purchaseRequest, int $proveedor): array
     {

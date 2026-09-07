@@ -7,6 +7,9 @@ use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseSupplier;
+use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
+use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
+use App\Services\PurchaseRequests\Quotes\QuotationComparison;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use App\Support\Rut;
 use Illuminate\Http\RedirectResponse;
@@ -146,6 +149,82 @@ class PurchaseQuoteComparisonController extends Controller
             'Anotado: «'.Str::limit($datos['quote_line'], 34).'» es «'
                 .Str::limit((string) $partida->product_service, 34).'». La próxima vez se cruza solo.',
         );
+    }
+
+    /**
+     * Lleva a Odoo los precios que cotizó el proveedor.
+     *
+     * Se toman de la comparación ya cruzada: sólo de las partidas que tienen
+     * pareja, y sólo si esa pareja trae precio. Lo que no cruzó no se adivina.
+     */
+    public function prices(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestIngestion $ingestion,
+        PurchaseRequestExporter $exporter,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        $partnerId = $this->partnerDeOdoo($ingestion);
+        $lineas = $ingestion->extracted['items'] ?? [];
+
+        $comparacion = app(QuotationComparison::class)->comparar(
+            $purchaseRequest,
+            is_array($lineas) ? array_values($lineas) : [],
+            $partnerId,
+        );
+
+        $precios = [];
+
+        foreach ($comparacion->filas as $fila) {
+            $precio = $fila->cotizada['unit_price'] ?? null;
+
+            if ($fila->pedida === null || ! is_numeric($precio)) {
+                continue;
+            }
+
+            // La partida y la línea de Odoo se encuentran por el mismo
+            // producto: es lo único que significa lo mismo en los dos lados.
+            $producto = PurchaseProductLink::para((string) $fila->pedida->product_service, $partnerId)?->odoo_product_id;
+
+            if ($producto !== null) {
+                $precios[(int) $producto] = (float) $precio;
+            }
+        }
+
+        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios);
+
+        if ($motivo !== null) {
+            return back()->with('error', $motivo);
+        }
+
+        return back()->with('success', $actualizadas > 0
+            ? sprintf(
+                'Se actualizaron %d %s en %s con los precios del proveedor.',
+                $actualizadas,
+                Str::plural('línea', $actualizadas),
+                $purchaseRequest->odoo_reference,
+            )
+            : 'Los precios de Odoo ya coincidían con los de la cotización: no había nada que cambiar.');
+    }
+
+    /** El proveedor en Odoo de una cotización, si se le conoce el RUT. */
+    private function partnerDeOdoo(PurchaseRequestIngestion $ingestion): ?int
+    {
+        $rut = Rut::normalize($ingestion->supplier_tax_id);
+
+        if ($rut === null) {
+            return null;
+        }
+
+        $partner = PurchaseSupplier::query()->forCompany()->where('tax_id', $rut)->value('odoo_partner_id');
+
+        return $partner === null ? null : (int) $partner;
     }
 
     /** Quita la comparación sin borrar el documento ni su lectura. */

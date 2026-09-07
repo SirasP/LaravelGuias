@@ -151,6 +151,9 @@ Route::middleware('auth')
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');
+            // Llevar a Odoo los precios que cotizó el proveedor.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/precios', [PurchaseQuoteComparisonController::class, 'prices'])
+                ->name('quotes.prices');
 
             Route::post('/{purchaseRequest}/odoo', [PurchaseRequestController::class, 'exportToOdoo'])
                 ->name('odoo.export');

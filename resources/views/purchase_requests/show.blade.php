@@ -636,6 +636,23 @@
                                 <button type="submit" class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800">Quitar</button>
                             </form>
                         </div>
+
+                        {{-- Sólo si la solicitud ya está en Odoo: sin orden allá
+                             no hay líneas que actualizar. --}}
+                        @can('exportToOdoo', $purchaseRequest)
+                            @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
+                                <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-2">
+                                    @csrf
+                                    <button type="submit"
+                                        class="min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                        Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                    </button>
+                                    <p class="mt-1 text-xs text-sky-800 dark:text-sky-300">
+                                        Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
+                                    </p>
+                                </form>
+                            @endif
+                        @endcan
                     @endforeach
 
                     <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
