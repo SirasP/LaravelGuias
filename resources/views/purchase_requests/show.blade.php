@@ -383,8 +383,8 @@
                                          cantidad a un palmo de distancia y el ojo no los une. --}}
                                 <div class="hidden overflow-x-auto md:block">
                                     <table class="min-w-full text-sm">
-                                        <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
-                                            <tr>
+                                        <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                 <th class="w-px whitespace-nowrap px-5 py-3">N°</th>
                                                 <th class="px-5 py-3">Producto / servicio</th>
                                                 @if($hayEspecificacion)
@@ -400,9 +400,9 @@
                                                 @endif
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
                                             @foreach($purchaseRequest->items as $index => $item)
-                                                <tr>
+                                                <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                     <td class="w-px whitespace-nowrap px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
                                                     <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
                                                         {{ $item->product_service }}
@@ -413,12 +413,12 @@
                                                     @if($hayEspecificacion)
                                                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
                                                     @endif
-                                                    <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
+                                                    <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold tabular-nums text-slate-800 dark:text-slate-100">
                                                         {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
                                                     </td>
                                                     @if($hayPrecio)
-                                                        <td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
-                                                        <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
+                                                        <td class="px-5 py-4 text-right tabular-nums text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
+                                                        <td class="px-5 py-4 text-right font-bold tabular-nums text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
                                                     @endif
                                                     @if($hayDestino)
                                                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td>
@@ -442,17 +442,17 @@
 
                                         <div class="overflow-x-auto">
                                             <table class="min-w-full text-sm">
-                                                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                                    <tr>
+                                                <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                                    <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                         <th class="px-4 py-2 font-bold">Partida</th>
                                                         @foreach ($cuadricula->proveedores as $proveedor)
                                                             <th class="px-4 py-2 font-bold">{{ $proveedor['nombre'] }}</th>
                                                         @endforeach
                                                     </tr>
                                                 </thead>
-                                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
                                                     @foreach ($cuadricula->filas as $fila)
-                                                        <tr>
+                                                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                             <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
                                                             @foreach ($fila['precios'] as $i => $precio)
                                                                 <td class="whitespace-nowrap px-4 py-2.5 {{ $fila['masBarato'] === $i ? 'font-extrabold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
@@ -470,7 +470,7 @@
                                                     @endforeach
                                                 </tbody>
                                                 <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
-                                                    <tr>
+                                                    <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                         <td class="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
                                                         @foreach ($cuadricula->totales as $total)
                                                             <td class="whitespace-nowrap px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">
@@ -500,24 +500,24 @@
                                             <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
                                             <div class="overflow-x-auto">
                                                 <table class="min-w-full text-sm">
-                                                    <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                                        <tr>
+                                                    <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                                             <th class="px-4 py-2 font-bold">Partida</th>
                                                             <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
                                                             <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
                                                             <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                                        @foreach ($resultado->todas() as $fila)
-                                                            <tr class="align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
+                                                    <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
+                                                        @foreach ($resultado->ordenadas() as $fila)
+                                                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
                                                                 <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
                                                                     <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
                                                                     @foreach ($fila->diferencias as $diferencia)
                                                                         <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
                                                                     @endforeach
                                                                 </td>
-                                                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                                <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-600 dark:text-slate-300">
                                                                     @if($fila->pedida)
                                                                         {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
                                                                         @if($fila->pedida->unit_price !== null)
@@ -527,7 +527,7 @@
                                                                         <span class="text-slate-400">no la pediste</span>
                                                                     @endif
                                                                 </td>
-                                                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                                <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-600 dark:text-slate-300">
                                                                     @if($fila->cotizada)
                                                                         {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
                                                                         @if(filled($fila->cotizada['unit_price'] ?? null))

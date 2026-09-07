@@ -357,8 +357,8 @@
             {{-- Tabla para escritorio --}}
             <div class="hidden overflow-x-auto md:block">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
-                        <tr>
+                    <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                             <th class="whitespace-nowrap px-5 py-3">Folio</th>
                             <th class="min-w-72 px-5 py-3">Solicitud</th>
                             <th class="whitespace-nowrap px-5 py-3 text-right">Partidas</th>
@@ -374,7 +374,7 @@
                             <th class="whitespace-nowrap px-5 py-3">Siguiente paso</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
                         @forelse($requests as $purchaseRequest)
                             @php
                                 $meta = $statusMeta($purchaseRequest->status);
@@ -422,7 +422,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                 <td colspan="{{ $variosSolicitantes ? 7 : 6 }}" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>

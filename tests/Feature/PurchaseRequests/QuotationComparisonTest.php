@@ -142,3 +142,26 @@ it('never matches two request lines against the same quoted line', function () {
     expect($r->filas[0]->estado)->not->toBe('sin_cotizar')
         ->and($r->filas[1]->estado)->toBe('sin_cotizar');
 });
+
+it('puts first the lines that need somebody to do something', function () {
+    // Diecinueve partidas contra dieciocho líneas dan treinta y siete filas.
+    // Mezcladas hay que ir a buscar cuáles piden algo; ordenadas, lo primero
+    // que se ve es lo que hay que resolver.
+    $solicitud = solicitudCon([
+        ['CEMENTO 25 KG', null, 10, 'Unidades', 4500],   // cuadra
+        ['ARENA GRUESA', null, 4, 'Unidades', null],     // no la cotizan
+        ['GRAVILLA', null, 2, 'Unidades', 3000],         // difiere el precio
+    ]);
+
+    $r = comparar($solicitud, [
+        ['product_service' => 'CEMENTO 25 KG', 'specification' => null, 'quantity' => '10', 'unit' => 'Unidades', 'unit_price' => 4500],
+        ['product_service' => 'GRAVILLA', 'specification' => null, 'quantity' => '2', 'unit' => 'Unidades', 'unit_price' => 3900],
+        ['product_service' => 'FLETE A RIO BUENO', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => 35000],
+    ]);
+
+    expect(collect($r->ordenadas())->pluck('estado')->all())
+        ->toBe(['no_pedida', 'sin_cotizar', 'difiere', 'igual']);
+
+    // Y sigue estando todo: ordenar no es esconder.
+    expect($r->ordenadas())->toHaveCount(count($r->todas()));
+});

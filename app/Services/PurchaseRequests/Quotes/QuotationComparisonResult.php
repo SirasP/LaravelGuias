@@ -37,6 +37,33 @@ class QuotationComparisonResult
     }
 
     /**
+     * Las filas ordenadas por lo que hay que hacer con ellas.
+     *
+     * Mezcladas, una cotización de diecinueve partidas contra un documento de
+     * dieciocho líneas da treinta y siete filas en las que hay que ir a buscar
+     * cuáles piden algo. Primero van las que el proveedor trajo y no cruzaron
+     * —esas se enseñan una vez y quedan aprendidas—, después lo que no cotizó,
+     * después lo que difiere, y al final lo que ya cuadra.
+     *
+     * @return list<QuotationComparisonRow>
+     */
+    public function ordenadas(): array
+    {
+        $peso = [
+            'no_pedida' => 0,
+            'sin_cotizar' => 1,
+            'difiere' => 2,
+            'igual' => 3,
+        ];
+
+        $filas = $this->todas();
+
+        usort($filas, fn (QuotationComparisonRow $a, QuotationComparisonRow $b): int => ($peso[$a->estado] ?? 9) <=> ($peso[$b->estado] ?? 9));
+
+        return $filas;
+    }
+
+    /**
      * ¿El documento no aportó ni una partida?
      *
      * No es lo mismo que estar vacío: si pediste tres cosas, la comparación
