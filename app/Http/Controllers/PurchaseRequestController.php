@@ -62,12 +62,7 @@ class PurchaseRequestController extends Controller
 
         $query = PurchaseRequest::query()
             ->visibleTo($request->user())
-            ->with('requester')
-            // Para decir qué le falta a cada una sin una consulta por fila.
-            ->withCount([
-                'receivedQuotes',
-                'items as items_sin_precio_count' => fn ($query) => $query->whereNull('unit_price'),
-            ]);
+            ->with('requester');
 
         // Los contadores reflejan los filtros activos salvo el de estado, para
         // que las pestañas sigan mostrando cuánto hay en cada uno.
@@ -97,7 +92,19 @@ class PurchaseRequestController extends Controller
         }
 
         /** @var LengthAwarePaginator<int, PurchaseRequest> $requests */
-        $requests = $query->latest('created_at')->paginate(20)->withQueryString();
+        $requests = $query
+            // Los contadores van aquí y no en la consulta base: `withCount`
+            // añade subconsultas al SELECT, y la copia que agrupa por estado
+            // las arrastraba hasta chocar con ONLY_FULL_GROUP_BY de MySQL.
+            // En SQLite —donde corren las pruebas— eso no falla, así que sólo
+            // se vio en el servidor.
+            ->withCount([
+                'receivedQuotes',
+                'items as items_sin_precio_count' => fn ($query) => $query->whereNull('unit_price'),
+            ])
+            ->latest('created_at')
+            ->paginate(20)
+            ->withQueryString();
 
         $departments = Department::query()->forCompany()->active()->ordered()->get();
 
