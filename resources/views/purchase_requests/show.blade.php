@@ -38,7 +38,7 @@
         </div>
     </x-slot>
 
-    <div class="mx-auto max-w-8xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-screen-2xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
         {{-- Sin la barra de pestañas del módulo: aquí ya no se está eligiendo
              entre listados, se está dentro de una solicitud. Dejarla marcaba
              «Mis solicitudes» como si siguieras en el listado, y empujaba el
@@ -719,16 +719,19 @@
                             $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
                             $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
                         @endphp
+                            {{-- La tabla se ajusta a su contenido en vez de estirarse hasta el
+                                 borde. Con tres columnas, repartir 1.470 px dejaba el nombre y su
+                                 cantidad a un palmo de distancia y el ojo no los une. --}}
                         <div class="hidden overflow-x-auto md:block">
                             <table class="min-w-full text-sm">
                                 <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
                                     <tr>
-                                        <th class="px-5 py-3">N°</th>
+                                        <th class="w-px whitespace-nowrap px-5 py-3">N°</th>
                                         <th class="px-5 py-3">Producto / servicio</th>
                                         @if($hayEspecificacion)
                                             <th class="px-5 py-3">Especificación</th>
                                         @endif
-                                        <th class="whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
+                                        <th class="w-px whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
                                         @if($hayPrecio)
                                             <th class="px-5 py-3 text-right">Precio unit.</th>
                                             <th class="px-5 py-3 text-right">Total</th>
@@ -741,7 +744,7 @@
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                                     @foreach($purchaseRequest->items as $index => $item)
                                         <tr>
-                                            <td class="px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
+                                            <td class="w-px whitespace-nowrap px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
                                             <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
                                                 {{ $item->product_service }}
                                                 @if(filled($item->quantity_note))
@@ -751,7 +754,7 @@
                                             @if($hayEspecificacion)
                                                 <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
                                             @endif
-                                            <td class="whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
+                                            <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
                                                 {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
                                             </td>
                                             @if($hayPrecio)
@@ -863,8 +866,8 @@
                                         <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                                             <tr>
                                                 <th class="px-4 py-2 font-bold">Partida</th>
-                                                <th class="px-4 py-2 font-bold">Pediste</th>
-                                                <th class="px-4 py-2 font-bold">Cotizaron</th>
+                                                <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
+                                                <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
                                                 <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
                                             </tr>
                                         </thead>
