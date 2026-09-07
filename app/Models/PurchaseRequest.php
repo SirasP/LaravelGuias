@@ -132,6 +132,37 @@ class PurchaseRequest extends Model
     }
 
     /**
+     * Qué le falta a esta solicitud para estar terminada.
+     *
+     * La bandeja mostraba lo que cada solicitud *es* —estado, prioridad,
+     * departamento— y con 17 registros cuatro de esas columnas repetían el
+     * mismo valor en casi todas las filas. Lo que no se veía es lo único que
+     * hace falta para no perderse: qué espera cada una.
+     *
+     * Se apoya en los contadores que carga la bandeja; sin ellos consulta, que
+     * es correcto pero caro en una lista.
+     *
+     * @return array{0: string, 1: bool} el paso y si espera algo de alguien
+     */
+    public function siguientePaso(): array
+    {
+        $cotizaciones = $this->received_quotes_count ?? $this->receivedQuotes()->count();
+        $sinPrecio = $this->items_sin_precio_count ?? $this->items()->whereNull('unit_price')->count();
+
+        return match (true) {
+            $this->status === PurchaseRequestStatus::CANCELLED => ['Anulada', false],
+            $this->status === PurchaseRequestStatus::REJECTED => ['Rechazada', false],
+            $this->status === PurchaseRequestStatus::DRAFT => ['Enviarla a revisión', true],
+            $this->status === PurchaseRequestStatus::CHANGES_REQUESTED => ['Corregir lo marcado', true],
+            $this->status->isReviewable() => ['Esperando revisión', true],
+            ! $this->hasBeenExportedToOdoo() => ['Enviarla a Odoo', true],
+            $cotizaciones === 0 => ['Subir la cotización', true],
+            $sinPrecio > 0 => ['Llevar precios a Odoo', true],
+            default => ['Lista', false],
+        };
+    }
+
+    /**
      * ¿Ya se creó la cotización en Odoo a partir de esta solicitud?
      *
      * Es la frontera del módulo: hasta aquí manda este programa, y desde

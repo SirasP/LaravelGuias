@@ -62,7 +62,12 @@ class PurchaseRequestController extends Controller
 
         $query = PurchaseRequest::query()
             ->visibleTo($request->user())
-            ->with('requester');
+            ->with('requester')
+            // Para decir qué le falta a cada una sin una consulta por fila.
+            ->withCount([
+                'receivedQuotes',
+                'items as items_sin_precio_count' => fn ($query) => $query->whereNull('unit_price'),
+            ]);
 
         // Los contadores reflejan los filtros activos salvo el de estado, para
         // que las pestañas sigan mostrando cuánto hay en cada uno.
@@ -96,8 +101,12 @@ class PurchaseRequestController extends Controller
 
         $departments = Department::query()->forCompany()->active()->ordered()->get();
 
+        // Con un solo solicitante, esa columna repite la misma línea en cada
+        // fila y no distingue nada.
+        $variosSolicitantes = $requests->pluck('requester_name_snapshot')->unique()->count() > 1;
+
         return response()->view('purchase_requests.index', compact(
-            'requests', 'counts', 'status', 'filters', 'departments', 'rawStatus',
+            'requests', 'counts', 'status', 'filters', 'departments', 'rawStatus', 'variosSolicitantes',
         ));
     }
 

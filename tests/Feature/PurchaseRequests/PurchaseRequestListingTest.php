@@ -271,18 +271,73 @@ it('filters the list by every field the panel offers', function () {
     expect($ve(['requester' => 'Jose', 'department' => 'Administración']))->toBe('');
 });
 
-it('shows who asked for each request in the table', function () {
-    $owner = User::factory()->create(['name' => 'Paola Jara']);
-    $this->createPurchaseRequestDraft($owner, ['requested_for_name' => 'Luis Silva']);
-
-    $html = $this->actingAs($owner)->get(route('purchase_requests.index'))->getContent();
+/** La tabla de la bandeja, sin el resto de la página. */
+function tablaDeLaBandeja(string $html): string
+{
     $inicio = strpos($html, '<table');
-    $tabla = substr($html, $inicio, strpos($html, '</table>') - $inicio);
+
+    return substr($html, $inicio, strpos($html, '</table>') - $inicio);
+}
+
+it('shows who asked for each request when there is more than one person', function () {
+    $paola = User::factory()->create(['name' => 'Paola Jara']);
+    $jose = User::factory()->create(['name' => 'Jose Ancacura']);
+    $this->createPurchaseRequestDraft($paola, ['requested_for_name' => 'Luis Silva']);
+    $this->createPurchaseRequestDraft($jose);
+
+    $admin = User::factory()->admin()->create();
+    $tabla = tablaDeLaBandeja($this->actingAs($admin)->get(route('purchase_requests.index'))->getContent());
 
     // Sin esta columna no había forma de comprobar que el filtro hizo algo.
-    expect($tabla)->toContain('Solicitante');
-    expect($tabla)->toContain('Paola Jara');
-    expect($tabla)->toContain('Luis Silva');
+    expect($tabla)->toContain('Solicitante')
+        ->toContain('Paola Jara')
+        ->toContain('Jose Ancacura')
+        ->toContain('Luis Silva');
+});
+
+it('drops the requester column when every row says the same name', function () {
+    // Con 17 solicitudes de una sola persona, esa columna repetía la misma
+    // línea 17 veces: ocupaba ancho y no distinguía ninguna fila de otra.
+    $owner = User::factory()->create(['name' => 'Paola Jara']);
+    $this->createPurchaseRequestDraft($owner);
+    $this->createPurchaseRequestDraft($owner);
+
+    $tabla = tablaDeLaBandeja($this->actingAs($owner)->get(route('purchase_requests.index'))->getContent());
+
+    expect($tabla)->not->toContain('Solicitante')
+        ->and($tabla)->not->toContain('Paola Jara');
+});
+
+it('says what each request is waiting for', function () {
+    // La bandeja mostraba lo que cada solicitud es —estado, prioridad,
+    // departamento—, y con casi todas aprobadas esas columnas repetían el
+    // mismo valor. Lo que faltaba es qué hay que hacerle a cada una.
+    $owner = User::factory()->create();
+    $revisor = User::factory()->admin()->create();
+
+    $borrador = $this->createPurchaseRequestDraft($owner);
+
+    $aprobada = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+    $this->actingAs($revisor)->post(route('purchase_requests.approve', $aprobada), [
+        'lock_version' => $aprobada->lock_version,
+    ])->assertSessionHasNoErrors();
+
+    $enOdoo = $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+    $this->actingAs($revisor)->post(route('purchase_requests.approve', $enOdoo), [
+        'lock_version' => $enOdoo->lock_version,
+    ])->assertSessionHasNoErrors();
+    $enOdoo->fresh()->forceFill(['odoo_order_id' => 240, 'odoo_reference' => 'P00240'])->save();
+
+    $tabla = tablaDeLaBandeja($this->actingAs($revisor)->get(route('purchase_requests.index'))->getContent());
+
+    expect($tabla)->toContain('Siguiente paso')
+        ->toContain('Enviarla a revisión')
+        ->toContain('Enviarla a Odoo')
+        ->toContain('Subir la cotización')
+        // Y la prioridad deja de ser una columna que dice «Normal» 17 veces.
+        ->not->toContain('Prioridad');
+
+    expect($borrador->fresh()->siguientePaso())->toBe(['Enviarla a revisión', true]);
 });
 
 it('offers manual and AI modes when creating, and neither when editing', function () {

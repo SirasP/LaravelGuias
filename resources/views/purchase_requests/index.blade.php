@@ -361,11 +361,16 @@
                         <tr>
                             <th class="whitespace-nowrap px-5 py-3">Folio</th>
                             <th class="min-w-72 px-5 py-3">Solicitud</th>
-                            <th class="whitespace-nowrap px-5 py-3">Solicitante</th>
+                            {{-- Solicitante sólo cuando hay más de uno: con una sola
+                                 persona era la misma línea repetida en cada fila. --}}
+                            @if($variosSolicitantes)
+                                <th class="whitespace-nowrap px-5 py-3">Solicitante</th>
+                            @endif
                             <th class="whitespace-nowrap px-5 py-3">Departamento</th>
                             <th class="whitespace-nowrap px-5 py-3">Requerida</th>
-                            <th class="whitespace-nowrap px-5 py-3">Prioridad</th>
                             <th class="whitespace-nowrap px-5 py-3">Estado</th>
+                            {{-- Lo que de verdad hacía falta: qué espera cada una. --}}
+                            <th class="whitespace-nowrap px-5 py-3">Siguiente paso</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -384,22 +389,37 @@
                                     </a>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">{{ $purchaseRequest->reason }}</p>
+                                    <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">
+                                        @if(($purchaseRequest->priority ?? null) !== 'normal')
+                                            <span class="mr-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[11px] font-extrabold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">{{ $priorityLabel }}</span>
+                                        @endif
+                                        {{ $purchaseRequest->reason }}
+                                    </p>
                                 </td>
-                                <td class="whitespace-nowrap px-5 py-4">
-                                    <p class="text-slate-700 dark:text-slate-200">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</p>
-                                    @if (filled($purchaseRequest->requested_for_name))
-                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Para {{ $purchaseRequest->requested_for_name }}</p>
-                                    @endif
-                                </td>
+                                @if($variosSolicitantes)
+                                    <td class="whitespace-nowrap px-5 py-4">
+                                        <p class="text-slate-700 dark:text-slate-200">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</p>
+                                        @if (filled($purchaseRequest->requested_for_name))
+                                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Para {{ $purchaseRequest->requested_for_name }}</p>
+                                        @endif
+                                    </td>
+                                @endif
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $purchaseRequest->department ?: '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $formatDate($purchaseRequest->required_date) }}</td>
-                                <td class="whitespace-nowrap px-5 py-4"><span class="rounded-full px-2 py-1 text-xs font-bold {{ $priorityClasses }}">{{ $priorityLabel }}</span></td>
                                 <td class="whitespace-nowrap px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $meta['classes'] }}">{{ $meta['label'] }}</span></td>
+                                {{-- Qué espera cada una: sin esto la bandeja decía lo que la
+                                     solicitud es, nunca lo que falta hacerle. --}}
+                                @php([$paso, $pendiente] = $purchaseRequest->siguientePaso())
+                                <td class="whitespace-nowrap px-5 py-4">
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-bold {{ $pendiente ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500' }}">
+                                        @if($pendiente)<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>@endif
+                                        {{ $paso }}
+                                    </span>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                                <td colspan="{{ $variosSolicitantes ? 6 : 5 }}" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>
                             </tr>
