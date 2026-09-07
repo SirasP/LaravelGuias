@@ -148,6 +148,9 @@ Route::middleware('auth')
                 ->name('quotes.store');
             Route::delete('/{purchaseRequest}/cotizacion-recibida/{ingestion}', [PurchaseQuoteComparisonController::class, 'destroy'])
                 ->name('quotes.destroy');
+            // «Esta línea del proveedor es esta partida»: se aprende una vez.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
+                ->name('quotes.link');
 
             Route::post('/{purchaseRequest}/odoo', [PurchaseRequestController::class, 'exportToOdoo'])
                 ->name('odoo.export');

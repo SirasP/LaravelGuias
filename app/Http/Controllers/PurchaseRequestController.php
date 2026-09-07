@@ -300,11 +300,29 @@ class PurchaseRequestController extends Controller
                 'resultado' => $comparador->comparar(
                     $purchaseRequest,
                     is_array($lineas) ? array_values($lineas) : [],
+                    // El proveedor acota los alias: el mismo texto puede
+                    // significar productos distintos según quién lo escriba.
+                    $this->partnerDeOdoo($cotizacion),
                 ),
             ];
         }
 
         return $listas;
+    }
+
+    /** El proveedor en Odoo de una cotización recibida, si se le conoce el RUT. */
+    private function partnerDeOdoo(PurchaseRequestIngestion $ingestion): ?int
+    {
+        $rut = \App\Support\Rut::normalize($ingestion->supplier_tax_id);
+
+        if ($rut === null) {
+            return null;
+        }
+
+        $partner = \App\Models\PurchaseSupplier::query()
+            ->forCompany()->where('tax_id', $rut)->value('odoo_partner_id');
+
+        return $partner === null ? null : (int) $partner;
     }
 
     public function edit(Request $request, PurchaseRequest $purchaseRequest): Response

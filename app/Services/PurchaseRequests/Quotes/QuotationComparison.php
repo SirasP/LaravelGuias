@@ -2,6 +2,7 @@
 
 namespace App\Services\PurchaseRequests\Quotes;
 
+use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Services\PurchaseRequests\Products\ProductSimilarity;
 
@@ -21,14 +22,21 @@ class QuotationComparison
     /** Bajo esto, dos textos no son el mismo producto aunque se parezcan. */
     private const UMBRAL = 0.55;
 
+    /** El proveedor de la cotización que se está comparando, si se sabe. */
+    private ?int $partnerId = null;
+
     public function __construct(private readonly ProductSimilarity $similitud) {}
 
     /**
      * @param  list<array<string, mixed>>  $lineasDelDocumento
      */
-    public function comparar(PurchaseRequest $solicitud, array $lineasDelDocumento): QuotationComparisonResult
-    {
+    public function comparar(
+        PurchaseRequest $solicitud,
+        array $lineasDelDocumento,
+        ?int $odooPartnerId = null,
+    ): QuotationComparisonResult {
         $pedidas = $solicitud->items()->orderBy('sort_order')->get();
+        $this->partnerId = $odooPartnerId;
         $usadas = [];
         $filas = [];
 
@@ -101,6 +109,18 @@ class QuotationComparison
      */
     private function parecido($item, array $linea): float
     {
+        // Dos textos son la misma partida si alguien ya enseñó que apuntan al
+        // mismo producto de Odoo. Eso es exacto: no compite con el parecido,
+        // lo reemplaza. «valvula mariposa» y «VALVULA MARIPOSA 8" 200MM
+        // C/PALANCA» se parecen un 52%, por debajo de cualquier umbral
+        // razonable, y son lo mismo.
+        $productoPedido = $this->productoDe((string) $item->product_service);
+        $productoOfrecido = $this->productoDe((string) ($linea['product_service'] ?? ''));
+
+        if ($productoPedido !== null && $productoPedido === $productoOfrecido) {
+            return 1.0;
+        }
+
         $codigoPedido = $this->limpiar($item->specification);
         $codigoOfrecido = $this->limpiar($linea['specification'] ?? null);
 
@@ -124,6 +144,21 @@ class QuotationComparison
             : $this->similitud->score($item->product_service.' '.$codigoPedido, $nombre);
 
         return max($directo, $conEspecificacion);
+    }
+
+    /**
+     * El producto de Odoo que alguien ya enseñó para ese texto.
+     *
+     * Sólo alias confirmados: nada de adivinar aquí. Si nadie lo enseñó
+     * todavía, se devuelve null y decide el parecido, como antes.
+     */
+    private function productoDe(string $texto): ?int
+    {
+        if (trim($texto) === '') {
+            return null;
+        }
+
+        return PurchaseProductLink::para($texto, $this->partnerId)?->odoo_product_id;
     }
 
     private function limpiar(mixed $valor): ?string

@@ -474,6 +474,29 @@
                                                     @empty
                                                         —
                                                     @endforelse
+
+                                                    {{-- Una línea que el proveedor trae y no calza con
+                                                         ninguna partida: aquí se dice cuál es. Se aprende
+                                                         una vez y la próxima se cruza sola. --}}
+                                                    @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
+                                                        <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
+                                                            class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                            @csrf
+                                                            <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                            <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
+                                                            <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
+                                                                class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                                                                <option value="">¿Es alguna de tus partidas?</option>
+                                                                @foreach ($purchaseRequest->items as $partida)
+                                                                    <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <button type="submit"
+                                                                class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                                                                Es la misma
+                                                            </button>
+                                                        </form>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endforeach

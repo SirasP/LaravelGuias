@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ReadQuotationDocument;
+use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
+use App\Models\PurchaseSupplier;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
+use App\Support\Rut;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -80,6 +83,68 @@ class PurchaseQuoteComparisonController extends Controller
         return to_route('purchase_requests.show', $purchaseRequest)->with(
             'success',
             'Cotización recibida. La estamos leyendo y en un momento verás la comparación aquí mismo.',
+        );
+    }
+
+    /**
+     * Enseña que una línea del proveedor y una partida son lo mismo.
+     *
+     * No se guarda el par de textos: se guarda que el texto del proveedor
+     * apunta al mismo producto de Odoo que la partida. Así el alias sirve para
+     * emparejar aquí, para exportar sin crear un producto nuevo, y para la
+     * próxima cotización del mismo proveedor, todo con un solo aprendizaje.
+     */
+    public function link(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'quote_line' => ['required', 'string', 'max:500'],
+            'item_id' => ['required', 'integer'],
+        ], [], ['quote_line' => 'la línea de la cotización', 'item_id' => 'la partida']);
+
+        $partida = $purchaseRequest->items()->whereKey($datos['item_id'])->first();
+
+        abort_if($partida === null, 404);
+
+        $proveedor = Rut::normalize($ingestion->supplier_tax_id);
+        $partnerId = $proveedor === null ? null : PurchaseSupplier::query()
+            ->forCompany()->where('tax_id', $proveedor)->value('odoo_partner_id');
+
+        $delaPartida = PurchaseProductLink::para((string) $partida->product_service, $partnerId);
+
+        if ($delaPartida?->odoo_product_id === null) {
+            return back()->with(
+                'error',
+                'La partida «'.Str::limit((string) $partida->product_service, 40).'» todavía no está '
+                    .'enlazada a ningún producto de Odoo, así que no hay a qué apuntar. '
+                    .'Envíala a Odoo primero y vuelve a intentarlo.',
+            );
+        }
+
+        PurchaseProductLink::query()->updateOrCreate(
+            [
+                'company_code' => 'EHE',
+                'odoo_partner_id' => $partnerId,
+                'normalized_text' => PurchaseProductLink::normalizar($datos['quote_line']),
+            ],
+            [
+                'source_text' => $datos['quote_line'],
+                'partner_name' => $ingestion->supplier_name,
+                'odoo_product_id' => $delaPartida->odoo_product_id,
+                'odoo_product_name' => $delaPartida->odoo_product_name,
+                'source' => 'confirmed',
+                'confirmed_by' => $request->user()->getKey(),
+                'confirmed_by_name' => $request->user()->name,
+                'confirmed_at' => now(),
+            ],
+        );
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            'success',
+            'Anotado: «'.Str::limit($datos['quote_line'], 34).'» es «'
+                .Str::limit((string) $partida->product_service, 34).'». La próxima vez se cruza solo.',
         );
     }
 
