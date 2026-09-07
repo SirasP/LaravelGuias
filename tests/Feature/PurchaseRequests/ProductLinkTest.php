@@ -2,6 +2,8 @@
 
 use App\Models\OdooProduct;
 use App\Models\PurchaseProductLink;
+use App\Models\PurchaseRequest;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -75,4 +77,59 @@ it('refuses two different answers for the same supplier and text', function () {
     // sola cosa, o deja de ser un diccionario.
     expect(fn () => enlace(['odoo_partner_id' => 3528, 'odoo_product_id' => 9999]))
         ->toThrow(Illuminate\Database\UniqueConstraintViolationException::class);
+});
+
+it('lets you undo a pairing you pressed by mistake', function () {
+    // Pasó de verdad el 07-09-2026: «Cubrejuntas de aluminio Café» quedó
+    // emparejado con «UNION HE ALUMINIO 3"» de un clic, y la pantalla mostraba
+    // el ✓ sin ofrecer ninguna salida.
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create();
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Cubrejuntas de aluminio Café',
+        'quantity' => 2, 'unit' => 'Unidades',
+    ]);
+
+    PurchaseProductLink::query()->create([
+        'company_code' => 'EHE', 'odoo_partner_id' => null,
+        'source_text' => 'Cubrejuntas de aluminio Café',
+        'normalized_text' => PurchaseProductLink::normalizar('Cubrejuntas de aluminio Café'),
+        'odoo_product_id' => 8015, 'odoo_product_name' => 'UNION HE ALUMINIO 3"',
+        'source' => PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $this->actingAs($revisor)
+        ->delete(route('purchase_requests.odoo.product_unlink', [$solicitud, $partida]))
+        ->assertSessionHasNoErrors();
+
+    expect(PurchaseProductLink::para('Cubrejuntas de aluminio Café', null))->toBeNull();
+});
+
+it('says so plainly when there was no pairing to undo', function () {
+    // Una partida puede estar resuelta por nombre exacto, sin alias. Decir
+    // «se deshizo» sería mentir: no había nada que deshacer.
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create();
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Bolones',
+        'quantity' => 1, 'unit' => 'Unidades',
+    ]);
+
+    $this->actingAs($revisor)
+        ->delete(route('purchase_requests.odoo.product_unlink', [$solicitud, $partida]))
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'no estaba emparejado a mano'));
+});
+
+it('keeps the undo for whoever can send to Odoo', function () {
+    $dueno = User::factory()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($dueno)->approved()->create();
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Bolones',
+        'quantity' => 1, 'unit' => 'Unidades',
+    ]);
+
+    // El solicitante no exporta a Odoo, así que tampoco deshace emparejados.
+    $this->actingAs($dueno)
+        ->delete(route('purchase_requests.odoo.product_unlink', [$solicitud, $partida]))
+        ->assertForbidden();
 });

@@ -737,10 +737,24 @@
                                         <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $partida->product_service }}</p>
 
                                         @if($r->resolved())
-                                            <p class="mt-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                                ✓ {{ $r->odooProductName }}
-                                            </p>
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
+                                            <div class="mt-1 flex items-start justify-between gap-2">
+                                                <div class="min-w-0">
+                                                    <p class="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                                        ✓ {{ $r->odooProductName }}
+                                                    </p>
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
+                                                </div>
+                                                {{-- El botón de emparejar se aprieta en un segundo y sin
+                                                     esto el alias se quedaba para siempre, contagiando
+                                                     además a las próximas solicitudes con ese texto. --}}
+                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_unlink', [$purchaseRequest, $partida]) }}">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit"
+                                                        class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300">
+                                                        Cambiar
+                                                    </button>
+                                                </form>
+                                            </div>
                                         @else
                                             <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
                                                 Sin producto de Odoo · esta línea no sumará al stock al recibirla

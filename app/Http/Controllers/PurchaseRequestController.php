@@ -899,6 +899,53 @@ class PurchaseRequestController extends Controller
     }
 
     /** Busca productos en Odoo para una partida concreta. */
+    /**
+     * Deshace el emparejado de una partida con un producto de Odoo.
+     *
+     * Sin esto, una pantalla que muestra «✓ UNION HE ALUMINIO 3"» junto a
+     * «Cubrejuntas de aluminio Café» no ofrecía ninguna salida: el botón se
+     * aprieta en un segundo y el alias se queda para siempre, además contagiando
+     * a las próximas solicitudes que escriban ese mismo texto.
+     */
+    public function unlinkOdooProduct(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestItem $item,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($item->purchase_request_id === $purchaseRequest->getKey(), 404);
+
+        $proveedor = PurchaseSupplier::query()
+            ->whereNotNull('odoo_partner_id')
+            ->whereIn('tax_id', $this->rutsDe($purchaseRequest))
+            ->first();
+
+        // Se borra el alias de ese proveedor y también el general: el que
+        // estorba puede ser cualquiera de los dos, y dejar uno vivo haría que
+        // la pantalla siguiera mostrando lo mismo tras apretar «cambiar».
+        $borrados = PurchaseProductLink::query()
+            ->where('company_code', 'EHE')
+            ->where('normalized_text', PurchaseProductLink::normalizar((string) $item->product_service))
+            ->where(function ($query) use ($proveedor): void {
+                $query->whereNull('odoo_partner_id')
+                    ->orWhere('odoo_partner_id', $proveedor?->odoo_partner_id);
+            })
+            ->delete();
+
+        return back()->with(
+            'success',
+            $borrados > 0
+                ? sprintf(
+                    'Se deshizo el emparejado de «%s». Elige el producto correcto abajo.',
+                    Str::limit((string) $item->product_service, 40),
+                )
+                : sprintf(
+                    '«%s» no estaba emparejado a mano: calzó sola por nombre o código. Busca abajo si quieres otro.',
+                    Str::limit((string) $item->product_service, 40),
+                ),
+        );
+    }
+
     public function searchOdooProduct(
         Request $request,
         PurchaseRequest $purchaseRequest,

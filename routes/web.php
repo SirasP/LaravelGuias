@@ -161,6 +161,9 @@ Route::middleware('auth')
 
             // Emparejar una partida con un producto de Odoo. Se guarda, y de
             // ahí en adelante ya no se pregunta.
+            // Deshacer el emparejado: el botón de al lado se aprieta sin querer.
+            Route::delete('/{purchaseRequest}/odoo/producto/{item}', [PurchaseRequestController::class, 'unlinkOdooProduct'])
+                ->name('odoo.product_unlink');
             Route::post('/{purchaseRequest}/odoo/producto/{item}', [PurchaseRequestController::class, 'linkOdooProduct'])
                 ->name('odoo.product_link');
             Route::post('/{purchaseRequest}/odoo/buscar-producto/{item}', [PurchaseRequestController::class, 'searchOdooProduct'])
