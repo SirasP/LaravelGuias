@@ -115,3 +115,29 @@ it('keeps the price editing for whoever can send to Odoo', function () {
         ])
         ->assertForbidden();
 });
+
+it('offers the price form whether or not the request is already in Odoo', function () {
+    // La primera versión lo puso dentro de la rama de «todavía no enviada»,
+    // así que justo en el caso que lo motivó —ya en Odoo, sin precio— no
+    // aparecía.
+    config(['purchase_requests.odoo.enabled' => true]);
+
+    $revisor = User::factory()->admin()->create();
+
+    $enOdoo = aprobadaConPartida($revisor);
+    $this->actingAs($revisor)->get(route('purchase_requests.show', $enOdoo))
+        ->assertOk()
+        ->assertSee('Precios unitarios')
+        ->assertSee('Llevar estos precios a P00241');
+
+    $sinEnviar = PurchaseRequest::factory()->forUser($revisor)->approved()->create();
+    $sinEnviar->items()->create([
+        'sort_order' => 1, 'product_service' => 'arena', 'quantity' => 2, 'unit' => 'Unidades',
+    ]);
+
+    $this->actingAs($revisor)->get(route('purchase_requests.show', $sinEnviar))
+        ->assertOk()
+        ->assertSee('Precios unitarios')
+        // Sin orden en Odoo no hay líneas que actualizar.
+        ->assertDontSee('Llevar estos precios a');
+});

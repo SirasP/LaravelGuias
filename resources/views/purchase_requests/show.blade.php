@@ -740,43 +740,6 @@
                                 $consultas = session('odoo_product_query', []);
                             @endphp
 
-                            {{-- Los precios, sin reabrir la solicitud entera.
-                                 Aprobada no es editable a propósito, pero el precio
-                                 es justo lo que no se sabía al aprobar: llega
-                                 después, del proveedor. --}}
-                            <form method="POST" action="{{ route('purchase_requests.prices.update', $purchaseRequest) }}"
-                                class="mt-3 rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-900">
-                                @csrf
-                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Precios unitarios</p>
-                                <div class="mt-2 space-y-2">
-                                    @foreach($purchaseRequest->items as $partida)
-                                        <label class="flex items-center gap-2">
-                                            <span class="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
-                                            <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                name="prices[{{ $partida->getKey() }}]"
-                                                value="{{ $partida->unit_price !== null ? (float) $partida->unit_price : '' }}"
-                                                placeholder="—"
-                                                class="min-h-9 w-28 rounded-lg border-slate-300 py-1 text-right text-xs tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                        </label>
-                                    @endforeach
-                                </div>
-                                @error('prices.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                                <button type="submit"
-                                    class="mt-2 min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
-                                    Guardar precios
-                                </button>
-                            </form>
-
-                            @if($yaEnOdoo)
-                                <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
-                                    @csrf
-                                    <button type="submit"
-                                        class="min-h-11 w-full rounded-xl bg-violet-600 px-3 text-sm font-extrabold text-white hover:bg-violet-700">
-                                        Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
-                                    </button>
-                                </form>
-                            @endif
-
                             {{-- Sin producto, Odoo no genera recepción al confirmar
                                  la orden y el stock nunca sube. Por eso se muestra
                                  partida por partida antes de enviar. --}}
@@ -839,6 +802,7 @@
                                                     Buscar
                                                 </button>
                                             </form>
+
                                         @endif
                                     </div>
                                 @endforeach
@@ -852,6 +816,43 @@
                                 <button type="submit"
                                     class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
                                     Enviar a Odoo
+                                </button>
+                            </form>
+                        @endif
+
+                        {{-- Los precios, sin reabrir la solicitud entera.
+                             Aprobada no es editable a propósito, pero el precio
+                             es justo lo que no se sabía al aprobar: llega
+                             después, del proveedor. --}}
+                        <form method="POST" action="{{ route('purchase_requests.prices.update', $purchaseRequest) }}"
+                            class="mt-3 rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-900">
+                            @csrf
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Precios unitarios</p>
+                            <div class="mt-2 space-y-2">
+                                @foreach($purchaseRequest->items as $partida)
+                                    <label class="flex items-center gap-2">
+                                        <span class="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal"
+                                            name="prices[{{ $partida->getKey() }}]"
+                                            value="{{ $partida->unit_price !== null ? (float) $partida->unit_price : '' }}"
+                                            placeholder="—"
+                                            class="min-h-9 w-28 rounded-lg border-slate-300 py-1 text-right text-xs tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('prices.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                            <button type="submit"
+                                class="mt-2 min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                Guardar precios
+                            </button>
+                        </form>
+
+                        @if($yaEnOdoo)
+                            <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
+                                @csrf
+                                <button type="submit"
+                                    class="min-h-11 w-full rounded-xl bg-violet-600 px-3 text-sm font-extrabold text-white hover:bg-violet-700">
+                                    Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
                                 </button>
                             </form>
                         @endif
