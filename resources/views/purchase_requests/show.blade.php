@@ -295,167 +295,9 @@
                  derecha, la ficha y las acciones, que son estrechas. Con la ficha
                  sola a la izquierda quedaba un hoyo enorme debajo mientras la
                  derecha se estiraba sola. --}}
-            <div class="grid gap-5 xl:grid-cols-3">
-                <div class="space-y-5 xl:col-span-2">
-
-                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Partidas</h2><div class="flex items-center gap-3">@if(filled($purchaseRequest->total()))
-                            @php
-                                $tasa = (float) config('purchase_requests.tax_rate', 0.19);
-                                $simbolo = $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ';
-                                // El total guardado es la suma de las partidas; si esos
-                                // precios ya traen IVA, el neto se saca hacia atrás.
-                                $neto = $purchaseRequest->prices_include_tax
-                                    ? $purchaseRequest->total() / (1 + $tasa)
-                                    : $purchaseRequest->total();
-                            @endphp
-                            <span class="flex flex-wrap items-center gap-x-2 text-sm">
-                                <span class="text-slate-500 dark:text-slate-400">Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }}</span>
-                                <span class="text-slate-300 dark:text-slate-600">·</span>
-                                <span class="text-slate-500 dark:text-slate-400">IVA {{ $simbolo }}{{ number_format($neto * $tasa, 0, ',', '.') }}</span>
-                                <span class="text-slate-300 dark:text-slate-600">·</span>
-                                <span class="font-extrabold text-slate-900 dark:text-white">Total {{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span>
-                            </span>
-                        @endif<span class="text-xs font-bold text-slate-400">{{ $purchaseRequest->items->count() }} ítem{{ $purchaseRequest->items->count() === 1 ? '' : 's' }}</span></div></div>
-                        @if($purchaseRequest->hasPartialPricing())
-                            {{-- Un total que sólo suma parte de las partidas engaña más
-                                 que ayudar: hay que decir que está incompleto. --}}
-                            <p class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200 sm:px-5">
-                                El total no incluye todas las partidas: algunas no tienen precio.
-                            </p>
-                        @endif
-                        <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
-                            @foreach($purchaseRequest->items as $index => $item)
-                                <article class="p-4"><div class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{{ $index + 1 }}</span><div class="min-w-0"><p class="font-bold text-slate-900 dark:text-white">{{ $item->product_service }}</p>@if(filled($item->specification))<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>@endif<div class="mt-2 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</span>@if(filled($item->quantity_note))<span class="text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</span>@endif @if(filled($item->unit_price))<span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · total {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}</span>@endif</div>@if(filled($item->destination))<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>@endif</div></div></article>
-                            @endforeach
-                        </div>
-                        {{-- Una columna en «—» en todas las filas no dice nada y le roba
-                             ancho a los nombres, que es lo que hay que leer. Con 19 partidas
-                             de EPP eran cuatro columnas de guiones. --}}
-                        @php
-                            $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
-                            $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
-                            $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
-                        @endphp
-                            {{-- La tabla se ajusta a su contenido en vez de estirarse hasta el
-                                 borde. Con tres columnas, repartir 1.470 px dejaba el nombre y su
-                                 cantidad a un palmo de distancia y el ojo no los une. --}}
-                        <div class="hidden overflow-x-auto md:block">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
-                                    <tr>
-                                        <th class="w-px whitespace-nowrap px-5 py-3">N°</th>
-                                        <th class="px-5 py-3">Producto / servicio</th>
-                                        @if($hayEspecificacion)
-                                            <th class="px-5 py-3">Especificación</th>
-                                        @endif
-                                        <th class="w-px whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
-                                        @if($hayPrecio)
-                                            <th class="px-5 py-3 text-right">Precio unit.</th>
-                                            <th class="px-5 py-3 text-right">Total</th>
-                                        @endif
-                                        @if($hayDestino)
-                                            <th class="px-5 py-3">Destino</th>
-                                        @endif
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                    @foreach($purchaseRequest->items as $index => $item)
-                                        <tr>
-                                            <td class="w-px whitespace-nowrap px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
-                                            <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
-                                                {{ $item->product_service }}
-                                                @if(filled($item->quantity_note))
-                                                    <p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
-                                                @endif
-                                            </td>
-                                            @if($hayEspecificacion)
-                                                <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
-                                            @endif
-                                            <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
-                                                {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
-                                            </td>
-                                            @if($hayPrecio)
-                                                <td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
-                                                <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
-                                            @endif
-                                            @if($hayDestino)
-                                                <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td>
-                                            @endif
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-
-                    {{-- Con dos o más cotizaciones, unas al lado de otras. Comparar
-                         tabla contra tabla obliga a hacerlo de memoria, que es
-                         justo lo que uno pide tres cotizaciones para no hacer. --}}
-                    @if($cuadricula)
-                        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                                <h2 class="font-extrabold text-slate-900 dark:text-white">Quién conviene</h2>
-                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                    Precio unitario de cada proveedor. El más barato de cada partida va marcado.
-                                </p>
-                            </div>
-
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full text-sm">
-                                    <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                        <tr>
-                                            <th class="px-4 py-2 font-bold">Partida</th>
-                                            @foreach ($cuadricula->proveedores as $proveedor)
-                                                <th class="px-4 py-2 font-bold">{{ $proveedor['nombre'] }}</th>
-                                            @endforeach
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                        @foreach ($cuadricula->filas as $fila)
-                                            <tr>
-                                                <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
-                                                @foreach ($fila['precios'] as $i => $precio)
-                                                    <td class="whitespace-nowrap px-4 py-2.5 {{ $fila['masBarato'] === $i ? 'font-extrabold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
-                                                        @if($precio === null)
-                                                            <span class="text-slate-400">no cotizó</span>
-                                                        @else
-                                                            $ {{ number_format($precio, 0, ',', '.') }}
-                                                            @if($fila['masBarato'] === $i)
-                                                                <span class="ml-1 text-xs font-bold">más barato</span>
-                                                            @endif
-                                                        @endif
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                    <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                            <td class="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
-                                            @foreach ($cuadricula->totales as $total)
-                                                <td class="whitespace-nowrap px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">
-                                                    $ {{ number_format($total['total'], 0, ',', '.') }}
-                                                    @if($total['faltan'] > 0)
-                                                        {{-- Sin esto el que cotizó menos partidas parece el más
-                                                             conveniente sólo por haber ofrecido menos. --}}
-                                                        <span class="block text-xs font-normal text-amber-700 dark:text-amber-400">
-                                                            le faltan {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
-                                                        </span>
-                                                    @endif
-                                                </td>
-                                            @endforeach
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </section>
-                    @endif
-
-                    {{-- Una pestaña por cotización en vez de una sección tras otra: con
-                         tres proveedores había que recorrer tres tablas de diecinueve filas
-                         para comparar dos precios, que es justo lo que uno pide tres
-                         cotizaciones para no hacer. --}}
+            {{-- Las pestañas cambian la vista entera. Antes las cotizaciones se
+                 apilaban una debajo de otra y había que recorrer tablas de
+                 diecinueve filas para comparar dos precios. --}}
                     @php
                         $comparables = collect($comparaciones)->reject(function ($comparacion) {
                             $enCurso = in_array($comparacion['ingestion']->status, [
@@ -466,500 +308,660 @@
                             return $enCurso || $comparacion['resultado']->elDocumentoNoAporto();
                         })->values();
                     @endphp
-
-                    @if($comparables->isNotEmpty())
-                        <section x-data="{ cotizacion: 0 }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <div class="flex flex-wrap gap-1 border-b border-slate-100 p-2 dark:border-slate-800">
-                                @foreach ($comparables as $indice => $comparacion)
-                                    @php
-                                        $lectura = $comparacion['ingestion'];
-                                        $resultado = $comparacion['resultado'];
-                                    @endphp
-                                    <button type="button" @click="cotizacion = {{ $indice }}"
-                                        class="min-h-11 rounded-xl px-3 py-1 text-left transition-colors"
-                                        :class="cotizacion === {{ $indice }} ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
-                                        <span class="block text-sm font-extrabold">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 26) }}</span>
-                                        <span class="block text-xs font-bold">
-                                            {{ $resultado->cuadra() ? '✓ coincide' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
-                                        </span>
-                                    </button>
-                                @endforeach
-                            </div>
-
-                            @foreach ($comparables as $indice => $comparacion)
-                                @php
-                                    $lectura = $comparacion['ingestion'];
-                                    $resultado = $comparacion['resultado'];
-                                @endphp
-                                <div x-show="cotizacion === {{ $indice }}" x-cloak>
-                                    <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
-                                    <div class="overflow-x-auto">
-                                        <table class="min-w-full text-sm">
-                                            <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                                <tr>
-                                                    <th class="px-4 py-2 font-bold">Partida</th>
-                                                    <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
-                                                    <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
-                                                    <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                                @foreach ($resultado->todas() as $fila)
-                                                    <tr class="align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
-                                                        <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
-                                                            <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
-                                                            @foreach ($fila->diferencias as $diferencia)
-                                                                <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
-                                                            @endforeach
-                                                        </td>
-                                                        <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                                                            @if($fila->pedida)
-                                                                {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
-                                                                @if($fila->pedida->unit_price !== null)
-                                                                    <span class="block text-xs">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
-                                                                @endif
-                                                            @else
-                                                                <span class="text-slate-400">no la pediste</span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
-                                                            @if($fila->cotizada)
-                                                                {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
-                                                                @if(filled($fila->cotizada['unit_price'] ?? null))
-                                                                    <span class="block text-xs">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
-                                                                @endif
-                                                            @else
-                                                                <span class="text-slate-400">no la cotizaron</span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="hidden px-4 py-2.5 text-xs md:table-cell {{ $fila->estaBien() ? 'text-slate-400' : 'text-amber-800 dark:text-amber-300' }}">
-                                                            @forelse ($fila->diferencias as $diferencia)
-                                                                <span class="block">{{ $diferencia }}</span>
-                                                            @empty
-                                                                —
-                                                            @endforelse
-
-                                                            {{-- Una línea que el proveedor trae y no calza con
-                                                                 ninguna partida: aquí se dice cuál es. Se aprende
-                                                                 una vez y la próxima se cruza sola. --}}
-                                                            @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
-                                                                <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
-                                                                    class="mt-2 flex flex-wrap items-center gap-1.5">
-                                                                    @csrf
-                                                                    <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
-                                                                    <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
-                                                                    <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
-                                                                        class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                                                                        <option value="">¿Es alguna de tus partidas?</option>
-                                                                        @foreach ($purchaseRequest->items as $partida)
-                                                                            <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                    <button type="submit"
-                                                                        class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                                                        Es la misma
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </section>
+            <div x-data="{ vista: 'solicitud' }">
+                <div class="mb-5 flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <button type="button" @click="vista = 'solicitud'"
+                        class="min-h-11 rounded-xl px-4 text-sm font-extrabold transition-colors"
+                        :class="vista === 'solicitud' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
+                        Solicitud <span class="ml-1 text-xs opacity-70">{{ $purchaseRequest->items->count() }}</span>
+                    </button>
+                    @if($cuadricula)
+                        <button type="button" @click="vista = 'comparar'"
+                            class="min-h-11 rounded-xl px-4 text-sm font-extrabold transition-colors"
+                            :class="vista === 'comparar' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
+                            Quién conviene
+                        </button>
                     @endif
-
-
-                    @if(count($suggestedSuppliers))
-                        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Proveedores sugeridos</h2><ul class="mt-3 grid gap-2 sm:grid-cols-2">@foreach($suggestedSuppliers as $supplier)<li class="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ $supplier }}</li>@endforeach</ul></section>
-                    @endif
-                </div>
-
-                <aside class="space-y-5">
-                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Información de la solicitud</h2></div>
-                    <dl class="grid gap-x-6 gap-y-4 p-4 text-sm sm:grid-cols-2 sm:p-5">
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Departamento</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->department ?: '—' }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Fecha requerida</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $formatDate($purchaseRequest->required_date) }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitante</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requester_name_snapshot ?: data_get($purchaseRequest, 'requester.name', '—') }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitado para</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for ?: '—' }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Centro de costo</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->cost_center ?: '—' }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Lugar de entrega o uso</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->delivery_location ?: '—' }}</dd></div>
-                        @if(filled($purchaseRequest->urgent_reason))
-                            <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Justificación de urgencia</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->urgent_reason }}</dd></div>
-                        @endif
-                        @if(filled($purchaseRequest->internal_notes ?? $purchaseRequest->notes))
-                            <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Observaciones internas</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</dd></div>
-                        @endif
-                    </dl>
-                </section>
-                {{-- Anulación pendiente: el revisor tiene que verla ANTES de
-                     decidir. Una solicitud se aprobó en producción treinta
-                     segundos después de que el solicitante pidiera anularla. --}}
-                @if($purchaseRequest->cancellation_requested_at)
-                    <section class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
-                        <h2 class="flex items-center gap-2 font-extrabold text-rose-900 dark:text-rose-100">
-                            <span aria-hidden="true">⊘</span>
-                            {{ $purchaseRequest->requester?->name ?? 'El solicitante' }} pidió anular esta solicitud
-                        </h2>
-                        <p class="mt-1 text-xs text-rose-800 dark:text-rose-200">
-                            El {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y') }} a las
-                            {{ $purchaseRequest->cancellation_requested_at->format('H:i') }}.
-                        </p>
-
-                        @if(filled($purchaseRequest->cancellation_reason))
-                            <p class="mt-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/60 dark:text-rose-100">
-                                {{ $purchaseRequest->cancellation_reason }}
-                            </p>
-                        @endif
-
-                        <p class="mt-2 text-sm font-semibold text-rose-900 dark:text-rose-100">
-                            @can('cancel', $purchaseRequest)
-                                Decide antes de aprobarla: puedes anularla más abajo, o resolverla igual si corresponde.
-                            @else
-                                Compras debe resolverlo.
-                            @endcan
-                        </p>
-
-                        @can('withdrawCancellation', $purchaseRequest)
-                            <form method="POST" action="{{ route('purchase_requests.withdraw_cancellation', $purchaseRequest) }}" class="mt-3">
-                                @csrf
-                                <button type="submit"
-                                    class="min-h-11 w-full rounded-xl border border-rose-300 bg-white px-3 text-sm font-bold text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:bg-transparent dark:text-rose-200">
-                                    Retirar mi petición de anulación
-                                </button>
-                            </form>
-                        @endcan
-                    </section>
-                @endif
-
-                @if($isEditable)
-                    <section class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30"><h2 class="font-extrabold text-blue-950 dark:text-blue-100">Lista para enviar</h2><p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Al enviar, la solicitud quedará pendiente de revisión.</p><form method="POST" action="{{ route('purchase_requests.submit', $purchaseRequest) }}" class="mt-4">@csrf<button type="submit" class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white hover:bg-blue-700">Enviar a revisión</button></form></section>
-                @endif
-
-                @if($canReview)
-                    <section x-data="{ action: '' }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"><h2 class="font-extrabold text-amber-950 dark:text-amber-100">Revisión de Compras</h2><p class="mt-1 text-sm text-amber-800 dark:text-amber-200">La acción quedará registrada en el historial.</p><form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-3">@csrf<input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}"><div x-show="action === 'changes'" x-cloak class="rounded-xl border border-amber-300 bg-white/70 p-3 dark:border-amber-900 dark:bg-slate-950/40">
-    <p class="text-xs font-extrabold text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>
-    <p class="mt-0.5 text-xs text-amber-800 dark:text-amber-200">Marca los puntos concretos. El solicitante los verá resaltados al editar.</p>
-
-    <div class="mt-2 grid gap-1.5 sm:grid-cols-2">
-        @foreach (\App\Enums\PurchaseRequestCorrection::cases() as $punto)
-            <label class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-amber-900 hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40">
-                <input type="checkbox" name="corrections[]" value="{{ $punto->value }}"
-                    class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                <span>{{ $punto->label() }}</span>
-            </label>
-        @endforeach
-    </div>
-
-    @if($purchaseRequest->items->isNotEmpty())
-        <p class="mt-3 text-xs font-extrabold text-amber-900 dark:text-amber-100">Partidas puntuales</p>
-        <div class="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-amber-200 dark:border-amber-900">
-            @foreach ($purchaseRequest->items as $partida)
-                <label class="flex min-h-11 items-center gap-2 border-b border-amber-100 px-2 text-xs text-amber-900 last:border-b-0 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-100 dark:hover:bg-amber-950/40">
-                    <input type="checkbox" name="corrections[]" value="{{ \App\Enums\PurchaseRequestCorrection::itemKey($partida->sort_order) }}"
-                        class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                    <span class="font-bold">{{ $partida->sort_order }}.</span>
-                    <span class="truncate">{{ $partida->product_service }}</span>
-                </label>
-            @endforeach
-        </div>
-    @endif
-    @error('corrections.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-</div><label for="review-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">Comentario <span x-show="action !== 'approve'" class="text-rose-600">*</span></label><textarea id="review-comment" name="comment" rows="3" :required="action !== 'approve'" class="w-full rounded-xl border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white" placeholder="Obligatorio al devolver o rechazar."></textarea><div class="grid grid-cols-1 gap-2"><button type="submit" @click="action = 'approve'" formaction="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="min-h-11 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white hover:bg-emerald-700">Aprobar</button><button type="submit" @click="action = 'changes'" formaction="{{ route('purchase_requests.request_changes', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-amber-300 px-3 text-sm font-extrabold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40">Solicitar cambios</button><button type="submit" @click="action = 'reject'" formaction="{{ route('purchase_requests.reject', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-rose-300 px-3 text-sm font-extrabold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30">Rechazar</button></div></form></section>
-                @endif
-
-                {{-- Sólo el resumen: el detalle de cada cotización vive junto a
-                     las partidas, que es lo que compara. Repetir aquí las
-                     cantidades pedidas era decir dos veces lo mismo en la misma
-                     pantalla, y esta columna es la que primero se satura. --}}
-                <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
-                    <div class="flex items-baseline justify-between gap-2">
-                        <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotizaciones</h2>
-                        @if(count($comparaciones) > 0)
-                            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-extrabold text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">{{ count($comparaciones) }}</span>
-                        @endif
-                    </div>
-
-                    @foreach ($comparaciones as $comparacion)
+                    @foreach ($comparables as $indice => $comparacion)
                         @php
                             $lectura = $comparacion['ingestion'];
                             $resultado = $comparacion['resultado'];
-                            $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
                         @endphp
+                        <button type="button" @click="vista = 'cot{{ $indice }}'"
+                            class="min-h-11 rounded-xl px-4 text-left transition-colors"
+                            :class="vista === 'cot{{ $indice }}' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
+                            <span class="block text-sm font-extrabold">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 24) }}</span>
+                            <span class="block text-xs font-bold">{{ $resultado->cuadra() ? '✓ coincide' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}</span>
+                        </button>
+                    @endforeach
+                </div>
 
-                        <div class="mt-3 flex items-start justify-between gap-2 rounded-xl bg-white p-3 dark:bg-slate-900">
-                            <div class="min-w-0">
-                                <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                    class="block truncate text-sm font-bold text-sky-800 underline decoration-sky-300 underline-offset-2 hover:decoration-sky-600 dark:text-sky-200 dark:decoration-sky-700">{{ $lectura->original_name }}</a>
-                                <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                                    {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
-                                </p>
-                                @if($leyendo)
-                                    <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Leyéndola…</p>
-                                {{-- Una lectura fallida no tiene partidas, y sin esto
-                                     la línea diría «N diferencias» contando como
-                                     diferencia cada partida que nunca se leyó. --}}
-                                @elseif($resultado->elDocumentoNoAporto())
-                                    <p class="mt-1 text-xs font-bold text-rose-700 dark:text-rose-400">
-                                        No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
-                                    </p>
-                                @else
-                                    <p class="mt-1 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }}">
-                                        {{ $resultado->cuadra() ? '✓ Coincide con lo que pediste' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
+                <div class="grid gap-5 xl:grid-cols-3">
+                    <div class="space-y-5 xl:col-span-2">
+                        <div x-show="vista === 'solicitud'" class="space-y-5">
+                            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Partidas</h2><div class="flex items-center gap-3">@if(filled($purchaseRequest->total()))
+                                    @php
+                                        $tasa = (float) config('purchase_requests.tax_rate', 0.19);
+                                        $simbolo = $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ';
+                                        // El total guardado es la suma de las partidas; si esos
+                                        // precios ya traen IVA, el neto se saca hacia atrás.
+                                        $neto = $purchaseRequest->prices_include_tax
+                                            ? $purchaseRequest->total() / (1 + $tasa)
+                                            : $purchaseRequest->total();
+                                    @endphp
+                                    <span class="flex flex-wrap items-center gap-x-2 text-sm">
+                                        <span class="text-slate-500 dark:text-slate-400">Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }}</span>
+                                        <span class="text-slate-300 dark:text-slate-600">·</span>
+                                        <span class="text-slate-500 dark:text-slate-400">IVA {{ $simbolo }}{{ number_format($neto * $tasa, 0, ',', '.') }}</span>
+                                        <span class="text-slate-300 dark:text-slate-600">·</span>
+                                        <span class="font-extrabold text-slate-900 dark:text-white">Total {{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span>
+                                    </span>
+                                @endif<span class="text-xs font-bold text-slate-400">{{ $purchaseRequest->items->count() }} ítem{{ $purchaseRequest->items->count() === 1 ? '' : 's' }}</span></div></div>
+                                @if($purchaseRequest->hasPartialPricing())
+                                    {{-- Un total que sólo suma parte de las partidas engaña más
+                                         que ayudar: hay que decir que está incompleto. --}}
+                                    <p class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200 sm:px-5">
+                                        El total no incluye todas las partidas: algunas no tienen precio.
                                     </p>
                                 @endif
+                                <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
+                                    @foreach($purchaseRequest->items as $index => $item)
+                                        <article class="p-4"><div class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{{ $index + 1 }}</span><div class="min-w-0"><p class="font-bold text-slate-900 dark:text-white">{{ $item->product_service }}</p>@if(filled($item->specification))<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>@endif<div class="mt-2 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</span>@if(filled($item->quantity_note))<span class="text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</span>@endif @if(filled($item->unit_price))<span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · total {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}</span>@endif</div>@if(filled($item->destination))<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>@endif</div></div></article>
+                                    @endforeach
+                                </div>
+                                {{-- Una columna en «—» en todas las filas no dice nada y le roba
+                                     ancho a los nombres, que es lo que hay que leer. Con 19 partidas
+                                     de EPP eran cuatro columnas de guiones. --}}
+                                @php
+                                    $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
+                                    $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
+                                    $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
+                                @endphp
+                                    {{-- La tabla se ajusta a su contenido en vez de estirarse hasta el
+                                         borde. Con tres columnas, repartir 1.470 px dejaba el nombre y su
+                                         cantidad a un palmo de distancia y el ojo no los une. --}}
+                                <div class="hidden overflow-x-auto md:block">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
+                                            <tr>
+                                                <th class="w-px whitespace-nowrap px-5 py-3">N°</th>
+                                                <th class="px-5 py-3">Producto / servicio</th>
+                                                @if($hayEspecificacion)
+                                                    <th class="px-5 py-3">Especificación</th>
+                                                @endif
+                                                <th class="w-px whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
+                                                @if($hayPrecio)
+                                                    <th class="px-5 py-3 text-right">Precio unit.</th>
+                                                    <th class="px-5 py-3 text-right">Total</th>
+                                                @endif
+                                                @if($hayDestino)
+                                                    <th class="px-5 py-3">Destino</th>
+                                                @endif
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                            @foreach($purchaseRequest->items as $index => $item)
+                                                <tr>
+                                                    <td class="w-px whitespace-nowrap px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
+                                                    <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
+                                                        {{ $item->product_service }}
+                                                        @if(filled($item->quantity_note))
+                                                            <p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
+                                                        @endif
+                                                    </td>
+                                                    @if($hayEspecificacion)
+                                                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
+                                                    @endif
+                                                    <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
+                                                        {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
+                                                    </td>
+                                                    @if($hayPrecio)
+                                                        <td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
+                                                        <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
+                                                    @endif
+                                                    @if($hayDestino)
+                                                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td>
+                                                    @endif
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                            @if(count($suggestedSuppliers))
+                                <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Proveedores sugeridos</h2><ul class="mt-3 grid gap-2 sm:grid-cols-2">@foreach($suggestedSuppliers as $supplier)<li class="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ $supplier }}</li>@endforeach</ul></section>
+                            @endif
+                        </div>
+                        @if($cuadricula)
+                            <div x-show="vista === 'comparar'" x-cloak>
+                                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+                                            <h2 class="font-extrabold text-slate-900 dark:text-white">Quién conviene</h2>
+                                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                                Precio unitario de cada proveedor. El más barato de cada partida va marcado.
+                                            </p>
+                                        </div>
+
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full text-sm">
+                                                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                                    <tr>
+                                                        <th class="px-4 py-2 font-bold">Partida</th>
+                                                        @foreach ($cuadricula->proveedores as $proveedor)
+                                                            <th class="px-4 py-2 font-bold">{{ $proveedor['nombre'] }}</th>
+                                                        @endforeach
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    @foreach ($cuadricula->filas as $fila)
+                                                        <tr>
+                                                            <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
+                                                            @foreach ($fila['precios'] as $i => $precio)
+                                                                <td class="whitespace-nowrap px-4 py-2.5 {{ $fila['masBarato'] === $i ? 'font-extrabold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
+                                                                    @if($precio === null)
+                                                                        <span class="text-slate-400">no cotizó</span>
+                                                                    @else
+                                                                        $ {{ number_format($precio, 0, ',', '.') }}
+                                                                        @if($fila['masBarato'] === $i)
+                                                                            <span class="ml-1 text-xs font-bold">más barato</span>
+                                                                        @endif
+                                                                    @endif
+                                                                </td>
+                                                            @endforeach
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                                <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
+                                                    <tr>
+                                                        <td class="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
+                                                        @foreach ($cuadricula->totales as $total)
+                                                            <td class="whitespace-nowrap px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">
+                                                                $ {{ number_format($total['total'], 0, ',', '.') }}
+                                                                @if($total['faltan'] > 0)
+                                                                    {{-- Sin esto el que cotizó menos partidas parece el más
+                                                                         conveniente sólo por haber ofrecido menos. --}}
+                                                                    <span class="block text-xs font-normal text-amber-700 dark:text-amber-400">
+                                                                        le faltan {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
+                                                                    </span>
+                                                                @endif
+                                                            </td>
+                                                        @endforeach
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </section>
                             </div>
-                            <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800">Quitar</button>
-                            </form>
+                        @endif
+                                    @foreach ($comparables as $indice => $comparacion)
+                                        @php
+                                            $lectura = $comparacion['ingestion'];
+                                            $resultado = $comparacion['resultado'];
+                                        @endphp
+                                        <div x-show="vista === 'cot{{ $indice }}'" x-cloak>
+                                            <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full text-sm">
+                                                    <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                                        <tr>
+                                                            <th class="px-4 py-2 font-bold">Partida</th>
+                                                            <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
+                                                            <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
+                                                            <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                        @foreach ($resultado->todas() as $fila)
+                                                            <tr class="align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
+                                                                <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
+                                                                    <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
+                                                                    @foreach ($fila->diferencias as $diferencia)
+                                                                        <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
+                                                                    @endforeach
+                                                                </td>
+                                                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                                    @if($fila->pedida)
+                                                                        {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
+                                                                        @if($fila->pedida->unit_price !== null)
+                                                                            <span class="block text-xs">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
+                                                                        @endif
+                                                                    @else
+                                                                        <span class="text-slate-400">no la pediste</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-600 dark:text-slate-300">
+                                                                    @if($fila->cotizada)
+                                                                        {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
+                                                                        @if(filled($fila->cotizada['unit_price'] ?? null))
+                                                                            <span class="block text-xs">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
+                                                                        @endif
+                                                                    @else
+                                                                        <span class="text-slate-400">no la cotizaron</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="hidden px-4 py-2.5 text-xs md:table-cell {{ $fila->estaBien() ? 'text-slate-400' : 'text-amber-800 dark:text-amber-300' }}">
+                                                                    @forelse ($fila->diferencias as $diferencia)
+                                                                        <span class="block">{{ $diferencia }}</span>
+                                                                    @empty
+                                                                        —
+                                                                    @endforelse
+
+                                                                    {{-- Una línea que el proveedor trae y no calza con
+                                                                         ninguna partida: aquí se dice cuál es. Se aprende
+                                                                         una vez y la próxima se cruza sola. --}}
+                                                                    @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
+                                                                        <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
+                                                                            class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                                            @csrf
+                                                                            <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                            <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
+                                                                            <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
+                                                                                class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                                                                                <option value="">¿Es alguna de tus partidas?</option>
+                                                                                @foreach ($purchaseRequest->items as $partida)
+                                                                                    <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
+                                                                                @endforeach
+                                                                            </select>
+                                                                            <button type="submit"
+                                                                                class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                                                                                Es la misma
+                                                                            </button>
+                                                                        </form>
+                                                                    @endif
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                    </div>
+
+                    <aside class="space-y-5">
+                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Información de la solicitud</h2></div>
+                        <dl class="grid gap-x-6 gap-y-4 p-4 text-sm sm:grid-cols-2 sm:p-5">
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Departamento</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->department ?: '—' }}</dd></div>
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Fecha requerida</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $formatDate($purchaseRequest->required_date) }}</dd></div>
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitante</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requester_name_snapshot ?: data_get($purchaseRequest, 'requester.name', '—') }}</dd></div>
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitado para</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for ?: '—' }}</dd></div>
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Centro de costo</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->cost_center ?: '—' }}</dd></div>
+                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Lugar de entrega o uso</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->delivery_location ?: '—' }}</dd></div>
+                            @if(filled($purchaseRequest->urgent_reason))
+                                <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Justificación de urgencia</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->urgent_reason }}</dd></div>
+                            @endif
+                            @if(filled($purchaseRequest->internal_notes ?? $purchaseRequest->notes))
+                                <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Observaciones internas</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</dd></div>
+                            @endif
+                        </dl>
+                    </section>
+                    {{-- Anulación pendiente: el revisor tiene que verla ANTES de
+                         decidir. Una solicitud se aprobó en producción treinta
+                         segundos después de que el solicitante pidiera anularla. --}}
+                    @if($purchaseRequest->cancellation_requested_at)
+                        <section class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
+                            <h2 class="flex items-center gap-2 font-extrabold text-rose-900 dark:text-rose-100">
+                                <span aria-hidden="true">⊘</span>
+                                {{ $purchaseRequest->requester?->name ?? 'El solicitante' }} pidió anular esta solicitud
+                            </h2>
+                            <p class="mt-1 text-xs text-rose-800 dark:text-rose-200">
+                                El {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y') }} a las
+                                {{ $purchaseRequest->cancellation_requested_at->format('H:i') }}.
+                            </p>
+
+                            @if(filled($purchaseRequest->cancellation_reason))
+                                <p class="mt-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/60 dark:text-rose-100">
+                                    {{ $purchaseRequest->cancellation_reason }}
+                                </p>
+                            @endif
+
+                            <p class="mt-2 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                                @can('cancel', $purchaseRequest)
+                                    Decide antes de aprobarla: puedes anularla más abajo, o resolverla igual si corresponde.
+                                @else
+                                    Compras debe resolverlo.
+                                @endcan
+                            </p>
+
+                            @can('withdrawCancellation', $purchaseRequest)
+                                <form method="POST" action="{{ route('purchase_requests.withdraw_cancellation', $purchaseRequest) }}" class="mt-3">
+                                    @csrf
+                                    <button type="submit"
+                                        class="min-h-11 w-full rounded-xl border border-rose-300 bg-white px-3 text-sm font-bold text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:bg-transparent dark:text-rose-200">
+                                        Retirar mi petición de anulación
+                                    </button>
+                                </form>
+                            @endcan
+                        </section>
+                    @endif
+
+                    @if($isEditable)
+                        <section class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30"><h2 class="font-extrabold text-blue-950 dark:text-blue-100">Lista para enviar</h2><p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Al enviar, la solicitud quedará pendiente de revisión.</p><form method="POST" action="{{ route('purchase_requests.submit', $purchaseRequest) }}" class="mt-4">@csrf<button type="submit" class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white hover:bg-blue-700">Enviar a revisión</button></form></section>
+                    @endif
+
+                    @if($canReview)
+                        <section x-data="{ action: '' }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"><h2 class="font-extrabold text-amber-950 dark:text-amber-100">Revisión de Compras</h2><p class="mt-1 text-sm text-amber-800 dark:text-amber-200">La acción quedará registrada en el historial.</p><form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-3">@csrf<input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}"><div x-show="action === 'changes'" x-cloak class="rounded-xl border border-amber-300 bg-white/70 p-3 dark:border-amber-900 dark:bg-slate-950/40">
+        <p class="text-xs font-extrabold text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>
+        <p class="mt-0.5 text-xs text-amber-800 dark:text-amber-200">Marca los puntos concretos. El solicitante los verá resaltados al editar.</p>
+
+        <div class="mt-2 grid gap-1.5 sm:grid-cols-2">
+            @foreach (\App\Enums\PurchaseRequestCorrection::cases() as $punto)
+                <label class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-amber-900 hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40">
+                    <input type="checkbox" name="corrections[]" value="{{ $punto->value }}"
+                        class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                    <span>{{ $punto->label() }}</span>
+                </label>
+            @endforeach
+        </div>
+
+        @if($purchaseRequest->items->isNotEmpty())
+            <p class="mt-3 text-xs font-extrabold text-amber-900 dark:text-amber-100">Partidas puntuales</p>
+            <div class="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-amber-200 dark:border-amber-900">
+                @foreach ($purchaseRequest->items as $partida)
+                    <label class="flex min-h-11 items-center gap-2 border-b border-amber-100 px-2 text-xs text-amber-900 last:border-b-0 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-100 dark:hover:bg-amber-950/40">
+                        <input type="checkbox" name="corrections[]" value="{{ \App\Enums\PurchaseRequestCorrection::itemKey($partida->sort_order) }}"
+                            class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                        <span class="font-bold">{{ $partida->sort_order }}.</span>
+                        <span class="truncate">{{ $partida->product_service }}</span>
+                    </label>
+                @endforeach
+            </div>
+        @endif
+        @error('corrections.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+    </div><label for="review-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">Comentario <span x-show="action !== 'approve'" class="text-rose-600">*</span></label><textarea id="review-comment" name="comment" rows="3" :required="action !== 'approve'" class="w-full rounded-xl border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white" placeholder="Obligatorio al devolver o rechazar."></textarea><div class="grid grid-cols-1 gap-2"><button type="submit" @click="action = 'approve'" formaction="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="min-h-11 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white hover:bg-emerald-700">Aprobar</button><button type="submit" @click="action = 'changes'" formaction="{{ route('purchase_requests.request_changes', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-amber-300 px-3 text-sm font-extrabold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40">Solicitar cambios</button><button type="submit" @click="action = 'reject'" formaction="{{ route('purchase_requests.reject', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-rose-300 px-3 text-sm font-extrabold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30">Rechazar</button></div></form></section>
+                    @endif
+
+                    {{-- Sólo el resumen: el detalle de cada cotización vive junto a
+                         las partidas, que es lo que compara. Repetir aquí las
+                         cantidades pedidas era decir dos veces lo mismo en la misma
+                         pantalla, y esta columna es la que primero se satura. --}}
+                    <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
+                        <div class="flex items-baseline justify-between gap-2">
+                            <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotizaciones</h2>
+                            @if(count($comparaciones) > 0)
+                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-extrabold text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">{{ count($comparaciones) }}</span>
+                            @endif
                         </div>
 
-                        {{-- Sólo si la solicitud ya está en Odoo: sin orden allá
-                             no hay líneas que actualizar. --}}
-                        @can('exportToOdoo', $purchaseRequest)
-                            @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
-                                <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-2">
-                                    @csrf
-                                    <button type="submit"
-                                        class="min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
-                                        Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
-                                    </button>
-                                    <p class="mt-1 text-xs text-sky-800 dark:text-sky-300">
-                                        Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
-                                    </p>
-                                </form>
-                            @endif
-                        @endcan
-                    @endforeach
-
-                    <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
-                        enctype="multipart/form-data" class="mt-3 space-y-2">
-                        @csrf
-                        <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
-                            class="block w-full text-sm text-sky-900 file:mr-3 file:min-h-9 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:text-sm file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
-                        @error('quote') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                        <button type="submit"
-                            class="min-h-11 w-full rounded-xl bg-sky-600 px-3 text-sm font-extrabold text-white hover:bg-sky-700">
-                            {{ count($comparaciones) ? 'Subir otra cotización' : 'Subir la del proveedor y comparar' }}
-                        </button>
-                    </form>
-                </section>
-
-                @php
-                    $odooActivo = (bool) config('purchase_requests.odoo.enabled');
-                    $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
-                    $candidatos = session('odoo_candidates', []);
-                @endphp
-
-                @can('exportToOdoo', $purchaseRequest) @if($odooActivo)
-                    <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/30">
-                        <h2 class="font-extrabold text-violet-950 dark:text-violet-100">Odoo</h2>
-
-                        @if($yaEnOdoo)
-                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                Ya está en Odoo como <span class="font-extrabold">{{ $purchaseRequest->odoo_reference }}</span>,
-                                en borrador. Se confirma allá.
-                            </p>
-                            <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
-                                Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
-                                No se vuelve a enviar: habría dos cotizaciones para la misma compra.
-                            </p>
-                        {{-- `exists` y no `filled`: cuando Odoo no encontró nada
-                             la lista llega vacía, y es justo el momento en que
-                             más falta hace el buscador. --}}
-                        @elseif(session()->exists('odoo_candidates') || session('odoo_query'))
-                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}».
-                                Búscalo tú, que sabes a quién buscas.
-                            </p>
-
-                            <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="mt-3 flex gap-2">
-                                @csrf
-                                <input name="q" value="{{ session('odoo_query') }}" placeholder="Buscar en Odoo por nombre o RUT"
-                                    class="min-h-11 w-full rounded-xl border-violet-300 bg-white px-3 text-sm dark:border-violet-800 dark:bg-slate-950 dark:text-white">
-                                <button type="submit"
-                                    class="min-h-11 shrink-0 rounded-xl border border-violet-300 px-4 text-sm font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200">
-                                    Buscar
-                                </button>
-                            </form>
-
-                            @foreach($candidatos as $candidato)
-                                <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}" class="mt-2">
-                                    @csrf
-                                    <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
-                                    <input type="hidden" name="name" value="{{ $candidato['name'] }}">
-                                    <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
-                                    <button type="submit"
-                                        class="w-full rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-left text-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950 dark:hover:bg-violet-950/60">
-                                        <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
-                                        <span class="block text-xs {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                            {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo · habrá que ponérselo allá para que se reconozca solo' }}
-                                        </span>
-                                    </button>
-                                </form>
-                            @endforeach
-
-                            <p class="mt-3 text-xs text-violet-800 dark:text-violet-300">
-                                Si no aparece, hay que darlo de alta en Odoo. Este programa no crea proveedores:
-                                el maestro de la empresa se administra allá.
-                            </p>
-
-                        @else
+                        @foreach ($comparaciones as $comparacion)
                             @php
-                                $emparejador = app(\App\Services\PurchaseRequests\Products\ProductMatcher::class);
-                                $proveedorOdoo = \App\Models\PurchaseSupplier::query()
-                                    ->whereNotNull('odoo_partner_id')
-                                    ->whereIn('tax_id', collect($purchaseRequest->suggested_suppliers ?? [])
-                                        ->flatMap(fn ($s) => collect(\App\Support\Rut::findAll((string) $s))->pluck('rut'))
-                                        ->all())
-                                    ->value('odoo_partner_id');
-                                $busquedas = session('odoo_product_candidates', []);
-                                $consultas = session('odoo_product_query', []);
+                                $lectura = $comparacion['ingestion'];
+                                $resultado = $comparacion['resultado'];
+                                $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
                             @endphp
 
-                            {{-- Sin producto, Odoo no genera recepción al confirmar
-                                 la orden y el stock nunca sube. Por eso se muestra
-                                 partida por partida antes de enviar. --}}
-                            <div class="mt-3 space-y-2">
-                                @foreach($purchaseRequest->items as $partida)
-                                    @php
-                                        $r = $emparejador->match((string) $partida->product_service, $proveedorOdoo, $partida->specification);
-                                        $encontrados = $busquedas[$partida->id] ?? null;
-                                    @endphp
-
-                                    <div class="rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-950">
-                                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $partida->product_service }}</p>
-
-                                        @if($r->resolved())
-                                            <div class="mt-1 flex items-start justify-between gap-2">
-                                                <div class="min-w-0">
-                                                    <p class="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                                        ✓ {{ $r->odooProductName }}
-                                                    </p>
-                                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
-                                                </div>
-                                                {{-- El botón de emparejar se aprieta en un segundo y sin
-                                                     esto el alias se quedaba para siempre, contagiando
-                                                     además a las próximas solicitudes con ese texto. --}}
-                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_unlink', [$purchaseRequest, $partida]) }}">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit"
-                                                        class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300">
-                                                        Cambiar
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        @else
-                                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                                Sin producto de Odoo · esta línea no sumará al stock al recibirla
-                                            </p>
-
-                                            @foreach(($encontrados ?? $r->candidates) as $c)
-                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_link', [$purchaseRequest, $partida]) }}" class="mt-1.5">
-                                                    @csrf
-                                                    <input type="hidden" name="odoo_product_id" value="{{ $c['odoo_id'] }}">
-                                                    <input type="hidden" name="odoo_product_name" value="{{ $c['name'] }}">
-                                                    <button type="submit"
-                                                        class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left text-xs hover:bg-violet-50 dark:border-slate-700 dark:hover:bg-violet-950/50">
-                                                        <span class="font-bold text-slate-800 dark:text-slate-100">{{ $c['name'] }}</span>
-                                                        <span class="block text-slate-500 dark:text-slate-400">
-                                                            {{ $c['reason'] }} · parecido {{ number_format($c['score'] * 100, 0) }}%
-                                                        </span>
-                                                    </button>
-                                                </form>
-                                            @endforeach
-
-                                            <form method="POST" action="{{ route('purchase_requests.odoo.product_search', [$purchaseRequest, $partida]) }}" class="mt-2 flex gap-1.5">
-                                                @csrf
-                                                <input name="q" value="{{ $consultas[$partida->id] ?? '' }}"
-                                                    placeholder="Buscar producto en Odoo"
-                                                    class="min-h-10 w-full rounded-lg border-slate-300 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <button type="submit"
-                                                    class="min-h-10 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                                                    Buscar
-                                                </button>
-                                            </form>
-
-                                        @endif
-                                    </div>
-                                @endforeach
+                            <div class="mt-3 flex items-start justify-between gap-2 rounded-xl bg-white p-3 dark:bg-slate-900">
+                                <div class="min-w-0">
+                                    <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                        class="block truncate text-sm font-bold text-sky-800 underline decoration-sky-300 underline-offset-2 hover:decoration-sky-600 dark:text-sky-200 dark:decoration-sky-700">{{ $lectura->original_name }}</a>
+                                    <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
+                                    </p>
+                                    @if($leyendo)
+                                        <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Leyéndola…</p>
+                                    {{-- Una lectura fallida no tiene partidas, y sin esto
+                                         la línea diría «N diferencias» contando como
+                                         diferencia cada partida que nunca se leyó. --}}
+                                    @elseif($resultado->elDocumentoNoAporto())
+                                        <p class="mt-1 text-xs font-bold text-rose-700 dark:text-rose-400">
+                                            No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
+                                        </p>
+                                    @else
+                                        <p class="mt-1 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }}">
+                                            {{ $resultado->cuadra() ? '✓ Coincide con lo que pediste' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
+                                        </p>
+                                    @endif
+                                </div>
+                                <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800">Quitar</button>
+                                </form>
                             </div>
 
-                            <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                Crea la cotización en Odoo, en borrador. No la confirma: eso se decide allá.
-                            </p>
-                            <form method="POST" action="{{ route('purchase_requests.odoo.export', $purchaseRequest) }}" class="mt-3">
-                                @csrf
-                                <button type="submit"
-                                    class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
-                                    Enviar a Odoo
-                                </button>
-                            </form>
-                        @endif
+                            {{-- Sólo si la solicitud ya está en Odoo: sin orden allá
+                                 no hay líneas que actualizar. --}}
+                            @can('exportToOdoo', $purchaseRequest)
+                                @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
+                                    <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-2">
+                                        @csrf
+                                        <button type="submit"
+                                            class="min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                            Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                        </button>
+                                        <p class="mt-1 text-xs text-sky-800 dark:text-sky-300">
+                                            Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
+                                        </p>
+                                    </form>
+                                @endif
+                            @endcan
+                        @endforeach
 
-                        {{-- Los precios, sin reabrir la solicitud entera.
-                             Aprobada no es editable a propósito, pero el precio
-                             es justo lo que no se sabía al aprobar: llega
-                             después, del proveedor. --}}
-                        <form method="POST" action="{{ route('purchase_requests.prices.update', $purchaseRequest) }}"
-                            class="mt-3 rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-900">
+                        <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
+                            enctype="multipart/form-data" class="mt-3 space-y-2">
                             @csrf
-                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Precios unitarios</p>
-                            <div class="mt-2 space-y-2">
-                                @foreach($purchaseRequest->items as $partida)
-                                    <label class="flex items-center gap-2">
-                                        <span class="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal"
-                                            name="prices[{{ $partida->getKey() }}]"
-                                            value="{{ $partida->unit_price !== null ? (float) $partida->unit_price : '' }}"
-                                            placeholder="—"
-                                            class="min-h-9 w-28 rounded-lg border-slate-300 py-1 text-right text-xs tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                    </label>
-                                @endforeach
-                            </div>
-                            @error('prices.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                            <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
+                                class="block w-full text-sm text-sky-900 file:mr-3 file:min-h-9 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:text-sm file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
+                            @error('quote') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                             <button type="submit"
-                                class="mt-2 min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
-                                Guardar precios
+                                class="min-h-11 w-full rounded-xl bg-sky-600 px-3 text-sm font-extrabold text-white hover:bg-sky-700">
+                                {{ count($comparaciones) ? 'Subir otra cotización' : 'Subir la del proveedor y comparar' }}
                             </button>
                         </form>
+                    </section>
 
-                        @if($yaEnOdoo)
-                            <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
+                    @php
+                        $odooActivo = (bool) config('purchase_requests.odoo.enabled');
+                        $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
+                        $candidatos = session('odoo_candidates', []);
+                    @endphp
+
+                    @can('exportToOdoo', $purchaseRequest) @if($odooActivo)
+                        <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/30">
+                            <h2 class="font-extrabold text-violet-950 dark:text-violet-100">Odoo</h2>
+
+                            @if($yaEnOdoo)
+                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                    Ya está en Odoo como <span class="font-extrabold">{{ $purchaseRequest->odoo_reference }}</span>,
+                                    en borrador. Se confirma allá.
+                                </p>
+                                <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
+                                    Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
+                                    No se vuelve a enviar: habría dos cotizaciones para la misma compra.
+                                </p>
+                            {{-- `exists` y no `filled`: cuando Odoo no encontró nada
+                                 la lista llega vacía, y es justo el momento en que
+                                 más falta hace el buscador. --}}
+                            @elseif(session()->exists('odoo_candidates') || session('odoo_query'))
+                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                    Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}».
+                                    Búscalo tú, que sabes a quién buscas.
+                                </p>
+
+                                <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="mt-3 flex gap-2">
+                                    @csrf
+                                    <input name="q" value="{{ session('odoo_query') }}" placeholder="Buscar en Odoo por nombre o RUT"
+                                        class="min-h-11 w-full rounded-xl border-violet-300 bg-white px-3 text-sm dark:border-violet-800 dark:bg-slate-950 dark:text-white">
+                                    <button type="submit"
+                                        class="min-h-11 shrink-0 rounded-xl border border-violet-300 px-4 text-sm font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200">
+                                        Buscar
+                                    </button>
+                                </form>
+
+                                @foreach($candidatos as $candidato)
+                                    <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}" class="mt-2">
+                                        @csrf
+                                        <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
+                                        <input type="hidden" name="name" value="{{ $candidato['name'] }}">
+                                        <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
+                                        <button type="submit"
+                                            class="w-full rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-left text-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950 dark:hover:bg-violet-950/60">
+                                            <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
+                                            <span class="block text-xs {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
+                                                {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo · habrá que ponérselo allá para que se reconozca solo' }}
+                                            </span>
+                                        </button>
+                                    </form>
+                                @endforeach
+
+                                <p class="mt-3 text-xs text-violet-800 dark:text-violet-300">
+                                    Si no aparece, hay que darlo de alta en Odoo. Este programa no crea proveedores:
+                                    el maestro de la empresa se administra allá.
+                                </p>
+
+                            @else
+                                @php
+                                    $emparejador = app(\App\Services\PurchaseRequests\Products\ProductMatcher::class);
+                                    $proveedorOdoo = \App\Models\PurchaseSupplier::query()
+                                        ->whereNotNull('odoo_partner_id')
+                                        ->whereIn('tax_id', collect($purchaseRequest->suggested_suppliers ?? [])
+                                            ->flatMap(fn ($s) => collect(\App\Support\Rut::findAll((string) $s))->pluck('rut'))
+                                            ->all())
+                                        ->value('odoo_partner_id');
+                                    $busquedas = session('odoo_product_candidates', []);
+                                    $consultas = session('odoo_product_query', []);
+                                @endphp
+
+                                {{-- Sin producto, Odoo no genera recepción al confirmar
+                                     la orden y el stock nunca sube. Por eso se muestra
+                                     partida por partida antes de enviar. --}}
+                                <div class="mt-3 space-y-2">
+                                    @foreach($purchaseRequest->items as $partida)
+                                        @php
+                                            $r = $emparejador->match((string) $partida->product_service, $proveedorOdoo, $partida->specification);
+                                            $encontrados = $busquedas[$partida->id] ?? null;
+                                        @endphp
+
+                                        <div class="rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-950">
+                                            <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $partida->product_service }}</p>
+
+                                            @if($r->resolved())
+                                                <div class="mt-1 flex items-start justify-between gap-2">
+                                                    <div class="min-w-0">
+                                                        <p class="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                                            ✓ {{ $r->odooProductName }}
+                                                        </p>
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
+                                                    </div>
+                                                    {{-- El botón de emparejar se aprieta en un segundo y sin
+                                                         esto el alias se quedaba para siempre, contagiando
+                                                         además a las próximas solicitudes con ese texto. --}}
+                                                    <form method="POST" action="{{ route('purchase_requests.odoo.product_unlink', [$purchaseRequest, $partida]) }}">
+                                                        @csrf @method('DELETE')
+                                                        <button type="submit"
+                                                            class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300">
+                                                            Cambiar
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @else
+                                                <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                                    Sin producto de Odoo · esta línea no sumará al stock al recibirla
+                                                </p>
+
+                                                @foreach(($encontrados ?? $r->candidates) as $c)
+                                                    <form method="POST" action="{{ route('purchase_requests.odoo.product_link', [$purchaseRequest, $partida]) }}" class="mt-1.5">
+                                                        @csrf
+                                                        <input type="hidden" name="odoo_product_id" value="{{ $c['odoo_id'] }}">
+                                                        <input type="hidden" name="odoo_product_name" value="{{ $c['name'] }}">
+                                                        <button type="submit"
+                                                            class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left text-xs hover:bg-violet-50 dark:border-slate-700 dark:hover:bg-violet-950/50">
+                                                            <span class="font-bold text-slate-800 dark:text-slate-100">{{ $c['name'] }}</span>
+                                                            <span class="block text-slate-500 dark:text-slate-400">
+                                                                {{ $c['reason'] }} · parecido {{ number_format($c['score'] * 100, 0) }}%
+                                                            </span>
+                                                        </button>
+                                                    </form>
+                                                @endforeach
+
+                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_search', [$purchaseRequest, $partida]) }}" class="mt-2 flex gap-1.5">
+                                                    @csrf
+                                                    <input name="q" value="{{ $consultas[$partida->id] ?? '' }}"
+                                                        placeholder="Buscar producto en Odoo"
+                                                        class="min-h-10 w-full rounded-lg border-slate-300 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                    <button type="submit"
+                                                        class="min-h-10 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+                                                        Buscar
+                                                    </button>
+                                                </form>
+
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
+                                    Crea la cotización en Odoo, en borrador. No la confirma: eso se decide allá.
+                                </p>
+                                <form method="POST" action="{{ route('purchase_requests.odoo.export', $purchaseRequest) }}" class="mt-3">
+                                    @csrf
+                                    <button type="submit"
+                                        class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
+                                        Enviar a Odoo
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- Los precios, sin reabrir la solicitud entera.
+                                 Aprobada no es editable a propósito, pero el precio
+                                 es justo lo que no se sabía al aprobar: llega
+                                 después, del proveedor. --}}
+                            <form method="POST" action="{{ route('purchase_requests.prices.update', $purchaseRequest) }}"
+                                class="mt-3 rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-900">
                                 @csrf
+                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Precios unitarios</p>
+                                <div class="mt-2 space-y-2">
+                                    @foreach($purchaseRequest->items as $partida)
+                                        <label class="flex items-center gap-2">
+                                            <span class="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
+                                            <input type="number" step="0.01" min="0" inputmode="decimal"
+                                                name="prices[{{ $partida->getKey() }}]"
+                                                value="{{ $partida->unit_price !== null ? (float) $partida->unit_price : '' }}"
+                                                placeholder="—"
+                                                class="min-h-9 w-28 rounded-lg border-slate-300 py-1 text-right text-xs tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @error('prices.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                                 <button type="submit"
-                                    class="min-h-11 w-full rounded-xl bg-violet-600 px-3 text-sm font-extrabold text-white hover:bg-violet-700">
-                                    Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                    class="mt-2 min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                    Guardar precios
                                 </button>
                             </form>
-                        @endif
+
+                            @if($yaEnOdoo)
+                                <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
+                                    @csrf
+                                    <button type="submit"
+                                        class="min-h-11 w-full rounded-xl bg-violet-600 px-3 text-sm font-extrabold text-white hover:bg-violet-700">
+                                        Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                    </button>
+                                </form>
+                            @endif
+                        </section>
+                    @endif @endcan
+
+                    @if($purchaseRequest->attachments->isNotEmpty())
+                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Adjuntos</h2></div><div class="divide-y divide-slate-100 dark:divide-slate-800">@forelse($purchaseRequest->attachments as $attachment)<div class="p-4"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB</p><div class="mt-3 flex gap-3"><a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}" class="text-xs font-extrabold text-blue-600 hover:text-blue-800 dark:text-blue-400">Descargar</a>@if($isEditable)<form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 dark:text-rose-400">Eliminar</button></form>@endif</div></div>@empty<div class="p-4 text-sm text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>@endforelse</div></section>
+                    @endif
+
+                    {{-- Plegado: es el bloque más largo de la columna y sólo se
+                         consulta. Abierto de entrada empujaba todo lo demás fuera
+                         de la pantalla, sobre todo en el teléfono. --}}
+                    <section x-data="{ abierto: false }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <button type="button" @click="abierto = !abierto"
+                            class="flex min-h-11 w-full items-center justify-between gap-2 px-4 py-4 text-left">
+                            <span class="font-extrabold text-slate-900 dark:text-white">Historial</span>
+                            <span class="flex items-center gap-2">
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $purchaseRequest->events->count() }}</span>
+                                <span class="text-xs font-bold text-slate-400" x-text="abierto ? 'Ocultar' : 'Ver'"></span>
+                            </span>
+                        </button>
+                        <div x-show="abierto" x-cloak class="border-t border-slate-100 dark:border-slate-800"><ol class="space-y-4 p-4">@forelse($purchaseRequest->events as $event)<li class="relative pl-5"><span class="absolute left-0 top-1 h-3 w-3 rounded-full {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->dotClasses() : 'bg-slate-400' }}" aria-hidden="true"></span><p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->label() : (data_get($event, 'label') ?: \Illuminate\Support\Str::headline(data_get($event, 'event_type') ?: 'actualización')) }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ data_get($event, 'actor.name') ?: data_get($event, 'actor_name_snapshot') ?: 'Sistema' }} · {{ $formatDateTime($event->created_at) }}</p>@if(filled(data_get($event, 'comment')))<p class="mt-1 whitespace-pre-line text-xs text-slate-600 dark:text-slate-300">{{ data_get($event, 'comment') }}</p>@endif</li>@empty<li class="text-sm text-slate-500 dark:text-slate-400">Aún no hay eventos registrados.</li>@endforelse</ol></div>
                     </section>
-                @endif @endcan
-
-                @if($purchaseRequest->attachments->isNotEmpty())
-                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Adjuntos</h2></div><div class="divide-y divide-slate-100 dark:divide-slate-800">@forelse($purchaseRequest->attachments as $attachment)<div class="p-4"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB</p><div class="mt-3 flex gap-3"><a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}" class="text-xs font-extrabold text-blue-600 hover:text-blue-800 dark:text-blue-400">Descargar</a>@if($isEditable)<form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 dark:text-rose-400">Eliminar</button></form>@endif</div></div>@empty<div class="p-4 text-sm text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>@endforelse</div></section>
-                @endif
-
-                {{-- Plegado: es el bloque más largo de la columna y sólo se
-                     consulta. Abierto de entrada empujaba todo lo demás fuera
-                     de la pantalla, sobre todo en el teléfono. --}}
-                <section x-data="{ abierto: false }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <button type="button" @click="abierto = !abierto"
-                        class="flex min-h-11 w-full items-center justify-between gap-2 px-4 py-4 text-left">
-                        <span class="font-extrabold text-slate-900 dark:text-white">Historial</span>
-                        <span class="flex items-center gap-2">
-                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $purchaseRequest->events->count() }}</span>
-                            <span class="text-xs font-bold text-slate-400" x-text="abierto ? 'Ocultar' : 'Ver'"></span>
-                        </span>
-                    </button>
-                    <div x-show="abierto" x-cloak class="border-t border-slate-100 dark:border-slate-800"><ol class="space-y-4 p-4">@forelse($purchaseRequest->events as $event)<li class="relative pl-5"><span class="absolute left-0 top-1 h-3 w-3 rounded-full {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->dotClasses() : 'bg-slate-400' }}" aria-hidden="true"></span><p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->label() : (data_get($event, 'label') ?: \Illuminate\Support\Str::headline(data_get($event, 'event_type') ?: 'actualización')) }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ data_get($event, 'actor.name') ?: data_get($event, 'actor_name_snapshot') ?: 'Sistema' }} · {{ $formatDateTime($event->created_at) }}</p>@if(filled(data_get($event, 'comment')))<p class="mt-1 whitespace-pre-line text-xs text-slate-600 dark:text-slate-300">{{ data_get($event, 'comment') }}</p>@endif</li>@empty<li class="text-sm text-slate-500 dark:text-slate-400">Aún no hay eventos registrados.</li>@endforelse</ol></div>
-                </section>
-                </aside>
+                    </aside>
+                </div>
             </div>
     </div>
 </x-app-layout>

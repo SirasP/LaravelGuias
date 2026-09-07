@@ -214,8 +214,10 @@ it('shows one comparison per quotation on the screen', function () {
         // tablas de diecinueve filas.
         ->assertSee('SODIMAC S.A.')
         ->assertSee('CONSTRUMART S.A.')
-        ->assertSee('cotizacion = 0', escape: false)
-        ->assertSee('cotizacion = 1', escape: false)
+        ->assertSee("vista = 'cot0'", escape: false)
+        ->assertSee("vista = 'cot1'", escape: false)
+        // Y la solicitud es una pestaña más, no el fondo sobre el que se apilan.
+        ->assertSee("vista = 'solicitud'", escape: false)
         ->assertSee('4.500')
         ->assertSee('3.900')
         // Y el contador de la columna derecha las cuenta.
