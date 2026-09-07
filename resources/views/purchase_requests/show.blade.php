@@ -711,7 +711,61 @@
                                 <article class="p-4"><div class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{{ $index + 1 }}</span><div class="min-w-0"><p class="font-bold text-slate-900 dark:text-white">{{ $item->product_service }}</p>@if(filled($item->specification))<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>@endif<div class="mt-2 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</span>@if(filled($item->quantity_note))<span class="text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</span>@endif @if(filled($item->unit_price))<span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · total {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}</span>@endif</div>@if(filled($item->destination))<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>@endif</div></div></article>
                             @endforeach
                         </div>
-                        <div class="hidden overflow-x-auto md:block"><table class="min-w-full text-sm"><thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400"><tr><th class="px-5 py-3">N°</th><th class="px-5 py-3">Producto / servicio</th><th class="px-5 py-3">Especificación</th><th class="px-5 py-3 text-right">Cantidad</th><th class="px-5 py-3 text-right">Precio unit.</th><th class="px-5 py-3 text-right">Total</th><th class="px-5 py-3">Destino</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800">@foreach($purchaseRequest->items as $index => $item)<tr><td class="px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td><td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">{{ $item->product_service }}@if(filled($item->quantity_note))<p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>@endif</td><td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td><td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</td><td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td><td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td><td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td></tr>@endforeach</tbody></table></div>
+                        {{-- Una columna en «—» en todas las filas no dice nada y le roba
+                             ancho a los nombres, que es lo que hay que leer. Con 19 partidas
+                             de EPP eran cuatro columnas de guiones. --}}
+                        @php
+                            $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
+                            $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
+                            $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
+                        @endphp
+                        <div class="hidden overflow-x-auto md:block">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950/50 dark:text-slate-400">
+                                    <tr>
+                                        <th class="px-5 py-3">N°</th>
+                                        <th class="px-5 py-3">Producto / servicio</th>
+                                        @if($hayEspecificacion)
+                                            <th class="px-5 py-3">Especificación</th>
+                                        @endif
+                                        <th class="whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
+                                        @if($hayPrecio)
+                                            <th class="px-5 py-3 text-right">Precio unit.</th>
+                                            <th class="px-5 py-3 text-right">Total</th>
+                                        @endif
+                                        @if($hayDestino)
+                                            <th class="px-5 py-3">Destino</th>
+                                        @endif
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    @foreach($purchaseRequest->items as $index => $item)
+                                        <tr>
+                                            <td class="px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
+                                            <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
+                                                {{ $item->product_service }}
+                                                @if(filled($item->quantity_note))
+                                                    <p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
+                                                @endif
+                                            </td>
+                                            @if($hayEspecificacion)
+                                                <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
+                                            @endif
+                                            <td class="whitespace-nowrap px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">
+                                                {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
+                                            </td>
+                                            @if($hayPrecio)
+                                                <td class="px-5 py-4 text-right text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
+                                                <td class="px-5 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
+                                            @endif
+                                            @if($hayDestino)
+                                                <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td>
+                                            @endif
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
 
                     {{-- Con dos o más cotizaciones, unas al lado de otras. Comparar

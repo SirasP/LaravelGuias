@@ -193,3 +193,44 @@ it('does not let quantity one turn any invented price into a valid one', functio
     expect($items[0]['unit_price'])->toBeNull()
         ->and($avisos[0])->toContain('no aparece en el documento');
 });
+
+it('hides the columns that are empty in every line', function () {
+    // La SC-2026-000031 tiene 19 partidas de EPP sin especificación, sin
+    // precio y sin destino: eran cuatro columnas de guiones robándole ancho a
+    // los nombres, que es lo único que hay que leer ahí.
+    $owner = App\Models\User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Guante Cabretilla',
+        'quantity' => 36, 'unit' => 'Unidades',
+    ]);
+
+    $this->actingAs($owner)->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('Guante Cabretilla')
+        ->assertDontSee('Especificación')
+        ->assertDontSee('Precio unit.')
+        ->assertDontSee('Destino');
+});
+
+it('shows those columns as soon as one line uses them', function () {
+    $owner = App\Models\User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Guante Cabretilla',
+        'quantity' => 36, 'unit' => 'Unidades',
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 2, 'product_service' => 'Casco MSA',
+        'specification' => 'V-GARD', 'quantity' => 1, 'unit' => 'Unidades',
+        'unit_price' => 12500, 'destination' => 'Taller',
+    ]);
+
+    $this->actingAs($owner)->get(route('purchase_requests.show', $solicitud->fresh()))
+        ->assertOk()
+        ->assertSee('Especificación')
+        ->assertSee('Precio unit.')
+        ->assertSee('Destino');
+});
