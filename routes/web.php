@@ -155,6 +155,12 @@ Route::middleware('auth')
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/precios', [PurchaseQuoteComparisonController::class, 'prices'])
                 ->name('quotes.prices');
 
+            // Precios de una aprobada: sólo el número, sin reabrirla entera.
+            Route::post('/{purchaseRequest}/precios', [PurchaseRequestController::class, 'updatePrices'])
+                ->name('prices.update');
+            Route::post('/{purchaseRequest}/precios/odoo', [PurchaseRequestController::class, 'pushPricesToOdoo'])
+                ->name('prices.push');
+
             Route::post('/{purchaseRequest}/odoo', [PurchaseRequestController::class, 'exportToOdoo'])
                 ->name('odoo.export');
             Route::post('/{purchaseRequest}/odoo/proveedor', [PurchaseRequestController::class, 'confirmOdooSupplier'])

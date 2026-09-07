@@ -308,6 +308,25 @@ it('drops the requester column when every row says the same name', function () {
         ->and($tabla)->not->toContain('Paola Jara');
 });
 
+it('shows how many lines each request has', function () {
+    $owner = User::factory()->create();
+    $solicitud = $this->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+
+    foreach (['cemento', 'arena', 'gravilla'] as $i => $nombre) {
+        $solicitud->items()->create([
+            'sort_order' => $i + 1, 'product_service' => $nombre,
+            'quantity' => 1, 'unit' => 'Unidades',
+        ]);
+    }
+
+    $tabla = tablaDeLaBandeja($this->actingAs($owner)->get(route('purchase_requests.index'))->getContent());
+
+    expect($tabla)->toContain('Partidas')
+        // Se cuenta en la consulta, no abriendo cada solicitud.
+        ->toMatch('/tabular-nums[^>]*>\s*3\s*</');
+});
+
 it('says what each request is waiting for', function () {
     // La bandeja mostraba lo que cada solicitud es —estado, prioridad,
     // departamento—, y con casi todas aprobadas esas columnas repetían el

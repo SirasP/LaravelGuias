@@ -361,6 +361,7 @@
                         <tr>
                             <th class="whitespace-nowrap px-5 py-3">Folio</th>
                             <th class="min-w-72 px-5 py-3">Solicitud</th>
+                            <th class="whitespace-nowrap px-5 py-3 text-right">Partidas</th>
                             {{-- Solicitante sólo cuando hay más de uno: con una sola
                                  persona era la misma línea repetida en cada fila. --}}
                             @if($variosSolicitantes)
@@ -396,6 +397,9 @@
                                         {{ $purchaseRequest->reason }}
                                     </p>
                                 </td>
+                                <td class="whitespace-nowrap px-5 py-4 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                                    {{ $purchaseRequest->items_count }}
+                                </td>
                                 @if($variosSolicitantes)
                                     <td class="whitespace-nowrap px-5 py-4">
                                         <p class="text-slate-700 dark:text-slate-200">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</p>
@@ -419,7 +423,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $variosSolicitantes ? 6 : 5 }}" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                                <td colspan="{{ $variosSolicitantes ? 7 : 6 }}" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>
                             </tr>

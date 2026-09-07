@@ -99,6 +99,7 @@ class PurchaseRequestController extends Controller
             // En SQLite —donde corren las pruebas— eso no falla, así que sólo
             // se vio en el servidor.
             ->withCount([
+                'items',
                 'receivedQuotes',
                 'items as items_sin_precio_count' => fn ($query) => $query->whereNull('unit_price'),
             ])
@@ -324,6 +325,111 @@ class PurchaseRequestController extends Controller
         }
 
         return $listas;
+    }
+
+    /**
+     * Pone los precios de una solicitud ya aprobada, y sólo los precios.
+     *
+     * Aprobada no es editable a propósito: lo que llega a Odoo tiene que ser
+     * lo que alguien aprobó. Pero el precio es justamente lo que no se sabía
+     * al aprobar —llega después, del proveedor—, y obligar a devolverla,
+     * corregirla y volver a aprobarla eran tres pasos para escribir un número.
+     *
+     * No cambia qué se compra ni cuánto: sólo cuánto cuesta, y queda en el
+     * historial con quién lo puso.
+     */
+    public function updatePrices(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $datos = $request->validate([
+            'prices' => ['required', 'array'],
+            'prices.*' => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
+        ], [], ['prices.*' => 'el precio']);
+
+        $cambiadas = 0;
+
+        DB::transaction(function () use ($datos, $purchaseRequest, $request, &$cambiadas): void {
+            foreach ($purchaseRequest->items()->get() as $item) {
+                if (! array_key_exists($item->getKey(), $datos['prices'])) {
+                    continue;
+                }
+
+                $nuevo = $datos['prices'][$item->getKey()];
+                $nuevo = $nuevo === null || $nuevo === '' ? null : (float) $nuevo;
+                $anterior = $item->unit_price === null ? null : (float) $item->unit_price;
+
+                if ($nuevo === $anterior) {
+                    continue;
+                }
+
+                $item->forceFill(['unit_price' => $nuevo])->save();
+                $cambiadas++;
+            }
+
+            if ($cambiadas > 0) {
+                $this->recordEvent(
+                    $purchaseRequest,
+                    $request->user(),
+                    PurchaseRequestEvent::UPDATED,
+                    $purchaseRequest->status,
+                    $purchaseRequest->status,
+                    $request,
+                    ['precios_cambiados' => $cambiadas],
+                );
+            }
+        });
+
+        return back()->with('success', $cambiadas > 0
+            ? sprintf('Se guardaron %d %s.', $cambiadas, Str::plural('precio', $cambiadas))
+            : 'No cambió ningún precio.');
+    }
+
+    /**
+     * Lleva a Odoo los precios que tiene la solicitud.
+     *
+     * El hermano del botón de la cotización, para cuando el precio se escribió
+     * a mano en vez de leerse de un PDF.
+     */
+    public function pushPricesToOdoo(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestExporter $exporter,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        $precios = [];
+
+        foreach ($purchaseRequest->items()->get() as $item) {
+            if ($item->unit_price === null) {
+                continue;
+            }
+
+            $producto = PurchaseProductLink::para((string) $item->product_service, null)?->odoo_product_id;
+
+            if ($producto !== null) {
+                $precios[(int) $producto] = (float) $item->unit_price;
+            }
+        }
+
+        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios);
+
+        if ($motivo !== null) {
+            return back()->with('error', $motivo);
+        }
+
+        return back()->with('success', $actualizadas > 0
+            ? sprintf(
+                'Se actualizaron %d %s en %s.',
+                $actualizadas,
+                Str::plural('línea', $actualizadas),
+                $purchaseRequest->odoo_reference,
+            )
+            : 'Los precios de Odoo ya coincidían: no había nada que cambiar.');
     }
 
     /** El proveedor en Odoo de una cotización recibida, si se le conoce el RUT. */

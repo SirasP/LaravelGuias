@@ -910,3 +910,68 @@ it('attaches nothing when no quotation was uploaded', function () {
 
     Http::assertNotSent(fn ($request) => ($request['params']['args'][3] ?? null) === 'ir.attachment');
 });
+
+it('names the Odoo line after the catalogue product, not the request wording', function () {
+    // La línea llegaba llamándose «cemento» —como lo escribió quien pidió—
+    // junto al producto «CEMENTO 25 KG». Quien la lee en Odoo espera el nombre
+    // del catálogo; lo escrito sigue en la solicitud, que es su sitio.
+    // Turnos: login, proveedor, productos que Odoo confirma, create, read.
+    odooResponde([8, [3528], [6644], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    App\Models\OdooProduct::query()->create([
+        'odoo_id' => 6644, 'name' => 'CEMENTO 25 KG', 'uom_id' => 1,
+        'uom_name' => 'Units', 'purchase_ok' => true, 'active_in_odoo' => true,
+    ]);
+    App\Models\PurchaseProductLink::query()->create([
+        'company_code' => 'EHE', 'odoo_partner_id' => null,
+        'source_text' => 'cemento', 'normalized_text' => App\Models\PurchaseProductLink::normalizar('cemento'),
+        'odoo_product_id' => 6644, 'odoo_product_name' => 'CEMENTO 25 KG',
+        'source' => App\Models\PurchaseProductLink::CONFIRMADO,
+    ]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'cemento',
+        'quantity' => '10', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        if (($request['params']['args'][4] ?? null) !== 'create') {
+            return false;
+        }
+
+        $linea = $request['params']['args'][5][0]['order_line'][0][2] ?? null;
+
+        return $linea !== null
+            && $linea['name'] === 'CEMENTO 25 KG'
+            && $linea['product_id'] === 6644;
+    });
+});
+
+it('keeps naming a line by its written text when no product backs it', function () {
+    // Sin producto, el texto de la solicitud es lo único que hay: quitarlo
+    // dejaría la línea sin nombre en Odoo.
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => ['RUT 77.045.469-7']]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'algo que Odoo no conoce',
+        'quantity' => '2', 'unit' => 'Unidades', 'unit_price' => '1000',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        if (($request['params']['args'][4] ?? null) !== 'create') {
+            return false;
+        }
+
+        $linea = $request['params']['args'][5][0]['order_line'][0][2] ?? null;
+
+        return $linea !== null
+            && $linea['name'] === 'algo que Odoo no conoce'
+            && ! isset($linea['product_id']);
+    });
+});

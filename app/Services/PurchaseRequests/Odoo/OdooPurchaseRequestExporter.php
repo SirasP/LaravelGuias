@@ -574,6 +574,23 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $linea['product_id'] = $productoConfirmado;
 
             /*
+             * Con producto confirmado, el nombre lo pone Odoo.
+             *
+             * La línea llegaba llamándose «cemento» —como lo escribió quien
+             * pidió— junto al producto «CEMENTO 25 KG». En Odoo ese texto es la
+             * descripción del producto comprado, y quien la lee allá espera el
+             * nombre del catálogo, no la forma en que alguien lo pidió acá.
+             * Lo escrito no se pierde: sigue en la solicitud, que es su sitio.
+             */
+            $delCatalogo = OdooProduct::query()
+                ->where('odoo_id', $productoConfirmado)
+                ->value('name');
+
+            if (filled($delCatalogo)) {
+                $linea['name'] = (string) $delCatalogo;
+            }
+
+            /*
              * Con producto, la unidad la manda el producto.
              *
              * Odoo exige que la unidad de la línea sea de la misma categoría
