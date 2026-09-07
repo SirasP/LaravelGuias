@@ -113,7 +113,9 @@ it('matches the same product written differently by each side', function () {
     ]);
 
     expect($r->filas[0]->estado)->not->toBe('sin_cotizar')
-        ->and($r->filas[0]->diferencias[0])->toContain('Trae precio y tu solicitud no tenía ninguno');
+        // El precio que llega es una nota, no un problema: para eso se pidió.
+        ->and($r->filas[0]->diferencias[0])->toContain('Cotizado en')
+        ->and($r->filas[0]->estado)->toBe('igual');
 });
 
 it('trusts the supplier code over the names when both papers carry it', function () {
@@ -125,7 +127,9 @@ it('trusts the supplier code over the names when both papers carry it', function
     ]);
 
     expect($r->filas[0]->confianza)->toBe(1.0)
-        ->and($r->filas[0]->estado)->toBe('difiere');
+        // Sólo trae precio donde no había: eso no es un problema.
+        ->and($r->filas[0]->estado)->toBe('igual')
+        ->and($r->filas[0]->diferencias[0])->toContain('Cotizado en');
 });
 
 it('never matches two request lines against the same quoted line', function () {
@@ -164,4 +168,48 @@ it('puts first the lines that need somebody to do something', function () {
 
     // Y sigue estando todo: ordenar no es esconder.
     expect($r->ordenadas())->toHaveCount(count($r->todas()));
+});
+
+it('pairs products that only a person would call the same, without confusing sizes', function () {
+    // Medido con la cotización real de MARYUN para la SC-2026-000031.
+    $solicitud = solicitudCon([
+        ['Casco de seguridad MSA V-GARD BLANCO con barbiquejo', null, 1, 'Unidades'],
+        ['Traje de agua XXL', null, 2, 'Unidades'],
+        ['Traje de agua XL', null, 2, 'Unidades'],
+        ['Guante Nitrilo Verde talla 7', null, 10, 'Unidades'],
+    ]);
+
+    $r = comparar($solicitud, [
+        ['product_service' => 'CASCO MSA V-GARD - (BLANCO)', 'specification' => null, 'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => 10900],
+        ['product_service' => 'TRAJE DE AGUA PU MY SAFEGUARD - (VERDE)(XXL)', 'specification' => null, 'quantity' => '2', 'unit' => 'Unidades', 'unit_price' => 14678],
+        ['product_service' => 'TRAJE DE AGUA PU MY SAFEGUARD - (VERDE)(XL)', 'specification' => null, 'quantity' => '2', 'unit' => 'Unidades', 'unit_price' => 14678],
+        ['product_service' => 'GUANTE NITRILO VERDE FLOCADO - (8)', 'specification' => null, 'quantity' => '10', 'unit' => 'Unidades', 'unit_price' => 1010],
+    ]);
+
+    $porPartida = collect($r->filas)->keyBy(fn ($f) => $f->pedida->product_service);
+
+    // Las tres primeras cruzan aunque el proveedor las escriba a su manera.
+    expect($porPartida['Casco de seguridad MSA V-GARD BLANCO con barbiquejo']->estado)->not->toBe('sin_cotizar')
+        ->and($porPartida['Traje de agua XXL']->cotizada['product_service'])->toContain('(XXL)')
+        ->and($porPartida['Traje de agua XL']->cotizada['product_service'])->toContain('(XL)');
+
+    // Y la talla 7 no se lleva la 8, que es el error que no se nota mirando.
+    expect($porPartida['Guante Nitrilo Verde talla 7']->estado)->toBe('sin_cotizar');
+});
+
+it('does not treat an arriving price as a difference', function () {
+    // Pedir una cotización es pedir precios: contarlos como diferencia pintaba
+    // de ámbar catorce partidas correctas y anunciaba «24 diferencias» sobre
+    // una cotización que había cruzado casi entera.
+    $solicitud = solicitudCon([['CEMENTO 25 KG', null, 10, 'Unidades', null]]);
+
+    $r = comparar($solicitud, [
+        ['product_service' => 'CEMENTO 25 KG', 'specification' => null,
+            'quantity' => '10', 'unit' => 'Unidades', 'unit_price' => 4500],
+    ]);
+
+    expect($r->cuadra())->toBeTrue()
+        ->and($r->conDiferencias())->toBe(0)
+        // Pero el precio se dice, que para eso se subió el documento.
+        ->and($r->filas[0]->diferencias[0])->toContain('4.500');
 });

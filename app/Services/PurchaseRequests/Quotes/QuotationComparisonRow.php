@@ -21,12 +21,15 @@ class QuotationComparisonRow
         public readonly ?array $cotizada,
         public readonly array $diferencias,
         public readonly float $confianza = 0.0,
+        /** Distingue un problema de una nota informativa: el precio que llega. */
+        public readonly bool $hayProblema = false,
     ) {}
 
     /** @param array<string, mixed> $linea */
     public static function emparejada(PurchaseRequestItem $item, array $linea, float $confianza): self
     {
         $diferencias = [];
+        $notas = [];
 
         $pedida = self::numero($item->quantity);
         $ofrecida = self::numero($linea['quantity'] ?? null);
@@ -50,8 +53,12 @@ class QuotationComparisonRow
         $precioPedido = self::numero($item->unit_price);
         $precioOfrecido = self::numero($linea['unit_price'] ?? null);
 
+        // Que traiga precio cuando la solicitud no tenía ninguno no es una
+        // diferencia: es la cotización haciendo su trabajo. Contarlo como tal
+        // pintaba de ámbar catorce partidas correctas y anunciaba «24
+        // diferencias» en una cotización que había cruzado casi entera.
         if ($precioOfrecido !== null && $precioPedido === null) {
-            $diferencias[] = 'Trae precio y tu solicitud no tenía ninguno.';
+            $notas[] = 'Cotizado en '.self::dinero($precioOfrecido).'.';
         } elseif ($precioOfrecido !== null && $precioPedido !== null && abs($precioOfrecido - $precioPedido) > 0.5) {
             $subeOBaja = $precioOfrecido > $precioPedido ? 'subió' : 'bajó';
             $variacion = $precioPedido > 0
@@ -68,7 +75,14 @@ class QuotationComparisonRow
             $diferencias[] = 'El documento no trae precio para esta partida.';
         }
 
-        return new self($diferencias === [] ? 'igual' : 'difiere', $item, $linea, $diferencias, $confianza);
+        return new self(
+            $diferencias === [] ? 'igual' : 'difiere',
+            $item,
+            $linea,
+            [...$diferencias, ...$notas],
+            $confianza,
+            $diferencias !== [],
+        );
     }
 
     public static function sinCotizar(PurchaseRequestItem $item): self

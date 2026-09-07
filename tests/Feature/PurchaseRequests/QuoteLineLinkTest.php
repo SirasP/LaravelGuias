@@ -45,16 +45,17 @@ function cotizacionDe(PurchaseRequest $solicitud, array $lineas, string $hash = 
     ]);
 }
 
-it('does not pair two lines that only look alike', function () {
-    // «valvula mariposa» y «VALVULA MARIPOSA 8" 200MM C/PALANCA» se parecen un
-    // 52%: por debajo de cualquier umbral que no cruce también «CODOS PVC 63»
-    // con «CODO PVC 40MM», que son productos distintos.
+it('does not pair two lines that share no words', function () {
+    // Caso real de la SC-2026-000031: el proveedor llama «ANTEOJO POLICARB.
+    // BASIC GRIS» a lo que se pidió como «Lente Oscuro Con Protector UV
+    // basic». Se parecen un 34%: ningún umbral razonable las cruza, y para
+    // eso está el emparejado a mano.
     $owner = User::factory()->create();
-    $solicitud = solicitudConPartidaEnlazada($owner, 'valvula mariposa', 7423);
+    $solicitud = solicitudConPartidaEnlazada($owner, 'Lente Oscuro Con Protector UV basic', 7423);
 
     $r = app(QuotationComparison::class)->comparar($solicitud, [
-        ['product_service' => 'VALVULA MARIPOSA 8" 200MM C/PALANCA', 'specification' => null,
-            'quantity' => '1.00', 'unit' => 'Unidades', 'unit_price' => 130625],
+        ['product_service' => 'ANTEOJO POLICARB. BASIC GRIS -', 'specification' => null,
+            'quantity' => '300', 'unit' => 'Unidades', 'unit_price' => 510],
     ]);
 
     expect($r->filas[0]->estado)->toBe('sin_cotizar')
@@ -63,33 +64,33 @@ it('does not pair two lines that only look alike', function () {
 
 it('pairs them once somebody says they are the same product', function () {
     $owner = User::factory()->create();
-    $solicitud = solicitudConPartidaEnlazada($owner, 'valvula mariposa', 7423);
+    $solicitud = solicitudConPartidaEnlazada($owner, 'Lente Oscuro Con Protector UV basic', 7423);
     $lectura = cotizacionDe($solicitud, [
-        ['product_service' => 'VALVULA MARIPOSA 8" 200MM C/PALANCA', 'specification' => null,
-            'quantity' => '1.00', 'unit' => 'Unidades', 'unit_price' => 130625],
+        ['product_service' => 'ANTEOJO POLICARB. BASIC GRIS -', 'specification' => null,
+            'quantity' => '300', 'unit' => 'Unidades', 'unit_price' => 510],
     ]);
 
     $this->actingAs($owner)
         ->post(route('purchase_requests.quotes.link', [$solicitud, $lectura]), [
-            'quote_line' => 'VALVULA MARIPOSA 8" 200MM C/PALANCA',
+            'quote_line' => 'ANTEOJO POLICARB. BASIC GRIS -',
             'item_id' => $solicitud->items->first()->getKey(),
         ])
         ->assertSessionHasNoErrors();
 
     // Lo aprendido apunta al mismo producto de Odoo que la partida.
-    expect(PurchaseProductLink::para('VALVULA MARIPOSA 8" 200MM C/PALANCA', null)?->odoo_product_id)
+    expect(PurchaseProductLink::para('ANTEOJO POLICARB. BASIC GRIS -', null)?->odoo_product_id)
         ->toBe(7423);
 
     // Y ahora la comparación las cruza, sin parecerse más que antes.
     $r = app(QuotationComparison::class)->comparar($solicitud, [
-        ['product_service' => 'VALVULA MARIPOSA 8" 200MM C/PALANCA', 'specification' => null,
-            'quantity' => '1.00', 'unit' => 'Unidades', 'unit_price' => 130625],
+        ['product_service' => 'ANTEOJO POLICARB. BASIC GRIS -', 'specification' => null,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => 510],
     ]);
 
     expect($r->sobrantes)->toBeEmpty()
         ->and($r->filas[0]->estado)->not->toBe('sin_cotizar')
         ->and($r->filas[0]->confianza)->toBe(1.0)
-        ->and($r->filas[0]->diferencias[0])->toContain('Trae precio');
+        ->and($r->filas[0]->diferencias[0])->toContain('Cotizado en');
 });
 
 it('refuses to learn against a line that points at no Odoo product', function () {

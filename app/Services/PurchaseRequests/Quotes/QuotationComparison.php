@@ -19,8 +19,19 @@ use App\Services\PurchaseRequests\Products\ProductSimilarity;
  */
 class QuotationComparison
 {
-    /** Bajo esto, dos textos no son el mismo producto aunque se parezcan. */
-    private const UMBRAL = 0.55;
+    /**
+     * Bajo esto, dos textos no son el mismo producto aunque se parezcan.
+     *
+     * Medido contra la cotización de MARYUN para la SC-2026-000031: «Casco de
+     * seguridad MSA V-GARD BLANCO con barbiquejo» y «CASCO MSA V-GARD -
+     * (BLANCO)» dan 0,5487, y los dos trajes de agua 0,51 y 0,52. Con 0,55
+     * quedaban fuera tres partidas que son obviamente la misma cosa.
+     *
+     * Bajarlo no abre la puerta a confundir tallas: «Traje de agua XXL» contra
+     * el XL, o la talla 7 contra la 8, dan exactamente 0,0000 porque el
+     * comparador las descalifica antes de puntuarlas.
+     */
+    private const UMBRAL = 0.50;
 
     /** El proveedor de la cotización que se está comparando, si se sabe. */
     private ?int $partnerId = null;
