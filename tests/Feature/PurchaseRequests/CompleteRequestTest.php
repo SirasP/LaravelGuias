@@ -82,3 +82,58 @@ it('shows the button on an approved request and not on a draft', function () {
         ->assertOk()
         ->assertDontSee('Volver a abrir');
 });
+
+it('takes a closed request out of the working list', function () {
+    $compras = User::factory()->create(['role' => 'admin']);
+    $viva = aprobadaDe($compras);
+    $cerrada = aprobadaDe($compras);
+
+    $this->actingAs($compras)->post(route('purchase_requests.complete', $cerrada));
+
+    // La lista sin filtro es el trabajo vivo: una compra cerrada ya no pide
+    // nada a nadie y sólo estorba para ver qué queda pendiente.
+    $this->actingAs($compras)->get(route('purchase_requests.index'))
+        ->assertOk()
+        ->assertSee($viva->folio)
+        ->assertDontSee($cerrada->folio);
+
+    // Pero sigue estando, en su propio filtro.
+    $this->actingAs($compras)->get(route('purchase_requests.index', ['status' => 'completed']))
+        ->assertOk()
+        ->assertSee($cerrada->folio)
+        ->assertDontSee($viva->folio);
+
+    // Y a la vista completa se llega pidiéndola.
+    $this->actingAs($compras)
+        ->get(route('purchase_requests.index', ['status' => PurchaseRequestStatus::GROUP_ALL]))
+        ->assertOk()
+        ->assertSee($viva->folio)
+        ->assertSee($cerrada->folio);
+});
+
+it('counts what the list actually shows', function () {
+    $compras = User::factory()->create(['role' => 'admin']);
+    aprobadaDe($compras);
+    $cerrada = aprobadaDe($compras);
+
+    $this->actingAs($compras)->post(route('purchase_requests.complete', $cerrada));
+
+    // Un número que dijera «2» sobre una lista de una fila estaría mintiendo.
+    $this->actingAs($compras)->get(route('purchase_requests.index'))
+        ->assertOk()
+        ->assertSee('Activas')
+        ->assertSee('sin las terminadas');
+});
+
+it('gives the closed ones their own tab', function () {
+    $compras = User::factory()->create(['role' => 'admin']);
+    $cerrada = aprobadaDe($compras);
+    $this->actingAs($compras)->post(route('purchase_requests.complete', $cerrada));
+
+    // La pestaña lleva a su lista y trae la cuenta, para saber cuántas hay sin
+    // entrar a mirar.
+    $this->actingAs($compras)->get(route('purchase_requests.index'))
+        ->assertOk()
+        ->assertSee('Terminadas')
+        ->assertSee(route('purchase_requests.index', ['status' => 'completed']), false);
+});

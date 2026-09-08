@@ -80,8 +80,11 @@
         <section class="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Resumen de solicitudes">
             <a href="{{ route('purchase_requests.index') }}"
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $countFor('total') }}</p>
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Activas</p>
+                <p class="mt-2 text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $countFor('activas') }}</p>
+                {{-- Cuenta lo que la lista muestra: si dijera el total y la
+                     lista no lo mostrara, el número estaría mintiendo. --}}
+                <p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">sin las terminadas</p>
             </a>
             <a href="{{ route('purchase_requests.index', ['status' => 'draft']) }}"
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
@@ -120,9 +123,23 @@
             <div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 <div>
                     <h2 class="font-extrabold text-slate-900 dark:text-white">
-                        {{ $currentStatus === 'submitted' && auth()->user()?->role === 'admin' ? 'Solicitudes por revisar' : 'Mis solicitudes' }}
+                        @if($currentStatus === \App\Enums\PurchaseRequestStatus::COMPLETED->value)
+                            Compras terminadas
+                        @elseif($currentStatus === 'submitted' && auth()->user()?->role === 'admin')
+                            Solicitudes por revisar
+                        @else
+                            Mis solicitudes
+                        @endif
                     </h2>
-                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Los filtros se aplican sobre todos los registros.</p>
+                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        @if($currentStatus === \App\Enums\PurchaseRequestStatus::COMPLETED->value)
+                            Cerradas y fuera de lo pendiente. Se puede volver a abrir cualquiera desde su ficha.
+                        @elseif(blank($currentStatus))
+                            El trabajo vivo: lo terminado tiene su propia pestaña.
+                        @else
+                            Los filtros se aplican sobre todos los registros.
+                        @endif
+                    </p>
                 </div>
 
                 @php
@@ -210,7 +227,10 @@
                                 <label for="status-filter" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Estado</label>
                                 <select id="status-filter" name="status" form="filtros-solicitudes"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white py-2 pl-3 pr-9 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                    <option value="" @selected(blank($currentStatus))>Todos los estados</option>
+                                    <option value="" @selected(blank($currentStatus))>Activas (sin las terminadas)</option>
+                                    <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_ALL }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_ALL)>
+                                        Todas, incluidas las terminadas
+                                    </option>
                                     <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW)>
                                         ⏳ Pendientes de decisión (enviadas y corregidas)
                                     </option>

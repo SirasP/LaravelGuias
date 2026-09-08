@@ -165,6 +165,15 @@ enum PurchaseRequestStatus: string
     /** Clave del filtro agrupado que reúne todo lo pendiente de decisión. */
     public const GROUP_AWAITING_REVIEW = 'por_revisar';
 
+    /**
+     * Ver también lo cerrado, que por defecto no aparece.
+     *
+     * La lista sin filtro muestra el trabajo vivo: una compra terminada ya no
+     * pide nada a nadie y sólo estorba para ver qué queda pendiente. Sigue
+     * estando, pero hay que pedirla.
+     */
+    public const GROUP_ALL = 'todas';
+
     /** @return list<string> */
     public static function awaitingReviewValues(): array
     {

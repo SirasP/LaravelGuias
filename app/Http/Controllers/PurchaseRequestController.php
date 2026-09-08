@@ -57,7 +57,11 @@ class PurchaseRequestController extends Controller
         // `por_revisar` no es un estado: agrupa lo enviado y lo reenviado, que
         // son las dos formas de estar esperando una decisión.
         $awaitingReview = $rawStatus === PurchaseRequestStatus::GROUP_AWAITING_REVIEW;
-        $status = $awaitingReview ? null : PurchaseRequestStatus::tryFrom($rawStatus);
+        // Sin filtro se ve el trabajo vivo. Una compra cerrada ya no pide nada
+        // a nadie y sólo estorba para ver qué queda pendiente; sigue estando,
+        // pero hay que pedirla con «todas» o con su propio filtro.
+        $todas = $rawStatus === PurchaseRequestStatus::GROUP_ALL;
+        $status = $awaitingReview || $todas ? null : PurchaseRequestStatus::tryFrom($rawStatus);
         $filters = $this->filtersFrom($request);
 
         $query = PurchaseRequest::query()
@@ -77,6 +81,8 @@ class PurchaseRequestController extends Controller
                 ->all(),
         );
         $counts['total'] = array_sum($counts);
+        // Lo que la lista muestra por defecto: todo menos lo cerrado.
+        $counts['activas'] = $counts['total'] - ($counts[PurchaseRequestStatus::COMPLETED->value] ?? 0);
         // Contador del grupo: lo enviado más lo corregido que volvió.
         $counts[PurchaseRequestStatus::GROUP_AWAITING_REVIEW] = array_sum(array_map(
             fn (string $value): int => $counts[$value] ?? 0,
@@ -89,6 +95,8 @@ class PurchaseRequestController extends Controller
             $query->whereIn('status', PurchaseRequestStatus::awaitingReviewValues());
         } elseif ($status !== null) {
             $query->where('status', $status->value);
+        } elseif (! $todas) {
+            $query->where('status', '!=', PurchaseRequestStatus::COMPLETED->value);
         }
 
         /** @var LengthAwarePaginator<int, PurchaseRequest> $requests */

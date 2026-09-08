@@ -8,9 +8,18 @@
     // la dejaba sin marcar nunca.
     $reviewActive = request()->routeIs('purchase_requests.index')
         && $currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW;
+    // Lo cerrado tiene su propia pestaña: sale de la lista de trabajo y se va
+    // ahí, que es donde uno lo va a buscar cuando quiere consultar una compra
+    // vieja, no cuando quiere ver qué falta.
+    $terminadasActive = request()->routeIs('purchase_requests.index')
+        && $currentStatus === \App\Enums\PurchaseRequestStatus::COMPLETED->value;
+    $terminadasCuantas = auth()->user()
+        ? \App\Models\PurchaseRequest::query()->visibleTo(auth()->user())
+            ->where('status', \App\Enums\PurchaseRequestStatus::COMPLETED->value)->count()
+        : 0;
     $catalogsActive = request()->routeIs('purchase_catalogs.*');
     $mineActive = request()->routeIs('purchase_requests.index', 'purchase_requests.show', 'purchase_requests.edit')
-        && ! $reviewActive;
+        && ! $reviewActive && ! $terminadasActive;
     $esAdministrador = auth()->user()?->isPurchaseReviewer() ?? false;
     $mantieneCatalogos = auth()->user()?->canAdministerPurchaseCatalogs() ?? false;
     $avisosActivo = request()->routeIs('purchase_notifications.*');
@@ -61,6 +70,25 @@
                 Por revisar
             </a>
         @endif
+
+        <a href="{{ route('purchase_requests.index', ['status' => \App\Enums\PurchaseRequestStatus::COMPLETED->value]) }}"
+            @if($terminadasActive) aria-current="page" @endif
+            class="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors
+                {{ $terminadasActive
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200 dark:shadow-emerald-950/60'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Terminadas
+            @if($terminadasCuantas > 0)
+                <span class="rounded-full px-1.5 text-xs font-bold {{ $terminadasActive ? 'bg-white text-emerald-700' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' }}">
+                    {{ $terminadasCuantas > 99 ? '99+' : $terminadasCuantas }}
+                    <span class="sr-only">compras cerradas</span>
+                </span>
+            @endif
+        </a>
 
         <a href="{{ route('purchase_notifications.index') }}"
             @if($avisosActivo) aria-current="page" @endif
