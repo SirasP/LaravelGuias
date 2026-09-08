@@ -329,3 +329,75 @@ it('still recognises a line after its name was already replaced', function () {
     Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
         && ($r['params']['args'][5][1]['product_id'] ?? null) === 8724);
 });
+
+it('creates the product in Units, whatever the name says about weight', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudSinProductoEnOdoo($revisor);
+
+    odooContesta([
+        7,
+        [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]],
+        [['id' => 1969, 'product_id' => false, 'name' => 'Corchetera', 'price_unit' => 0]],
+        [],
+        9001,
+        [['id' => 9001, 'name' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111',
+            'default_code' => false, 'barcode' => false, 'uom_id' => [1, 'Units'],
+            'type' => 'consu', 'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]));
+
+    // El nombre del producto a veces menciona un peso —«PGAL10300150 (peso …)»—
+    // y de ahí a que la ficha naciera en kilos hay un paso. Se dice la unidad,
+    // no se hereda del valor por defecto de Odoo.
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create'
+        && ($r['params']['args'][5][0]['uom_id'] ?? null) === 1
+        && ($r['params']['args'][5][0]['uom_po_id'] ?? null) === 1);
+});
+
+it('finds the line by the description it actually travelled with', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 244, 'odoo_reference' => 'P00244', 'odoo_exported_at' => now(),
+    ]);
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'TUB CUAD NEG. 2,0 X 2,0 MM',
+        'specification' => 'ECU202', 'quantity' => 1, 'unit' => 'Unidades', 'unit_price' => null,
+    ]);
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'd.txt', 'original_name' => 'cot.txt', 'mime_type' => 'text/plain',
+        'size' => 10, 'sha256' => str_repeat('d', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'extracted' => ['items' => [[
+            'product_service' => 'TUBO CUADRADO NEGRO 20X20X2', 'specification' => null,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '8990',
+        ]]],
+        'confirmed_pairings' => [0 => $partida->getKey()],
+    ]);
+
+    odooContesta([
+        7,
+        [['id' => 244, 'state' => 'draft', 'order_line' => [2001]]],
+        // Así se llama de verdad allá: la partida con su especificación pegada.
+        [['id' => 2001, 'product_id' => false, 'price_unit' => 0,
+            'name' => 'TUB CUAD NEG. 2,0 X 2,0 MM · ECU202']],
+        [],
+        9002,
+        [['id' => 9002, 'name' => 'TUBO CUADRADO NEGRO 20X20X2', 'default_code' => false,
+            'barcode' => false, 'uom_id' => [1, 'Units'], 'type' => 'consu',
+            'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud->fresh(), $lectura]))
+        ->assertSessionHas('success');
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][0] ?? null) === [2001]
+        && ($r['params']['args'][5][1]['price_unit'] ?? null) === 8990.0);
+});

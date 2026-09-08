@@ -460,12 +460,14 @@ class PurchaseQuoteComparisonController extends Controller
 
             $nombre = trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null;
 
-            // Dos formas de reconocer la línea en Odoo: el texto con que nació
-            // —el tuyo— y el nombre real que se le escribió después. Con sólo
-            // el primero, llevar los nombres una vez la volvía irreconocible y
-            // la orden ya no admitía ni una corrección más.
+            // Tres formas de reconocer la línea en Odoo, porque a lo largo de
+            // su vida se llama de tres maneras: como la escribiste tú, como
+            // viajó —con la especificación pegada, «TUB CUAD NEG. · ECU202»— y
+            // como quedó cuando le pusimos el nombre real del proveedor.
+            // Faltando cualquiera de las tres, la orden se vuelve inalcanzable.
             $textos = array_values(array_unique(array_filter([
                 PurchaseProductLink::normalizar((string) $fila->pedida->product_service),
+                PurchaseProductLink::normalizar($exporter->descripcionDe($fila->pedida)),
                 $nombre === null ? '' : PurchaseProductLink::normalizar($nombre),
             ])));
 

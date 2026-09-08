@@ -597,11 +597,19 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             return null;
         }
 
+        // La unidad va dicha y no heredada del valor por defecto de Odoo: el
+        // nombre del producto a veces menciona un peso —«PGAL10300150 (peso
+        // …)»— y de ahí a que la ficha naciera en kilos hay un paso. Se compra
+        // por unidades, que es donde está el 96% del catálogo.
+        $unidad = (int) config('purchase_requests.odoo.default_uom_id', 1);
+
         $id = $this->client->execute('product.product', 'create', [[
             'name' => $nombre,
             'type' => 'consu',
             'is_storable' => true,
             'purchase_ok' => true,
+            'uom_id' => $unidad,
+            'uom_po_id' => $unidad,
         ]]);
 
         if (! is_numeric($id)) {
@@ -648,6 +656,25 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'synced_at' => now(),
             ],
         );
+    }
+
+    /**
+     * El texto con el que una partida viaja a Odoo.
+     *
+     * Lleva pegada la especificación —«TUB CUAD NEG. 2,0 X 2,0 MM · ECU202»—,
+     * y esa es la forma exacta en que la línea queda llamándose allá. Buscarla
+     * después sólo por el nombre de la partida no la encontraba, y una orden
+     * entera se quedaba sin poder recibir precios.
+     */
+    public function descripcionDe(mixed $item): string
+    {
+        $descripcion = trim((string) $item->product_service);
+
+        if (filled($item->specification)) {
+            $descripcion .= ' · '.$item->specification;
+        }
+
+        return $descripcion;
     }
 
     /**
@@ -960,12 +987,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      */
     private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $productoConfirmado): array
     {
-        $descripcion = trim((string) $item->product_service);
-
-        if (filled($item->specification)) {
-            $descripcion .= ' · '.$item->specification;
-        }
-
+        $descripcion = $this->descripcionDe($item);
         $unidad = $this->unidadOdoo($item);
 
         $linea = [

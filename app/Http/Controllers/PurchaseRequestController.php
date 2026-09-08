@@ -429,9 +429,16 @@ class PurchaseRequestController extends Controller
 
             // Y por el texto, para las líneas que viajaron sin producto: un
             // texto repetido entre partidas no identifica ninguna y se anula.
-            $clave = PurchaseProductLink::normalizar((string) $item->product_service);
+            // Por los dos nombres con que puede estar la línea allá: el de la
+            // partida y el que viajó, con la especificación pegada. Sin
+            // especificación los dos son el mismo, y hay que contarlo una vez:
+            // la guardia contra textos repetidos se anulaba a sí misma.
+            $claves = array_unique(array_filter([
+                PurchaseProductLink::normalizar((string) $item->product_service),
+                PurchaseProductLink::normalizar($exporter->descripcionDe($item)),
+            ]));
 
-            if ($clave !== '') {
+            foreach ($claves as $clave) {
                 $porTexto[$clave] = array_key_exists($clave, $porTexto) ? null : (float) $item->unit_price;
             }
         }
