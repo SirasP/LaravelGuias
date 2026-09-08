@@ -4,6 +4,7 @@ namespace App\Services\PurchaseRequests\Odoo;
 
 use App\Enums\PurchaseRequestStatus;
 use App\Models\OdooProduct;
+use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
@@ -452,6 +453,39 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         );
 
         return is_array($vivos) ? array_map('intval', $vivos) : [];
+    }
+
+    /**
+     * El producto de Odoo de una partida, resuelto igual que al exportar.
+     *
+     * Importa que sea la misma resolución: la línea de Odoo nació de aquí, y
+     * si para escribirle el precio se buscara el producto de otra manera, las
+     * dos mitades dejarían de hablar de lo mismo.
+     *
+     * Sólo lo cierto —lo que alguien enseñó, el código del proveedor o el
+     * nombre idéntico—. Lo que el parecido apenas sugiere no vale para escribir
+     * un número en una orden de compra.
+     */
+    public function productoDe(mixed $item, ?int $odooPartnerId): ?int
+    {
+        // Lo que dijo una persona, tal cual. Aquí no se le exige al producto
+        // seguir vivo en la copia local del catálogo, como sí se hace al crear
+        // una línea: la línea de Odoo ya existe, y es ella la que decide si el
+        // producto está o no. Una copia local desfasada no puede impedir
+        // corregir un precio en una orden que está ahí, delante.
+        $enlace = PurchaseProductLink::para((string) $item->product_service, $odooPartnerId);
+
+        if ($enlace?->odoo_product_id !== null) {
+            return (int) $enlace->odoo_product_id;
+        }
+
+        $encontrado = $this->emparejador->match(
+            (string) $item->product_service,
+            $odooPartnerId,
+            $item->specification,
+        );
+
+        return $encontrado->resolved() ? $encontrado->odooProductId : null;
     }
 
     /**

@@ -455,8 +455,12 @@ class PurchaseQuoteComparisonController extends Controller
             }
 
             // La partida y la línea de Odoo se encuentran por el mismo
-            // producto: es lo único que significa lo mismo en los dos lados.
-            $producto = PurchaseProductLink::para((string) $fila->pedida->product_service, $partnerId)?->odoo_product_id;
+            // producto, resuelto igual que cuando se creó la orden. Mirar sólo
+            // los alias aprendidos dejaba fuera todo lo que había cruzado por
+            // nombre idéntico o por código, que es la mayoría: la pantalla
+            // decía «ninguna partida tiene precio que llevar» sobre una
+            // cotización con precios en todas.
+            $producto = $exporter->productoDe($fila->pedida, $partnerId);
 
             if ($producto !== null) {
                 $precios[(int) $producto] = (float) $precio;

@@ -418,7 +418,8 @@ class PurchaseRequestController extends Controller
                 continue;
             }
 
-            $producto = PurchaseProductLink::para((string) $item->product_service, null)?->odoo_product_id;
+            // Igual que al exportar: alias aprendido, código o nombre idéntico.
+            $producto = $exporter->productoDe($item, $this->proveedorDeLaSolicitud($purchaseRequest));
 
             if ($producto !== null) {
                 $precios[(int) $producto] = (float) $item->unit_price;
@@ -1184,6 +1185,17 @@ class PurchaseRequestController extends Controller
         }
 
         return $ruts;
+    }
+
+    /** El proveedor en Odoo de la solicitud, si el catálogo lo conoce. */
+    private function proveedorDeLaSolicitud(PurchaseRequest $purchaseRequest): ?int
+    {
+        $partner = PurchaseSupplier::query()
+            ->whereNotNull('odoo_partner_id')
+            ->whereIn('tax_id', $this->rutsDe($purchaseRequest))
+            ->value('odoo_partner_id');
+
+        return $partner === null ? null : (int) $partner;
     }
 
     /**

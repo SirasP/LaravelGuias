@@ -141,3 +141,48 @@ it('offers the price form whether or not the request is already in Odoo', functi
         // Sin orden en Odoo no hay líneas que actualizar.
         ->assertDontSee('Llevar estos precios a');
 });
+
+it('carries prices for a line that Odoo matched by name, with no alias saved', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 241, 'odoo_reference' => 'P00241', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'CEMENTO 25 KG',
+        'quantity' => 10, 'unit' => 'Unidades', 'unit_price' => 4747.9,
+    ]);
+
+    // Sin alias: el producto se resolvió por nombre idéntico, que es como
+    // cruza la mayoría. Buscar sólo entre los alias aprendidos dejaba fuera
+    // todo eso y la pantalla decía «ninguna partida tiene precio que llevar»
+    // sobre una solicitud con precios en todas.
+    App\Models\OdooProduct::query()->create([
+        'company_code' => 'EHE', 'odoo_id' => 6644, 'name' => 'CEMENTO 25 KG',
+        'purchase_ok' => true, 'active' => true,
+    ]);
+
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.ejemplo.cl',
+        'purchase_requests.odoo.db' => 'prueba',
+        'purchase_requests.odoo.user' => 'quien@ejemplo.cl',
+        'purchase_requests.odoo.password' => 'secreta',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => Http::sequence([
+        Http::response(['jsonrpc' => '2.0', 'result' => 7]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 241, 'state' => 'draft', 'order_line' => [901]]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 901, 'product_id' => [6644, 'CEMENTO 25 KG'], 'price_unit' => 0]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => true]),
+    ])]);
+    app()->bind(PurchaseRequestExporter::class, fn () => new OdooPurchaseRequestExporter(new OdooClient(
+        'https://odoo.ejemplo.cl', 'prueba', 'quien@ejemplo.cl', 'secreta',
+    )));
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.prices.push', $solicitud->fresh()))
+        ->assertSessionHas('success');
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['price_unit'] ?? null) === 4747.9);
+});
