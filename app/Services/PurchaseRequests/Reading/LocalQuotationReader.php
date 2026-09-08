@@ -421,10 +421,20 @@ class LocalQuotationReader implements QuotationReader
             ->throw();
 
         $contenido = (string) data_get($respuesta->json(), 'choices.0.message.content');
+        $motivo = (string) data_get($respuesta->json(), 'choices.0.finish_reason');
         $decodificado = json_decode($this->soloElJson($contenido), true);
 
         if (! is_array($decodificado)) {
-            throw new \RuntimeException('El modelo no devolvió un JSON válido.');
+            // Un fallo que no dice qué pasó obliga a reproducirlo a mano para
+            // saberlo. La causa casi siempre es una de dos: el modelo se quedó
+            // sin tokens a media lista y el JSON quedó cortado, o contestó en
+            // prosa. Las dos se distinguen mirando por dónde paró.
+            throw new \RuntimeException(sprintf(
+                'El modelo no devolvió un JSON válido (%s, %d caracteres). Terminó en: «…%s».',
+                $motivo === '' ? 'sin motivo declarado' : $motivo,
+                mb_strlen($contenido),
+                mb_substr(trim($contenido), -120),
+            ));
         }
 
         return $decodificado;
