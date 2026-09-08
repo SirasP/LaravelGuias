@@ -323,6 +323,8 @@ class LocalQuotationReader implements QuotationReader
         - Respeta la coma decimal chilena: 1,5 se escribe "1,5".
         - Si dos líneas repiten el mismo producto, devuélvelas como dos partidas separadas. No las sumes.
         - No traduzcas los nombres de productos ni las unidades. Mantén el español del documento.
+        - Las medidas en pulgadas llevan comillas: «SIFON LAVAPLATO 1 1/2"-1 1/4"». Escápalas
+          como \\" dentro del JSON, o el documento entero se pierde por un carácter.
         - "unit_price" es el precio POR UNIDAD, sin puntos de miles ni signo peso: «$ 12.500»
           es "12500". Si la línea sólo muestra el total, divídelo NO: deja "unit_price" vacío.
           Si la línea no trae precio, déjalo vacío. Nunca lo deduzcas de otra línea.
@@ -422,7 +424,13 @@ class LocalQuotationReader implements QuotationReader
 
         $contenido = (string) data_get($respuesta->json(), 'choices.0.message.content');
         $motivo = (string) data_get($respuesta->json(), 'choices.0.finish_reason');
-        $decodificado = json_decode($this->soloElJson($contenido), true);
+        $json = $this->soloElJson($contenido);
+        $decodificado = json_decode($json, true);
+
+        // Segunda oportunidad: casi siempre es una pulgada sin escapar.
+        if (! is_array($decodificado)) {
+            $decodificado = json_decode($this->conLasComillasEscapadas($json), true);
+        }
 
         if (! is_array($decodificado)) {
             // Un fallo que no dice qué pasó obliga a reproducirlo a mano para
@@ -847,6 +855,80 @@ class LocalQuotationReader implements QuotationReader
         }
 
         return mb_substr($contenido, $inicio, $fin - $inicio + 1);
+    }
+
+    /**
+     * Escapa las comillas que el modelo dejó sueltas dentro de un texto.
+     *
+     * En este país las medidas se escriben en pulgadas: «SIFON LAVAPLATO
+     * 1 1/2"-1 1/4"», «REGULADOR GAS 1/2"X3/8"». El modelo copia el nombre tal
+     * cual y esa comilla parte la cadena JSON en dos, así que una cotización
+     * de ferretería entera se perdía por un carácter. Pedirle que se acuerde
+     * de escaparla no basta: se olvida.
+     *
+     * Una comilla dentro de una cadena sólo la cierra de verdad si lo que
+     * sigue es puntuación de JSON —coma, llave, corchete o dos puntos—. Si
+     * sigue cualquier otra cosa, es parte del nombre del producto.
+     *
+     * Se usa sólo cuando la lectura directa falló: nunca toca un JSON válido.
+     */
+    private function conLasComillasEscapadas(string $json): string
+    {
+        $salida = '';
+        $dentro = false;
+        $largo = strlen($json);
+
+        for ($i = 0; $i < $largo; $i++) {
+            $caracter = $json[$i];
+
+            // Lo ya escapado viaja intacto, con su pareja.
+            if ($dentro && $caracter === '\\' && $i + 1 < $largo) {
+                $salida .= $caracter.$json[$i + 1];
+                $i++;
+
+                continue;
+            }
+
+            if ($caracter !== '"') {
+                $salida .= $caracter;
+
+                continue;
+            }
+
+            if (! $dentro) {
+                $dentro = true;
+                $salida .= $caracter;
+
+                continue;
+            }
+
+            $siguiente = $this->siguienteVisible($json, $i + 1);
+
+            if ($siguiente === null || in_array($siguiente, [',', '}', ']', ':'], true)) {
+                $dentro = false;
+                $salida .= $caracter;
+
+                continue;
+            }
+
+            $salida .= '\\"';
+        }
+
+        return $salida;
+    }
+
+    /** El primer carácter que no es espacio a partir de esa posición. */
+    private function siguienteVisible(string $texto, int $desde): ?string
+    {
+        $largo = strlen($texto);
+
+        for ($i = $desde; $i < $largo; $i++) {
+            if (trim($texto[$i]) !== '') {
+                return $texto[$i];
+            }
+        }
+
+        return null;
     }
 
     /**
