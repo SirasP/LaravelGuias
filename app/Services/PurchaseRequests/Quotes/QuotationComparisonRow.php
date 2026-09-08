@@ -182,13 +182,22 @@ class QuotationComparisonRow
         };
     }
 
+    /**
+     * Un número escrito como se escribe aquí.
+     *
+     * `is_numeric('3,00')` es falso en PHP, y el modelo escribe las cantidades
+     * con la coma decimal chilena porque así se las pedimos. El resultado era
+     * que la cantidad cotizada no se leía nunca: la fila decía «igual» sin
+     * haber comparado nada, y una partida donde pediste 4 y te cotizaron 3
+     * pasaba en silencio.
+     */
     private static function numero(mixed $valor): ?float
     {
-        if ($valor === null || $valor === '') {
-            return null;
+        if (is_int($valor) || is_float($valor)) {
+            return (float) $valor;
         }
 
-        return is_numeric($valor) ? (float) $valor : null;
+        return is_string($valor) ? \App\Support\ChileanMoney::parse($valor) : null;
     }
 
     private static function cantidad(float $valor): string

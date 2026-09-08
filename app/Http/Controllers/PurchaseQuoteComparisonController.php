@@ -442,7 +442,10 @@ class PurchaseQuoteComparisonController extends Controller
         $porTexto = [];
 
         foreach ($comparacion->filas as $fila) {
-            $precio = $fila->cotizada['unit_price'] ?? null;
+            // Con la coma decimal chilena: «12.500,50» no es is_numeric.
+            $precio = is_string($fila->cotizada['unit_price'] ?? null)
+                ? \App\Support\ChileanMoney::parse($fila->cotizada['unit_price'])
+                : ($fila->cotizada['unit_price'] ?? null);
 
             if ($fila->pedida === null || ! is_numeric($precio)) {
                 continue;

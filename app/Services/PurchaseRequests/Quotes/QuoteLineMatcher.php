@@ -325,8 +325,13 @@ final class QuoteLineMatcher
         return $this;
     }
 
+    /** Con la coma decimal chilena: sin esto la cantidad no respaldaba nada. */
     private function numero(mixed $valor): ?float
     {
-        return is_numeric($valor) ? (float) $valor : null;
+        if (is_int($valor) || is_float($valor)) {
+            return (float) $valor;
+        }
+
+        return is_string($valor) ? \App\Support\ChileanMoney::parse($valor) : null;
     }
 }

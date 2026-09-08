@@ -312,3 +312,45 @@ it('refuses to learn a general alias from a name the supplier repeats', function
         ->and(PurchaseProductLink::para('PROTECTOR SOLAR FPS50 B.BOAT', null)?->canonical_text)
         ->toBe(PurchaseProductLink::normalizar('Bloqueador solar 1000 ml'));
 });
+
+it('reads a quantity written with the Chilean decimal comma', function () {
+    $owner = User::factory()->create();
+    $solicitud = test()->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'pilas AA',
+        'quantity' => 4, 'unit' => 'Unidades',
+    ]);
+
+    // Al modelo se le pide que escriba «3,00», y `is_numeric('3,00')` es falso
+    // en PHP: la cantidad cotizada no se leía nunca y la fila decía «igual»
+    // sin haber comparado nada. Pediste cuatro y te cotizaron tres, y eso
+    // tiene que verse.
+    $resultado = app(QuotationComparison::class)->comparar($solicitud->fresh(), [
+        ['product_service' => 'pilas AA', 'specification' => null,
+            'quantity' => '3,00', 'unit' => 'Unidades', 'unit_price' => '2101'],
+    ]);
+
+    expect($resultado->filas[0]->estado)->toBe('difiere')
+        ->and($resultado->filas[0]->diferencias[0])->toContain('Pediste 4 y cotizaron 3');
+});
+
+it('lets a comma-written quantity corroborate a pairing', function () {
+    $owner = User::factory()->create();
+    $solicitud = test()->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Bloqueador solar 1000 ml',
+        'quantity' => 7, 'unit' => 'Unidades',
+    ]);
+
+    // El texto por sí solo no alcanza (0,47); la cantidad idéntica es la que
+    // sostiene la pareja, y escrita con coma no la sostenía.
+    $resultado = app(QuotationComparison::class)->comparar($solicitud->fresh(), [
+        ['product_service' => 'BLOQUEADOR SOLAR 1 KG C/VAL FPS 50 SAFEPRO -', 'specification' => null,
+            'quantity' => '7,00', 'unit' => 'UN', 'unit_price' => '10876'],
+    ]);
+
+    expect($resultado->filas[0]->cruzo())->toBeTrue()
+        ->and($resultado->filas[0]->esPropuesta())->toBeTrue();
+});

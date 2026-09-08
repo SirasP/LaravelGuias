@@ -160,9 +160,14 @@ class QuoteMatrix
         return $cantidad === null ? $unitario : $unitario * $cantidad;
     }
 
+    /** Con la coma decimal chilena, como la escribe el modelo. */
     private static function numero(mixed $valor): ?float
     {
-        return is_numeric($valor) ? (float) $valor : null;
+        if (is_int($valor) || is_float($valor)) {
+            return (float) $valor;
+        }
+
+        return is_string($valor) ? \App\Support\ChileanMoney::parse($valor) : null;
     }
 
     /**
