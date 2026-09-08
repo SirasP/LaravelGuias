@@ -688,6 +688,24 @@ class LocalQuotationReader implements QuotationReader
             return null;
         }
 
+        // Una línea que empieza con el nombre de un campo no nombra a nadie:
+        // lo que sigue es el giro, la dirección o el teléfono de alguien que ya
+        // se nombró más arriba. Sin esto, la cotización de SOCIEDAD COMERCIAL
+        // S&M quedaba a nombre de «Giro: VENTA ARTICULOS DE FERRETERIA».
+        // «Razón social» y «Señor(es)» no están aquí a propósito: después de
+        // esas sí viene un nombre.
+        $campos = ['giro', 'direccion', 'dirección', 'ciudad', 'comuna', 'telefono',
+            'teléfono', 'tel', 'fono', 'email', 'correo', 'contacto', 'vendedor',
+            'ejecutivo', 'condiciones', 'validez', 'plazo', 'forma', 'moneda',
+            // Encabezados de bloque: anuncian quién viene después, no lo son.
+            'enviada', 'emitida', 'emisor', 'solicitada', 'destinatario', 'facturar'];
+
+        $primera = preg_split('/[^a-záéíóúñ]+/u', $this->normalizar($texto))[0] ?? '';
+
+        if (in_array($primera, $campos, true)) {
+            return null;
+        }
+
         // Tiene que haber al menos una palabra que no sea un rótulo.
         // Rótulos que encabezan un documento y no nombran a nadie. Sin
         // «confirmacion» y «pedido», el respaldo tomó «Confirmación de pedido»

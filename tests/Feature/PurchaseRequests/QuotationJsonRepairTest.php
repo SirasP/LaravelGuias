@@ -61,3 +61,27 @@ it('gives up loudly instead of inventing a reading it cannot be sure of', functi
 
     expect(json_decode(reparado($ambiguo), true))->toBeNull();
 });
+
+it('does not take a field label for a company name', function () {
+    $metodo = new ReflectionMethod(LocalQuotationReader::class, 'nombreDelEmisorSegunElTexto');
+    $lector = new LocalQuotationReader;
+
+    // La razón social va en su línea y debajo vienen los campos. Tomar el de
+    // más arriba del RUT dejaba la cotización a nombre de «Giro: VENTA
+    // ARTICULOS DE FERRETERIA».
+    $texto = "Cotización N°: 5936\nSOCIEDAD COMERCIAL S&M LIMITADA\n"
+        ."Giro:        VENTA ARTICULOS DE FERRETERIA\nRut:         76.569.041-2\n"
+        ."Dirección:   PEDRO LAGOS 1003\nCiudad:      RIO BUENO\n";
+
+    expect($metodo->invoke($lector, $texto, '76569041-2'))->toBe('SOCIEDAD COMERCIAL S&M LIMITADA');
+});
+
+it('would rather name nobody than name a block heading', function () {
+    $metodo = new ReflectionMethod(LocalQuotationReader::class, 'nombreDelEmisorSegunElTexto');
+
+    // «ENVIADA POR» anuncia quién viene después, no es quien viene. Sin
+    // nombre el RUT sigue resolviendo el proveedor en Odoo; con un nombre
+    // falso, en cambio, nadie se entera de que está mal.
+    expect($metodo->invoke(new LocalQuotationReader, "COTIZACION\nENVIADA POR\nRUT:77.084.730-3\n", '77084730-3'))
+        ->toBeNull();
+});
