@@ -8,14 +8,18 @@ use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseRequestItem;
 use App\Models\PurchaseSupplier;
+use App\Models\UnitOfMeasure;
+use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;
 use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
 use App\Services\PurchaseRequests\Quotes\QuotationComparison;
+use App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use App\Support\Rut;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -88,6 +92,115 @@ class PurchaseQuoteComparisonController extends Controller
             'success',
             'Cotización recibida. La estamos leyendo y en un momento verás la comparación aquí mismo.',
         );
+    }
+
+    /**
+     * La cotización dictada, en vez de subida.
+     *
+     * A veces la compra ya está hecha y la factura está en la mano: los
+     * precios se saben, y escanear un papel para anotar cuatro números que ya
+     * se conocen es trabajo inventado. Se escribe en prosa —«3 correas a
+     * 12.500 cada una, 2 filtros a 8.900»— y el asistente las ordena en
+     * partidas con su cantidad y su precio.
+     *
+     * Lo que se guarda es exactamente lo que la persona escribió, como archivo
+     * y con su huella, igual que se guarda el PDF de una cotización subida: si
+     * mañana un precio no cuadra, se puede ir a ver qué se dictó.
+     */
+    public function compose(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestDrafter $drafter): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+
+        $datos = $request->validate([
+            'text' => ['required', 'string', 'min:3', 'max:4000'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'document_number' => ['nullable', 'string', 'max:60'],
+            'kind' => ['nullable', 'in:cotizacion,factura'],
+        ], [], [
+            'text' => 'lo que escribiste',
+            'supplier_name' => 'el proveedor',
+            'document_number' => 'el número de documento',
+        ]);
+
+        if (! $drafter->isEnabled()) {
+            return back()->with('error', 'El asistente de lectura no está habilitado en este entorno.');
+        }
+
+        $sugerencia = $drafter->draftFromText(
+            $datos['text'],
+            UnitOfMeasure::query()->forCompany()->active()->ordered()->pluck('name')->all(),
+        );
+
+        if (! $sugerencia->available) {
+            return back()->with('error', $sugerencia->error ?: 'El asistente no pudo leer lo que escribiste.');
+        }
+
+        $partidas = array_values(array_filter(
+            $sugerencia->items,
+            fn (array $item): bool => trim((string) ($item['product_service'] ?? '')) !== '',
+        ));
+
+        if ($partidas === []) {
+            return back()->with(
+                'error',
+                'No reconocí ninguna partida en lo que escribiste. Prueba nombrando el producto, '
+                    .'la cantidad y el precio: «3 correas a 12.500 cada una».',
+            );
+        }
+
+        $esFactura = ($datos['kind'] ?? 'cotizacion') === 'factura';
+        $proveedor = trim((string) ($datos['supplier_name'] ?? '')) ?: $sugerencia->supplier;
+        $documento = trim((string) ($datos['document_number'] ?? ''));
+
+        $texto = $datos['text'];
+        $hash = hash('sha256', $texto);
+
+        $previo = PurchaseRequestIngestion::query()
+            ->where('company_code', 'EHE')->where('sha256', $hash)->first();
+
+        if ($previo !== null) {
+            return $this->reutilizar($previo, $purchaseRequest);
+        }
+
+        $path = 'purchase-requests/ingestions/'.$request->user()->getKey().'/'.Str::uuid().'.txt';
+        Storage::disk('local')->put($path, $texto);
+
+        $nombre = ($esFactura ? 'Factura' : 'Cotización').' escrita a mano'
+            .($documento === '' ? '' : ' · '.$documento).'.txt';
+
+        $ingestion = PurchaseRequestIngestion::query()->create([
+            'user_id' => $request->user()->getKey(),
+            'uploader_name_snapshot' => $request->user()->name,
+            'compared_request_id' => $purchaseRequest->getKey(),
+            'disk' => 'local',
+            'path' => $path,
+            'original_name' => $nombre,
+            'mime_type' => 'text/plain',
+            'size' => strlen($texto),
+            'sha256' => $hash,
+            'status' => PurchaseRequestIngestion::COMPLETED,
+            'source_kind' => PurchaseRequestSourceKind::TEXT,
+            'supplier_name' => $proveedor,
+            'extracted' => [
+                'items' => $partidas,
+                'supplier' => $proveedor,
+                'source_kind' => PurchaseRequestSourceKind::TEXT,
+                'document_number' => $documento === '' ? null : $documento,
+                'already_purchased' => $esFactura,
+                'successful' => true,
+            ],
+            'warnings' => $sugerencia->warnings,
+        ]);
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            'success',
+            sprintf(
+                'Anoté %d %s de %s. Revisa abajo que los precios sean los que dijiste.',
+                count($partidas),
+                Str::plural('partida', count($partidas)),
+                $proveedor ?: 'ese proveedor',
+            ),
+        )->with('ver_cotizacion', $ingestion->getKey());
     }
 
     /**

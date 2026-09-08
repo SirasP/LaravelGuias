@@ -148,6 +148,9 @@ Route::middleware('auth')
                 ->name('quotes.store');
             Route::delete('/{purchaseRequest}/cotizacion-recibida/{ingestion}', [PurchaseQuoteComparisonController::class, 'destroy'])
                 ->name('quotes.destroy');
+            // Dictarla en vez de subirla: la compra ya hecha y la factura en mano.
+            Route::post('/{purchaseRequest}/cotizacion-escrita', [PurchaseQuoteComparisonController::class, 'compose'])
+                ->name('quotes.compose');
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');

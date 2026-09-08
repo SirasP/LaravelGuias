@@ -618,6 +618,22 @@
                         </button>
                     @endif
 
+                    {{-- Tab Cotizaciones: donde entran, subidas o dictadas --}}
+                    <button type="button" @click="vista = 'cotizaciones'"
+                        class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
+                        :class="vista === 'cotizaciones'
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                        <span>Cotizaciones</span>
+                        @if(count($comparaciones) > 0)
+                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
+                                  :class="vista === 'cotizaciones' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'">
+                                {{ count($comparaciones) }}
+                            </span>
+                        @endif
+                    </button>
+
                     {{-- Tabs por cotización recibida --}}
                     @foreach ($comparables as $indice => $comparacion)
                         @php
@@ -632,15 +648,7 @@
                                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
                             <div class="flex flex-col">
                                 <span class="text-xs font-black leading-tight">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 20) }}</span>
-                                <span class="text-[10px] font-bold opacity-80">
-                                    @if($resultado->porConfirmar() > 0)
-                                        ◇ {{ $resultado->porConfirmar() }} por confirmar
-                                    @elseif($resultado->cuadra())
-                                        ✓ coincide
-                                    @else
-                                        ⚠ {{ $resultado->conDiferencias() }} {{ \Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
-                                    @endif
-                                </span>
+                                <span class="text-[10px] font-bold opacity-80">{{ $resultado->estadoCorto() }}</span>
                             </div>
                             <span class="rounded-full px-2 py-0.5 text-xs font-black"
                                   :class="vista === 'cot{{ $indice }}' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'"
@@ -830,6 +838,172 @@
                         </section>
                     </div>
 
+                    {{-- ── VISTA: COTIZACIONES ──
+                         Por donde entran. Subir el documento es lo normal,
+                         pero cuando la compra ya está hecha y la factura en la
+                         mano, escanear un papel para anotar cuatro precios que
+                         ya se saben es trabajo inventado: ahí se dicta. --}}
+                    <div x-show="vista === 'cotizaciones'" x-cloak class="space-y-4">
+                        <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="border-b border-slate-200/80 p-6 dark:border-slate-800">
+                                <h2 class="text-lg font-black text-slate-900 dark:text-white">Cotizaciones de esta solicitud</h2>
+                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                    Lo que entre aquí se contrasta con tus {{ $itemsCount }} partidas y queda como respaldo del precio.
+                                </p>
+                            </div>
+
+                            <div class="grid gap-6 p-6 lg:grid-cols-2">
+                                {{-- Subir el documento --}}
+                                <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
+                                    enctype="multipart/form-data"
+                                    class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+                                    @csrf
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600 text-white">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                        </div>
+                                        <h3 class="text-sm font-black text-slate-900 dark:text-white">Subir el documento</h3>
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        El PDF o la foto que te mandó el proveedor. Lo leemos y lo dejamos comparado.
+                                    </p>
+                                    <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
+                                        class="block w-full rounded-xl border border-slate-300 bg-white text-xs text-slate-600 file:mr-3 file:min-h-10 file:cursor-pointer file:border-0 file:bg-slate-100 file:px-4 file:text-xs file:font-bold file:text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:file:bg-slate-800 dark:file:text-slate-200">
+                                    @error('quote')
+                                        <p class="text-xs font-bold text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    @enderror
+                                    <button type="submit"
+                                        class="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-sky-700">
+                                        Subir y contrastar
+                                    </button>
+                                </form>
+
+                                {{-- Dictarla --}}
+                                <form method="POST" action="{{ route('purchase_requests.quotes.compose', $purchaseRequest) }}"
+                                    class="flex flex-col gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5 dark:border-indigo-900/60 dark:bg-indigo-950/20">
+                                    @csrf
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        </div>
+                                        <h3 class="text-sm font-black text-slate-900 dark:text-white">Escribirla tú</h3>
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Si ya compraste y tienes la factura, dicta los precios y nos saltamos el papel.
+                                    </p>
+
+                                    <div class="grid gap-2.5 sm:grid-cols-2">
+                                        <label class="block">
+                                            <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Proveedor</span>
+                                            <input type="text" name="supplier_name" maxlength="255" value="{{ old('supplier_name') }}"
+                                                placeholder="MAX SERVICE"
+                                                class="mt-1 block w-full rounded-xl border-slate-300 bg-white py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">N° documento</span>
+                                            <input type="text" name="document_number" maxlength="60" value="{{ old('document_number') }}"
+                                                placeholder="Factura 12345"
+                                                class="mt-1 block w-full rounded-xl border-slate-300 bg-white py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+                                        </label>
+                                    </div>
+
+                                    <fieldset class="flex flex-wrap gap-4 text-sm">
+                                        <legend class="sr-only">Qué es</legend>
+                                        <label class="inline-flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                                            <input type="radio" name="kind" value="cotizacion" checked class="border-slate-300 text-indigo-600 dark:border-slate-600 dark:bg-slate-950">
+                                            Es una cotización
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                                            <input type="radio" name="kind" value="factura" class="border-slate-300 text-indigo-600 dark:border-slate-600 dark:bg-slate-950">
+                                            Ya lo compré
+                                        </label>
+                                    </fieldset>
+
+                                    <label class="block">
+                                        <span class="sr-only">Lo que compraste o te cotizaron</span>
+                                        <textarea name="text" rows="5" required minlength="3" maxlength="4000"
+                                            placeholder="3 correas a 12.500 cada una, 2 filtros de aceite a 8.900 y 10 litros de cloro a 1.290 el litro"
+                                            class="mt-1 block w-full rounded-xl border-slate-300 bg-white py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">{{ old('text') }}</textarea>
+                                    </label>
+                                    @error('text')
+                                        <p class="text-xs font-bold text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    @enderror
+
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Nombra el producto, la cantidad y el precio por unidad. Se guarda tal cual lo escribas, para poder revisarlo después.
+                                    </p>
+
+                                    <button type="submit"
+                                        class="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">
+                                        Anotarla y contrastar
+                                    </button>
+                                </form>
+                            </div>
+                        </section>
+
+                        {{-- Lo que ya está cargado --}}
+                        @if(count($comparaciones) > 0)
+                            <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div class="border-b border-slate-200/80 px-6 py-4 dark:border-slate-800">
+                                    <h3 class="text-sm font-black text-slate-900 dark:text-white">
+                                        {{-- El pluralizador de Laravel es inglés: «cotización» le sale «cotizacións». --}}
+                                        {{ count($comparaciones) }} {{ count($comparaciones) === 1 ? 'cotización cargada' : 'cotizaciones cargadas' }}
+                                    </h3>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                            @foreach ($comparaciones as $comparacion)
+                                                @php
+                                                    $lectura = $comparacion['ingestion'];
+                                                    $resultado = $comparacion['resultado'];
+                                                    $dictada = $lectura->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT;
+                                                    $comprada = (bool) ($lectura->extracted['already_purchased'] ?? false);
+                                                    $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
+                                                @endphp
+                                                <tr class="align-top hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                                    <td class="px-6 py-4">
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <span class="font-black text-slate-900 dark:text-white">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</span>
+                                                            @if($comprada)
+                                                                <span class="rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">ya comprado</span>
+                                                            @endif
+                                                            @if($dictada)
+                                                                <span class="rounded-lg bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300">escrita a mano</span>
+                                                            @endif
+                                                        </div>
+                                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-xs">
+                                                        @if($leyendo)
+                                                            <span class="font-bold text-amber-600 dark:text-amber-400">Leyéndola…</span>
+                                                        @elseif($resultado->elDocumentoNoAporto())
+                                                            <span class="font-bold text-rose-700 dark:text-rose-400">No se pudo leer</span>
+                                                        @else
+                                                            <span class="font-bold text-slate-700 dark:text-slate-200">{{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} cruzadas</span>
+                                                            <span class="block text-slate-500 dark:text-slate-400">{{ $resultado->resumen() }}</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="w-40 whitespace-nowrap px-6 py-4 text-right">
+                                                        <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                                            class="text-xs font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
+                                                            {{ $dictada ? 'Ver lo escrito' : 'Ver documento' }}
+                                                        </a>
+                                                        <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}" class="mt-1">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="text-xs font-bold text-slate-400 underline decoration-dotted underline-offset-2 hover:text-rose-600 dark:hover:text-rose-400">
+                                                                Quitar
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        @endif
+                    </div>
                     {{-- ── VISTA 2: CUADRO COMPARATIVO («QUIÉN CONVIENE») ──
                          Cada celda dice cuánto cotizó, a qué precio y cuánto
                          suma esa línea, para no tener que multiplicar de cabeza
@@ -1418,13 +1592,7 @@
                                                 </p>
                                             @else
                                                 <p class="mt-2 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : ($resultado->porConfirmar() > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-400') }}">
-                                                    @if($resultado->porConfirmar() > 0)
-                                                        ◇ {{ $resultado->porConfirmar() }} {{ \Illuminate\Support\Str::plural('pareja', $resultado->porConfirmar()) }} por confirmar
-                                                    @elseif($resultado->cuadra())
-                                                        ✓ Coincide con lo que pediste
-                                                    @else
-                                                        ⚠ {{ $resultado->conDiferencias() }} {{ \Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
-                                                    @endif
+                                                    {{ $resultado->estadoCorto() }}
                                                 </p>
                                                 <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                                     {{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} partidas cruzadas
@@ -1458,21 +1626,14 @@
                             @endforeach
                         </div>
 
-                        {{-- Formulario para subir nueva cotización --}}
-                        <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
-                            enctype="multipart/form-data" class="mt-4 space-y-2.5">
-                            @csrf
-                            <label class="block text-xs font-bold text-sky-950 dark:text-sky-100">
-                                {{ count($comparaciones) ? 'Subir otra cotización del proveedor' : 'Subir cotización para comparar' }}
-                            </label>
-                            <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
-                                class="block w-full text-xs text-sky-900 file:mr-3 file:min-h-9 file:rounded-xl file:border-0 file:bg-sky-600 file:px-3 file:text-xs file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
-                            @error('quote') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                            <button type="submit"
-                                class="min-h-10 w-full rounded-2xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-md shadow-sky-500/25 hover:bg-sky-700 active:scale-95 transition">
-                                {{ count($comparaciones) ? 'Subir y contrastar' : 'Subir la del proveedor y comparar' }}
-                            </button>
-                        </form>
+                        {{-- Cargar una lleva a su pestaña, que es donde está el
+                             formulario entero. Tenerlo también aquí eran dos
+                             sitios para hacer lo mismo. --}}
+                        <button type="button" @click="vista = 'cotizaciones'; window.scrollTo({ top: 0, behavior: 'smooth' })"
+                            class="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-md shadow-sky-500/25 transition hover:bg-sky-700 active:scale-95">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                            {{ count($comparaciones) ? 'Agregar otra cotización' : 'Agregar una cotización' }}
+                        </button>
                     </section>
 
                     {{-- Card: Integración ERP Odoo --}}

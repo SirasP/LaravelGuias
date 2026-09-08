@@ -111,6 +111,33 @@ class QuotationComparisonResult
         return true;
     }
 
+    /**
+     * El estado en tres palabras, para el rótulo de una pestaña.
+     *
+     * Una factura dictada que cubre tres de diecinueve partidas no tiene
+     * dieciséis diferencias: tiene dieciséis partidas que ese documento no
+     * toca. Llamarlas diferencias hacía sonar a problema lo que es
+     * simplemente una compra parcial.
+     */
+    public function estadoCorto(): string
+    {
+        if (($n = $this->porConfirmar()) > 0) {
+            return '◇ '.$n.' por confirmar';
+        }
+
+        $difieren = count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->estado === 'difiere'));
+
+        if ($difieren > 0) {
+            return '⚠ '.$difieren.' '.($difieren === 1 ? 'diferencia' : 'diferencias');
+        }
+
+        if (($n = $this->sinCotizar()) > 0) {
+            return $n.' sin cotizar';
+        }
+
+        return '✓ coincide';
+    }
+
     /** Un resumen en una frase, que es lo primero que se lee. */
     public function resumen(): string
     {
