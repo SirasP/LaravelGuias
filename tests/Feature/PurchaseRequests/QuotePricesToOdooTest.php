@@ -401,3 +401,49 @@ it('finds the line by the description it actually travelled with', function () {
         && ($r['params']['args'][5][0] ?? null) === [2001]
         && ($r['params']['args'][5][1]['price_unit'] ?? null) === 8990.0);
 });
+
+it('recognises a line that Odoo carries with something appended', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 244, 'odoo_reference' => 'P00244', 'odoo_exported_at' => now(),
+    ]);
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'PLUS GALV.G60 1.5 x1000x3000 mm',
+        'specification' => 'PGAL10300150', 'quantity' => 1, 'unit' => 'Unidades', 'unit_price' => null,
+    ]);
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'e.txt', 'original_name' => 'cot.txt', 'mime_type' => 'text/plain',
+        'size' => 10, 'sha256' => str_repeat('e', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'extracted' => ['items' => [[
+            'product_service' => 'PLANCHA GALVANIZADA G60 1.5MM', 'specification' => null,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '54900',
+        ]]],
+        'confirmed_pairings' => [0 => $partida->getKey()],
+    ]);
+
+    odooContesta([
+        7,
+        [['id' => 244, 'state' => 'draft', 'order_line' => [2002]]],
+        // En Odoo la línea lleva un «(peso)» que la solicitud ya no tiene.
+        [['id' => 2002, 'product_id' => false, 'price_unit' => 0,
+            'name' => 'PLUS GALV.G60 1.5 x1000x3000 mm · PGAL10300150 (peso)']],
+        [],
+        9003,
+        [['id' => 9003, 'name' => 'PLANCHA GALVANIZADA G60 1.5MM', 'default_code' => false,
+            'barcode' => false, 'uom_id' => [1, 'Units'], 'type' => 'consu',
+            'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud->fresh(), $lectura]))
+        ->assertSessionHas('success');
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][0] ?? null) === [2002]
+        && ($r['params']['args'][5][1]['price_unit'] ?? null) === 54900.0);
+});

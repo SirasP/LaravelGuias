@@ -921,7 +921,24 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             }
         }
 
-        return null;
+        // Último recurso: la línea empieza por lo que escribimos y alguien le
+        // añadió algo detrás. Pasó con «PLUS GALV.G60 1.5 x1000x3000 mm ·
+        // PGAL10300150 (peso)», donde el «(peso)» está en Odoo y ya no en la
+        // solicitud. Sólo vale si encaja una sola partida: con dos, no se sabe
+        // cuál es y quedarse con la primera sería adivinar.
+        $candidatas = [];
+
+        foreach ($cambios as $cambio) {
+            foreach ($cambio['textos'] ?? [] as $suyo) {
+                if ($suyo !== '' && str_starts_with($texto, $suyo)) {
+                    $candidatas[] = $cambio;
+
+                    break;
+                }
+            }
+        }
+
+        return count($candidatas) === 1 ? $candidatas[0] : null;
     }
 
     /** @return array{0: int, 1: string} */
