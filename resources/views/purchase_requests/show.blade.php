@@ -82,6 +82,16 @@
         $odooActivo = (bool) config('purchase_requests.odoo.enabled');
         $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
         $candidatos = session('odoo_candidates', []);
+
+        // A quién comprarle. Se resuelve contra el catálogo local, sin llamar a
+        // Odoo al dibujar la página, sólo para saber si hay que preguntarlo:
+        // esperar a que fallara el envío para pedirlo era hacerlo al revés.
+        $proveedorEscrito = collect($purchaseRequest->suggested_suppliers ?? [])
+            ->map(fn ($s) => trim((string) $s))->filter()->first();
+        $exportador = app(\App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter::class);
+        $conOdooDeVerdad = $exportador instanceof \App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
+        $proveedorDeOdoo = $conOdooDeVerdad ? $exportador->proveedorConocido($purchaseRequest) : null;
+        $faltaProveedor = $conOdooDeVerdad && ! $yaEnOdoo && $proveedorDeOdoo === null;
     @endphp
 
     {{-- ── CONTEXT HEADER STICKY ────────────────────────────────────────── --}}
@@ -1662,11 +1672,21 @@
                                         Exportada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}. No se vuelve a enviar.
                                     </p>
                                 </div>
-                            @elseif(session()->exists('odoo_candidates') || session('odoo_query'))
+                            @else
+                            @if($faltaProveedor || session()->exists('odoo_candidates') || session('odoo_query'))
+                                {{-- El proveedor va antes que los productos: sin él no
+                                     hay a quién comprarle, y esperar a que falle el
+                                     envío para preguntarlo era hacerlo al revés. --}}
                                 <div class="mt-3.5 space-y-3">
-                                    <p class="text-xs text-violet-900 dark:text-violet-200">
-                                        Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}». Búscalo tú:
-                                    </p>
+                                    @if($proveedorEscrito === null)
+                                        <p class="text-xs text-violet-900 dark:text-violet-200">
+                                            Esta solicitud <span class="font-bold">no dice a quién comprarle</span>. Búscalo en Odoo y elígelo:
+                                        </p>
+                                    @else
+                                        <p class="text-xs text-violet-900 dark:text-violet-200">
+                                            Odoo no reconoce a «{{ $proveedorEscrito }}». Búscalo tú:
+                                        </p>
+                                    @endif
 
                                     <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="flex gap-2">
                                         @csrf
@@ -1693,8 +1713,22 @@
                                             </button>
                                         </form>
                                     @endforeach
+
+                                    @if($candidatos === [] && session('odoo_query'))
+                                        <p class="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                                            Odoo no trae a nadie con «{{ session('odoo_query') }}». Prueba con una palabra sola del nombre.
+                                            Si de verdad no está, hay que darlo de alta en Odoo: desde aquí no se crean proveedores.
+                                        </p>
+                                    @endif
                                 </div>
-                            @else
+                            @endif
+
+                            {{-- Tras un envío fallido el botón se esconde: dejarlo
+                                 sólo invitaba a apretarlo otra vez y volver al mismo
+                                 aviso. Mientras nadie lo haya intentado se muestra
+                                 igual, porque el aviso de arriba es una sospecha del
+                                 catálogo y no un veredicto de Odoo. --}}
+                            @if(! session()->exists('odoo_candidates') && ! session('odoo_query'))
                                 @php
                                     $emparejador = app(\App\Services\PurchaseRequests\Products\ProductMatcher::class);
                                     $proveedorOdoo = \App\Models\PurchaseSupplier::query()
@@ -1708,6 +1742,15 @@
                                 @endphp
 
                                 <div class="mt-3.5 space-y-2.5">
+                                    @if($proveedorDeOdoo !== null)
+                                        <p class="rounded-xl bg-white/90 p-2.5 text-xs dark:bg-slate-900/90">
+                                            <span class="text-[11px] font-black uppercase tracking-wider text-violet-500">Se le compra a</span>
+                                            <span class="mt-0.5 block font-bold text-slate-900 dark:text-white">{{ $proveedorDeOdoo->name }}</span>
+                                            @if(filled($proveedorDeOdoo->tax_id))
+                                                <span class="block font-mono text-[11px] text-slate-500 dark:text-slate-400">{{ $proveedorDeOdoo->tax_id }}</span>
+                                            @endif
+                                        </p>
+                                    @endif
                                     <p class="text-xs font-bold text-violet-950 dark:text-violet-200">Mapeo de productos Odoo ({{ $itemsCount }} partidas):</p>
                                     <div class="max-h-60 space-y-2 overflow-y-auto pr-1">
                                         @foreach($purchaseRequest->items as $partida)
@@ -1765,6 +1808,7 @@
                                         </button>
                                     </form>
                                 </div>
+                            @endif
                             @endif
 
                             {{-- Precios unitarios --}}

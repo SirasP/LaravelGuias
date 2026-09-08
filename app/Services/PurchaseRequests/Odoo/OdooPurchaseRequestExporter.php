@@ -74,9 +74,22 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 // para que una persona diga cuál, en vez de acertar solos.
                 $candidatos = $this->candidatos($purchaseRequest);
 
+                // Que nadie haya escrito el proveedor y que Odoo no lo
+                // reconozca son cosas distintas, y decirlas igual mandaba a
+                // dar de alta en Odoo a alguien que sólo tenía que elegir.
+                if ((array) ($purchaseRequest->suggested_suppliers ?? []) === []) {
+                    return PurchaseRequestExportResult::needsSupplier(
+                        'Esta solicitud no dice a quién comprarle. Busca el proveedor aquí abajo y elígelo: '
+                            .'con eso se crea la cotización en Odoo.',
+                        [],
+                    );
+                }
+
                 return PurchaseRequestExportResult::needsSupplier(
                     $candidatos === []
-                        ? 'Odoo no tiene ningún proveedor que se parezca. Búscalo aquí abajo; si tampoco aparece, hay que darlo de alta en Odoo.'
+                        ? 'Odoo no tiene ningún proveedor que se parezca a «'
+                            .Str::limit((string) collect($purchaseRequest->suggested_suppliers)->first(), 40)
+                            .'». Búscalo aquí abajo; si tampoco aparece, hay que darlo de alta en Odoo.'
                         : 'Falta decir cuál es el proveedor en Odoo antes de crear la cotización.',
                     $candidatos,
                 );
@@ -355,6 +368,27 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'synced_at' => now(),
             ],
         );
+    }
+
+    /**
+     * El proveedor que ya está en el catálogo, sin preguntarle a Odoo.
+     *
+     * Sirve para que la pantalla sepa si falta elegirlo antes de que nadie
+     * apriete nada. Mira sólo la base local, así que se puede llamar al
+     * dibujar la página sin gastar una llamada por visita.
+     */
+    public function proveedorConocido(PurchaseRequest $purchaseRequest): ?PurchaseSupplier
+    {
+        $rut = $this->rutDelProveedor($purchaseRequest);
+
+        if ($rut === null) {
+            return null;
+        }
+
+        return PurchaseSupplier::query()
+            ->whereNotNull('odoo_partner_id')
+            ->where('tax_id', $rut)
+            ->first();
     }
 
     private function rutDelProveedor(PurchaseRequest $purchaseRequest): ?string

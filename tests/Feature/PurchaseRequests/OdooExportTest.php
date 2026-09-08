@@ -975,3 +975,66 @@ it('keeps naming a line by its written text when no product backs it', function 
             && ! isset($linea['product_id']);
     });
 });
+
+it('does not blame Odoo for a supplier nobody ever wrote down', function () {
+    odooResponde([1]);
+    $solicitud = solicitudAprobadaCon(['suggested_suppliers' => []]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Corchetera',
+        'quantity' => 2, 'unit' => 'Unidades',
+    ]);
+
+    $resultado = exportador()->exportApproved($solicitud->fresh()->load('items'));
+
+    // Que nadie haya escrito el proveedor y que Odoo no lo reconozca son cosas
+    // distintas. Decirlas igual mandaba a dar de alta un proveedor en Odoo a
+    // quien sólo tenía que elegir uno de los que ya están.
+    expect($resultado->status)->toBe('needs_supplier')
+        ->and($resultado->message)->toContain('no dice a quién comprarle')
+        ->and($resultado->message)->not->toContain('darlo de alta en Odoo');
+});
+
+it('asks who the supplier is before anybody presses send', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    $compras = User::factory()->create(['role' => 'admin']);
+    $solicitud = PurchaseRequest::factory()->forUser($compras)->approved()
+        ->create(['suggested_suppliers' => []]);
+
+    // Sin haber intentado nada todavía: el buscador está a la vista y el botón
+    // de enviar también, porque no saber quién es todavía no es un veredicto.
+    $this->actingAs($compras)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('no dice a quién comprarle', false)
+        ->assertSee('Buscar en Odoo por nombre o RUT')
+        ->assertSee('Enviar a Odoo');
+});
+
+it('names the supplier it is going to buy from', function () {
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.example.test',
+        'purchase_requests.odoo.db' => 'prueba',
+    ]);
+
+    PurchaseSupplier::query()->create([
+        'company_code' => 'EHE', 'name' => 'LIBRERIA MACKENNA SPA',
+        'tax_id' => '78269482-0', 'odoo_partner_id' => 3557,
+    ]);
+
+    $compras = User::factory()->create(['role' => 'admin']);
+    $solicitud = PurchaseRequest::factory()->forUser($compras)->approved()
+        ->create(['suggested_suppliers' => ['LIBRERIA MACKENNA SPA 78.269.482-0']]);
+
+    $this->actingAs($compras)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('Se le compra a')
+        ->assertSee('LIBRERIA MACKENNA SPA')
+        ->assertDontSee('no dice a quién comprarle', false);
+});
