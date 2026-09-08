@@ -162,3 +162,34 @@ it('keeps the price update for whoever can send to Odoo', function () {
         ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
         ->assertForbidden();
 });
+
+it('warns that the real names must travel before Odoo closes the order', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudConCotizacion($revisor);
+
+    // El aviso importa más que el botón: en cuanto la orden se confirma en
+    // Odoo, el nombre genérico con que nació queda ahí para siempre. Este
+    // programa aprende de cada cotización; Odoo no.
+    $this->actingAs($revisor)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('trae el nombre real del proveedor', false)
+        ->assertSee('antes de confirmar la orden en Odoo');
+});
+
+it('explains what was lost when the order already left draft', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudConCotizacion($revisor);
+
+    odooContesta([
+        7,
+        [['id' => 240, 'state' => 'purchase', 'order_line' => [811]]],
+    ]);
+
+    // Un «no se puede» a secas no enseña nada. Hay que decir qué quedó como
+    // estaba y por qué no se toca.
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('error', fn ($m) => str_contains((string) $m, 'se quedó')
+            && str_contains((string) $m, 'P00240'));
+});

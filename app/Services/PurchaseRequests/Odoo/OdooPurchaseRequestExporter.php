@@ -562,7 +562,9 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $estado = (string) ($cabecera[0]['state'] ?? '');
 
             if ($estado !== 'draft') {
-                return [0, 'La orden ya no está en borrador en Odoo, así que no se le tocan los precios desde aquí.'];
+                return [0, $purchaseRequest->odoo_reference.' ya no está en borrador en Odoo, así que se quedó '
+                    .'con los nombres y precios que tenía. Cambiar una orden que allá ya se dio por cerrada '
+                    .'movería algo con recepciones o facturas detrás.'];
             }
 
             $lineas = $this->client->execute(

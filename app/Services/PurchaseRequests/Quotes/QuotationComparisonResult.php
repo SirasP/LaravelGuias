@@ -48,6 +48,23 @@ class QuotationComparisonResult
         return count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->cruzo()));
     }
 
+    /**
+     * Cuántas partidas traen ya el nombre de verdad del proveedor.
+     *
+     * Es lo que se puede llevar a Odoo, y sólo mientras la orden siga en
+     * borrador: en cuanto se confirma allá, el nombre genérico con que nació
+     * queda congelado para siempre. Este programa aprende; Odoo no.
+     */
+    public function conNombreReal(): int
+    {
+        return count(array_filter(
+            $this->filas,
+            fn (QuotationComparisonRow $f) => $f->cruzo()
+                && ! $f->esPropuesta()
+                && trim((string) ($f->cotizada['product_service'] ?? '')) !== '',
+        ));
+    }
+
     /** Las parejas que el programa propone y nadie ha confirmado. */
     public function porConfirmar(): int
     {

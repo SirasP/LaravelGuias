@@ -1653,6 +1653,16 @@
                                         @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
                                             <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
                                                 @csrf
+                                                {{-- El aviso importa más que el botón: una vez que la
+                                                     orden se confirma en Odoo, el nombre genérico con
+                                                     que nació queda ahí para siempre. Este programa
+                                                     aprende de cada cotización; Odoo no. --}}
+                                                @if($resultado->conNombreReal() > 0)
+                                                    <p class="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                                                        {{ $resultado->conNombreReal() }} {{ $resultado->conNombreReal() === 1 ? 'partida trae' : 'partidas traen' }} el nombre real del proveedor.
+                                                        Llévalo <span class="font-black">antes de confirmar la orden en Odoo</span>: después ya no se puede cambiar.
+                                                    </p>
+                                                @endif
                                                 <button type="submit"
                                                     class="min-h-10 w-full rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
                                                     Llevar precios y nombres a {{ $purchaseRequest->odoo_reference }}
