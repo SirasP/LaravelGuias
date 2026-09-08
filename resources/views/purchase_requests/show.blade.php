@@ -1655,10 +1655,10 @@
                                                 @csrf
                                                 <button type="submit"
                                                     class="min-h-10 w-full rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
-                                                    Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                                    Llevar precios y nombres a {{ $purchaseRequest->odoo_reference }}
                                                 </button>
                                                 <p class="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                                                    Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
+                                                    El precio y el nombre real del proveedor, en las partidas que cruzaron. No toca el catálogo de Odoo ni las cantidades.
                                                 </p>
                                             </form>
                                         @endif
@@ -1871,7 +1871,7 @@
                                     @csrf
                                     <button type="submit"
                                         class="min-h-10 w-full rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-md shadow-violet-500/25 hover:bg-violet-700 active:scale-95 transition">
-                                        Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                        Llevar precios y nombres a {{ $purchaseRequest->odoo_reference }}
                                     </button>
                                 </form>
                             @endif

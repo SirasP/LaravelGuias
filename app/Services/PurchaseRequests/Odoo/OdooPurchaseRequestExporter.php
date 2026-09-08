@@ -516,13 +516,44 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         array $preciosPorProducto,
         array $preciosPorTexto = [],
     ): array {
+        $cambios = [];
+
+        foreach ($preciosPorProducto as $producto => $precio) {
+            $cambios[] = ['producto' => (int) $producto, 'texto' => null, 'precio' => (float) $precio, 'nombre' => null];
+        }
+
+        foreach ($preciosPorTexto as $texto => $precio) {
+            $cambios[] = ['producto' => null, 'texto' => (string) $texto, 'precio' => (float) $precio, 'nombre' => null];
+        }
+
+        return $this->actualizarLineas($purchaseRequest, $cambios);
+    }
+
+    /**
+     * Lleva a la cotización de Odoo lo que se sabe después de cotizar.
+     *
+     * Dos cosas: el precio y el nombre. El nombre importa tanto como el
+     * precio. La solicitud se escribe con lo que uno tiene en la cabeza
+     * —«anotador acrilico PVC»— y la cotización llega con el nombre de verdad
+     * —«ANOTADOR ACRILICO TABLHOL002 JM JM111»—. Ese segundo es el que sirve
+     * para volver a pedirlo y el que cualquiera reconoce en Odoo.
+     *
+     * Se escribe sólo sobre la orden, y sólo mientras siga en borrador. Nada
+     * de esto toca la ficha de un producto ni crea uno: el catálogo de Odoo se
+     * mantiene allá, por quien corresponda.
+     *
+     * @param  list<array{producto: ?int, texto: ?string, precio: ?float, nombre: ?string}>  $cambios
+     * @return array{0: int, 1: ?string}
+     */
+    public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios): array
+    {
         $orden = (int) $purchaseRequest->odoo_order_id;
 
         if ($orden === 0) {
             return [0, 'Esta solicitud todavía no está en Odoo.'];
         }
 
-        if ($preciosPorProducto === [] && $preciosPorTexto === []) {
+        if ($cambios === []) {
             return [0, 'Ninguna partida tiene precio cotizado que llevar.'];
         }
 
@@ -538,34 +569,37 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'purchase.order.line',
                 'read',
                 [$cabecera[0]['order_line'] ?? []],
-                ['fields' => ['id', 'product_id', 'price_unit']],
+                ['fields' => ['id', 'product_id', 'price_unit', 'name']],
             );
 
             $actualizadas = 0;
             $reconocidas = 0;
 
             foreach ($lineas ?: [] as $linea) {
-                $producto = is_array($linea['product_id'] ?? null) ? (int) $linea['product_id'][0] : null;
-                $nuevo = $producto === null ? null : ($preciosPorProducto[$producto] ?? null);
+                $cambio = $this->cambioDe($linea, $cambios);
 
-                // Sin producto, por el texto. Si alguien reescribió la línea en
-                // Odoo no calzará, y entonces no se toca: es lo correcto, esa
-                // línea ya no es la que salió de aquí.
-                $nuevo ??= $preciosPorTexto[PurchaseProductLink::normalizar((string) ($linea['name'] ?? ''))] ?? null;
-
-                if ($nuevo === null) {
+                if ($cambio === null) {
                     continue;
                 }
 
                 $reconocidas++;
+                $escribir = [];
 
-                // Escribir el mismo número que ya está sería ensuciar el
+                // Escribir el mismo valor que ya está sería ensuciar el
                 // historial de Odoo sin cambiar nada.
-                if (abs((float) $linea['price_unit'] - $nuevo) < 0.005) {
+                if ($cambio['precio'] !== null && abs((float) $linea['price_unit'] - $cambio['precio']) >= 0.005) {
+                    $escribir['price_unit'] = $cambio['precio'];
+                }
+
+                if (filled($cambio['nombre']) && trim((string) ($linea['name'] ?? '')) !== trim((string) $cambio['nombre'])) {
+                    $escribir['name'] = trim((string) $cambio['nombre']);
+                }
+
+                if ($escribir === []) {
                     continue;
                 }
 
-                $this->client->execute('purchase.order.line', 'write', [[(int) $linea['id']], ['price_unit' => $nuevo]]);
+                $this->client->execute('purchase.order.line', 'write', [[(int) $linea['id']], $escribir]);
                 $actualizadas++;
             }
 
@@ -576,7 +610,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
             return [$actualizadas, null];
         } catch (Throwable $e) {
-            Log::warning('No se pudieron actualizar los precios en Odoo.', [
+            Log::warning('No se pudieron actualizar las líneas en Odoo.', [
                 'folio' => $purchaseRequest->folio,
                 'orden' => $orden,
                 'motivo' => $e->getMessage(),
@@ -584,6 +618,44 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
             return [0, 'Odoo no aceptó el cambio: '.$e->getMessage()];
         }
+    }
+
+    /**
+     * Qué cambio le toca a esa línea de Odoo.
+     *
+     * Por producto cuando lo tiene; por su texto cuando no, que es el que este
+     * mismo programa escribió al crearla. Si alguien la reescribió allá, no
+     * calza y no se toca: ya no es la línea que salió de aquí.
+     *
+     * @param  array<string, mixed>  $linea
+     * @param  list<array{producto: ?int, texto: ?string, precio: ?float, nombre: ?string}>  $cambios
+     * @return array{producto: ?int, texto: ?string, precio: ?float, nombre: ?string}|null
+     */
+    private function cambioDe(array $linea, array $cambios): ?array
+    {
+        $producto = is_array($linea['product_id'] ?? null) ? (int) $linea['product_id'][0] : null;
+
+        if ($producto !== null) {
+            foreach ($cambios as $cambio) {
+                if ($cambio['producto'] === $producto) {
+                    return $cambio;
+                }
+            }
+        }
+
+        $texto = PurchaseProductLink::normalizar((string) ($linea['name'] ?? ''));
+
+        if ($texto === '') {
+            return null;
+        }
+
+        foreach ($cambios as $cambio) {
+            if ($cambio['texto'] !== null && $cambio['texto'] === $texto) {
+                return $cambio;
+            }
+        }
+
+        return null;
     }
 
     /** @return array{0: int, 1: string} */

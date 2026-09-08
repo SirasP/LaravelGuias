@@ -128,7 +128,7 @@ it('offers the price form whether or not the request is already in Odoo', functi
     $this->actingAs($revisor)->get(route('purchase_requests.show', $enOdoo))
         ->assertOk()
         ->assertSee('Precios unitarios')
-        ->assertSee('Llevar estos precios a P00241');
+        ->assertSee('Llevar precios y nombres a P00241');
 
     $sinEnviar = PurchaseRequest::factory()->forUser($revisor)->approved()->create();
     $sinEnviar->items()->create([
@@ -139,7 +139,7 @@ it('offers the price form whether or not the request is already in Odoo', functi
         ->assertOk()
         ->assertSee('Precios unitarios')
         // Sin orden en Odoo no hay líneas que actualizar.
-        ->assertDontSee('Llevar estos precios a');
+        ->assertDontSee('Llevar precios y nombres a');
 });
 
 it('carries prices for a line that Odoo matched by name, with no alias saved', function () {

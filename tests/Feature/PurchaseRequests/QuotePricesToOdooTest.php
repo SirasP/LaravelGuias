@@ -120,25 +120,38 @@ it('does not rewrite a price that already matches', function () {
     odooContesta([
         7,
         [['id' => 240, 'state' => 'draft', 'order_line' => [811]]],
-        [['id' => 811, 'product_id' => [8723, 'CURVA PVC'], 'price_unit' => 65174]],
+        [['id' => 811, 'product_id' => [8723, 'CURVA PVC'],
+            'price_unit' => 65174, 'name' => 'CURVA PVC HIDRAUL. 200x90 CEMENTAR']],
     ]);
 
     $this->actingAs($revisor)
         ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
-        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'ya coincidían'));
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'ya decía lo mismo'));
 
     Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write');
 });
 
-it('carries nothing when the quotation has no price', function () {
+it('carries the real name even when the quotation brought no price', function () {
     $revisor = User::factory()->admin()->create();
     [$solicitud, $lectura] = solicitudConCotizacion($revisor, null);
 
-    odooContesta([7]);
+    odooContesta([
+        7,
+        [['id' => 240, 'state' => 'draft', 'order_line' => [811]]],
+        [['id' => 811, 'product_id' => [8723, 'CURVA PVC'], 'price_unit' => 0, 'name' => 'curva 200 90']],
+        true,
+    ]);
 
+    // La solicitud se escribe con lo que uno tiene en la cabeza; la cotización
+    // llega con el nombre de verdad. Ese segundo es el que sirve para volver a
+    // pedirlo, y no depende de que además traiga precio.
     $this->actingAs($revisor)
         ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
-        ->assertSessionHas('error', fn (string $m) => str_contains($m, 'Ninguna partida tiene precio'));
+        ->assertSessionHas('success');
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['name'] ?? null) === 'CURVA PVC HIDRAUL. 200x90 CEMENTAR'
+        && ! array_key_exists('price_unit', $r['params']['args'][5][1] ?? []));
 });
 
 it('keeps the price update for whoever can send to Odoo', function () {

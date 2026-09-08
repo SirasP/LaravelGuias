@@ -438,8 +438,8 @@ class PurchaseQuoteComparisonController extends Controller
             $ingestion->parejasConfirmadas(),
         );
 
-        $precios = [];
-        $porTexto = [];
+        $cambios = [];
+        $repetidos = [];
 
         foreach ($comparacion->filas as $fila) {
             // Con la coma decimal chilena: «12.500,50» no es is_numeric.
@@ -447,36 +447,43 @@ class PurchaseQuoteComparisonController extends Controller
                 ? \App\Support\ChileanMoney::parse($fila->cotizada['unit_price'])
                 : ($fila->cotizada['unit_price'] ?? null);
 
-            if ($fila->pedida === null || ! is_numeric($precio)) {
+            if ($fila->pedida === null || $fila->cotizada === null) {
                 continue;
             }
 
-            // Una pareja que nadie confirmó no escribe precios en Odoo. Es el
+            // Una pareja que nadie confirmó no escribe nada en Odoo. Es el
             // punto exacto donde una corazonada del programa se volvería un
-            // número en una orden de compra.
+            // número —o un nombre— en una orden de compra.
             if ($fila->esPropuesta()) {
                 continue;
             }
 
-            // La partida y la línea de Odoo se encuentran por el mismo
-            // producto, resuelto igual que cuando se creó la orden. Mirar sólo
-            // los alias aprendidos dejaba fuera todo lo que había cruzado por
-            // nombre idéntico o por código, que es la mayoría: la pantalla
-            // decía «ninguna partida tiene precio que llevar» sobre una
-            // cotización con precios en todas.
-            $producto = $exporter->productoDe($fila->pedida, $partnerId);
+            $texto = PurchaseProductLink::normalizar((string) $fila->pedida->product_service);
 
-            if ($producto !== null) {
-                $precios[(int) $producto] = (float) $precio;
+            // Un texto repetido entre partidas no identifica ninguna línea.
+            if ($texto !== '') {
+                $repetidos[$texto] = ($repetidos[$texto] ?? 0) + 1;
             }
 
-            // Y por si esa partida viajó a Odoo sin producto, que es lo normal
-            // cuando nadie ha resuelto cuál era: entonces su línea sólo se
-            // reconoce por el texto con que se creó.
-            $this->porTexto($porTexto, $fila->pedida, (float) $precio);
+            $cambios[] = [
+                // La partida y la línea de Odoo se encuentran por el mismo
+                // producto, resuelto igual que cuando se creó la orden.
+                'producto' => $exporter->productoDe($fila->pedida, $partnerId),
+                'texto' => $texto === '' ? null : $texto,
+                'precio' => is_numeric($precio) ? (float) $precio : null,
+                // El nombre de verdad, el que trae la cotización oficial.
+                'nombre' => trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null,
+            ];
         }
 
-        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios, array_filter($porTexto));
+        $cambios = array_values(array_map(
+            fn (array $c): array => ($c['texto'] !== null && ($repetidos[$c['texto']] ?? 0) > 1)
+                ? [...$c, 'texto' => null]
+                : $c,
+            array_filter($cambios, fn (array $c): bool => $c['precio'] !== null || $c['nombre'] !== null),
+        ));
+
+        [$actualizadas, $motivo] = $exporter->actualizarLineas($purchaseRequest, $cambios);
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);
@@ -484,12 +491,12 @@ class PurchaseQuoteComparisonController extends Controller
 
         return back()->with('success', $actualizadas > 0
             ? sprintf(
-                'Se actualizaron %d %s en %s con los precios del proveedor.',
+                'Se actualizaron %d %s en %s con el precio y el nombre del proveedor.',
                 $actualizadas,
                 Str::plural('línea', $actualizadas),
                 $purchaseRequest->odoo_reference,
             )
-            : 'Los precios de Odoo ya coincidían con los de la cotización: no había nada que cambiar.');
+            : 'Odoo ya decía lo mismo que la cotización: no había nada que cambiar.');
     }
 
     /** ¿Ese nombre se repite en el documento, y por tanto no identifica nada? */
@@ -511,27 +518,6 @@ class PurchaseQuoteComparisonController extends Controller
         }
 
         return $veces > 1;
-    }
-
-    /**
-     * La descripción con la que una partida viajó a Odoo, para reconocer su
-     * línea cuando no lleva producto.
-     *
-     * Un texto repetido entre partidas no identifica ninguna: se descarta, en
-     * vez de apostar por la primera.
-     *
-     * @param  array<string, float>  $porTexto
-     * @return array<string, float>
-     */
-    private function porTexto(array &$porTexto, PurchaseRequestItem $partida, float $precio): void
-    {
-        $clave = PurchaseProductLink::normalizar((string) $partida->product_service);
-
-        if ($clave === '') {
-            return;
-        }
-
-        $porTexto[$clave] = array_key_exists($clave, $porTexto) ? null : $precio;
     }
 
     /** El proveedor en Odoo de una cotización, si se le conoce el RUT. */
