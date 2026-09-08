@@ -500,18 +500,29 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * la partida apuntan al mismo producto aunque se llamen distinto, que es
      * justamente el caso que motivó todo esto.
      *
+     * No todas las líneas tienen producto. Odoo acepta una línea con sólo la
+     * descripción, y así nacen todas las partidas cuyo producto nadie ha
+     * resuelto todavía: la P00243 tiene ocho renglones de texto suelto
+     * —«Corchetera», «pilas AA»— sin un `product_id` al que apuntar. A ésas se
+     * las encuentra por su texto, que es el que este mismo programa escribió
+     * al crearlas. Sin eso no había forma de ponerles precio nunca.
+     *
      * @param  array<int, float>  $preciosPorProducto  id de producto de Odoo => precio unitario
+     * @param  array<string, float>  $preciosPorTexto  descripción normalizada => precio unitario
      * @return array{0: int, 1: ?string} cuántas líneas se actualizaron y el motivo si no
      */
-    public function actualizarPrecios(PurchaseRequest $purchaseRequest, array $preciosPorProducto): array
-    {
+    public function actualizarPrecios(
+        PurchaseRequest $purchaseRequest,
+        array $preciosPorProducto,
+        array $preciosPorTexto = [],
+    ): array {
         $orden = (int) $purchaseRequest->odoo_order_id;
 
         if ($orden === 0) {
             return [0, 'Esta solicitud todavía no está en Odoo.'];
         }
 
-        if ($preciosPorProducto === []) {
+        if ($preciosPorProducto === [] && $preciosPorTexto === []) {
             return [0, 'Ninguna partida tiene precio cotizado que llevar.'];
         }
 
@@ -531,19 +542,36 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             );
 
             $actualizadas = 0;
+            $reconocidas = 0;
 
             foreach ($lineas ?: [] as $linea) {
                 $producto = is_array($linea['product_id'] ?? null) ? (int) $linea['product_id'][0] : null;
                 $nuevo = $producto === null ? null : ($preciosPorProducto[$producto] ?? null);
 
+                // Sin producto, por el texto. Si alguien reescribió la línea en
+                // Odoo no calzará, y entonces no se toca: es lo correcto, esa
+                // línea ya no es la que salió de aquí.
+                $nuevo ??= $preciosPorTexto[PurchaseProductLink::normalizar((string) ($linea['name'] ?? ''))] ?? null;
+
+                if ($nuevo === null) {
+                    continue;
+                }
+
+                $reconocidas++;
+
                 // Escribir el mismo número que ya está sería ensuciar el
                 // historial de Odoo sin cambiar nada.
-                if ($nuevo === null || abs((float) $linea['price_unit'] - $nuevo) < 0.005) {
+                if (abs((float) $linea['price_unit'] - $nuevo) < 0.005) {
                     continue;
                 }
 
                 $this->client->execute('purchase.order.line', 'write', [[(int) $linea['id']], ['price_unit' => $nuevo]]);
                 $actualizadas++;
+            }
+
+            if ($actualizadas === 0 && $reconocidas === 0) {
+                return [0, 'No se pudo emparejar ninguna línea de '.$purchaseRequest->odoo_reference
+                    .' con las partidas. Puede que las hayan reescrito en Odoo.'];
             }
 
             return [$actualizadas, null];

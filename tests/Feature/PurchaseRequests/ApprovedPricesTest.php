@@ -186,3 +186,77 @@ it('carries prices for a line that Odoo matched by name, with no alias saved', f
     Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
         && ($r['params']['args'][5][1]['price_unit'] ?? null) === 4747.9);
 });
+
+it('prices a line that went to Odoo as plain text, with no product at all', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 243, 'odoo_reference' => 'P00243', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Corchetera',
+        'quantity' => 2, 'unit' => 'Unidades', 'unit_price' => 3990,
+    ]);
+
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.ejemplo.cl',
+        'purchase_requests.odoo.db' => 'prueba',
+        'purchase_requests.odoo.user' => 'quien@ejemplo.cl',
+        'purchase_requests.odoo.password' => 'secreta',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => Http::sequence([
+        Http::response(['jsonrpc' => '2.0', 'result' => 7]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]]]),
+        // Odoo acepta una línea con sólo la descripción, y así viaja toda
+        // partida cuyo producto nadie resolvió: sin product_id no había forma
+        // de encontrarla, y su precio no llegaba nunca.
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 1969, 'product_id' => false, 'name' => 'Corchetera', 'price_unit' => 0]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => true]),
+    ])]);
+    app()->bind(PurchaseRequestExporter::class, fn () => new OdooPurchaseRequestExporter(new OdooClient(
+        'https://odoo.ejemplo.cl', 'prueba', 'quien@ejemplo.cl', 'secreta',
+    )));
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.prices.push', $solicitud->fresh()))
+        ->assertSessionHas('success');
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][0] ?? null) === [1969]
+        && ($r['params']['args'][5][1]['price_unit'] ?? null) === 3990.0);
+});
+
+it('leaves alone a line somebody rewrote in Odoo', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 243, 'odoo_reference' => 'P00243', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Corchetera',
+        'quantity' => 2, 'unit' => 'Unidades', 'unit_price' => 3990,
+    ]);
+
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.ejemplo.cl',
+        'purchase_requests.odoo.db' => 'prueba',
+        'purchase_requests.odoo.user' => 'quien@ejemplo.cl',
+        'purchase_requests.odoo.password' => 'secreta',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => Http::sequence([
+        Http::response(['jsonrpc' => '2.0', 'result' => 7]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 1969, 'product_id' => false, 'name' => 'Otra cosa distinta', 'price_unit' => 0]]]),
+    ])]);
+    app()->bind(PurchaseRequestExporter::class, fn () => new OdooPurchaseRequestExporter(new OdooClient(
+        'https://odoo.ejemplo.cl', 'prueba', 'quien@ejemplo.cl', 'secreta',
+    )));
+
+    // Esa línea ya no es la que salió de aquí. No se toca, y se dice por qué
+    // en vez de informar de un éxito que no ocurrió.
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.prices.push', $solicitud->fresh()))
+        ->assertSessionHas('error', fn ($m) => str_contains((string) $m, 'reescrito'));
+});

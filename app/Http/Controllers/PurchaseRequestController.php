@@ -412,6 +412,8 @@ class PurchaseRequestController extends Controller
         }
 
         $precios = [];
+        $porTexto = [];
+        $proveedor = $this->proveedorDeLaSolicitud($purchaseRequest);
 
         foreach ($purchaseRequest->items()->get() as $item) {
             if ($item->unit_price === null) {
@@ -419,14 +421,22 @@ class PurchaseRequestController extends Controller
             }
 
             // Igual que al exportar: alias aprendido, código o nombre idéntico.
-            $producto = $exporter->productoDe($item, $this->proveedorDeLaSolicitud($purchaseRequest));
+            $producto = $exporter->productoDe($item, $proveedor);
 
             if ($producto !== null) {
                 $precios[(int) $producto] = (float) $item->unit_price;
             }
+
+            // Y por el texto, para las líneas que viajaron sin producto: un
+            // texto repetido entre partidas no identifica ninguna y se anula.
+            $clave = PurchaseProductLink::normalizar((string) $item->product_service);
+
+            if ($clave !== '') {
+                $porTexto[$clave] = array_key_exists($clave, $porTexto) ? null : (float) $item->unit_price;
+            }
         }
 
-        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios);
+        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios, array_filter($porTexto));
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);

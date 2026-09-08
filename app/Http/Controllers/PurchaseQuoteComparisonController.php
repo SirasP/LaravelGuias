@@ -439,6 +439,7 @@ class PurchaseQuoteComparisonController extends Controller
         );
 
         $precios = [];
+        $porTexto = [];
 
         foreach ($comparacion->filas as $fila) {
             $precio = $fila->cotizada['unit_price'] ?? null;
@@ -465,9 +466,14 @@ class PurchaseQuoteComparisonController extends Controller
             if ($producto !== null) {
                 $precios[(int) $producto] = (float) $precio;
             }
+
+            // Y por si esa partida viajó a Odoo sin producto, que es lo normal
+            // cuando nadie ha resuelto cuál era: entonces su línea sólo se
+            // reconoce por el texto con que se creó.
+            $this->porTexto($porTexto, $fila->pedida, (float) $precio);
         }
 
-        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios);
+        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios, array_filter($porTexto));
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);
@@ -502,6 +508,27 @@ class PurchaseQuoteComparisonController extends Controller
         }
 
         return $veces > 1;
+    }
+
+    /**
+     * La descripción con la que una partida viajó a Odoo, para reconocer su
+     * línea cuando no lleva producto.
+     *
+     * Un texto repetido entre partidas no identifica ninguna: se descarta, en
+     * vez de apostar por la primera.
+     *
+     * @param  array<string, float>  $porTexto
+     * @return array<string, float>
+     */
+    private function porTexto(array &$porTexto, PurchaseRequestItem $partida, float $precio): void
+    {
+        $clave = PurchaseProductLink::normalizar((string) $partida->product_service);
+
+        if ($clave === '') {
+            return;
+        }
+
+        $porTexto[$clave] = array_key_exists($clave, $porTexto) ? null : $precio;
     }
 
     /** El proveedor en Odoo de una cotización, si se le conoce el RUT. */
