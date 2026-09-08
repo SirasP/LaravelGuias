@@ -458,28 +458,38 @@ class PurchaseQuoteComparisonController extends Controller
                 continue;
             }
 
-            $texto = PurchaseProductLink::normalizar((string) $fila->pedida->product_service);
+            $nombre = trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null;
+
+            // Dos formas de reconocer la línea en Odoo: el texto con que nació
+            // —el tuyo— y el nombre real que se le escribió después. Con sólo
+            // el primero, llevar los nombres una vez la volvía irreconocible y
+            // la orden ya no admitía ni una corrección más.
+            $textos = array_values(array_unique(array_filter([
+                PurchaseProductLink::normalizar((string) $fila->pedida->product_service),
+                $nombre === null ? '' : PurchaseProductLink::normalizar($nombre),
+            ])));
 
             // Un texto repetido entre partidas no identifica ninguna línea.
-            if ($texto !== '') {
-                $repetidos[$texto] = ($repetidos[$texto] ?? 0) + 1;
+            foreach ($textos as $t) {
+                $repetidos[$t] = ($repetidos[$t] ?? 0) + 1;
             }
 
             $cambios[] = [
                 // La partida y la línea de Odoo se encuentran por el mismo
                 // producto, resuelto igual que cuando se creó la orden.
                 'producto' => $exporter->productoDe($fila->pedida, $partnerId),
-                'texto' => $texto === '' ? null : $texto,
+                'textos' => $textos,
                 'precio' => is_numeric($precio) ? (float) $precio : null,
                 // El nombre de verdad, el que trae la cotización oficial.
-                'nombre' => trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null,
+                'nombre' => $nombre,
             ];
         }
 
         $cambios = array_values(array_map(
-            fn (array $c): array => ($c['texto'] !== null && ($repetidos[$c['texto']] ?? 0) > 1)
-                ? [...$c, 'texto' => null]
-                : $c,
+            fn (array $c): array => [...$c, 'textos' => array_values(array_filter(
+                $c['textos'],
+                fn (string $t): bool => ($repetidos[$t] ?? 0) === 1,
+            ))],
             array_filter($cambios, fn (array $c): bool => $c['precio'] !== null || $c['nombre'] !== null),
         ));
 

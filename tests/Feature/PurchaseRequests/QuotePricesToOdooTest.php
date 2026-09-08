@@ -302,3 +302,30 @@ it('creates nothing at all when the switch is off', function () {
 
     Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
 });
+
+it('still recognises a line after its name was already replaced', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudSinProductoEnOdoo($revisor);
+
+    // Segundo clic: la línea ya no se llama «Corchetera» porque el primero le
+    // puso el nombre del proveedor. Reconocerla sólo por el texto original la
+    // volvía irreconocible, y la orden no admitía ni una corrección más.
+    odooContesta([
+        7,
+        [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]],
+        [['id' => 1969, 'product_id' => false, 'price_unit' => 4958,
+            'name' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111']],
+        [['id' => 8724, 'name' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111',
+            'default_code' => false, 'barcode' => false, 'uom_id' => [1, 'Units'],
+            'type' => 'consu', 'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success');
+
+    // Y lo que faltaba —el producto— sí se escribe.
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['product_id'] ?? null) === 8724);
+});
