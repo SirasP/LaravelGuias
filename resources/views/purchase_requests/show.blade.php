@@ -7,149 +7,392 @@
         $statusClasses = is_object($purchaseRequest->status) && method_exists($purchaseRequest->status, 'badgeClasses')
             ? $purchaseRequest->status->badgeClasses()
             : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
-        // La pantalla pregunta a la policy, no reimplementa sus reglas: si la
-        // vista decide por su cuenta quién puede qué, tarde o temprano deja de
-        // coincidir con el backend y aparecen botones que no funcionan —o,
-        // peor, acciones legítimas que quedan ocultas.
+        $statusIcon = is_object($purchaseRequest->status) && method_exists($purchaseRequest->status, 'icon')
+            ? $purchaseRequest->status->icon()
+            : '•';
+
         $isEditable = auth()->user()?->can('update', $purchaseRequest) ?? false;
         $canReview = auth()->user()?->can('approve', $purchaseRequest) ?? false;
+
         $formatDate = static function ($date): string {
-            if (blank($date)) return '—';
-            try { return $date instanceof \Carbon\CarbonInterface ? $date->format('d-m-Y') : \Illuminate\Support\Carbon::parse($date)->format('d-m-Y'); } catch (\Throwable) { return (string) $date; }
+            if (blank($date)) {
+                return '—';
+            }
+            try {
+                return $date instanceof \Carbon\CarbonInterface
+                    ? $date->format('d-m-Y')
+                    : \Illuminate\Support\Carbon::parse($date)->format('d-m-Y');
+            } catch (\Throwable) {
+                return (string) $date;
+            }
         };
+
         $formatDateTime = static function ($date): string {
-            if (blank($date)) return '—';
-            try { return $date instanceof \Carbon\CarbonInterface ? $date->format('d-m-Y H:i') : \Illuminate\Support\Carbon::parse($date)->format('d-m-Y H:i'); } catch (\Throwable) { return (string) $date; }
+            if (blank($date)) {
+                return '—';
+            }
+            try {
+                return $date instanceof \Carbon\CarbonInterface
+                    ? $date->format('d-m-Y H:i')
+                    : \Illuminate\Support\Carbon::parse($date)->format('d-m-Y H:i');
+            } catch (\Throwable) {
+                return (string) $date;
+            }
         };
-        $priority = $purchaseRequest->priority === 'urgent' ? ['Urgente', 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'] : ['Normal', 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'];
+
+        $priority = $purchaseRequest->priority === 'urgent'
+            ? ['Urgente', 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-500/30']
+            : ['Normal', 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700/50'];
+
         $suggestedSuppliers = $purchaseRequest->suggested_suppliers ?? [];
         $suggestedSuppliers = is_array($suggestedSuppliers) ? array_filter($suggestedSuppliers) : [];
+
+        $requesterName = $purchaseRequest->requester_name_snapshot ?: data_get($purchaseRequest, 'requester.name', '—');
+        $requesterInitials = collect(explode(' ', trim((string) $requesterName)))
+            ->filter()
+            ->take(2)
+            ->map(fn($seg) => mb_substr($seg, 0, 1))
+            ->implode('');
+        if (empty($requesterInitials)) {
+            $requesterInitials = 'SC';
+        }
+
+        $itemsCount = $purchaseRequest->items->count();
+        $totalAmount = $purchaseRequest->total();
+        $hasTotal = filled($totalAmount);
+        $tasa = (float) config('purchase_requests.tax_rate', 0.19);
+        $simbolo = $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ';
+        $neto = $hasTotal
+            ? ($purchaseRequest->prices_include_tax ? $totalAmount / (1 + $tasa) : $totalAmount)
+            : 0;
+
+        $comparables = collect($comparaciones)->reject(function ($comparacion) {
+            $enCurso = in_array($comparacion['ingestion']->status, [
+                \App\Models\PurchaseRequestIngestion::PENDING,
+                \App\Models\PurchaseRequestIngestion::PROCESSING,
+            ], true);
+
+            return $enCurso || $comparacion['resultado']->elDocumentoNoAporto();
+        })->values();
+
+        $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
+        $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
+        $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
+
+        $odooActivo = (bool) config('purchase_requests.odoo.enabled');
+        $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
+        $candidatos = session('odoo_candidates', []);
     @endphp
 
+    {{-- ── CONTEXT HEADER STICKY ────────────────────────────────────────── --}}
     <x-slot name="header">
-        <div class="flex min-w-0 items-center gap-2">
-            <a href="{{ route('purchase_requests.index') }}" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400" aria-label="Volver a solicitudes">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-            </a>
-            <div class="min-w-0">
-                <h1 class="truncate text-sm font-extrabold text-slate-900 dark:text-white">Solicitud {{ $purchaseRequest->folio ?: '#'.$purchaseRequest->id }}</h1>
-                <p class="truncate text-xs text-slate-500 dark:text-slate-400">Detalle, antecedentes e historial de revisión</p>
+        <div class="flex w-full items-center justify-between gap-4">
+            <div class="flex min-w-0 items-center gap-3">
+                <a href="{{ route('purchase_requests.index') }}"
+                   class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950/50 dark:hover:text-blue-400"
+                   title="Volver a solicitudes">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-sm font-black tracking-tight text-blue-600 dark:text-blue-400">
+                            {{ $purchaseRequest->folio ?: '#'.$purchaseRequest->id }}
+                        </span>
+                        <span class="text-slate-300 dark:text-slate-600">·</span>
+                        <span class="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {{ $purchaseRequest->department ?: 'Solicitud de compra' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold shadow-sm ring-1 {{ $statusClasses }}">
+                    <span>{{ $statusIcon }}</span>
+                    <span>{{ $statusLabel }}</span>
+                </span>
+                <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $priority[1] }}">
+                    <span class="h-1.5 w-1.5 rounded-full {{ $purchaseRequest->priority === 'urgent' ? 'bg-rose-500 animate-ping' : 'bg-slate-400' }}"></span>
+                    {{ $priority[0] }}
+                </span>
             </div>
         </div>
     </x-slot>
 
-    <div class="mx-auto max-w-full space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        {{-- Sin la barra de pestañas del módulo: aquí ya no se está eligiendo
-             entre listados, se está dentro de una solicitud. Dejarla marcaba
-             «Mis solicitudes» como si siguieras en el listado, y empujaba el
-             contenido real una fila hacia abajo. Para volver está la flecha
-             del encabezado. --}}
+    {{-- ── FULL WIDTH CONTAINER (ocupa el 100% de la pantalla sin cortes) ── --}}
+    <div class="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 
+        {{-- Alertas de sesión con animación y estilo premium --}}
         @if(session('success'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">{{ session('success') }}</div>
-        @endif
-        @if(session('error'))
-            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">{{ session('error') }}</div>
-        @endif
-
-        <section x-data="{ panel: null }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div class="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between">
-                <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-mono text-sm font-extrabold text-blue-600 dark:text-blue-400">{{ $purchaseRequest->folio ?: 'BOR-'.$purchaseRequest->id }}</span>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold {{ $statusClasses }}">{{ $statusLabel }}</span>
-                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $priority[1] }}">{{ $priority[0] }}</span>
-                    </div>
-                    <h2 class="mt-3 text-xl font-black tracking-tight text-slate-900 dark:text-white sm:text-2xl">{{ $purchaseRequest->reason }}</h2>
-                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Creada el {{ $formatDate($purchaseRequest->created_at) }} · revisión {{ $purchaseRequest->revision_number ?: 0 }}</p>
+            <div class="flex items-center gap-3 rounded-2xl border border-emerald-300/80 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white p-4 text-sm font-medium text-emerald-950 shadow-sm backdrop-blur-md dark:border-emerald-800/80 dark:from-emerald-950/50 dark:via-slate-900 dark:to-slate-900 dark:text-emerald-200">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-500/30">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
                 </div>
-                <div class="flex flex-wrap gap-2 lg:justify-end">
-                    <a href="{{ route('purchase_requests.pdf', $purchaseRequest) }}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>
-                        PDF
-                    </a>
-                    @if($isEditable)
-                        <a href="{{ route('purchase_requests.edit', $purchaseRequest) }}" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700">Editar</a>
-                    @endif
-                    {{-- Devolver y anular viven aquí, no en tarjetas propias abajo:
-                         una tarjeta con título y párrafo para envolver un botón
-                         pesaba más que la acción misma. El formulario con el
-                         motivo se abre debajo del encabezado. --}}
-                    @can('requestChanges', $purchaseRequest)
-                        @if($purchaseRequest->status === \App\Enums\PurchaseRequestStatus::APPROVED)
-                            <button type="button" @click="panel = panel === 'devolver' ? null : 'devolver'"
-                                class="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-300 px-4 text-sm font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950/30">
-                                Devolver
+                <div class="flex-1 font-semibold">{{ session('success') }}</div>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="flex items-center gap-3 rounded-2xl border border-rose-300/80 bg-gradient-to-r from-rose-50 via-red-50/50 to-white p-4 text-sm font-medium text-rose-950 shadow-sm backdrop-blur-md dark:border-rose-800/80 dark:from-rose-950/50 dark:via-slate-900 dark:to-slate-900 dark:text-rose-200">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white shadow-sm shadow-rose-500/30">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+                <div class="flex-1 font-semibold">{{ session('error') }}</div>
+            </div>
+        @endif
+
+        {{-- ── HERO COMMAND CARD (Full Width, Modern Web App Header) ───── --}}
+        <section x-data="{ panel: null }" class="relative w-full overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/40 to-white shadow-sm transition-all dark:border-slate-800 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-900">
+            {{-- Accent gradients decorativos --}}
+            <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl dark:bg-blue-600/15"></div>
+            <div class="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-600/15"></div>
+
+            <div class="relative p-6 sm:p-8">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    
+                    {{-- Título y Metadatos principales --}}
+                    <div class="min-w-0 flex-1 space-y-4">
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <span class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1 font-mono text-xs font-black tracking-wider text-white shadow-sm shadow-blue-500/25">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                                {{ $purchaseRequest->folio ?: 'BOR-'.$purchaseRequest->id }}
+                            </span>
+                            
+                            <span class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold ring-1 shadow-sm {{ $statusClasses }}">
+                                <span>{{ $statusIcon }}</span>
+                                <span>{{ $statusLabel }}</span>
+                            </span>
+
+                            <span class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold ring-1 {{ $priority[1] }}">
+                                <span class="h-2 w-2 rounded-full {{ $purchaseRequest->priority === 'urgent' ? 'bg-rose-500 animate-ping' : 'bg-slate-400' }}"></span>
+                                {{ $priority[0] }}
+                            </span>
+
+                            @if($purchaseRequest->department)
+                                <span class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                    <svg class="h-3.5 w-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    {{ $purchaseRequest->department }}
+                                </span>
+                            @endif
+
+                            <span class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                <svg class="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                {{ $itemsCount }} {{ \Illuminate\Support\Str::plural('partida', $itemsCount) }}
+                            </span>
+                        </div>
+
+                        {{-- Nombre / Motivo de la solicitud --}}
+                        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl lg:text-4xl leading-tight">
+                            {{ $purchaseRequest->reason }}
+                        </h1>
+
+                        {{-- Fila de detalles del solicitante y fechas --}}
+                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2.5 pt-1 text-xs text-slate-500 dark:text-slate-400">
+                            <div class="flex items-center gap-2">
+                                <div class="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 font-mono text-xs font-black text-white shadow-sm shadow-blue-500/25">
+                                    {{ $requesterInitials }}
+                                </div>
+                                <span>Solicitante: <strong class="font-bold text-slate-900 dark:text-white">{{ $requesterName }}</strong></span>
+                            </div>
+
+                            <span class="text-slate-300 dark:text-slate-700">·</span>
+
+                            <div class="flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <span>Creada el <strong class="font-bold text-slate-800 dark:text-slate-200">{{ $formatDate($purchaseRequest->created_at) }}</strong></span>
+                            </div>
+
+                            <span class="text-slate-300 dark:text-slate-700">·</span>
+
+                            <div class="flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0m-7 7h8m-8 4h5" /></svg>
+                                <span>Revisión {{ $purchaseRequest->revision_number ?: 0 }}</span>
+                            </div>
+
+                            @if(filled($purchaseRequest->required_date))
+                                <span class="text-slate-300 dark:text-slate-700">·</span>
+                                <div class="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Fecha requerida: <strong class="font-black">{{ $formatDate($purchaseRequest->required_date) }}</strong></span>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Toolbar de Acciones (Desktop & Mobile) --}}
+                    <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                        {{-- Botón Descargar PDF --}}
+                        <a href="{{ route('purchase_requests.pdf', $purchaseRequest) }}"
+                           class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+                            <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" />
+                            </svg>
+                            <span>Descargar PDF</span>
+                        </a>
+
+                        @if($isEditable)
+                            <a href="{{ route('purchase_requests.edit', $purchaseRequest) }}"
+                               class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-md shadow-blue-500/25 transition hover:bg-blue-700 active:scale-95">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                <span>Editar</span>
+                            </a>
+                        @endif
+
+                        @can('requestChanges', $purchaseRequest)
+                            @if($purchaseRequest->status === \App\Enums\PurchaseRequestStatus::APPROVED)
+                                <button type="button" @click="panel = panel === 'devolver' ? null : 'devolver'"
+                                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-amber-300/80 bg-amber-50 px-4 text-sm font-bold text-amber-900 transition hover:bg-amber-100 active:scale-95 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60">
+                                    <svg class="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                    <span>Devolver</span>
+                                </button>
+                            @endif
+                        @endcan
+
+                        @can('cancel', $purchaseRequest)
+                            <button type="button" @click="panel = panel === 'anular' ? null : 'anular'"
+                                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-rose-300/80 bg-rose-50 px-4 text-sm font-bold text-rose-800 transition hover:bg-rose-100 active:scale-95 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60">
+                                <svg class="h-4 w-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                <span>Anular</span>
+                            </button>
+                        @endcan
+
+                        @can('requestCancellation', $purchaseRequest)
+                            @if(! $purchaseRequest->cancellation_requested_at)
+                                <button type="button" @click="panel = panel === 'pedir' ? null : 'pedir'"
+                                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                    <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Pedir anulación</span>
+                                </button>
+                            @endif
+                        @endcan
+
+                        @if($purchaseRequest->revisions->count() > 1)
+                            <button type="button" @click="panel = panel === 'revisiones' ? null : 'revisiones'"
+                                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span>Revisiones</span>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-700 dark:bg-slate-700 dark:text-slate-300">{{ $purchaseRequest->revisions->count() }}</span>
                             </button>
                         @endif
-                    @endcan
-
-                    @can('cancel', $purchaseRequest)
-                        <button type="button" @click="panel = panel === 'anular' ? null : 'anular'"
-                            class="inline-flex min-h-11 items-center justify-center rounded-xl border border-rose-300 px-4 text-sm font-bold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30">
-                            Anular
-                        </button>
-                    @endcan
-
-                    @can('requestCancellation', $purchaseRequest)
-                        @if(! $purchaseRequest->cancellation_requested_at)
-                            <button type="button" @click="panel = panel === 'pedir' ? null : 'pedir'"
-                                class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                Pedir anulación
-                            </button>
-                        @endif
-                    @endcan
-
-                    @if($purchaseRequest->revisions->count() > 1)
-                        {{-- Sólo con más de una revisión. Con una sola, su PDF es
-                             el mismo que el del botón de al lado: dos botones para
-                             el mismo documento, y un desplegable que al abrirse no
-                             añadía nada. --}}
-                        <button type="button" @click="panel = panel === 'revisiones' ? null : 'revisiones'"
-                            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                            Revisiones
-                            <span class="rounded-full bg-slate-100 px-1.5 text-xs font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $purchaseRequest->revisions->count() }}</span>
-                        </button>
-                    @endif
+                    </div>
                 </div>
             </div>
 
-            {{-- Los motivos se piden en un modal. Va teletransportado al body
-                 porque el contenedor de la página crea su propio contexto de
-                 apilamiento y una capa flotante nacida aquí dentro queda
-                 tapada por él, por alto que se le ponga el z-index. Ya nos
-                 pasó con el panel de filtros. --}}
+            {{-- Panel de Revisiones expandible --}}
+            @if($purchaseRequest->revisions->count() > 1)
+                <div x-show="panel === 'revisiones'" x-cloak x-transition.opacity
+                     class="border-t border-slate-200/80 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/50">
+                    <div class="px-6 py-3.5">
+                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            Historial de versiones: cada revisión guarda el documento tal como se envió y no se regenera con datos nuevos.
+                        </p>
+                    </div>
+                    <ul class="divide-y divide-slate-200/80 border-t border-slate-200/80 dark:divide-slate-800 dark:border-slate-800">
+                        @foreach ($purchaseRequest->revisions as $rev)
+                            <li class="flex items-center justify-between gap-4 px-6 py-3.5 transition hover:bg-white/80 dark:hover:bg-slate-900/60">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2.5">
+                                        <p class="text-sm font-black text-slate-900 dark:text-white">
+                                            Revisión {{ $rev->revision_number }}
+                                        </p>
+                                        @if($rev->revision_number === $purchaseRequest->revision_number)
+                                            <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-700 dark:bg-blue-950/70 dark:text-blue-300">vigente</span>
+                                        @endif
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $rev->submitted_by_name_snapshot }} · {{ optional($rev->submitted_at)->format('d-m-Y H:i') }}
+                                        · {{ $rev->item_count }} {{ \Illuminate\Support\Str::plural('partida', $rev->item_count) }}
+                                    </p>
+                                </div>
+                                @can('downloadPdf', $purchaseRequest)
+                                    <a href="{{ route('purchase_requests.pdf', ['purchaseRequest' => $purchaseRequest, 'revision' => $rev->revision_number]) }}"
+                                        class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                        <svg class="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>
+                                        PDF
+                                    </a>
+                                @endcan
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- Banner si tiene cambios solicitados --}}
+            @if($rawStatus === 'changes_requested')
+                @php $lastChange = $purchaseRequest->events?->first(fn ($event) => data_get($event, 'event_type') === 'changes_requested'); @endphp
+                <div class="border-t border-amber-300/80 bg-gradient-to-r from-amber-50 to-orange-50/60 px-6 py-4 text-sm text-amber-950 backdrop-blur-md dark:border-amber-900/60 dark:from-amber-950/40 dark:to-slate-900 dark:text-amber-100">
+                    <div class="flex items-start gap-3.5">
+                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm shadow-amber-500/30">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="font-black text-amber-950 dark:text-amber-200">Esta solicitud requiere correcciones.</p>
+                            @if(filled(data_get($lastChange, 'comment')))
+                                <p class="text-xs text-amber-800 dark:text-amber-300">{{ data_get($lastChange, 'comment') }}</p>
+                            @endif
+
+                            @if(filled($purchaseRequest->requested_corrections))
+                                <div class="pt-2">
+                                    <p class="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">Puntos a corregir:</p>
+                                    <ul class="mt-1.5 flex flex-wrap gap-1.5">
+                                        @foreach($purchaseRequest->requested_corrections as $punto)
+                                            <li class="rounded-full bg-amber-200/80 px-3 py-1 text-xs font-bold text-amber-950 dark:bg-amber-900/80 dark:text-amber-100">
+                                                {{ \App\Enums\PurchaseRequestCorrection::labelFor($punto) }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- ── MODALES TELEPORTADOS AL BODY (Devolver, Anular, Pedir) ────── --}}
             @can('requestChanges', $purchaseRequest)
                 @if($purchaseRequest->status === \App\Enums\PurchaseRequestStatus::APPROVED)
                     <template x-teleport="body">
                         <div x-show="panel === 'devolver'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-devolver"
                             @keydown.escape.window="panel = null"
                             class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
-                            <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'devolver'"
+                            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="panel = null" x-show="panel === 'devolver'"
                                 x-transition.opacity></div>
                             <form method="POST" action="{{ route('purchase_requests.request_changes', $purchaseRequest) }}"
                                 x-show="panel === 'devolver'"
-                                x-transition:enter="transition ease-out duration-150"
-                                x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
                                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                                class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                                class="relative w-full max-w-lg space-y-4 rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
                                 @csrf
                                 <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
-                                <h2 id="titulo-devolver" class="text-lg font-extrabold text-slate-900 dark:text-white">Devolver para corregir</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">
-                                    Todavía no se envía a Odoo, así que aún se puede arreglar. Vuelve a estado editable
-                                    y hay que aprobarla de nuevo antes de enviarla.
-                                </p>
-                                <label for="reopen-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                                    ¿Qué hay que corregir? <span class="text-rose-600">*</span>
-                                </label>
-                                <textarea id="reopen-comment" name="comment" rows="3" required
-                                    class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                    placeholder="Ej.: la unidad de la partida 3 no corresponde."></textarea>
-                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                                <div class="flex flex-wrap justify-end gap-2 pt-1">
+                                
+                                <div class="flex items-start gap-4">
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                                    </div>
+                                    <div>
+                                        <h2 id="titulo-devolver" class="text-lg font-black text-slate-900 dark:text-white">Devolver para corregir</h2>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            Todavía no se envía a Odoo, así que aún se puede arreglar. Vuelve a estado editable y hay que aprobarla de nuevo antes de enviarla.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label for="reopen-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                        ¿Qué hay que corregir? <span class="text-rose-600">*</span>
+                                    </label>
+                                    <textarea id="reopen-comment" name="comment" rows="3" required
+                                        class="w-full rounded-2xl border-slate-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                        placeholder="Ej.: la unidad de la partida 3 no corresponde."></textarea>
+                                    @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div class="flex flex-wrap justify-end gap-2.5 pt-2">
                                     <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
-                                    <button type="submit" class="min-h-11 rounded-xl bg-amber-600 px-4 text-sm font-extrabold text-white hover:bg-amber-700">Devolver para corregir</button>
+                                    <button type="submit" class="min-h-11 rounded-xl bg-amber-600 px-5 text-sm font-extrabold text-white shadow-sm hover:bg-amber-700">Devolver para corregir</button>
                                 </div>
                             </form>
                         </div>
@@ -162,30 +405,42 @@
                     <div x-show="panel === 'anular'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-anular"
                         @keydown.escape.window="panel = null"
                         class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
-                        <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'anular'"
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="panel = null" x-show="panel === 'anular'"
                             x-transition.opacity></div>
                         <form method="POST" action="{{ route('purchase_requests.cancel', $purchaseRequest) }}"
                             x-show="panel === 'anular'"
-                            x-transition:enter="transition ease-out duration-150"
-                            x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                            x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
                             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                            class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                            class="relative w-full max-w-lg space-y-4 rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
                             @csrf
                             <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
-                            <h2 id="titulo-anular" class="text-lg font-extrabold text-slate-900 dark:text-white">Anular solicitud</h2>
-                            <p class="text-sm text-slate-500 dark:text-slate-400">
-                                Queda registrada en el historial con su motivo. No se elimina.
-                            </p>
-                            <label for="cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                                Motivo <span class="text-rose-600">*</span>
-                            </label>
-                            <textarea id="cancel-comment" name="comment" rows="3" required
-                                class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                placeholder="Explica por qué se anula."></textarea>
-                            @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                            <div class="flex flex-wrap justify-end gap-2 pt-1">
+
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                </div>
+                                <div>
+                                    <h2 id="titulo-anular" class="text-lg font-black text-slate-900 dark:text-white">Anular solicitud</h2>
+                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Queda registrada en el historial con su motivo. No se elimina.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label for="cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    Motivo <span class="text-rose-600">*</span>
+                                </label>
+                                <textarea id="cancel-comment" name="comment" rows="3" required
+                                    class="w-full rounded-2xl border-slate-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-rose-500 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    placeholder="Explica por qué se anula."></textarea>
+                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div class="flex flex-wrap justify-end gap-2.5 pt-2">
                                 <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
-                                <button type="submit" class="min-h-11 rounded-xl bg-rose-600 px-4 text-sm font-extrabold text-white hover:bg-rose-700">Confirmar anulación</button>
+                                <button type="submit" class="min-h-11 rounded-xl bg-rose-600 px-5 text-sm font-extrabold text-white shadow-sm hover:bg-rose-700">Confirmar anulación</button>
                             </div>
                         </form>
                     </div>
@@ -198,425 +453,748 @@
                         <div x-show="panel === 'pedir'" x-cloak role="dialog" aria-modal="true" aria-labelledby="titulo-pedir"
                             @keydown.escape.window="panel = null"
                             class="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
-                            <div class="absolute inset-0 bg-slate-900/50" @click="panel = null" x-show="panel === 'pedir'"
+                            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="panel = null" x-show="panel === 'pedir'"
                                 x-transition.opacity></div>
                             <form method="POST" action="{{ route('purchase_requests.request_cancellation', $purchaseRequest) }}"
                                 x-show="panel === 'pedir'"
-                                x-transition:enter="transition ease-out duration-150"
-                                x-transition:enter-start="opacity-0 translate-y-3 sm:scale-95"
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
                                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                                class="relative w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+                                class="relative w-full max-w-lg space-y-4 rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800">
                                 @csrf
-                                <h2 id="titulo-pedir" class="text-lg font-extrabold text-slate-900 dark:text-white">Pedir anulación</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">
-                                    Como ya fue enviada, la anulación la decide Compras. Tu petición queda registrada.
-                                </p>
-                                <label for="request-cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                                    Motivo <span class="text-rose-600">*</span>
-                                </label>
-                                <textarea id="request-cancel-comment" name="comment" rows="3" required
-                                    class="w-full rounded-xl border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                    placeholder="Explica por qué ya no se necesita."></textarea>
-                                @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                                <div class="flex flex-wrap justify-end gap-2 pt-1">
+                                <div class="flex items-start gap-4">
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    </div>
+                                    <div>
+                                        <h2 id="titulo-pedir" class="text-lg font-black text-slate-900 dark:text-white">Pedir anulación</h2>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            Como ya fue enviada, la anulación la decide Compras. Tu petición queda registrada.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label for="request-cancel-comment" class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                        Motivo <span class="text-rose-600">*</span>
+                                    </label>
+                                    <textarea id="request-cancel-comment" name="comment" rows="3" required
+                                        class="w-full rounded-2xl border-slate-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                        placeholder="Explica por qué ya no se necesita."></textarea>
+                                    @error('comment') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div class="flex flex-wrap justify-end gap-2.5 pt-2">
                                     <button type="button" @click="panel = null" class="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
-                                    <button type="submit" class="min-h-11 rounded-xl bg-slate-800 px-4 text-sm font-extrabold text-white hover:bg-slate-900 dark:bg-slate-200 dark:text-slate-900">Pedir anulación</button>
+                                    <button type="submit" class="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-extrabold text-white shadow-sm hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white">Pedir anulación</button>
                                 </div>
                             </form>
                         </div>
                     </template>
                 @endif
             @endcan
-
-            {{-- El panel se abre en el flujo normal, debajo del encabezado, y no
-                 flotando: una capa flotante aquí queda tapada por el contenedor
-                 de la página, que crea su propio contexto de apilamiento. --}}
-            @if($purchaseRequest->revisions->count() > 1)
-                <div x-show="panel === 'revisiones'" x-cloak class="border-t border-slate-100 dark:border-slate-800">
-                    <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400 sm:px-5">
-                        Cada revisión guarda el documento tal como se envió y no se regenera con datos nuevos.
-                    </p>
-                    <ul class="divide-y divide-slate-100 dark:divide-slate-800">
-                        @foreach ($purchaseRequest->revisions as $rev)
-                            <li class="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-slate-900 dark:text-white">
-                                        Revisión {{ $rev->revision_number }}
-                                        @if($rev->revision_number === $purchaseRequest->revision_number)
-                                            <span class="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">vigente</span>
-                                        @endif
-                                    </p>
-                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                        {{ $rev->submitted_by_name_snapshot }} · {{ optional($rev->submitted_at)->format('d-m-Y H:i') }}
-                                        · {{ $rev->item_count }} {{ \Illuminate\Support\Str::plural('partida', $rev->item_count) }}
-                                    </p>
-                                </div>
-                                @can('downloadPdf', $purchaseRequest)
-                                    <a href="{{ route('purchase_requests.pdf', ['purchaseRequest' => $purchaseRequest, 'revision' => $rev->revision_number]) }}"
-                                        class="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                        PDF
-                                    </a>
-                                @endcan
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            @if($rawStatus === 'changes_requested')
-                @php $lastChange = $purchaseRequest->events?->first(fn ($event) => data_get($event, 'event_type') === 'changes_requested'); @endphp
-                <div class="border-t border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100 sm:px-5">
-                    <p class="font-extrabold">Esta solicitud requiere correcciones.</p>
-                    @if(filled(data_get($lastChange, 'comment')))<p class="mt-1">{{ data_get($lastChange, 'comment') }}</p>@endif
-
-                    {{-- Puntos marcados por el revisor: el comentario dice el
-                         porqué, esta lista dice exactamente dónde. --}}
-                    @if(filled($purchaseRequest->requested_corrections))
-                        <p class="mt-3 text-xs font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">Puntos a corregir</p>
-                        <ul class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach($purchaseRequest->requested_corrections as $punto)
-                                <li class="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">
-                                    {{ \App\Enums\PurchaseRequestCorrection::labelFor($punto) }}
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-                </div>
-            @endif
         </section>
 
-            {{-- Arriba los datos y las acciones, que son estrechos. Las partidas
-                 y las cotizaciones van abajo a lo ancho: con 19 partidas, una tabla
-                 de siete columnas en un tercio de pantalla se desbordaba y cada
-                 nombre se partía en cuatro líneas, mientras la columna de al lado
-                 sobraba espacio. --}}
-            {{-- Dos columnas con contenido de verdad en las dos: la izquierda
-                 lleva las partidas y las cotizaciones, que es lo que crece; la
-                 derecha, la ficha y las acciones, que son estrechas. Con la ficha
-                 sola a la izquierda quedaba un hoyo enorme debajo mientras la
-                 derecha se estiraba sola. --}}
-            {{-- Las pestañas cambian la vista entera. Antes las cotizaciones se
-                 apilaban una debajo de otra y había que recorrer tablas de
-                 diecinueve filas para comparar dos precios. --}}
-                    @php
-                        $comparables = collect($comparaciones)->reject(function ($comparacion) {
-                            $enCurso = in_array($comparacion['ingestion']->status, [
-                                \App\Models\PurchaseRequestIngestion::PENDING,
-                                \App\Models\PurchaseRequestIngestion::PROCESSING,
-                            ], true);
+        {{-- ── FULL WIDTH METRICS RIBBON (4 KPI Cards) ──────────────────── --}}
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo">
+            {{-- KPI 1: Estado del flujo --}}
+            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Estado del flujo</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm {{ $statusClasses }}">{{ $statusIcon }}</span>
+                </div>
+                <div class="mt-3">
+                    <p class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{{ $statusLabel }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        @if($rawStatus === 'approved')
+                            Autorizada · Lista para cotizaciones y Odoo
+                        @elseif($rawStatus === 'draft')
+                            Borrador interno · No enviada a revisión
+                        @elseif($rawStatus === 'submitted')
+                            Esperando resolución de Compras
+                        @else
+                            Ciclo de revisión en curso (v{{ $purchaseRequest->revision_number }})
+                        @endif
+                    </p>
+                </div>
+            </div>
 
-                            return $enCurso || $comparacion['resultado']->elDocumentoNoAporto();
-                        })->values();
-                    @endphp
-            <div x-data="{ vista: 'solicitud' }">
-                <div class="mb-5 flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            {{-- KPI 2: Total partidas --}}
+            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Volumen de ítems</span>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-950/60 dark:text-blue-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p class="text-2xl font-black tracking-tight tabular-nums text-slate-900 dark:text-white">{{ $itemsCount }} {{ \Illuminate\Support\Str::plural('partida', $itemsCount) }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {{ $hayPrecio ? 'Partidas con valorización ingresada' : 'Líneas pendientes de precio del proveedor' }}
+                    </p>
+                </div>
+            </div>
+
+            {{-- KPI 3: Área / Solicitante --}}
+            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Área requirente</span>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600 shadow-sm dark:bg-violet-950/60 dark:text-violet-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p class="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white" title="{{ $purchaseRequest->department ?: 'General' }}">
+                        {{ $purchaseRequest->department ?: 'General' }}
+                    </p>
+                    <p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400" title="{{ $requesterName }}">
+                        Por {{ $requesterName }}
+                    </p>
+                </div>
+            </div>
+
+            {{-- KPI 4: Valorización total --}}
+            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Valor estimado</span>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 shadow-sm dark:bg-emerald-950/60 dark:text-emerald-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    @if($hasTotal && $totalAmount > 0)
+                        <p class="text-2xl font-black tracking-tight tabular-nums text-slate-900 dark:text-white">
+                            {{ $simbolo }}{{ number_format($totalAmount, 0, ',', '.') }}
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }} + IVA ({{ number_format($tasa * 100) }}%)
+                        </p>
+                    @else
+                        <p class="text-xl font-black tracking-tight text-slate-500 dark:text-slate-400">
+                            Sin precios aún
+                        </p>
+                        <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                            Se actualiza con la cotización recibida
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </section>
+
+        {{-- ── TABS Y CONTENIDO PRINCIPAL FULL SCREEN (ALPINE VISTA) ────── --}}
+        <div x-data="{ vista: 'solicitud', itemFilter: '', itemStatus: 'all' }">
+            
+            {{-- Barra de pestañas tipo Segmented Control --}}
+            <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    {{-- Tab Solicitud --}}
                     <button type="button" @click="vista = 'solicitud'"
-                        class="min-h-11 rounded-xl px-4 text-sm font-extrabold transition-colors"
-                        :class="vista === 'solicitud' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
-                        Solicitud <span class="ml-1 text-xs opacity-70">{{ $purchaseRequest->items->count() }}</span>
+                        class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
+                        :class="vista === 'solicitud'
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0m-7 7h8m-8 4h5" /></svg>
+                        <span>Solicitud</span>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-black"
+                              :class="vista === 'solicitud' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'">
+                            {{ $itemsCount }}
+                        </span>
                     </button>
+
+                    {{-- Tab Quién conviene --}}
                     @if($cuadricula)
                         <button type="button" @click="vista = 'comparar'"
-                            class="min-h-11 rounded-xl px-4 text-sm font-extrabold transition-colors"
-                            :class="vista === 'comparar' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
-                            Quién conviene
+                            class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
+                            :class="vista === 'comparar'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
+                            <svg class="h-4 w-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            <span>Quién conviene</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
+                                  :class="vista === 'comparar' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+                                  title="{{ count($cuadricula->filas) }} partidas comparadas">
+                                {{ count($cuadricula->filas) }}
+                            </span>
                         </button>
                     @endif
+
+                    {{-- Tabs por cotización recibida --}}
                     @foreach ($comparables as $indice => $comparacion)
                         @php
                             $lectura = $comparacion['ingestion'];
                             $resultado = $comparacion['resultado'];
+                            $cantCot = $resultado->cruzadas();
                         @endphp
                         <button type="button" @click="vista = 'cot{{ $indice }}'"
-                            class="min-h-11 rounded-xl px-4 text-left transition-colors"
-                            :class="vista === 'cot{{ $indice }}' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'">
-                            <span class="block text-sm font-extrabold">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 24) }}</span>
-                            <span class="block text-xs font-bold">{{ $resultado->cuadra() ? '✓ coincide' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}</span>
+                            class="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-1 text-left transition-all"
+                            :class="vista === 'cot{{ $indice }}'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black leading-tight">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 20) }}</span>
+                                <span class="text-[10px] font-bold opacity-80">
+                                    @if($resultado->porConfirmar() > 0)
+                                        ◇ {{ $resultado->porConfirmar() }} por confirmar
+                                    @elseif($resultado->cuadra())
+                                        ✓ coincide
+                                    @else
+                                        ⚠ {{ $resultado->conDiferencias() }} {{ \Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
+                                    @endif
+                                </span>
+                            </div>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
+                                  :class="vista === 'cot{{ $indice }}' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+                                  title="{{ $cantCot }} de {{ $resultado->partidas() }} partidas cruzadas">
+                                {{ $cantCot }}
+                            </span>
                         </button>
                     @endforeach
                 </div>
 
-                <div class="grid gap-5 xl:grid-cols-3">
-                    <div class="space-y-5" :class="vista === 'solicitud' ? 'xl:col-span-2' : 'xl:col-span-3'">
-                        <div x-show="vista === 'solicitud'" class="space-y-5">
-                            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Partidas</h2><div class="flex items-center gap-3">@if(filled($purchaseRequest->total()))
-                                    @php
-                                        $tasa = (float) config('purchase_requests.tax_rate', 0.19);
-                                        $simbolo = $purchaseRequest->currency === 'CLP' ? '$' : $purchaseRequest->currency.' ';
-                                        // El total guardado es la suma de las partidas; si esos
-                                        // precios ya traen IVA, el neto se saca hacia atrás.
-                                        $neto = $purchaseRequest->prices_include_tax
-                                            ? $purchaseRequest->total() / (1 + $tasa)
-                                            : $purchaseRequest->total();
-                                    @endphp
-                                    <span class="flex flex-wrap items-center gap-x-2 text-sm">
-                                        <span class="text-slate-500 dark:text-slate-400">Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }}</span>
-                                        <span class="text-slate-300 dark:text-slate-600">·</span>
-                                        <span class="text-slate-500 dark:text-slate-400">IVA {{ $simbolo }}{{ number_format($neto * $tasa, 0, ',', '.') }}</span>
-                                        <span class="text-slate-300 dark:text-slate-600">·</span>
-                                        <span class="font-extrabold text-slate-900 dark:text-white">Total {{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span>
-                                    </span>
-                                @endif<span class="text-xs font-bold text-slate-400">{{ $purchaseRequest->items->count() }} ítem{{ $purchaseRequest->items->count() === 1 ? '' : 's' }}</span></div></div>
-                                @if($purchaseRequest->hasPartialPricing())
-                                    {{-- Un total que sólo suma parte de las partidas engaña más
-                                         que ayudar: hay que decir que está incompleto. --}}
-                                    <p class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200 sm:px-5">
-                                        El total no incluye todas las partidas: algunas no tienen precio.
-                                    </p>
-                                @endif
-                                <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
-                                    @foreach($purchaseRequest->items as $index => $item)
-                                        <article class="p-4"><div class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{{ $index + 1 }}</span><div class="min-w-0"><p class="font-bold text-slate-900 dark:text-white">{{ $item->product_service }}</p>@if(filled($item->specification))<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>@endif<div class="mt-2 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}</span>@if(filled($item->quantity_note))<span class="text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</span>@endif @if(filled($item->unit_price))<span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · total {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}</span>@endif</div>@if(filled($item->destination))<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>@endif</div></div></article>
-                                    @endforeach
+                {{-- Status rápido en el header de tabs --}}
+                <div class="hidden items-center gap-3 pr-2 sm:flex text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        {{ $itemsCount }} partidas cargadas
+                    </span>
+                </div>
+            </div>
+
+            {{-- ── GRID LAYOUT FULL WIDTH (8 COLS IZQUIERDA / 4 COLS DERECHA) ─ --}}
+            <div class="grid gap-6 xl:grid-cols-12">
+
+                {{-- COLUMNA PRINCIPAL (TABLA DE PARTIDAS Y COMPARADOR) --}}
+                <div class="space-y-6" :class="vista === 'solicitud' ? 'xl:col-span-8 2xl:col-span-9' : 'xl:col-span-12'">
+
+                    {{-- ── VISTA 1: PARTIDAS DE LA SOLICITUD ── --}}
+                    <div x-show="vista === 'solicitud'" class="space-y-6">
+                        <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900">
+                            
+                            {{-- Header de la tabla con buscador y filtros en tiempo real --}}
+                            <div class="flex flex-col gap-4 border-b border-slate-200/80 p-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <div class="flex items-center gap-3">
+                                        <h2 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Partidas</h2>
+                                        <span class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/80 bg-blue-50 px-3 py-1 font-mono text-xs font-black text-blue-700 shadow-sm dark:border-blue-800/80 dark:bg-blue-950/60 dark:text-blue-300">
+                                            <span class="h-2 w-2 rounded-full bg-blue-600"></span>
+                                            <span>{{ $itemsCount }} {{ \Illuminate\Support\Str::plural('ítem', $itemsCount) }}</span>
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Listado completo de insumos, equipos y servicios solicitados</p>
                                 </div>
-                                {{-- Una columna en «—» en todas las filas no dice nada y le roba
-                                     ancho a los nombres, que es lo que hay que leer. Con 19 partidas
-                                     de EPP eran cuatro columnas de guiones. --}}
-                                @php
-                                    $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
-                                    $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
-                                    $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
-                                @endphp
-                                    {{-- La tabla se ajusta a su contenido en vez de estirarse hasta el
-                                         borde. Con tres columnas, repartir 1.470 px dejaba el nombre y su
-                                         cantidad a un palmo de distancia y el ojo no los une. --}}
-                                <div class="hidden overflow-x-auto md:block">
-                                    <table class="min-w-full text-sm">
-                                        <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                <th class="w-px whitespace-nowrap px-5 py-3">N°</th>
-                                                <th class="px-5 py-3">Producto / servicio</th>
-                                                @if($hayEspecificacion)
-                                                    <th class="px-5 py-3">Especificación</th>
+
+                                {{-- Barra de herramientas de la tabla --}}
+                                <div class="flex flex-wrap items-center gap-3">
+                                    {{-- Buscador instantáneo --}}
+                                    <div class="relative min-w-[240px] flex-1 sm:w-72">
+                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                        </div>
+                                        <input type="text" x-model="itemFilter" placeholder="Buscar en las 19 partidas..."
+                                            class="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-10 pr-3.5 text-xs font-medium text-slate-900 placeholder-slate-400 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900">
+                                    </div>
+
+                                    @if(filled($purchaseRequest->total()))
+                                        <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                            <span>Neto: {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }}</span>
+                                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                                            <span class="text-blue-600 dark:text-blue-400">Total: {{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            @if($purchaseRequest->hasPartialPricing())
+                                <div class="flex items-center gap-3 border-b border-amber-300/80 bg-amber-50/80 px-6 py-3 text-xs font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                                    <svg class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    <span>El total no incluye todas las partidas: algunas no tienen precio.</span>
+                                </div>
+                            @endif
+
+                            {{-- Vista móvil (Tarjetas estructuradas) --}}
+                            <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
+                                @foreach($purchaseRequest->items as $index => $item)
+                                    <article class="p-4 transition hover:bg-blue-50/30 dark:hover:bg-slate-800/40"
+                                        x-show="!itemFilter || '{{ addslashes(mb_strtolower($item->product_service)) }}'.includes(itemFilter.toLowerCase()) || '{{ addslashes(mb_strtolower($item->specification ?? '')) }}'.includes(itemFilter.toLowerCase())">
+                                        <div class="flex gap-3">
+                                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-mono text-xs font-black text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 shadow-sm">
+                                                {{ $index + 1 }}
+                                            </span>
+                                            <div class="min-w-0 flex-1 space-y-1.5">
+                                                <p class="font-bold text-slate-900 dark:text-white leading-snug">{{ $item->product_service }}</p>
+                                                @if(filled($item->specification))
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>
                                                 @endif
-                                                <th class="w-px whitespace-nowrap px-5 py-3 text-right">Cantidad</th>
+                                                <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                                                    <span class="inline-flex items-center rounded-xl bg-slate-100 px-3 py-1 font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                                                        {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
+                                                    </span>
+                                                    @if(filled($item->quantity_note))
+                                                        <span class="text-xs text-slate-500 dark:text-slate-400">({{ $item->quantity_note }})</span>
+                                                    @endif
+                                                    @if(filled($item->unit_price))
+                                                        <span class="rounded-xl bg-emerald-50 px-3 py-1 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                            $ {{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · Total $ {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if(filled($item->destination))
+                                                    <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+
+                            {{-- Vista Desktop (Data Grid Full Width con alta legibilidad) --}}
+                            <div class="hidden overflow-x-auto md:block">
+                                <table class="w-full text-left text-sm border-collapse">
+                                    <thead class="border-b border-slate-200 bg-slate-50/90 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
+                                        <tr>
+                                            <th class="w-14 px-6 py-3.5 text-center">N°</th>
+                                            <th class="px-6 py-3.5">Producto / Servicio</th>
+                                            @if($hayEspecificacion)
+                                                <th class="px-6 py-3.5">Especificación Técnica</th>
+                                            @endif
+                                            <th class="w-40 px-6 py-3.5 text-right">Cantidad</th>
+                                            @if($hayPrecio)
+                                                <th class="w-40 px-6 py-3.5 text-right">Precio unit.</th>
+                                                <th class="w-40 px-6 py-3.5 text-right">Total</th>
+                                            @endif
+                                            @if($hayDestino)
+                                                <th class="px-6 py-3.5">Destino</th>
+                                            @endif
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                        @foreach($purchaseRequest->items as $index => $item)
+                                            <tr class="transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20"
+                                                x-show="!itemFilter || '{{ addslashes(mb_strtolower($item->product_service)) }}'.includes(itemFilter.toLowerCase()) || '{{ addslashes(mb_strtolower($item->specification ?? '')) }}'.includes(itemFilter.toLowerCase())">
+                                                <td class="px-6 py-4 text-center">
+                                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                        {{ $index + 1 }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="font-bold text-slate-900 dark:text-white leading-snug">
+                                                        {{ $item->product_service }}
+                                                    </div>
+                                                    @if(filled($item->quantity_note))
+                                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
+                                                    @endif
+                                                </td>
+                                                @if($hayEspecificacion)
+                                                    <td class="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                                                        {{ $item->specification ?: '—' }}
+                                                    </td>
+                                                @endif
+                                                <td class="px-6 py-4 text-right whitespace-nowrap font-mono">
+                                                    <span class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100">
+                                                        <span>{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }}</span>
+                                                        <span class="font-sans font-semibold text-slate-500 dark:text-slate-400">{{ $item->unit }}</span>
+                                                    </span>
+                                                </td>
                                                 @if($hayPrecio)
-                                                    <th class="px-5 py-3 text-right">Precio unit.</th>
-                                                    <th class="px-5 py-3 text-right">Total</th>
+                                                    <td class="px-6 py-4 text-right font-mono text-xs text-slate-600 tabular-nums dark:text-slate-300">
+                                                        {{ filled($item->unit_price) ? '$ '.number_format((float) $item->unit_price, 0, ',', '.') : '—' }}
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right font-mono text-xs font-black text-slate-900 tabular-nums dark:text-white">
+                                                        {{ filled($item->unit_price) ? '$ '.number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}
+                                                    </td>
                                                 @endif
                                                 @if($hayDestino)
-                                                    <th class="px-5 py-3">Destino</th>
+                                                    <td class="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                                                        {{ $item->destination ?: '—' }}
+                                                    </td>
                                                 @endif
                                             </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {{-- Footer resumen de partidas --}}
+                            <div class="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-6 py-4 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                <div class="flex items-center gap-2">
+                                    <span>Mostrando {{ $itemsCount }} partidas de la solicitud</span>
+                                </div>
+                                @if($hayPrecio && $hasTotal)
+                                    <div class="font-mono text-sm font-black text-slate-900 dark:text-white">
+                                        Total Solicitud: {{ $simbolo }}{{ number_format($totalAmount, 0, ',', '.') }}
+                                    </div>
+                                @else
+                                    <span class="italic text-slate-400">Precios pendientes de valorización por proveedor</span>
+                                @endif
+                            </div>
+                        </section>
+                    </div>
+
+                    {{-- ── VISTA 2: CUADRO COMPARATIVO («QUIÉN CONVIENE») ── --}}
+                    @if($cuadricula)
+                        <div x-show="vista === 'comparar'" x-cloak>
+                            <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div class="border-b border-slate-200/80 p-6 dark:border-slate-800">
+                                    <div class="flex items-center gap-3">
+                                        <h2 class="text-lg font-black text-slate-900 dark:text-white">Quién conviene</h2>
+                                        <span class="inline-flex items-center gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-1 font-mono text-xs font-black text-amber-700 shadow-sm dark:border-amber-800/80 dark:bg-amber-950/60 dark:text-amber-300">
+                                            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                                            <span>{{ count($cuadricula->filas) }} {{ \Illuminate\Support\Str::plural('partida', count($cuadricula->filas)) }}</span>
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                        Precio unitario de cada proveedor. El más barato de cada partida va marcado.
+                                    </p>
+                                </div>
+
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                            <tr>
+                                                <th class="w-14 px-6 py-3.5 text-center">N°</th>
+                                                <th class="px-6 py-3.5">Partida</th>
+                                                @foreach ($cuadricula->proveedores as $proveedor)
+                                                    <th class="px-6 py-3.5 font-black">{{ $proveedor['nombre'] }}</th>
+                                                @endforeach
+                                            </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
-                                            @foreach($purchaseRequest->items as $index => $item)
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                            @foreach ($cuadricula->filas as $fila)
                                                 <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                    <td class="w-px whitespace-nowrap px-5 py-4 font-bold text-slate-400">{{ $index + 1 }}</td>
-                                                    <td class="px-5 py-4 font-semibold text-slate-800 dark:text-slate-100">
-                                                        {{ $item->product_service }}
-                                                        @if(filled($item->quantity_note))
-                                                            <p class="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
-                                                        @endif
+                                                    <td class="px-6 py-4 text-center">
+                                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                            {{ $loop->iteration }}
+                                                        </span>
                                                     </td>
-                                                    @if($hayEspecificacion)
-                                                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->specification ?: '—' }}</td>
-                                                    @endif
-                                                    <td class="w-px whitespace-nowrap px-5 py-4 text-right font-bold tabular-nums text-slate-800 dark:text-slate-100">
-                                                        {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
-                                                    </td>
-                                                    @if($hayPrecio)
-                                                        <td class="px-5 py-4 text-right tabular-nums text-slate-600 dark:text-slate-300">{{ filled($item->unit_price) ? number_format((float) $item->unit_price, 0, ',', '.') : '—' }}</td>
-                                                        <td class="px-5 py-4 text-right font-bold tabular-nums text-slate-800 dark:text-slate-100">{{ filled($item->unit_price) ? number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}</td>
-                                                    @endif
-                                                    @if($hayDestino)
-                                                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ $item->destination ?: '—' }}</td>
-                                                    @endif
+                                                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
+                                                    @foreach ($fila['precios'] as $i => $precio)
+                                                        <td class="whitespace-nowrap px-6 py-4 font-mono text-xs {{ $fila['masBarato'] === $i ? 'font-black text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
+                                                            @if($precio === null)
+                                                                <span class="font-sans text-slate-400 italic">no cotizó</span>
+                                                            @else
+                                                                $ {{ number_format($precio, 0, ',', '.') }}
+                                                                @if($fila['masBarato'] === $i)
+                                                                    <span class="ml-2 inline-flex items-center rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 shadow-sm">más barato</span>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                    @endforeach
                                                 </tr>
                                             @endforeach
                                         </tbody>
+                                        <tfoot class="border-t-2 border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950/60">
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                    Suma de lo cotizado ({{ count($cuadricula->filas) }} partidas)
+                                                </td>
+                                                @foreach ($cuadricula->totales as $total)
+                                                    <td class="whitespace-nowrap px-6 py-4 font-mono font-black text-slate-900 dark:text-white">
+                                                        $ {{ number_format($total['total'], 0, ',', '.') }}
+                                                        @if($total['faltan'] > 0)
+                                                            <span class="block font-sans text-xs font-normal text-amber-700 dark:text-amber-400">
+                                                                le faltan {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                @endforeach
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </section>
                         </div>
-                        @if($cuadricula)
-                            <div x-show="vista === 'comparar'" x-cloak>
-                                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                                            <h2 class="font-extrabold text-slate-900 dark:text-white">Quién conviene</h2>
-                                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                                Precio unitario de cada proveedor. El más barato de cada partida va marcado.
-                                            </p>
-                                        </div>
+                    @endif
 
-                                        <div class="overflow-x-auto">
-                                            <table class="min-w-full text-sm">
-                                                <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                                    <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                        <th class="px-4 py-2 font-bold">Partida</th>
-                                                        @foreach ($cuadricula->proveedores as $proveedor)
-                                                            <th class="px-4 py-2 font-bold">{{ $proveedor['nombre'] }}</th>
+                    {{-- ── VISTAS 3+: DETALLE DE CADA COTIZACIÓN RECIBIDA ──
+                         La tabla tiene exactamente las partidas que pediste, en
+                         tu orden, y nada más. Lo que el proveedor agregó por su
+                         cuenta va aparte, abajo: sumarlo aquí convertía una
+                         solicitud de 19 partidas en 33 filas. --}}
+                    @foreach ($comparables as $indice => $comparacion)
+                        @php
+                            $lectura = $comparacion['ingestion'];
+                            $resultado = $comparacion['resultado'];
+                            $totalPartidasCot = $resultado->partidas();
+                            $porConfirmar = $resultado->porConfirmar();
+                        @endphp
+                        <div x-show="vista === 'cot{{ $indice }}'" x-cloak class="space-y-4">
+                            <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div class="flex flex-col gap-3 border-b border-slate-200/80 p-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <h2 class="text-lg font-black text-slate-900 dark:text-white">
+                                                {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
+                                            </h2>
+                                            <span class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-sky-50 px-3 py-1 font-mono text-xs font-black text-sky-700 shadow-sm dark:border-sky-800/80 dark:bg-sky-950/60 dark:text-sky-300">
+                                                <span class="h-2 w-2 rounded-full bg-sky-500"></span>
+                                                <span>{{ $resultado->cruzadas() }} de {{ $totalPartidasCot }} cruzadas</span>
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }} · {{ $resultado->resumen() }}</p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2.5">
+                                        @if($porConfirmar > 0)
+                                            <form method="POST" action="{{ route('purchase_requests.quotes.confirm', [$purchaseRequest, $lectura]) }}">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                                    Confirmar {{ $porConfirmar }} {{ \Illuminate\Support\Str::plural('pareja', $porConfirmar) }}
+                                                </button>
+                                            </form>
+                                        @endif
+                                        <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                            class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>
+                                            Ver documento original
+                                        </a>
+                                    </div>
+                                </div>
+
+                                @if($porConfirmar > 0)
+                                    <p class="border-b border-indigo-100 bg-indigo-50/70 px-6 py-3 text-xs font-semibold text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
+                                        {{ $porConfirmar }} {{ \Illuminate\Support\Str::plural('pareja', $porConfirmar) }} en violeta {{ $porConfirmar === 1 ? 'la propone' : 'las propone' }} el programa por la cantidad y el orden de los renglones, porque el nombre no alcanza para afirmarlo. Revísalas y confírmalas: quedan aprendidas para las próximas cotizaciones de este proveedor.
+                                    </p>
+                                @endif
+
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                            <tr>
+                                                <th class="w-14 px-6 py-3.5 text-center">N°</th>
+                                                <th class="px-6 py-3.5 font-bold">Partida</th>
+                                                <th class="w-40 whitespace-nowrap px-6 py-3.5 font-bold">Pediste</th>
+                                                <th class="w-40 whitespace-nowrap px-6 py-3.5 font-bold">Cotizaron</th>
+                                                <th class="hidden px-6 py-3.5 font-bold md:table-cell">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                            @foreach ($resultado->filas as $fila)
+                                                @php
+                                                    $tono = match ($fila->estado) {
+                                                        'propuesta' => 'bg-indigo-50/50 dark:bg-indigo-950/20',
+                                                        'sin_cotizar' => 'bg-rose-50/40 dark:bg-rose-950/10',
+                                                        'difiere' => 'bg-amber-50/40 dark:bg-amber-950/10',
+                                                        default => '',
+                                                    };
+                                                @endphp
+                                                <tr class="align-top transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 {{ $tono }}">
+                                                    <td class="px-6 py-4 text-center">
+                                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                            {{ $loop->iteration }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-slate-800 dark:text-slate-100">
+                                                        <span class="font-bold">{{ $fila->pedida?->product_service ?? '—' }}</span>
+                                                        @if($fila->cotizada)
+                                                            <span class="mt-1 flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                                                <span class="mt-px shrink-0 {{ $fila->esPropuesta() ? 'text-indigo-500' : 'text-slate-400' }}">↳</span>
+                                                                <span>{{ $fila->cotizada['product_service'] ?? '—' }}</span>
+                                                            </span>
+                                                        @endif
+                                                        @foreach ($fila->diferencias as $diferencia)
+                                                            <span class="mt-1 block text-xs font-semibold text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
                                                         @endforeach
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-6 py-4 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                                                        @if($fila->pedida)
+                                                            {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
+                                                            @if($fila->pedida->unit_price !== null)
+                                                                <span class="block text-[11px] text-slate-400">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
+                                                            @endif
+                                                        @endif
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-6 py-4 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                                                        @if($fila->cotizada)
+                                                            {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
+                                                            @if(filled($fila->cotizada['unit_price'] ?? null))
+                                                                <span class="block text-[11px] font-bold text-slate-800 dark:text-slate-200">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="font-sans italic text-slate-400">no la cotizaron</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="hidden px-6 py-4 text-xs md:table-cell">
+                                                        @if($fila->esPropuesta())
+                                                            <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
+                                                                class="flex flex-wrap items-center gap-2">
+                                                                @csrf
+                                                                <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                <input type="hidden" name="item_id" value="{{ $fila->pedida?->getKey() }}">
+                                                                <button type="submit"
+                                                                    class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
+                                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                                                    Sí, es esa
+                                                                </button>
+                                                                <span class="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">por confirmar</span>
+                                                            </form>
+                                                        @elseif($fila->estado === 'sin_cotizar')
+                                                            <span class="font-bold text-rose-700 dark:text-rose-300">No la cotizaron</span>
+                                                        @else
+                                                            @forelse ($fila->diferencias as $diferencia)
+                                                                <span class="block font-semibold {{ $fila->hayProblema ? 'text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">{{ $diferencia }}</span>
+                                                            @empty
+                                                                <span class="font-bold text-emerald-600 dark:text-emerald-400">✓ Coincide</span>
+                                                            @endforelse
+
+                                                            {{-- Sólo donde hay algo guardado que borrar: un cruce
+                                                                 que salió del parecido no se deshace, se corrige
+                                                                 enseñando el correcto. --}}
+                                                            @if($fila->aprendida)
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.unlink', [$purchaseRequest, $lectura]) }}" class="mt-1.5">
+                                                                    @csrf
+                                                                    <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                    <button type="submit" class="text-[11px] font-bold text-slate-400 underline decoration-dotted underline-offset-2 hover:text-rose-600 dark:hover:text-rose-400">
+                                                                        Lo enseñaste tú · deshacer
+                                                                    </button>
+                                                                </form>
+                                                            @endif
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                        <tfoot class="border-t border-slate-200/80 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/60">
+                                            <tr>
+                                                <td colspan="5" class="px-6 py-3.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                                    Tus {{ $totalPartidasCot }} {{ \Illuminate\Support\Str::plural('partida', $totalPartidasCot) }}, una por fila
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </section>
+
+                            {{-- Lo que el proveedor agregó por su cuenta. Va aparte
+                                 porque no es una partida tuya, pero hay que verlo:
+                                 puede ser un flete, o algo que alguien olvidó pedir. --}}
+                            @if(count($resultado->sobrantes) > 0)
+                                <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <div class="border-b border-slate-200/80 px-6 py-4 dark:border-slate-800">
+                                        <h3 class="text-sm font-black text-slate-900 dark:text-white">
+                                            El proveedor agregó {{ count($resultado->sobrantes) }} {{ \Illuminate\Support\Str::plural('línea', count($resultado->sobrantes)) }} que no pediste
+                                        </h3>
+                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Si alguna es una de tus partidas escrita con otras palabras, dísela y queda aprendida.</p>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left text-sm">
+                                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                                @foreach ($resultado->sobrantes as $fila)
+                                                    <tr class="align-top hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                                        <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{{ $fila->cotizada['product_service'] ?? '—' }}</td>
+                                                        <td class="w-40 whitespace-nowrap px-6 py-4 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                                                            {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
+                                                            @if(filled($fila->cotizada['unit_price'] ?? null))
+                                                                <span class="block text-[11px] font-bold text-slate-800 dark:text-slate-200">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="px-6 py-4">
+                                                            @if($purchaseRequest->items->isNotEmpty())
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
+                                                                    class="flex flex-wrap items-center gap-2">
+                                                                    @csrf
+                                                                    <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                    <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
+                                                                    <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
+                                                                        class="min-h-9 max-w-56 rounded-xl border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                                                                        <option value="">¿Es alguna de tus partidas?</option>
+                                                                        @foreach ($purchaseRequest->items as $partida)
+                                                                            <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                    <button type="submit"
+                                                                        class="min-h-9 rounded-xl border border-slate-300 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                                                                        Es la misma
+                                                                    </button>
+                                                                </form>
+                                                            @endif
+                                                        </td>
                                                     </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
-                                                    @foreach ($cuadricula->filas as $fila)
-                                                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                            <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
-                                                            @foreach ($fila['precios'] as $i => $precio)
-                                                                <td class="whitespace-nowrap px-4 py-2.5 {{ $fila['masBarato'] === $i ? 'font-extrabold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300' }}">
-                                                                    @if($precio === null)
-                                                                        <span class="text-slate-400">no cotizó</span>
-                                                                    @else
-                                                                        $ {{ number_format($precio, 0, ',', '.') }}
-                                                                        @if($fila['masBarato'] === $i)
-                                                                            <span class="ml-1 text-xs font-bold">más barato</span>
-                                                                        @endif
-                                                                    @endif
-                                                                </td>
-                                                            @endforeach
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                                <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
-                                                    <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                        <td class="px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
-                                                        @foreach ($cuadricula->totales as $total)
-                                                            <td class="whitespace-nowrap px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">
-                                                                $ {{ number_format($total['total'], 0, ',', '.') }}
-                                                                @if($total['faltan'] > 0)
-                                                                    {{-- Sin esto el que cotizó menos partidas parece el más
-                                                                         conveniente sólo por haber ofrecido menos. --}}
-                                                                    <span class="block text-xs font-normal text-amber-700 dark:text-amber-400">
-                                                                        le faltan {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
-                                                                    </span>
-                                                                @endif
-                                                            </td>
-                                                        @endforeach
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </div>
-                                    </section>
-                            </div>
-                        @endif
-                                    @foreach ($comparables as $indice => $comparacion)
-                                        @php
-                                            $lectura = $comparacion['ingestion'];
-                                            $resultado = $comparacion['resultado'];
-                                        @endphp
-                                        <div x-show="vista === 'cot{{ $indice }}'" x-cloak>
-                                            <p class="px-4 pt-3 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
-                                            <div class="overflow-x-auto">
-                                                <table class="min-w-full text-sm">
-                                                    <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                            <th class="px-4 py-2 font-bold">Partida</th>
-                                                            <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Pediste</th>
-                                                            <th class="w-px whitespace-nowrap px-4 py-2 font-bold">Cotizaron</th>
-                                                            <th class="hidden px-4 py-2 font-bold md:table-cell">Diferencia</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
-                                                        @foreach ($resultado->ordenadas() as $fila)
-                                                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 align-top {{ $fila->estaBien() ? '' : 'bg-amber-50/40 dark:bg-amber-950/10' }}">
-                                                                <td class="px-4 py-2.5 text-slate-800 dark:text-slate-100">
-                                                                    <span class="font-bold">{{ $fila->pedida?->product_service ?? $fila->cotizada['product_service'] ?? '—' }}</span>
-                                                                    @foreach ($fila->diferencias as $diferencia)
-                                                                        <span class="mt-0.5 block text-xs font-normal text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
-                                                                    @endforeach
-                                                                </td>
-                                                                <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-600 dark:text-slate-300">
-                                                                    @if($fila->pedida)
-                                                                        {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
-                                                                        @if($fila->pedida->unit_price !== null)
-                                                                            <span class="block text-xs">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
-                                                                        @endif
-                                                                    @else
-                                                                        <span class="text-slate-400">no la pediste</span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-600 dark:text-slate-300">
-                                                                    @if($fila->cotizada)
-                                                                        {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
-                                                                        @if(filled($fila->cotizada['unit_price'] ?? null))
-                                                                            <span class="block text-xs">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
-                                                                        @endif
-                                                                    @else
-                                                                        <span class="text-slate-400">no la cotizaron</span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="hidden px-4 py-2.5 text-xs md:table-cell {{ $fila->estaBien() ? 'text-slate-400' : 'text-amber-800 dark:text-amber-300' }}">
-                                                                    @forelse ($fila->diferencias as $diferencia)
-                                                                        <span class="block">{{ $diferencia }}</span>
-                                                                    @empty
-                                                                        —
-                                                                    @endforelse
-
-                                                                    {{-- Una línea que el proveedor trae y no calza con
-                                                                         ninguna partida: aquí se dice cuál es. Se aprende
-                                                                         una vez y la próxima se cruza sola. --}}
-                                                                    @if($fila->estado === 'no_pedida' && $purchaseRequest->items->isNotEmpty())
-                                                                        <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
-                                                                            class="mt-2 flex flex-wrap items-center gap-1.5">
-                                                                            @csrf
-                                                                            <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
-                                                                            <label class="sr-only" for="cruce-{{ $lectura->id }}-{{ $loop->index }}">¿Qué partida es?</label>
-                                                                            <select id="cruce-{{ $lectura->id }}-{{ $loop->index }}" name="item_id" required
-                                                                                class="min-h-9 max-w-52 rounded-lg border-slate-300 bg-white py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                                                                                <option value="">¿Es alguna de tus partidas?</option>
-                                                                                @foreach ($purchaseRequest->items as $partida)
-                                                                                    <option value="{{ $partida->getKey() }}">{{ Str::limit($partida->product_service, 44) }}</option>
-                                                                                @endforeach
-                                                                            </select>
-                                                                            <button type="submit"
-                                                                                class="min-h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                                                                                Es la misma
-                                                                            </button>
-                                                                        </form>
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                    </div>
-
-                    {{-- La ficha y las cotizaciones son el contexto de la solicitud; al
-                         comparar estorban y le quitan ancho a la tabla. --}}
-                    <aside x-show="vista === 'solicitud'" class="space-y-5">
-                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Información de la solicitud</h2></div>
-                        <dl class="grid gap-x-6 gap-y-4 p-4 text-sm sm:grid-cols-2 sm:p-5">
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Departamento</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->department ?: '—' }}</dd></div>
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Fecha requerida</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $formatDate($purchaseRequest->required_date) }}</dd></div>
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitante</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requester_name_snapshot ?: data_get($purchaseRequest, 'requester.name', '—') }}</dd></div>
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Solicitado para</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for ?: '—' }}</dd></div>
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Centro de costo</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->cost_center ?: '—' }}</dd></div>
-                            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Lugar de entrega o uso</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->delivery_location ?: '—' }}</dd></div>
-                            @if(filled($purchaseRequest->urgent_reason))
-                                <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Justificación de urgencia</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->urgent_reason }}</dd></div>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
                             @endif
+                        </div>
+                    @endforeach
+
+                </div>
+
+                {{-- COLUMNA LATERAL (CARDS DE GESTIÓN Y DETALLE) ── --}}
+                <aside x-show="vista === 'solicitud'" class="space-y-6 xl:col-span-4 2xl:col-span-3">
+
+                    {{-- Card: Información de la solicitud --}}
+                    <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div class="border-b border-slate-100 p-5 dark:border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <h2 class="text-sm font-black text-slate-900 dark:text-white">Información de la solicitud</h2>
+                            </div>
+                        </div>
+
+                        <dl class="grid gap-x-4 gap-y-4 p-5 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Departamento</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->department ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Fecha requerida</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $formatDate($purchaseRequest->required_date) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Solicitante</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $requesterName }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Solicitado para</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Centro de costo</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->cost_center ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Lugar de entrega o uso</dt>
+                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->delivery_location ?: '—' }}</dd>
+                            </div>
+
+                            @if(filled($purchaseRequest->urgent_reason))
+                                <div class="sm:col-span-2 rounded-2xl bg-rose-50/70 p-3.5 dark:bg-rose-950/30">
+                                    <dt class="text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">Justificación de urgencia</dt>
+                                    <dd class="mt-1 whitespace-pre-line text-xs font-medium text-rose-900 dark:text-rose-100">{{ $purchaseRequest->urgent_reason }}</dd>
+                                </div>
+                            @endif
+
                             @if(filled($purchaseRequest->internal_notes ?? $purchaseRequest->notes))
-                                <div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Observaciones internas</dt><dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</dd></div>
+                                <div class="sm:col-span-2 rounded-2xl bg-slate-50 p-3.5 dark:bg-slate-800/60">
+                                    <dt class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Observaciones internas</dt>
+                                    <dd class="mt-1 whitespace-pre-line text-xs font-medium text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</dd>
+                                </div>
                             @endif
                         </dl>
                     </section>
-                    {{-- Anulación pendiente: el revisor tiene que verla ANTES de
-                         decidir. Una solicitud se aprobó en producción treinta
-                         segundos después de que el solicitante pidiera anularla. --}}
+
+                    {{-- Anulación pendiente solicitada --}}
                     @if($purchaseRequest->cancellation_requested_at)
-                        <section class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
-                            <h2 class="flex items-center gap-2 font-extrabold text-rose-900 dark:text-rose-100">
+                        <section class="rounded-3xl border-2 border-rose-300 bg-rose-50/90 p-5 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
+                            <h2 class="flex items-center gap-2 text-sm font-black text-rose-900 dark:text-rose-100">
                                 <span aria-hidden="true">⊘</span>
                                 {{ $purchaseRequest->requester?->name ?? 'El solicitante' }} pidió anular esta solicitud
                             </h2>
                             <p class="mt-1 text-xs text-rose-800 dark:text-rose-200">
-                                El {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y') }} a las
-                                {{ $purchaseRequest->cancellation_requested_at->format('H:i') }}.
+                                El {{ $purchaseRequest->cancellation_requested_at->format('d-m-Y') }} a las {{ $purchaseRequest->cancellation_requested_at->format('H:i') }}.
                             </p>
 
                             @if(filled($purchaseRequest->cancellation_reason))
-                                <p class="mt-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/60 dark:text-rose-100">
+                                <p class="mt-2.5 rounded-xl bg-white/80 p-3 text-xs text-rose-900 dark:bg-rose-950/70 dark:text-rose-100">
                                     {{ $purchaseRequest->cancellation_reason }}
                                 </p>
                             @endif
 
-                            <p class="mt-2 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                            <p class="mt-3 text-xs font-bold text-rose-900 dark:text-rose-100">
                                 @can('cancel', $purchaseRequest)
                                     Decide antes de aprobarla: puedes anularla más abajo, o resolverla igual si corresponde.
                                 @else
@@ -628,7 +1206,7 @@
                                 <form method="POST" action="{{ route('purchase_requests.withdraw_cancellation', $purchaseRequest) }}" class="mt-3">
                                     @csrf
                                     <button type="submit"
-                                        class="min-h-11 w-full rounded-xl border border-rose-300 bg-white px-3 text-sm font-bold text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:bg-transparent dark:text-rose-200">
+                                        class="min-h-10 w-full rounded-xl border border-rose-300 bg-white px-3 text-xs font-bold text-rose-800 shadow-sm hover:bg-rose-100 dark:border-rose-800 dark:bg-transparent dark:text-rose-200">
                                         Retirar mi petición de anulación
                                     </button>
                                 </form>
@@ -636,179 +1214,257 @@
                         </section>
                     @endif
 
+                    {{-- Lista para enviar (si está editable) --}}
                     @if($isEditable)
-                        <section class="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30"><h2 class="font-extrabold text-blue-950 dark:text-blue-100">Lista para enviar</h2><p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Al enviar, la solicitud quedará pendiente de revisión.</p><form method="POST" action="{{ route('purchase_requests.submit', $purchaseRequest) }}" class="mt-4">@csrf<button type="submit" class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white hover:bg-blue-700">Enviar a revisión</button></form></section>
+                        <section class="rounded-3xl border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                </div>
+                                <h2 class="text-sm font-black text-blue-950 dark:text-blue-100">Lista para enviar</h2>
+                            </div>
+                            <p class="mt-2 text-xs text-blue-800 dark:text-blue-200">Al enviar, la solicitud quedará en estado pendiente de revisión por el equipo de Compras.</p>
+                            <form method="POST" action="{{ route('purchase_requests.submit', $purchaseRequest) }}" class="mt-4">
+                                @csrf
+                                <button type="submit" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-md shadow-blue-500/25 transition hover:bg-blue-700 active:scale-95">
+                                    <span>Enviar a revisión</span>
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </button>
+                            </form>
+                        </section>
                     @endif
 
+                    {{-- Revisión de Compras (Aprobar / Solicitar cambios / Rechazar) --}}
                     @if($canReview)
-                        <section x-data="{ action: '' }" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30"><h2 class="font-extrabold text-amber-950 dark:text-amber-100">Revisión de Compras</h2><p class="mt-1 text-sm text-amber-800 dark:text-amber-200">La acción quedará registrada en el historial.</p><form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-3">@csrf<input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}"><div x-show="action === 'changes'" x-cloak class="rounded-xl border border-amber-300 bg-white/70 p-3 dark:border-amber-900 dark:bg-slate-950/40">
-        <p class="text-xs font-extrabold text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>
-        <p class="mt-0.5 text-xs text-amber-800 dark:text-amber-200">Marca los puntos concretos. El solicitante los verá resaltados al editar.</p>
+                        <section x-data="{ action: '' }" class="rounded-3xl border border-amber-200/90 bg-amber-50/70 p-5 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-600 text-white">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <h2 class="text-sm font-black text-amber-950 dark:text-amber-100">Revisión de Compras</h2>
+                            </div>
+                            <p class="mt-1.5 text-xs text-amber-800 dark:text-amber-200">Toma una decisión sobre la solicitud. La acción quedará registrada en el historial de auditoría.</p>
 
-        <div class="mt-2 grid gap-1.5 sm:grid-cols-2">
-            @foreach (\App\Enums\PurchaseRequestCorrection::cases() as $punto)
-                <label class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-amber-900 hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40">
-                    <input type="checkbox" name="corrections[]" value="{{ $punto->value }}"
-                        class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                    <span>{{ $punto->label() }}</span>
-                </label>
-            @endforeach
-        </div>
+                            <form method="POST" action="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="mt-4 space-y-4">
+                                @csrf
+                                <input type="hidden" name="lock_version" value="{{ $purchaseRequest->lock_version }}">
 
-        @if($purchaseRequest->items->isNotEmpty())
-            <p class="mt-3 text-xs font-extrabold text-amber-900 dark:text-amber-100">Partidas puntuales</p>
-            <div class="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-amber-200 dark:border-amber-900">
-                @foreach ($purchaseRequest->items as $partida)
-                    <label class="flex min-h-11 items-center gap-2 border-b border-amber-100 px-2 text-xs text-amber-900 last:border-b-0 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-100 dark:hover:bg-amber-950/40">
-                        <input type="checkbox" name="corrections[]" value="{{ \App\Enums\PurchaseRequestCorrection::itemKey($partida->sort_order) }}"
-                            class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
-                        <span class="font-bold">{{ $partida->sort_order }}.</span>
-                        <span class="truncate">{{ $partida->product_service }}</span>
-                    </label>
-                @endforeach
-            </div>
-        @endif
-        @error('corrections.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-    </div><label for="review-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">Comentario <span x-show="action !== 'approve'" class="text-rose-600">*</span></label><textarea id="review-comment" name="comment" rows="3" :required="action !== 'approve'" class="w-full rounded-xl border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white" placeholder="Obligatorio al devolver o rechazar."></textarea><div class="grid grid-cols-1 gap-2"><button type="submit" @click="action = 'approve'" formaction="{{ route('purchase_requests.approve', $purchaseRequest) }}" class="min-h-11 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white hover:bg-emerald-700">Aprobar</button><button type="submit" @click="action = 'changes'" formaction="{{ route('purchase_requests.request_changes', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-amber-300 px-3 text-sm font-extrabold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40">Solicitar cambios</button><button type="submit" @click="action = 'reject'" formaction="{{ route('purchase_requests.reject', $purchaseRequest) }}" class="min-h-11 rounded-xl border border-rose-300 px-3 text-sm font-extrabold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30">Rechazar</button></div></form></section>
+                                <div x-show="action === 'changes'" x-cloak class="rounded-2xl border border-amber-300 bg-white/80 p-4 dark:border-amber-900 dark:bg-slate-950/60">
+                                    <p class="text-xs font-black text-amber-900 dark:text-amber-100">¿Qué hay que corregir?</p>
+                                    <p class="mt-0.5 text-xs text-amber-800 dark:text-amber-200">Marca los puntos concretos. El solicitante los verá resaltados al editar.</p>
+
+                                    <div class="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+                                        @foreach (\App\Enums\PurchaseRequestCorrection::cases() as $punto)
+                                            <label class="flex min-h-10 items-center gap-2 rounded-xl px-2.5 text-xs font-semibold text-amber-950 hover:bg-amber-100/70 dark:text-amber-100 dark:hover:bg-amber-950/50">
+                                                <input type="checkbox" name="corrections[]" value="{{ $punto->value }}"
+                                                    class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                                                <span>{{ $punto->label() }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+
+                                    @if($purchaseRequest->items->isNotEmpty())
+                                        <p class="mt-3 text-xs font-black text-amber-900 dark:text-amber-100">Partidas puntuales ({{ $itemsCount }})</p>
+                                        <div class="mt-1.5 max-h-44 overflow-y-auto rounded-xl border border-amber-200 bg-white/50 dark:border-amber-900 dark:bg-slate-900/50">
+                                            @foreach ($purchaseRequest->items as $partida)
+                                                <label class="flex min-h-10 items-center gap-2 border-b border-amber-100/80 px-2.5 text-xs text-amber-950 last:border-b-0 hover:bg-amber-100/60 dark:border-amber-900/60 dark:text-amber-100 dark:hover:bg-amber-950/40">
+                                                    <input type="checkbox" name="corrections[]" value="{{ \App\Enums\PurchaseRequestCorrection::itemKey($partida->sort_order) }}"
+                                                        class="h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                                                    <span class="font-bold">{{ $partida->sort_order }}.</span>
+                                                    <span class="truncate">{{ $partida->product_service }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                    @error('corrections.*') <p class="mt-1.5 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label for="review-comment" class="block text-xs font-bold text-amber-900 dark:text-amber-100">
+                                        Comentario <span x-show="action !== 'approve'" class="text-rose-600">*</span>
+                                    </label>
+                                    <textarea id="review-comment" name="comment" rows="3" :required="action !== 'approve'"
+                                        class="w-full rounded-2xl border-amber-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-amber-900 dark:bg-slate-950 dark:text-white"
+                                        placeholder="Obligatorio al devolver o rechazar."></textarea>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button type="submit" @click="action = 'approve'" formaction="{{ route('purchase_requests.approve', $purchaseRequest) }}"
+                                        class="min-h-11 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-md shadow-emerald-500/25 hover:bg-emerald-700 active:scale-95 transition">
+                                        Aprobar
+                                    </button>
+                                    <button type="submit" @click="action = 'changes'" formaction="{{ route('purchase_requests.request_changes', $purchaseRequest) }}"
+                                        class="min-h-11 rounded-2xl border border-amber-300 bg-white px-4 text-sm font-extrabold text-amber-800 hover:bg-amber-50 active:scale-95 transition dark:border-amber-800 dark:bg-slate-900 dark:text-amber-200 dark:hover:bg-amber-950/40">
+                                        Solicitar cambios
+                                    </button>
+                                    <button type="submit" @click="action = 'reject'" formaction="{{ route('purchase_requests.reject', $purchaseRequest) }}"
+                                        class="min-h-11 rounded-2xl border border-rose-300 bg-white px-4 text-sm font-extrabold text-rose-700 hover:bg-rose-50 active:scale-95 transition dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-950/30">
+                                        Rechazar
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
                     @endif
 
-                    {{-- Sólo el resumen: el detalle de cada cotización vive junto a
-                         las partidas, que es lo que compara. Repetir aquí las
-                         cantidades pedidas era decir dos veces lo mismo en la misma
-                         pantalla, y esta columna es la que primero se satura. --}}
-                    <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
-                        <div class="flex items-baseline justify-between gap-2">
-                            <h2 class="font-extrabold text-sky-950 dark:text-sky-100">Cotizaciones</h2>
+                    {{-- Card: Cotizaciones Recibidas y Comparador --}}
+                    <section class="overflow-hidden rounded-3xl border border-sky-200/80 bg-sky-50/70 p-5 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600 text-white">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <h2 class="text-sm font-black text-sky-950 dark:text-sky-100">Cotizaciones</h2>
+                            </div>
                             @if(count($comparaciones) > 0)
-                                <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-extrabold text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">{{ count($comparaciones) }}</span>
+                                <span class="rounded-full bg-sky-200/80 px-2.5 py-0.5 text-xs font-black text-sky-900 dark:bg-sky-900 dark:text-sky-200">{{ count($comparaciones) }}</span>
                             @endif
                         </div>
 
-                        @foreach ($comparaciones as $comparacion)
-                            @php
-                                $lectura = $comparacion['ingestion'];
-                                $resultado = $comparacion['resultado'];
-                                $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
-                            @endphp
+                        <div class="mt-3.5 space-y-3">
+                            @foreach ($comparaciones as $comparacion)
+                                @php
+                                    $lectura = $comparacion['ingestion'];
+                                    $resultado = $comparacion['resultado'];
+                                    $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
+                                @endphp
 
-                            <div class="mt-3 flex items-start justify-between gap-2 rounded-xl bg-white p-3 dark:bg-slate-900">
-                                <div class="min-w-0">
-                                    <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                        class="block truncate text-sm font-bold text-sky-800 underline decoration-sky-300 underline-offset-2 hover:decoration-sky-600 dark:text-sky-200 dark:decoration-sky-700">{{ $lectura->original_name }}</a>
-                                    <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                                        {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
-                                    </p>
-                                    @if($leyendo)
-                                        <p class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Leyéndola…</p>
-                                    {{-- Una lectura fallida no tiene partidas, y sin esto
-                                         la línea diría «N diferencias» contando como
-                                         diferencia cada partida que nunca se leyó. --}}
-                                    @elseif($resultado->elDocumentoNoAporto())
-                                        <p class="mt-1 text-xs font-bold text-rose-700 dark:text-rose-400">
-                                            No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
-                                        </p>
-                                    @else
-                                        <p class="mt-1 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400' }}">
-                                            {{ $resultado->cuadra() ? '✓ Coincide con lo que pediste' : '⚠ '.$resultado->conDiferencias().' '.\Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
-                                        </p>
-                                    @endif
+                                <div class="rounded-2xl border border-sky-100 bg-white/95 p-4 shadow-sm dark:border-sky-900/50 dark:bg-slate-900/90">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0 flex-1">
+                                            <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                                class="block truncate text-xs font-black text-sky-900 hover:text-sky-700 hover:underline dark:text-sky-200 dark:hover:text-sky-300">
+                                                {{ $lectura->original_name }}
+                                            </a>
+                                            <p class="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                                {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
+                                            </p>
+
+                                            @if($leyendo)
+                                                <div class="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                    <svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                                    <span>Leyéndola…</span>
+                                                </div>
+                                            @elseif($resultado->elDocumentoNoAporto())
+                                                <p class="mt-2 text-xs font-bold text-rose-700 dark:text-rose-400">
+                                                    No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
+                                                </p>
+                                            @else
+                                                <p class="mt-2 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : ($resultado->porConfirmar() > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-400') }}">
+                                                    @if($resultado->porConfirmar() > 0)
+                                                        ◇ {{ $resultado->porConfirmar() }} {{ \Illuminate\Support\Str::plural('pareja', $resultado->porConfirmar()) }} por confirmar
+                                                    @elseif($resultado->cuadra())
+                                                        ✓ Coincide con lo que pediste
+                                                    @else
+                                                        ⚠ {{ $resultado->conDiferencias() }} {{ \Illuminate\Support\Str::plural('diferencia', $resultado->conDiferencias()) }}
+                                                    @endif
+                                                </p>
+                                                <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                                    {{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} partidas cruzadas
+                                                </p>
+                                            @endif
+                                        </div>
+                                        <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 transition" title="Quitar">
+                                                <span class="sr-only">Quitar</span>
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    @can('exportToOdoo', $purchaseRequest)
+                                        @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
+                                            <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="min-h-10 w-full rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
+                                                    Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
+                                                </button>
+                                                <p class="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
+                                                    Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
+                                                </p>
+                                            </form>
+                                        @endif
+                                    @endcan
                                 </div>
-                                <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800">Quitar</button>
-                                </form>
-                            </div>
+                            @endforeach
+                        </div>
 
-                            {{-- Sólo si la solicitud ya está en Odoo: sin orden allá
-                                 no hay líneas que actualizar. --}}
-                            @can('exportToOdoo', $purchaseRequest)
-                                @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
-                                    <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-2">
-                                        @csrf
-                                        <button type="submit"
-                                            class="min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
-                                            Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
-                                        </button>
-                                        <p class="mt-1 text-xs text-sky-800 dark:text-sky-300">
-                                            Sólo el precio de las partidas que cruzaron. No toca productos ni cantidades.
-                                        </p>
-                                    </form>
-                                @endif
-                            @endcan
-                        @endforeach
-
+                        {{-- Formulario para subir nueva cotización --}}
                         <form method="POST" action="{{ route('purchase_requests.quotes.store', $purchaseRequest) }}"
-                            enctype="multipart/form-data" class="mt-3 space-y-2">
+                            enctype="multipart/form-data" class="mt-4 space-y-2.5">
                             @csrf
+                            <label class="block text-xs font-bold text-sky-950 dark:text-sky-100">
+                                {{ count($comparaciones) ? 'Subir otra cotización del proveedor' : 'Subir cotización para comparar' }}
+                            </label>
                             <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
-                                class="block w-full text-sm text-sky-900 file:mr-3 file:min-h-9 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:text-sm file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
+                                class="block w-full text-xs text-sky-900 file:mr-3 file:min-h-9 file:rounded-xl file:border-0 file:bg-sky-600 file:px-3 file:text-xs file:font-bold file:text-white hover:file:bg-sky-700 dark:text-sky-100">
                             @error('quote') <p class="text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                             <button type="submit"
-                                class="min-h-11 w-full rounded-xl bg-sky-600 px-3 text-sm font-extrabold text-white hover:bg-sky-700">
-                                {{ count($comparaciones) ? 'Subir otra cotización' : 'Subir la del proveedor y comparar' }}
+                                class="min-h-10 w-full rounded-2xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-md shadow-sky-500/25 hover:bg-sky-700 active:scale-95 transition">
+                                {{ count($comparaciones) ? 'Subir y contrastar' : 'Subir la del proveedor y comparar' }}
                             </button>
                         </form>
                     </section>
 
-                    @php
-                        $odooActivo = (bool) config('purchase_requests.odoo.enabled');
-                        $yaEnOdoo = filled($purchaseRequest->odoo_order_id);
-                        $candidatos = session('odoo_candidates', []);
-                    @endphp
-
+                    {{-- Card: Integración ERP Odoo --}}
                     @can('exportToOdoo', $purchaseRequest) @if($odooActivo)
-                        <section class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/30">
-                            <h2 class="font-extrabold text-violet-950 dark:text-violet-100">Odoo</h2>
+                        <section class="overflow-hidden rounded-3xl border border-violet-200/80 bg-violet-50/70 p-5 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/30">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    </div>
+                                    <h2 class="text-sm font-black text-violet-950 dark:text-violet-100">Odoo</h2>
+                                </div>
+                                @if($yaEnOdoo)
+                                    <span class="rounded-xl bg-violet-200/80 px-3 py-1 font-mono text-xs font-black text-violet-900 dark:bg-violet-900 dark:text-violet-200">
+                                        {{ $purchaseRequest->odoo_reference }}
+                                    </span>
+                                @endif
+                            </div>
 
                             @if($yaEnOdoo)
-                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                    Ya está en Odoo como <span class="font-extrabold">{{ $purchaseRequest->odoo_reference }}</span>,
-                                    en borrador. Se confirma allá.
-                                </p>
-                                <p class="mt-1 text-xs text-violet-800 dark:text-violet-300">
-                                    Enviada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}.
-                                    No se vuelve a enviar: habría dos cotizaciones para la misma compra.
-                                </p>
-                            {{-- `exists` y no `filled`: cuando Odoo no encontró nada
-                                 la lista llega vacía, y es justo el momento en que
-                                 más falta hace el buscador. --}}
+                                <div class="mt-3.5 rounded-2xl bg-white/90 p-4 dark:bg-slate-900/90 shadow-sm">
+                                    <p class="text-xs font-bold text-violet-950 dark:text-violet-100">
+                                        Ya está en Odoo como <span class="font-mono font-extrabold">{{ $purchaseRequest->odoo_reference }}</span> (en borrador).
+                                    </p>
+                                    <p class="mt-1 text-[11px] text-violet-800 dark:text-violet-300">
+                                        Exportada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}. No se vuelve a enviar.
+                                    </p>
+                                </div>
                             @elseif(session()->exists('odoo_candidates') || session('odoo_query'))
-                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                    Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}».
-                                    Búscalo tú, que sabes a quién buscas.
-                                </p>
+                                <div class="mt-3.5 space-y-3">
+                                    <p class="text-xs text-violet-900 dark:text-violet-200">
+                                        Odoo no reconoce a «{{ collect($purchaseRequest->suggested_suppliers ?? [])->first() ?: 'el proveedor' }}». Búscalo tú:
+                                    </p>
 
-                                <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="mt-3 flex gap-2">
-                                    @csrf
-                                    <input name="q" value="{{ session('odoo_query') }}" placeholder="Buscar en Odoo por nombre o RUT"
-                                        class="min-h-11 w-full rounded-xl border-violet-300 bg-white px-3 text-sm dark:border-violet-800 dark:bg-slate-950 dark:text-white">
-                                    <button type="submit"
-                                        class="min-h-11 shrink-0 rounded-xl border border-violet-300 px-4 text-sm font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200">
-                                        Buscar
-                                    </button>
-                                </form>
-
-                                @foreach($candidatos as $candidato)
-                                    <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}" class="mt-2">
+                                    <form method="POST" action="{{ route('purchase_requests.odoo.supplier_search', $purchaseRequest) }}" class="flex gap-2">
                                         @csrf
-                                        <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
-                                        <input type="hidden" name="name" value="{{ $candidato['name'] }}">
-                                        <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
+                                        <input name="q" value="{{ session('odoo_query') }}" placeholder="Buscar en Odoo por nombre o RUT"
+                                            class="min-h-10 w-full rounded-xl border-violet-300 bg-white px-3 text-xs dark:border-violet-800 dark:bg-slate-950 dark:text-white">
                                         <button type="submit"
-                                            class="w-full rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-left text-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950 dark:hover:bg-violet-950/60">
-                                            <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
-                                            <span class="block text-xs {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                                {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo · habrá que ponérselo allá para que se reconozca solo' }}
-                                            </span>
+                                            class="min-h-10 shrink-0 rounded-xl border border-violet-300 bg-white px-3 text-xs font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">
+                                            Buscar
                                         </button>
                                     </form>
-                                @endforeach
 
-                                <p class="mt-3 text-xs text-violet-800 dark:text-violet-300">
-                                    Si no aparece, hay que darlo de alta en Odoo. Este programa no crea proveedores:
-                                    el maestro de la empresa se administra allá.
-                                </p>
-
+                                    @foreach($candidatos as $candidato)
+                                        <form method="POST" action="{{ route('purchase_requests.odoo.supplier', $purchaseRequest) }}">
+                                            @csrf
+                                            <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
+                                            <input type="hidden" name="name" value="{{ $candidato['name'] }}">
+                                            <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
+                                            <button type="submit"
+                                                class="w-full rounded-xl border border-violet-200 bg-white p-2.5 text-left text-xs shadow-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950">
+                                                <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
+                                                <span class="block text-[11px] {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
+                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}
+                                                </span>
+                                            </button>
+                                        </form>
+                                    @endforeach
+                                </div>
                             @else
                                 @php
                                     $emparejador = app(\App\Services\PurchaseRequests\Products\ProductMatcher::class);
@@ -822,109 +1478,86 @@
                                     $consultas = session('odoo_product_query', []);
                                 @endphp
 
-                                {{-- Sin producto, Odoo no genera recepción al confirmar
-                                     la orden y el stock nunca sube. Por eso se muestra
-                                     partida por partida antes de enviar. --}}
-                                <div class="mt-3 space-y-2">
-                                    @foreach($purchaseRequest->items as $partida)
-                                        @php
-                                            $r = $emparejador->match((string) $partida->product_service, $proveedorOdoo, $partida->specification);
-                                            $encontrados = $busquedas[$partida->id] ?? null;
-                                        @endphp
+                                <div class="mt-3.5 space-y-2.5">
+                                    <p class="text-xs font-bold text-violet-950 dark:text-violet-200">Mapeo de productos Odoo ({{ $itemsCount }} partidas):</p>
+                                    <div class="max-h-60 space-y-2 overflow-y-auto pr-1">
+                                        @foreach($purchaseRequest->items as $partida)
+                                            @php
+                                                $r = $emparejador->match((string) $partida->product_service, $proveedorOdoo, $partida->specification);
+                                                $encontrados = $busquedas[$partida->id] ?? null;
+                                            @endphp
 
-                                        <div class="rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-950">
-                                            <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $partida->product_service }}</p>
-
-                                            @if($r->resolved())
-                                                <div class="mt-1 flex items-start justify-between gap-2">
-                                                    <div class="min-w-0">
-                                                        <p class="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                                            ✓ {{ $r->odooProductName }}
-                                                        </p>
-                                                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ $r->reason }}</p>
-                                                    </div>
-                                                    {{-- El botón de emparejar se aprieta en un segundo y sin
-                                                         esto el alias se quedaba para siempre, contagiando
-                                                         además a las próximas solicitudes con ese texto. --}}
-                                                    <form method="POST" action="{{ route('purchase_requests.odoo.product_unlink', [$purchaseRequest, $partida]) }}">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit"
-                                                            class="min-h-9 shrink-0 rounded-lg px-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300">
-                                                            Cambiar
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            @else
-                                                <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                                    Sin producto de Odoo · esta línea no sumará al stock al recibirla
+                                            <div class="rounded-xl border border-violet-200 bg-white p-3 text-xs dark:border-violet-900 dark:bg-slate-950 shadow-sm">
+                                                <p class="font-bold text-slate-900 dark:text-white truncate">
+                                                    <span class="inline-flex h-4 w-4 items-center justify-center rounded bg-violet-100 font-mono text-[10px] font-black text-violet-700 dark:bg-violet-900 dark:text-violet-200 mr-1.5">{{ $loop->iteration }}</span>{{ $partida->product_service }}
                                                 </p>
 
-                                                @foreach(($encontrados ?? $r->candidates) as $c)
-                                                    <form method="POST" action="{{ route('purchase_requests.odoo.product_link', [$purchaseRequest, $partida]) }}" class="mt-1.5">
+                                                @if($r->resolved())
+                                                    <div class="mt-1 flex items-center justify-between gap-1">
+                                                        <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 truncate">
+                                                            ✓ {{ $r->odooProductName }}
+                                                        </span>
+                                                        <form method="POST" action="{{ route('purchase_requests.odoo.product_unlink', [$purchaseRequest, $partida]) }}">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="text-[10px] font-bold text-slate-400 hover:text-violet-700">Cambiar</button>
+                                                        </form>
+                                                    </div>
+                                                @else
+                                                    <p class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                                                        Sin producto de Odoo · esta línea no sumará al stock al recibirla
+                                                    </p>
+                                                    @foreach(($encontrados ?? $r->candidates) as $c)
+                                                        <form method="POST" action="{{ route('purchase_requests.odoo.product_link', [$purchaseRequest, $partida]) }}" class="mt-1.5">
+                                                            @csrf
+                                                            <input type="hidden" name="odoo_product_id" value="{{ $c['odoo_id'] }}">
+                                                            <input type="hidden" name="odoo_product_name" value="{{ $c['name'] }}">
+                                                            <button type="submit" class="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-left text-[11px] hover:bg-violet-50 dark:border-slate-800">
+                                                                <span class="font-bold text-slate-800 dark:text-slate-200">{{ $c['name'] }}</span>
+                                                            </button>
+                                                        </form>
+                                                    @endforeach
+                                                    <form method="POST" action="{{ route('purchase_requests.odoo.product_search', [$purchaseRequest, $partida]) }}" class="mt-1.5 flex gap-1">
                                                         @csrf
-                                                        <input type="hidden" name="odoo_product_id" value="{{ $c['odoo_id'] }}">
-                                                        <input type="hidden" name="odoo_product_name" value="{{ $c['name'] }}">
-                                                        <button type="submit"
-                                                            class="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left text-xs hover:bg-violet-50 dark:border-slate-700 dark:hover:bg-violet-950/50">
-                                                            <span class="font-bold text-slate-800 dark:text-slate-100">{{ $c['name'] }}</span>
-                                                            <span class="block text-slate-500 dark:text-slate-400">
-                                                                {{ $c['reason'] }} · parecido {{ number_format($c['score'] * 100, 0) }}%
-                                                            </span>
-                                                        </button>
+                                                        <input name="q" value="{{ $consultas[$partida->id] ?? '' }}" placeholder="Buscar producto"
+                                                            class="h-8 w-full rounded-lg border-slate-300 px-2.5 text-[11px] dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                                                        <button type="submit" class="h-8 shrink-0 rounded-lg border border-slate-300 px-2.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">Buscar</button>
                                                     </form>
-                                                @endforeach
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
 
-                                                <form method="POST" action="{{ route('purchase_requests.odoo.product_search', [$purchaseRequest, $partida]) }}" class="mt-2 flex gap-1.5">
-                                                    @csrf
-                                                    <input name="q" value="{{ $consultas[$partida->id] ?? '' }}"
-                                                        placeholder="Buscar producto en Odoo"
-                                                        class="min-h-10 w-full rounded-lg border-slate-300 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                    <button type="submit"
-                                                        class="min-h-10 shrink-0 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                                                        Buscar
-                                                    </button>
-                                                </form>
-
-                                            @endif
-                                        </div>
-                                    @endforeach
+                                    <form method="POST" action="{{ route('purchase_requests.odoo.export', $purchaseRequest) }}" class="mt-3">
+                                        @csrf
+                                        <button type="submit"
+                                            class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-extrabold text-white shadow-md shadow-violet-500/25 hover:bg-violet-700 active:scale-95 transition">
+                                            <span>Enviar a Odoo</span>
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                        </button>
+                                    </form>
                                 </div>
-
-                                <p class="mt-1 text-sm text-violet-900 dark:text-violet-200">
-                                    Crea la cotización en Odoo, en borrador. No la confirma: eso se decide allá.
-                                </p>
-                                <form method="POST" action="{{ route('purchase_requests.odoo.export', $purchaseRequest) }}" class="mt-3">
-                                    @csrf
-                                    <button type="submit"
-                                        class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
-                                        Enviar a Odoo
-                                    </button>
-                                </form>
                             @endif
 
-                            {{-- Los precios, sin reabrir la solicitud entera.
-                                 Aprobada no es editable a propósito, pero el precio
-                                 es justo lo que no se sabía al aprobar: llega
-                                 después, del proveedor. --}}
+                            {{-- Precios unitarios --}}
                             <form method="POST" action="{{ route('purchase_requests.prices.update', $purchaseRequest) }}"
-                                class="mt-3 rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-slate-900">
+                                class="mt-3.5 rounded-2xl border border-violet-200 bg-white/95 p-4 dark:border-violet-900 dark:bg-slate-900 shadow-sm">
                                 @csrf
-                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Precios unitarios</p>
-                                <div class="mt-2 space-y-2">
+                                <p class="text-xs font-black text-slate-800 dark:text-slate-200">Precios unitarios</p>
+                                <div class="mt-2.5 max-h-48 space-y-1.5 overflow-y-auto pr-1">
                                     @foreach($purchaseRequest->items as $partida)
-                                        <label class="flex items-center gap-2">
-                                            <span class="min-w-0 flex-1 truncate text-xs text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
+                                        <label class="flex items-center justify-between gap-2 text-xs">
+                                            <span class="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{{ $partida->product_service }}</span>
                                             <input type="number" step="0.01" min="0" inputmode="decimal"
                                                 name="prices[{{ $partida->getKey() }}]"
                                                 value="{{ $partida->unit_price !== null ? (float) $partida->unit_price : '' }}"
                                                 placeholder="—"
-                                                class="min-h-9 w-28 rounded-lg border-slate-300 py-1 text-right text-xs tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                class="min-h-8 w-24 rounded-lg border-slate-300 py-1 text-right text-xs font-mono tabular-nums dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                                         </label>
                                     @endforeach
                                 </div>
                                 @error('prices.*') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                                 <button type="submit"
-                                    class="mt-2 min-h-11 w-full rounded-xl border border-violet-300 px-3 text-sm font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                    class="mt-3 min-h-10 w-full rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 active:scale-95 transition dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">
                                     Guardar precios
                                 </button>
                             </form>
@@ -933,7 +1566,7 @@
                                 <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
                                     @csrf
                                     <button type="submit"
-                                        class="min-h-11 w-full rounded-xl bg-violet-600 px-3 text-sm font-extrabold text-white hover:bg-violet-700">
+                                        class="min-h-10 w-full rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-md shadow-violet-500/25 hover:bg-violet-700 active:scale-95 transition">
                                         Llevar estos precios a {{ $purchaseRequest->odoo_reference }}
                                     </button>
                                 </form>
@@ -941,30 +1574,112 @@
                         </section>
                     @endif @endcan
 
+                    {{-- Card: Adjuntos --}}
                     @if($purchaseRequest->attachments->isNotEmpty())
-                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800"><h2 class="font-extrabold text-slate-900 dark:text-white">Adjuntos</h2></div><div class="divide-y divide-slate-100 dark:divide-slate-800">@forelse($purchaseRequest->attachments as $attachment)<div class="p-4"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB</p><div class="mt-3 flex gap-3"><a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}" class="text-xs font-extrabold text-blue-600 hover:text-blue-800 dark:text-blue-400">Descargar</a>@if($isEditable)<form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 dark:text-rose-400">Eliminar</button></form>@endif</div></div>@empty<div class="p-4 text-sm text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>@endforelse</div></section>
+                        <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="border-b border-slate-100 p-5 dark:border-slate-800">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    </div>
+                                    <h2 class="text-sm font-black text-slate-900 dark:text-white">Adjuntos</h2>
+                                    <span class="ml-auto rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                        {{ $purchaseRequest->attachments->count() }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                                @forelse($purchaseRequest->attachments as $attachment)
+                                    <div class="p-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                                        <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+                                            {{ $attachment->original_name ?: $attachment->file_name ?: 'Archivo adjunto' }}
+                                        </p>
+                                        <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                            {{ number_format(((int) ($attachment->size ?? $attachment->file_size ?? 0)) / 1024, 1, ',', '.') }} KB
+                                        </p>
+                                        <div class="mt-2.5 flex items-center gap-3">
+                                            <a href="{{ route('purchase_requests.attachments.download', [$purchaseRequest, $attachment]) }}"
+                                                class="text-xs font-extrabold text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400">
+                                                Descargar
+                                            </a>
+                                            @if($isEditable)
+                                                <form method="POST" action="{{ route('purchase_requests.attachments.destroy', [$purchaseRequest, $attachment]) }}">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-xs font-extrabold text-rose-600 hover:text-rose-800 hover:underline dark:text-rose-400">
+                                                        Eliminar
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="p-4 text-xs text-slate-500 dark:text-slate-400">No hay antecedentes adjuntos.</div>
+                                @endforelse
+                            </div>
+                        </section>
                     @endif
 
+                    {{-- Card: Proveedores Sugeridos --}}
                     @if(count($suggestedSuppliers))
-                    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"><h2 class="font-extrabold text-slate-900 dark:text-white">Proveedores sugeridos</h2><ul class="mt-3 grid gap-2 sm:grid-cols-2">@foreach($suggestedSuppliers as $supplier)<li class="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ $supplier }}</li>@endforeach</ul></section>
+                        <section class="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <h2 class="text-sm font-black text-slate-900 dark:text-white">Proveedores sugeridos</h2>
+                            <ul class="mt-3 flex flex-wrap gap-2">
+                                @foreach($suggestedSuppliers as $supplier)
+                                    <li class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                                        <svg class="h-3 w-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                        {{ $supplier }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </section>
                     @endif
 
-                    {{-- Plegado: es el bloque más largo de la columna y sólo se
-                         consulta. Abierto de entrada empujaba todo lo demás fuera
-                         de la pantalla, sobre todo en el teléfono. --}}
-                    <section x-data="{ abierto: false }" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    {{-- Card: Historial de Auditoría (Línea de tiempo) --}}
+                    <section x-data="{ abierto: false }" class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                         <button type="button" @click="abierto = !abierto"
-                            class="flex min-h-11 w-full items-center justify-between gap-2 px-4 py-4 text-left">
-                            <span class="font-extrabold text-slate-900 dark:text-white">Historial</span>
-                            <span class="flex items-center gap-2">
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $purchaseRequest->events->count() }}</span>
+                            class="flex min-h-12 w-full items-center justify-between gap-3 p-5 text-left transition hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <span class="text-sm font-black text-slate-900 dark:text-white">Historial</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                    {{ $purchaseRequest->events->count() }}
+                                </span>
                                 <span class="text-xs font-bold text-slate-400" x-text="abierto ? 'Ocultar' : 'Ver'"></span>
-                            </span>
+                            </div>
                         </button>
-                        <div x-show="abierto" x-cloak class="border-t border-slate-100 dark:border-slate-800"><ol class="space-y-4 p-4">@forelse($purchaseRequest->events as $event)<li class="relative pl-5"><span class="absolute left-0 top-1 h-3 w-3 rounded-full {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->dotClasses() : 'bg-slate-400' }}" aria-hidden="true"></span><p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->label() : (data_get($event, 'label') ?: \Illuminate\Support\Str::headline(data_get($event, 'event_type') ?: 'actualización')) }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ data_get($event, 'actor.name') ?: data_get($event, 'actor_name_snapshot') ?: 'Sistema' }} · {{ $formatDateTime($event->created_at) }}</p>@if(filled(data_get($event, 'comment')))<p class="mt-1 whitespace-pre-line text-xs text-slate-600 dark:text-slate-300">{{ data_get($event, 'comment') }}</p>@endif</li>@empty<li class="text-sm text-slate-500 dark:text-slate-400">Aún no hay eventos registrados.</li>@endforelse</ol></div>
+
+                        <div x-show="abierto" x-cloak class="border-t border-slate-100 p-5 dark:border-slate-800">
+                            <ol class="relative space-y-4 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
+                                @forelse($purchaseRequest->events as $event)
+                                    <li class="relative">
+                                        <span class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full ring-4 ring-white dark:ring-slate-900 {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->dotClasses() : 'bg-slate-400' }}" aria-hidden="true"></span>
+                                        <p class="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                                            {{ $event instanceof \App\Models\PurchaseRequestEvent ? $event->label() : (data_get($event, 'label') ?: \Illuminate\Support\Str::headline(data_get($event, 'event_type') ?: 'actualización')) }}
+                                        </p>
+                                        <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                            {{ data_get($event, 'actor.name') ?: data_get($event, 'actor_name_snapshot') ?: 'Sistema' }} · {{ $formatDateTime($event->created_at) }}
+                                        </p>
+                                        @if(filled(data_get($event, 'comment')))
+                                            <p class="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-xs text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                                                {{ data_get($event, 'comment') }}
+                                            </p>
+                                        @endif
+                                    </li>
+                                @empty
+                                    <li class="text-xs text-slate-500 dark:text-slate-400">Aún no hay eventos registrados.</li>
+                                @endforelse
+                            </ol>
+                        </div>
                     </section>
-                    </aside>
-                </div>
+
+                </aside>
+
             </div>
+        </div>
+
     </div>
 </x-app-layout>
