@@ -483,7 +483,7 @@ class PurchaseQuoteComparisonController extends Controller
             array_filter($cambios, fn (array $c): bool => $c['precio'] !== null || $c['nombre'] !== null),
         ));
 
-        [$actualizadas, $motivo] = $exporter->actualizarLineas($purchaseRequest, $cambios);
+        [$actualizadas, $motivo, $creados] = $exporter->actualizarLineas($purchaseRequest, $cambios, $partnerId);
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);
@@ -491,10 +491,20 @@ class PurchaseQuoteComparisonController extends Controller
 
         return back()->with('success', $actualizadas > 0
             ? sprintf(
-                'Se actualizaron %d %s en %s con el precio y el nombre del proveedor.',
+                'Se actualizaron %d %s en %s con el precio, el nombre y el producto del proveedor.%s',
                 $actualizadas,
                 Str::plural('línea', $actualizadas),
                 $purchaseRequest->odoo_reference,
+                // Crear en Odoo es lo único de aquí que deja algo permanente
+                // allá: se dice siempre, aunque nadie lo haya preguntado.
+                $creados > 0
+                    ? sprintf(
+                        ' Se %s %d %s nuevos en Odoo, porque no existían.',
+                        $creados === 1 ? 'dio de alta' : 'dieron de alta',
+                        $creados,
+                        Str::plural('producto', $creados),
+                    )
+                    : '',
             )
             : 'Odoo ya decía lo mismo que la cotización: no había nada que cambiar.');
     }

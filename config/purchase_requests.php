@@ -84,6 +84,15 @@ return [
          */
         'default_uom_id' => (int) env('PURCHASE_REQUESTS_ODOO_DEFAULT_UOM', 1),
 
+        /*
+         * Dar de alta en Odoo el producto que la cotización nombra y allá no
+         * existe. Es lo único de este módulo que deja algo permanente en Odoo,
+         * y sólo ocurre con el nombre real del proveedor delante —nunca con el
+         * genérico de la solicitud— y después de preguntarle a Odoo en vivo si
+         * ya lo tiene. Se puede apagar sin desplegar.
+         */
+        'create_missing_products' => (bool) env('PURCHASE_REQUESTS_ODOO_CREAR_PRODUCTOS', true),
+
         // Para dar de alta un proveedor chileno: el tipo de identificación
         // «RUT» y el país. Comprobados iguales en pruebas y en producción.
         'rut_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_RUT_TYPE', 4),

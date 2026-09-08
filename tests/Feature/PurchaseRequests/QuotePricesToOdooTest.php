@@ -193,3 +193,112 @@ it('explains what was lost when the order already left draft', function () {
         ->assertSessionHas('error', fn ($m) => str_contains((string) $m, 'se quedó')
             && str_contains((string) $m, 'P00240'));
 });
+
+/** Una solicitud cuya línea viajó a Odoo como texto, sin producto. */
+function solicitudSinProductoEnOdoo(User $owner): array
+{
+    $solicitud = PurchaseRequest::factory()->forUser($owner)->approved()->create([
+        'odoo_order_id' => 243, 'odoo_reference' => 'P00243', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Corchetera',
+        'quantity' => 2, 'unit' => 'Unidades', 'unit_price' => null,
+    ]);
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'c.txt', 'original_name' => 'Cotización escrita a mano.txt',
+        'mime_type' => 'text/plain', 'size' => 10, 'sha256' => str_repeat('c', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'extracted' => ['items' => [[
+            'product_service' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111', 'specification' => null,
+            'quantity' => '2,00', 'unit' => 'Unidades', 'unit_price' => '4958',
+        ]]],
+        'confirmed_pairings' => [0 => $solicitud->items()->value('id')],
+    ]);
+
+    return [$solicitud->fresh(), $lectura];
+}
+
+it('links a product that Odoo already had, instead of creating a duplicate', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudSinProductoEnOdoo($revisor);
+
+    odooContesta([
+        7,
+        [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]],
+        [['id' => 1969, 'product_id' => false, 'name' => 'Corchetera', 'price_unit' => 0]],
+        // Odoo sí lo tiene: lo creó alguien hoy y la copia local, que se
+        // sincroniza de noche, todavía no lo sabe. Tres de las ocho partidas
+        // de la SC-2026-000029 estaban así el primer día.
+        [['id' => 8724, 'name' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111',
+            'default_code' => false, 'barcode' => false, 'uom_id' => [1, 'Units'],
+            'type' => 'consu', 'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success', fn ($m) => ! str_contains((string) $m, 'dio de alta'));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['product_id'] ?? null) === 8724
+        && ($r['params']['args'][5][1]['product_uom'] ?? null) === 1);
+
+    // Y queda en la copia local, para no volver a salir a preguntar.
+    expect(App\Models\OdooProduct::where('odoo_id', 8724)->value('name'))
+        ->toBe('CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111');
+});
+
+it('creates the product Odoo really does not have, tracking inventory', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudSinProductoEnOdoo($revisor);
+
+    odooContesta([
+        7,
+        [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]],
+        [['id' => 1969, 'product_id' => false, 'name' => 'Corchetera', 'price_unit' => 0]],
+        [],      // Odoo no lo tiene
+        9001,    // el create
+        [['id' => 9001, 'name' => 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111',
+            'default_code' => false, 'barcode' => false, 'uom_id' => [1, 'Units'],
+            'type' => 'consu', 'is_storable' => true, 'purchase_ok' => true, 'active' => true]],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success', fn ($m) => str_contains((string) $m, 'dio de alta'));
+
+    // Con el rastreo de inventario encendido, que es lo que Sebastián marca a
+    // mano cada vez. Categoría y unidad las pone Odoo por defecto.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'product.product'
+        && ($r['params']['args'][4] ?? null) === 'create'
+        && ($r['params']['args'][5][0]['name'] ?? null) === 'CORCHETERA PLASTICA 20 HJ 24081 AUCA TOR111'
+        && ($r['params']['args'][5][0]['is_storable'] ?? null) === true
+        && ($r['params']['args'][5][0]['purchase_ok'] ?? null) === true);
+});
+
+it('creates nothing at all when the switch is off', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = solicitudSinProductoEnOdoo($revisor);
+
+    odooContesta([
+        7,
+        [['id' => 243, 'state' => 'draft', 'order_line' => [1969]]],
+        [['id' => 1969, 'product_id' => false, 'name' => 'Corchetera', 'price_unit' => 0]],
+        [],
+        true,
+    ]);
+    config(['purchase_requests.odoo.create_missing_products' => false]);
+
+    // Sin producto, la línea recibe igual su precio y su nombre: apagar el
+    // interruptor frena lo permanente, no todo lo demás.
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success');
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
+});

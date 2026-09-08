@@ -456,6 +456,201 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
     }
 
     /**
+     * Resuelve los nombres reales del proveedor contra el catálogo de Odoo.
+     *
+     * Nunca habíamos buscado por este nombre. La solicitud dice «Corchetera» y
+     * eso es lo único que se buscaba; el nombre de verdad —«CORCHETERA
+     * PLASTICA 20 HJ 24081 AUCA TOR111»— sólo aparece cuando llega la
+     * cotización, y con él tres de las ocho partidas de la SC-2026-000029
+     * resultaron estar ya en Odoo.
+     *
+     * El orden importa y va de lo barato a lo caro:
+     *
+     * 1. El alias que alguien enseñó. Instantáneo, y no se vuelve a preguntar.
+     * 2. La copia local del catálogo. Siete milisegundos sobre 2.403 productos.
+     * 3. Odoo en vivo, **todos los nombres en una sola consulta**. La copia
+     *    local se sincroniza de noche, así que un producto creado hoy allá es
+     *    invisible aquí: sin este paso se crearían duplicados de cosas que ya
+     *    existen. Medido: pasó con tres de ocho el primer día.
+     * 4. Crear, sólo lo que de verdad no está.
+     *
+     * Lo que se encuentra o se crea se guarda en la copia local y como alias,
+     * para que la próxima cotización de ese proveedor cruce sola.
+     *
+     * @param  list<string>  $nombres
+     * @return array<string, array{id: int, uom: ?int, creado: bool}> indexado por el nombre
+     */
+    public function productosParaNombres(array $nombres, ?int $partnerId = null, bool $crearSiFalta = false): array
+    {
+        $pendientes = [];
+        $resueltos = [];
+
+        foreach ($nombres as $nombre) {
+            $nombre = trim($nombre);
+
+            if ($nombre === '' || isset($resueltos[$nombre]) || isset($pendientes[$nombre])) {
+                continue;
+            }
+
+            // 1. Lo que alguien ya enseñó.
+            $enlace = PurchaseProductLink::para($nombre, $partnerId);
+
+            if ($enlace?->odoo_product_id !== null) {
+                $resueltos[$nombre] = ['id' => (int) $enlace->odoo_product_id, 'uom' => null, 'creado' => false];
+
+                continue;
+            }
+
+            // 2. La copia local, por nombre exacto.
+            $local = OdooProduct::query()->usable()
+                ->whereRaw('LOWER(name) = ?', [Str::lower($nombre)])
+                ->first(['odoo_id', 'uom_id']);
+
+            if ($local !== null) {
+                $resueltos[$nombre] = ['id' => (int) $local->odoo_id, 'uom' => $local->uom_id, 'creado' => false];
+
+                continue;
+            }
+
+            $pendientes[$nombre] = true;
+        }
+
+        if ($pendientes !== []) {
+            $resueltos += $this->buscandoEnOdoo(array_keys($pendientes));
+        }
+
+        if ($crearSiFalta) {
+            foreach (array_keys($pendientes) as $nombre) {
+                if (! isset($resueltos[$nombre])) {
+                    $creado = $this->crearProducto($nombre);
+
+                    if ($creado !== null) {
+                        $resueltos[$nombre] = $creado;
+                    }
+                }
+            }
+        }
+
+        return $resueltos;
+    }
+
+    /**
+     * Los nombres que faltan, preguntados a Odoo en una sola consulta.
+     *
+     * Ocho consultas seguidas serían dieciséis segundos; una con los ocho
+     * nombres juntos son dos. Se exige el nombre exacto: un parecido no basta
+     * para dar por hecho que son el mismo producto, y ésa es la regla de todo
+     * el módulo.
+     *
+     * @param  list<string>  $nombres
+     * @return array<string, array{id: int, uom: ?int, creado: bool}>
+     */
+    private function buscandoEnOdoo(array $nombres): array
+    {
+        $criterio = [];
+
+        for ($i = 0; $i < count($nombres) - 1; $i++) {
+            $criterio[] = '|';
+        }
+
+        foreach ($nombres as $nombre) {
+            $criterio[] = ['name', '=', $nombre];
+        }
+
+        $filas = $this->client->execute('product.product', 'search_read', [$criterio], [
+            'fields' => ['id', 'name', 'default_code', 'barcode', 'uom_id', 'type', 'is_storable', 'purchase_ok', 'active'],
+            'limit' => max(count($nombres) * 2, 20),
+        ]);
+
+        $encontrados = [];
+
+        foreach (is_array($filas) ? $filas : [] as $fila) {
+            foreach ($nombres as $nombre) {
+                if (Str::lower(trim((string) $fila['name'])) !== Str::lower($nombre)) {
+                    continue;
+                }
+
+                $this->anotarEnLaCopiaLocal($fila);
+                $encontrados[$nombre] = [
+                    'id' => (int) $fila['id'],
+                    'uom' => is_array($fila['uom_id'] ?? null) ? (int) $fila['uom_id'][0] : null,
+                    'creado' => false,
+                ];
+            }
+        }
+
+        return $encontrados;
+    }
+
+    /**
+     * Da de alta el producto en Odoo, con lo que Sebastián pone siempre.
+     *
+     * Categoría y unidad las deja Odoo por defecto —«All» y «Units», que es
+     * donde ya está el 96% de su catálogo—, y el rastreo de inventario va
+     * encendido, que es lo que él marca a mano cada vez.
+     *
+     * @return array{id: int, uom: ?int, creado: bool}|null
+     */
+    private function crearProducto(string $nombre): ?array
+    {
+        if (! (bool) config('purchase_requests.odoo.create_missing_products', true)) {
+            return null;
+        }
+
+        $id = $this->client->execute('product.product', 'create', [[
+            'name' => $nombre,
+            'type' => 'consu',
+            'is_storable' => true,
+            'purchase_ok' => true,
+        ]]);
+
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        $leido = $this->client->execute('product.product', 'read', [[(int) $id]], [
+            'fields' => ['id', 'name', 'default_code', 'barcode', 'uom_id', 'type', 'is_storable', 'purchase_ok', 'active'],
+        ]);
+
+        if (is_array($leido) && isset($leido[0])) {
+            $this->anotarEnLaCopiaLocal($leido[0]);
+        }
+
+        Log::info('Se creó un producto en Odoo desde una cotización.', ['odoo_id' => (int) $id, 'nombre' => $nombre]);
+
+        return [
+            'id' => (int) $id,
+            'uom' => is_array($leido[0]['uom_id'] ?? null) ? (int) $leido[0]['uom_id'][0] : null,
+            'creado' => true,
+        ];
+    }
+
+    /**
+     * Guarda el producto en la copia local, para no volver a salir a Odoo.
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    private function anotarEnLaCopiaLocal(array $fila): void
+    {
+        OdooProduct::query()->updateOrCreate(
+            ['odoo_id' => (int) $fila['id']],
+            [
+                'name' => (string) $fila['name'],
+                'default_code' => filled($fila['default_code'] ?? null) ? (string) $fila['default_code'] : null,
+                'barcode' => filled($fila['barcode'] ?? null) ? (string) $fila['barcode'] : null,
+                'uom_id' => is_array($fila['uom_id'] ?? null) ? (int) $fila['uom_id'][0] : null,
+                'uom_name' => is_array($fila['uom_id'] ?? null) ? (string) $fila['uom_id'][1] : null,
+                'type' => (string) ($fila['type'] ?? 'consu'),
+                'is_storable' => (bool) ($fila['is_storable'] ?? false),
+                'purchase_ok' => (bool) ($fila['purchase_ok'] ?? true),
+                'active_in_odoo' => (bool) ($fila['active'] ?? true),
+                'missing_since' => null,
+                'synced_at' => now(),
+            ],
+        );
+    }
+
+    /**
      * El producto de Odoo de una partida, resuelto igual que al exportar.
      *
      * Importa que sea la misma resolución: la línea de Odoo nació de aquí, y
@@ -526,7 +721,9 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $cambios[] = ['producto' => null, 'texto' => (string) $texto, 'precio' => (float) $precio, 'nombre' => null];
         }
 
-        return $this->actualizarLineas($purchaseRequest, $cambios);
+        [$actualizadas, $motivo] = $this->actualizarLineas($purchaseRequest, $cambios);
+
+        return [$actualizadas, $motivo];
     }
 
     /**
@@ -542,19 +739,25 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * de esto toca la ficha de un producto ni crea uno: el catálogo de Odoo se
      * mantiene allá, por quien corresponda.
      *
+     * Y si la línea viajó sin producto, se le pone el que corresponde: con el
+     * nombre real del proveedor en la mano, el producto o ya está en Odoo o se
+     * da de alta. Es el único momento en que se puede hacer bien; al crear la
+     * solicitud sólo existe el nombre genérico, y crear con eso sería llenar
+     * el catálogo de basura.
+     *
      * @param  list<array{producto: ?int, texto: ?string, precio: ?float, nombre: ?string}>  $cambios
-     * @return array{0: int, 1: ?string}
+     * @return array{0: int, 1: ?string, 2: int} actualizadas, motivo, productos creados
      */
-    public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios): array
+    public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios, ?int $partnerId = null): array
     {
         $orden = (int) $purchaseRequest->odoo_order_id;
 
         if ($orden === 0) {
-            return [0, 'Esta solicitud todavía no está en Odoo.'];
+            return [0, 'Esta solicitud todavía no está en Odoo.', 0];
         }
 
         if ($cambios === []) {
-            return [0, 'Ninguna partida tiene precio cotizado que llevar.'];
+            return [0, 'Ninguna partida tiene precio cotizado que llevar.', 0];
         }
 
         try {
@@ -564,7 +767,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             if ($estado !== 'draft') {
                 return [0, $purchaseRequest->odoo_reference.' ya no está en borrador en Odoo, así que se quedó '
                     .'con los nombres y precios que tenía. Cambiar una orden que allá ya se dio por cerrada '
-                    .'movería algo con recepciones o facturas detrás.'];
+                    .'movería algo con recepciones o facturas detrás.', 0];
             }
 
             $lineas = $this->client->execute(
@@ -573,6 +776,22 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 [$cabecera[0]['order_line'] ?? []],
                 ['fields' => ['id', 'product_id', 'price_unit', 'name']],
             );
+
+            // Los nombres reales de las líneas que viajaron sin producto, en
+            // una sola pasada: buscar ocho veces por separado sería ocho veces
+            // el viaje a Odoo.
+            $sinProducto = [];
+
+            foreach ($lineas ?: [] as $linea) {
+                $cambio = $this->cambioDe($linea, $cambios);
+
+                if ($cambio !== null && ! is_array($linea['product_id'] ?? null) && filled($cambio['nombre'])) {
+                    $sinProducto[] = (string) $cambio['nombre'];
+                }
+            }
+
+            $productos = $sinProducto === [] ? [] : $this->productosParaNombres($sinProducto, $partnerId, true);
+            $creados = count(array_filter($productos, fn (array $p): bool => $p['creado']));
 
             $actualizadas = 0;
             $reconocidas = 0;
@@ -586,6 +805,20 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
                 $reconocidas++;
                 $escribir = [];
+
+                // La línea sin producto recibe el suyo, con su unidad, para que
+                // Odoo no quede con una línea que dice una cosa y mide otra.
+                if (! is_array($linea['product_id'] ?? null) && filled($cambio['nombre'])) {
+                    $producto = $productos[trim((string) $cambio['nombre'])] ?? null;
+
+                    if ($producto !== null) {
+                        $escribir['product_id'] = $producto['id'];
+
+                        if ($producto['uom'] !== null) {
+                            $escribir['product_uom'] = $producto['uom'];
+                        }
+                    }
+                }
 
                 // Escribir el mismo valor que ya está sería ensuciar el
                 // historial de Odoo sin cambiar nada.
@@ -607,10 +840,10 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
             if ($actualizadas === 0 && $reconocidas === 0) {
                 return [0, 'No se pudo emparejar ninguna línea de '.$purchaseRequest->odoo_reference
-                    .' con las partidas. Puede que las hayan reescrito en Odoo.'];
+                    .' con las partidas. Puede que las hayan reescrito en Odoo.', 0];
             }
 
-            return [$actualizadas, null];
+            return [$actualizadas, null, $creados];
         } catch (Throwable $e) {
             Log::warning('No se pudieron actualizar las líneas en Odoo.', [
                 'folio' => $purchaseRequest->folio,
@@ -618,7 +851,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'motivo' => $e->getMessage(),
             ]);
 
-            return [0, 'Odoo no aceptó el cambio: '.$e->getMessage()];
+            return [0, 'Odoo no aceptó el cambio: '.$e->getMessage(), 0];
         }
     }
 
