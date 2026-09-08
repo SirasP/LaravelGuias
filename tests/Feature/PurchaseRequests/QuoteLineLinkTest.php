@@ -93,26 +93,39 @@ it('pairs them once somebody says they are the same product', function () {
         ->and($r->filas[0]->diferencias[0])->toContain('Cotizado en');
 });
 
-it('refuses to learn against a line that points at no Odoo product', function () {
-    // Sin producto al que apuntar, guardar el alias sería guardar un enlace a
-    // ninguna parte y romper el emparejado de la próxima vez.
+it('learns the pairing even when the request never went to Odoo', function () {
     $owner = User::factory()->create();
     $solicitud = $this->createPurchaseRequestDraft($owner);
     $solicitud->items()->delete();
     $solicitud->items()->create([
-        'sort_order' => 1, 'product_service' => 'algo nuevo sin enlazar',
-        'quantity' => 1, 'unit' => 'Unidades',
+        'sort_order' => 1, 'product_service' => 'Bloqueador solar 1000 ml',
+        'quantity' => 7, 'unit' => 'Unidades',
     ]);
-    $lectura = cotizacionDe($solicitud->fresh(), [], 'b');
+    $solicitud = $solicitud->fresh();
+    $lectura = cotizacionDe($solicitud, [
+        ['product_service' => 'PROTECTOR SOLAR FPS50 B.BOAT', 'specification' => null,
+            'quantity' => '7', 'unit' => 'UN', 'unit_price' => 10200],
+    ], 'b');
 
     $this->actingAs($owner)
         ->post(route('purchase_requests.quotes.link', [$solicitud, $lectura]), [
-            'quote_line' => 'OTRA COSA',
+            'quote_line' => 'PROTECTOR SOLAR FPS50 B.BOAT',
             'item_id' => $solicitud->items()->first()->getKey(),
         ])
-        ->assertSessionHas('error');
+        ->assertSessionHas('success');
 
-    expect(PurchaseProductLink::para('OTRA COSA', null))->toBeNull();
+    // Nadie enseñó un producto de Odoo, y aun así la equivalencia queda dicha.
+    expect(PurchaseProductLink::para('PROTECTOR SOLAR FPS50 B.BOAT', null)?->canonical_text)
+        ->toBe(PurchaseProductLink::normalizar('Bloqueador solar 1000 ml'));
+
+    $r = app(QuotationComparison::class)->comparar($solicitud, [
+        ['product_service' => 'PROTECTOR SOLAR FPS50 B.BOAT', 'specification' => null,
+            'quantity' => '7', 'unit' => 'UN', 'unit_price' => 10200],
+    ]);
+
+    expect($r->filas[0]->cruzo())->toBeTrue()
+        ->and($r->filas[0]->estado)->toBe('igual')
+        ->and($r->filas[0]->confianza)->toBe(1.0);
 });
 
 it('keeps the pairing out of reach of a request that is not yours', function () {
@@ -141,4 +154,36 @@ it('offers the selector on the screen for a line nobody asked for', function () 
         ->assertOk()
         ->assertSee('¿Es alguna de tus partidas?')
         ->assertSee('Es la misma');
+});
+
+it('undoes a pairing that somebody taught by mistake', function () {
+    $owner = User::factory()->create();
+    $solicitud = solicitudConPartidaEnlazada($owner, 'valvula mariposa', 7423);
+    $lectura = cotizacionDe($solicitud, [
+        ['product_service' => 'FLETE A RIO BUENO', 'specification' => null,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => 35000],
+    ], 'd');
+
+    $this->actingAs($owner)->post(route('purchase_requests.quotes.link', [$solicitud, $lectura]), [
+        'quote_line' => 'FLETE A RIO BUENO',
+        'item_id' => $solicitud->items->first()->getKey(),
+    ])->assertSessionHas('success');
+
+    // Un clic equivocado vale para todas las cotizaciones futuras de ese
+    // proveedor, así que tiene que poder borrarse con la misma facilidad.
+    $this->actingAs($owner)->post(route('purchase_requests.quotes.unlink', [$solicitud, $lectura]), [
+        'quote_line' => 'FLETE A RIO BUENO',
+    ])->assertSessionHas('success');
+
+    expect(PurchaseProductLink::para('FLETE A RIO BUENO', null))->toBeNull();
+});
+
+it('says plainly when there was nothing taught to undo', function () {
+    $owner = User::factory()->create();
+    $solicitud = solicitudConPartidaEnlazada($owner, 'valvula mariposa', 7423);
+    $lectura = cotizacionDe($solicitud, [], 'e');
+
+    $this->actingAs($owner)->post(route('purchase_requests.quotes.unlink', [$solicitud, $lectura]), [
+        'quote_line' => 'ALGO QUE NADIE ENSEÑÓ',
+    ])->assertSessionHas('info');
 });

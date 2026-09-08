@@ -22,7 +22,7 @@ class PurchaseProductLink extends Model
     protected $fillable = [
         'company_code', 'odoo_partner_id', 'partner_name',
         'source_text', 'normalized_text',
-        'odoo_product_id', 'odoo_product_name', 'fuelcontrol_product_id',
+        'odoo_product_id', 'odoo_product_name', 'canonical_text', 'fuelcontrol_product_id',
         'source', 'confirmed_by', 'confirmed_by_name', 'confirmed_at',
     ];
 
@@ -80,6 +80,43 @@ class PurchaseProductLink extends Model
         $limpio = preg_replace('/[^a-z0-9]+/', ' ', $limpio) ?? '';
 
         return trim(preg_replace('/\s+/', ' ', $limpio) ?? '');
+    }
+
+    /**
+     * ¿Estos dos textos significan lo mismo, porque alguien lo dijo?
+     *
+     * Hay dos formas de haberlo dicho. La fuerte es que los dos apunten al
+     * mismo producto de Odoo. La otra es que uno apunte al texto del otro:
+     * sirve para enseñar la equivalencia mirando una cotización al lado de la
+     * solicitud, sin haber enviado nada a Odoo todavía —que es el momento en
+     * que una persona de verdad se da cuenta de que «PROTECTOR SOLAR FPS50
+     * B.BOAT» es su «Bloqueador solar 1000 ml».
+     */
+    public static function equivalentes(string $uno, string $otro, ?int $odooPartnerId): bool
+    {
+        $normalUno = self::normalizar($uno);
+        $normalOtro = self::normalizar($otro);
+
+        if ($normalUno === '' || $normalOtro === '') {
+            return false;
+        }
+
+        if ($normalUno === $normalOtro) {
+            return true;
+        }
+
+        $deUno = self::para($uno, $odooPartnerId);
+        $deOtro = self::para($otro, $odooPartnerId);
+
+        if ($deUno?->odoo_product_id !== null && $deUno->odoo_product_id === $deOtro?->odoo_product_id) {
+            return true;
+        }
+
+        if ($deUno?->canonical_text === $normalOtro || $deOtro?->canonical_text === $normalUno) {
+            return true;
+        }
+
+        return $deUno?->canonical_text !== null && $deUno->canonical_text === $deOtro?->canonical_text;
     }
 
     /** ¿Apunta a un producto que Odoo todavía tiene? */

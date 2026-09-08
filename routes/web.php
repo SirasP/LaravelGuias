@@ -151,6 +151,12 @@ Route::middleware('auth')
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');
+            // «Ese emparejado estaba mal»: borra lo aprendido.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/desemparejar', [PurchaseQuoteComparisonController::class, 'unlink'])
+                ->name('quotes.unlink');
+            // «Sí, todas esas parejas son correctas»: de una vez.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/confirmar', [PurchaseQuoteComparisonController::class, 'confirm'])
+                ->name('quotes.confirm');
             // Llevar a Odoo los precios que cotizó el proveedor.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/precios', [PurchaseQuoteComparisonController::class, 'prices'])
                 ->name('quotes.prices');

@@ -6,6 +6,7 @@ use App\Jobs\ReadQuotationDocument;
 use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
+use App\Models\PurchaseRequestItem;
 use App\Models\PurchaseSupplier;
 use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
@@ -92,10 +93,10 @@ class PurchaseQuoteComparisonController extends Controller
     /**
      * Enseña que una línea del proveedor y una partida son lo mismo.
      *
-     * No se guarda el par de textos: se guarda que el texto del proveedor
-     * apunta al mismo producto de Odoo que la partida. Así el alias sirve para
-     * emparejar aquí, para exportar sin crear un producto nuevo, y para la
-     * próxima cotización del mismo proveedor, todo con un solo aprendizaje.
+     * Se guarda contra la partida y, si la partida ya tiene producto de Odoo,
+     * también contra ese producto. Así el alias sirve para emparejar aquí,
+     * para exportar sin crear un producto nuevo, y para la próxima cotización
+     * del mismo proveedor, todo con un solo aprendizaje.
      */
     public function link(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
     {
@@ -115,39 +116,131 @@ class PurchaseQuoteComparisonController extends Controller
         $partnerId = $proveedor === null ? null : PurchaseSupplier::query()
             ->forCompany()->where('tax_id', $proveedor)->value('odoo_partner_id');
 
-        $delaPartida = PurchaseProductLink::para((string) $partida->product_service, $partnerId);
-
-        if ($delaPartida?->odoo_product_id === null) {
-            return back()->with(
-                'error',
-                'La partida «'.Str::limit((string) $partida->product_service, 40).'» todavía no está '
-                    .'enlazada a ningún producto de Odoo, así que no hay a qué apuntar. '
-                    .'Envíala a Odoo primero y vuelve a intentarlo.',
-            );
-        }
-
-        PurchaseProductLink::query()->updateOrCreate(
-            [
-                'company_code' => 'EHE',
-                'odoo_partner_id' => $partnerId,
-                'normalized_text' => PurchaseProductLink::normalizar($datos['quote_line']),
-            ],
-            [
-                'source_text' => $datos['quote_line'],
-                'partner_name' => $ingestion->supplier_name,
-                'odoo_product_id' => $delaPartida->odoo_product_id,
-                'odoo_product_name' => $delaPartida->odoo_product_name,
-                'source' => 'confirmed',
-                'confirmed_by' => $request->user()->getKey(),
-                'confirmed_by_name' => $request->user()->name,
-                'confirmed_at' => now(),
-            ],
-        );
+        $this->aprender($request, $ingestion, $datos['quote_line'], $partida, $partnerId);
 
         return to_route('purchase_requests.show', $purchaseRequest)->with(
             'success',
             'Anotado: «'.Str::limit($datos['quote_line'], 34).'» es «'
                 .Str::limit((string) $partida->product_service, 34).'». La próxima vez se cruza solo.',
+        );
+    }
+
+    /**
+     * Confirma de una vez todas las parejas que el programa propuso.
+     *
+     * Las propuestas no se leen del formulario sino que se vuelven a calcular
+     * aquí: son deterministas, y así lo que se aprende es exactamente lo que la
+     * pantalla mostraba, sin fiarse de lo que llegue por la red.
+     */
+    public function confirm(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $partnerId = $this->partnerDeOdoo($ingestion);
+        $lineas = $ingestion->extracted['items'] ?? [];
+
+        $comparacion = app(QuotationComparison::class)->comparar(
+            $purchaseRequest,
+            is_array($lineas) ? array_values($lineas) : [],
+            $partnerId,
+        );
+
+        $aprendidas = 0;
+
+        foreach ($comparacion->filas as $fila) {
+            $texto = trim((string) ($fila->cotizada['product_service'] ?? ''));
+
+            if (! $fila->esPropuesta() || $fila->pedida === null || $texto === '') {
+                continue;
+            }
+
+            $this->aprender($request, $ingestion, $texto, $fila->pedida, $partnerId);
+            $aprendidas++;
+        }
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            $aprendidas > 0 ? 'success' : 'info',
+            $aprendidas > 0
+                ? sprintf(
+                    'Confirmadas %d %s. La próxima cotización de este proveedor cruza sola.',
+                    $aprendidas,
+                    Str::plural('pareja', $aprendidas),
+                )
+                : 'No había ninguna propuesta pendiente de confirmar.',
+        );
+    }
+
+    /**
+     * Deshace un emparejado que alguien enseñó mal.
+     *
+     * Un clic equivocado aquí no se queda en esta pantalla: el alias vale para
+     * todas las cotizaciones futuras de ese proveedor, así que tiene que poder
+     * borrarse con la misma facilidad con que se creó.
+     */
+    public function unlink(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'quote_line' => ['required', 'string', 'max:500'],
+        ], [], ['quote_line' => 'la línea de la cotización']);
+
+        $partnerId = $this->partnerDeOdoo($ingestion);
+
+        // Se borra el del proveedor y también el general: el que estorba puede
+        // ser cualquiera de los dos, y dejar uno vivo haría que la pantalla
+        // siguiera mostrando lo mismo después de apretar el botón.
+        $borrados = PurchaseProductLink::query()
+            ->where('company_code', 'EHE')
+            ->where('normalized_text', PurchaseProductLink::normalizar($datos['quote_line']))
+            ->where(fn ($q) => $q->whereNull('odoo_partner_id')->orWhere('odoo_partner_id', $partnerId))
+            ->delete();
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            $borrados > 0 ? 'success' : 'info',
+            $borrados > 0
+                ? 'Deshecho el emparejado de «'.Str::limit($datos['quote_line'], 40).'».'
+                : '«'.Str::limit($datos['quote_line'], 40).'» no estaba emparejado a mano: cruzó sola por parecido.',
+        );
+    }
+
+    /**
+     * Anota que el texto del proveedor y la partida son la misma cosa.
+     *
+     * Si la partida ya tiene producto de Odoo se guarda también ese, porque es
+     * la equivalencia fuerte: sirve para exportar sin crear un producto nuevo.
+     * Y si no lo tiene, se guarda igual apuntando al texto de la partida, que
+     * es lo que hace falta para que la comparación cruce. Antes esto se
+     * rechazaba, y dejaba sin enseñar precisamente las solicitudes nuevas.
+     */
+    private function aprender(
+        Request $request,
+        PurchaseRequestIngestion $ingestion,
+        string $textoDelProveedor,
+        PurchaseRequestItem $partida,
+        ?int $partnerId,
+    ): void {
+        $delaPartida = PurchaseProductLink::para((string) $partida->product_service, $partnerId);
+
+        PurchaseProductLink::query()->updateOrCreate(
+            [
+                'company_code' => 'EHE',
+                'odoo_partner_id' => $partnerId,
+                'normalized_text' => PurchaseProductLink::normalizar($textoDelProveedor),
+            ],
+            [
+                'source_text' => $textoDelProveedor,
+                'partner_name' => $ingestion->supplier_name,
+                'odoo_product_id' => $delaPartida?->odoo_product_id,
+                'odoo_product_name' => $delaPartida?->odoo_product_name,
+                'canonical_text' => PurchaseProductLink::normalizar((string) $partida->product_service),
+                'source' => 'confirmed',
+                'confirmed_by' => $request->user()->getKey(),
+                'confirmed_by_name' => $request->user()->name,
+                'confirmed_at' => now(),
+            ],
         );
     }
 
@@ -185,6 +278,13 @@ class PurchaseQuoteComparisonController extends Controller
             $precio = $fila->cotizada['unit_price'] ?? null;
 
             if ($fila->pedida === null || ! is_numeric($precio)) {
+                continue;
+            }
+
+            // Una pareja que nadie confirmó no escribe precios en Odoo. Es el
+            // punto exacto donde una corazonada del programa se volvería un
+            // número en una orden de compra.
+            if ($fila->esPropuesta()) {
                 continue;
             }
 
