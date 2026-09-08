@@ -85,8 +85,26 @@ it('counts what each supplier left out instead of pretending it is free', functi
         ],
     );
 
-    expect($m->totales[0])->toBe(['total' => 32500.0, 'faltan' => 0])
-        ->and($m->totales[1])->toBe(['total' => 3900.0, 'faltan' => 1]);
+    // El total es lo que suma la línea —precio por cantidad—, no el unitario:
+    // decidir a quién comprarle con la suma de los unitarios no significa nada.
+    expect($m->totales[0])->toBe(['total' => 157000.0, 'faltan' => 0, 'porConfirmar' => 0])
+        ->and($m->totales[1])->toBe(['total' => 39000.0, 'faltan' => 1, 'porConfirmar' => 0]);
+});
+
+it('shows quantity, unit price and line total in every cell', function () {
+    $m = cuadricula(
+        [['CEMENTO 25 KG', 10]],
+        [
+            ['SODIMAC', [linea('CEMENTO 25 KG', 4500, '10')]],
+            ['CONSTRUMART', [linea('CEMENTO 25 KG', 3900, '8')]],
+        ],
+    );
+
+    // La cantidad del total es la que cotizó el proveedor, no la que se pidió:
+    // CONSTRUMART ofrece ocho de las diez, y su total es de ocho.
+    expect($m->filas[0]['cantidad'])->toBe(10.0)
+        ->and($m->filas[0]['ofertas'][0])->toBe(['cantidad' => 10.0, 'unitario' => 4500.0, 'total' => 45000.0, 'porConfirmar' => false])
+        ->and($m->filas[0]['ofertas'][1])->toBe(['cantidad' => 8.0, 'unitario' => 3900.0, 'total' => 31200.0, 'porConfirmar' => false]);
 });
 
 it('marks nobody when two suppliers tie', function () {
@@ -111,16 +129,16 @@ it('includes what a supplier added on its own', function () {
         ],
     );
 
-    $flete = collect($m->filas)->firstWhere('partida', 'FLETE A RIO BUENO');
+    // Va fuera de la cuadrícula: dentro hacía que la columna de SODIMAC
+    // dijera «no cotizó» sobre algo que nadie le pidió.
+    expect($m->filas)->toHaveCount(1)
+        ->and($m->agregadas)->toHaveCount(1)
+        ->and($m->agregadas[0]['texto'])->toBe('FLETE A RIO BUENO')
+        ->and($m->agregadas[0]['proveedor'])->toBe('CONSTRUMART')
+        ->and($m->agregadas[0]['total'])->toBe(35000.0);
 
-    expect($flete)->not->toBeNull()
-        ->and($flete['precios'][0])->toBeNull()
-        ->and($flete['precios'][1])->toBe(35000.0)
-        // Con un solo precio no hay competencia que ganar.
-        ->and($flete['masBarato'])->toBeNull()
-        ->and($flete['pedida'])->toBeFalse();
-
-    // Y a SODIMAC no le falta nada: el flete no estaba en la solicitud.
+    // Y a SODIMAC no le falta nada, ni el flete infla el total de nadie.
     expect($m->totales[0]['faltan'])->toBe(0)
-        ->and($m->totales[1]['faltan'])->toBe(0);
+        ->and($m->totales[1]['faltan'])->toBe(0)
+        ->and($m->totales[1]['total'])->toBe(39000.0);
 });

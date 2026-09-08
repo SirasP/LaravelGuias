@@ -49,12 +49,13 @@ final class QuoteLineMatcher
      * @param  list<mixed>  $items  Las partidas, en el orden de la solicitud.
      * @param  list<array<string, mixed>>  $lineas  Lo que el documento traía.
      * @param  callable(mixed, array<string, mixed>): float  $parecido
+     * @param  array<int, int>  $yaDichas  Lo que una persona ya confirmó: partida => renglón.
      */
-    public function emparejar(array $items, array $lineas, callable $parecido): QuoteMatching
+    public function emparejar(array $items, array $lineas, callable $parecido, array $yaDichas = []): QuoteMatching
     {
         $puntajes = $this->puntuar($items, $lineas, $parecido);
 
-        [$seguras, $conApoyo] = $this->porConfianza($puntajes);
+        [$seguras, $conApoyo] = $this->porConfianza($puntajes, $yaDichas);
 
         // Las apoyadas en la cantidad también sirven de ancla: son parejas
         // buenas, sólo que sin la firma de nadie todavía.
@@ -106,10 +107,14 @@ final class QuoteLineMatcher
      * de estas parejas salen los precios que después se escriben en Odoo y un
      * emparejado silencioso equivocado ahí cuesta caro.
      *
+     * Lo que una persona ya confirmó entra primero y no se discute: ocupa su
+     * partida y su renglón antes de que nadie los reclame.
+     *
      * @param  array<string, float>  $puntajes
+     * @param  array<int, int>  $yaDichas
      * @return array{0: array<int, int>, 1: array<int, int>}
      */
-    private function porConfianza(array $puntajes): array
+    private function porConfianza(array $puntajes, array $yaDichas = []): array
     {
         $candidatas = [];
 
@@ -131,8 +136,8 @@ final class QuoteLineMatcher
             ?: abs($a[0] - $a[1]) <=> abs($b[0] - $b[1])
             ?: $a[0] <=> $b[0]);
 
-        $tomadas = $this->tomar($candidatas);
-        $seguras = [];
+        $tomadas = $this->tomar($candidatas, $yaDichas);
+        $seguras = $yaDichas;
         $conApoyo = [];
 
         foreach ($tomadas as $i => $j) {

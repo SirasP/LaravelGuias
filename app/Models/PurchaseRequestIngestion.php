@@ -42,7 +42,7 @@ class PurchaseRequestIngestion extends Model
         'purchase_request_id', 'compared_request_id', 'disk', 'path', 'original_name', 'mime_type',
         'size', 'sha256', 'status', 'source_kind', 'model_used',
         'supplier_name', 'supplier_tax_id', 'prices_include_tax', 'customer_tax_id', 'customer_matches_company',
-        'extracted', 'warnings', 'error_message', 'attempts',
+        'extracted', 'warnings', 'confirmed_pairings', 'error_message', 'attempts',
         'started_at', 'finished_at', 'duration_ms',
     ];
 
@@ -53,11 +53,40 @@ class PurchaseRequestIngestion extends Model
             'customer_matches_company' => 'boolean',
             'extracted' => 'array',
             'warnings' => 'array',
+            'confirmed_pairings' => 'array',
             'attempts' => 'integer',
             'duration_ms' => 'integer',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Qué renglón contesta a qué partida, según dijo una persona.
+     *
+     * La clave es el número de renglón dentro de este documento, no su texto:
+     * un proveedor puede imprimir el mismo nombre en cuatro renglones que son
+     * cuatro productos distintos, y el texto ahí no distingue nada.
+     *
+     * @return array<int, int> índice de renglón => id de la partida
+     */
+    public function parejasConfirmadas(): array
+    {
+        $guardadas = $this->confirmed_pairings;
+
+        if (! is_array($guardadas)) {
+            return [];
+        }
+
+        $parejas = [];
+
+        foreach ($guardadas as $renglon => $partida) {
+            if (is_numeric($renglon) && is_numeric($partida)) {
+                $parejas[(int) $renglon] = (int) $partida;
+            }
+        }
+
+        return $parejas;
     }
 
     protected static function booted(): void

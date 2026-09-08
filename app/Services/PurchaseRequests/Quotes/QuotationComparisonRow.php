@@ -25,12 +25,19 @@ class QuotationComparisonRow
         public readonly bool $hayProblema = false,
         /** El cruce lo enseñó una persona, así que una persona puede deshacerlo. */
         public readonly bool $aprendida = false,
+        /** En qué renglón del documento va: lo único que distingue dos líneas de igual nombre. */
+        public readonly ?int $renglon = null,
     ) {}
 
     /** @param array<string, mixed> $linea */
-    public static function emparejada(PurchaseRequestItem $item, array $linea, float $confianza, bool $aprendida = false): self
-    {
-        return self::cruzada($item, $linea, $confianza, false, $aprendida);
+    public static function emparejada(
+        PurchaseRequestItem $item,
+        array $linea,
+        float $confianza,
+        bool $aprendida = false,
+        ?int $renglon = null,
+    ): self {
+        return self::cruzada($item, $linea, $confianza, false, $aprendida, $renglon);
     }
 
     /**
@@ -43,9 +50,9 @@ class QuotationComparisonRow
      *
      * @param  array<string, mixed>  $linea
      */
-    public static function propuesta(PurchaseRequestItem $item, array $linea, float $confianza): self
+    public static function propuesta(PurchaseRequestItem $item, array $linea, float $confianza, ?int $renglon = null): self
     {
-        return self::cruzada($item, $linea, $confianza, true);
+        return self::cruzada($item, $linea, $confianza, true, false, $renglon);
     }
 
     /** @param array<string, mixed> $linea */
@@ -55,6 +62,7 @@ class QuotationComparisonRow
         float $confianza,
         bool $propuesta,
         bool $aprendida = false,
+        ?int $renglon = null,
     ): self {
         $diferencias = [];
         $notas = [];
@@ -115,6 +123,7 @@ class QuotationComparisonRow
             $confianza,
             $diferencias !== [],
             $aprendida,
+            $renglon,
         );
     }
 
@@ -124,9 +133,12 @@ class QuotationComparisonRow
     }
 
     /** @param array<string, mixed> $linea */
-    public static function noPedida(array $linea): self
+    public static function noPedida(array $linea, ?int $renglon = null): self
     {
-        return new self('no_pedida', null, $linea, ['El proveedor la agregó: no estaba en tu solicitud.']);
+        return new self(
+            'no_pedida', null, $linea, ['El proveedor la agregó: no estaba en tu solicitud.'],
+            0.0, false, false, $renglon,
+        );
     }
 
     public function estaBien(): bool

@@ -2,6 +2,7 @@
 
 use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestIngestion;
 use App\Models\User;
 use App\Services\PurchaseRequests\Products\ProductSimilarity;
 use App\Services\PurchaseRequests\Quotes\QuotationComparison;
@@ -249,4 +250,65 @@ it('crosses on what a person taught even when the words share nothing', function
         ->and($resultado->filas[7]->confianza)->toBe(1.0)
         // Y la pantalla puede ofrecer deshacerlo, porque hay algo guardado.
         ->and($resultado->filas[7]->aprendida)->toBeTrue();
+});
+
+it('confirms every proposal, even when the supplier prints the same name four times', function () {
+    $owner = User::factory()->create();
+    $solicitud = solicitudDeEpp($owner);
+    $lineas = cotizacionDeMaxService();
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'max.pdf', 'original_name' => 'max.pdf', 'mime_type' => 'application/pdf',
+        'size' => 10, 'sha256' => str_repeat('a', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'extracted' => ['items' => $lineas],
+    ]);
+
+    $antes = app(QuotationComparison::class)->comparar($solicitud, $lineas);
+    expect($antes->porConfirmar())->toBe(13);
+
+    $this->actingAs($owner)
+        ->post(route('purchase_requests.quotes.confirm', [$solicitud, $lectura]))
+        ->assertSessionHas('success');
+
+    // Diez de los diecinueve renglones comparten el nombre con otro —cuatro
+    // overoles idénticos que son cuatro tallas—, así que el alias de texto se
+    // pisaba a sí mismo y nueve parejas volvían sin confirmar.
+    $despues = app(QuotationComparison::class)->comparar(
+        $solicitud, $lineas, null, $lectura->fresh()->parejasConfirmadas(),
+    );
+
+    expect($despues->porConfirmar())->toBe(0)
+        ->and($despues->cruzadas())->toBe(18)
+        // Y cada talla conserva la suya: no se mezclaron entre ellas.
+        ->and((string) $despues->filas[13]->cotizada['quantity'])->toBe('10')
+        ->and((string) $despues->filas[14]->cotizada['quantity'])->toBe('5')
+        ->and((string) $despues->filas[16]->cotizada['quantity'])->toBe('2');
+});
+
+it('refuses to learn a general alias from a name the supplier repeats', function () {
+    $owner = User::factory()->create();
+    $solicitud = solicitudDeEpp($owner);
+    $lineas = cotizacionDeMaxService();
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'max2.pdf', 'original_name' => 'max2.pdf', 'mime_type' => 'application/pdf',
+        'size' => 10, 'sha256' => str_repeat('b', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'extracted' => ['items' => $lineas],
+    ]);
+
+    $this->actingAs($owner)->post(route('purchase_requests.quotes.confirm', [$solicitud, $lectura]));
+
+    // «OVEROL PILOTO MS POP C/C, NA» son cuatro tallas distintas: enseñarlo
+    // como alias sería enseñar una mentira, y valdría para todas las
+    // cotizaciones futuras de ese proveedor.
+    expect(PurchaseProductLink::para('OVEROL PILOTO MS POP C/C, NA', null))->toBeNull()
+        // El que sí identifica algo sí se aprende.
+        ->and(PurchaseProductLink::para('PROTECTOR SOLAR FPS50 B.BOAT', null)?->canonical_text)
+        ->toBe(PurchaseProductLink::normalizar('Bloqueador solar 1000 ml'));
 });

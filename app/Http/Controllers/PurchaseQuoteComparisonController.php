@@ -106,16 +106,16 @@ class PurchaseQuoteComparisonController extends Controller
         $datos = $request->validate([
             'quote_line' => ['required', 'string', 'max:500'],
             'item_id' => ['required', 'integer'],
+            'line_index' => ['nullable', 'integer', 'min:0'],
         ], [], ['quote_line' => 'la línea de la cotización', 'item_id' => 'la partida']);
 
         $partida = $purchaseRequest->items()->whereKey($datos['item_id'])->first();
 
         abort_if($partida === null, 404);
 
-        $proveedor = Rut::normalize($ingestion->supplier_tax_id);
-        $partnerId = $proveedor === null ? null : PurchaseSupplier::query()
-            ->forCompany()->where('tax_id', $proveedor)->value('odoo_partner_id');
+        $partnerId = $this->partnerDeOdoo($ingestion);
 
+        $this->anotarPareja($ingestion, $datos['line_index'] ?? null, $partida);
         $this->aprender($request, $ingestion, $datos['quote_line'], $partida, $partnerId);
 
         return to_route('purchase_requests.show', $purchaseRequest)->with(
@@ -144,6 +144,7 @@ class PurchaseQuoteComparisonController extends Controller
             $purchaseRequest,
             is_array($lineas) ? array_values($lineas) : [],
             $partnerId,
+            $ingestion->parejasConfirmadas(),
         );
 
         $aprendidas = 0;
@@ -155,6 +156,7 @@ class PurchaseQuoteComparisonController extends Controller
                 continue;
             }
 
+            $this->anotarPareja($ingestion, $fila->renglon, $fila->pedida);
             $this->aprender($request, $ingestion, $texto, $fila->pedida, $partnerId);
             $aprendidas++;
         }
@@ -185,9 +187,11 @@ class PurchaseQuoteComparisonController extends Controller
 
         $datos = $request->validate([
             'quote_line' => ['required', 'string', 'max:500'],
+            'line_index' => ['nullable', 'integer', 'min:0'],
         ], [], ['quote_line' => 'la línea de la cotización']);
 
         $partnerId = $this->partnerDeOdoo($ingestion);
+        $olvidada = $this->olvidarPareja($ingestion, $datos['line_index'] ?? null);
 
         // Se borra el del proveedor y también el general: el que estorba puede
         // ser cualquiera de los dos, y dejar uno vivo haría que la pantalla
@@ -199,11 +203,52 @@ class PurchaseQuoteComparisonController extends Controller
             ->delete();
 
         return to_route('purchase_requests.show', $purchaseRequest)->with(
-            $borrados > 0 ? 'success' : 'info',
-            $borrados > 0
+            $borrados > 0 || $olvidada ? 'success' : 'info',
+            $borrados > 0 || $olvidada
                 ? 'Deshecho el emparejado de «'.Str::limit($datos['quote_line'], 40).'».'
                 : '«'.Str::limit($datos['quote_line'], 40).'» no estaba emparejado a mano: cruzó sola por parecido.',
         );
+    }
+
+    /**
+     * Deja escrito que este renglón de este documento es esta partida.
+     *
+     * Va pegado al documento y no al texto porque el texto a veces no
+     * identifica nada: el formulario de MAX SERVICE corta los nombres a
+     * veintiocho caracteres y deja cuatro overoles de tallas distintas
+     * llamados igual. El alias de texto los pisaba unos a otros y confirmar
+     * trece parejas dejaba nueve sin confirmar.
+     */
+    private function anotarPareja(PurchaseRequestIngestion $ingestion, ?int $renglon, PurchaseRequestItem $partida): void
+    {
+        if ($renglon === null) {
+            return;
+        }
+
+        $parejas = $ingestion->parejasConfirmadas();
+
+        // Un renglón contesta a una sola partida y una partida se contesta con
+        // un solo renglón: si la partida ya estaba apuntada a otro sitio, se
+        // muda, no se duplica.
+        $parejas = array_filter($parejas, fn (int $id): bool => $id !== (int) $partida->getKey());
+        $parejas[$renglon] = (int) $partida->getKey();
+
+        $ingestion->forceFill(['confirmed_pairings' => $parejas])->save();
+    }
+
+    /** Olvida la confirmación de un renglón. Devuelve si había alguna. */
+    private function olvidarPareja(PurchaseRequestIngestion $ingestion, ?int $renglon): bool
+    {
+        $parejas = $ingestion->parejasConfirmadas();
+
+        if ($renglon === null || ! array_key_exists($renglon, $parejas)) {
+            return false;
+        }
+
+        unset($parejas[$renglon]);
+        $ingestion->forceFill(['confirmed_pairings' => $parejas === [] ? null : $parejas])->save();
+
+        return true;
     }
 
     /**
@@ -222,6 +267,13 @@ class PurchaseQuoteComparisonController extends Controller
         PurchaseRequestItem $partida,
         ?int $partnerId,
     ): void {
+        // Si ese mismo nombre aparece en varios renglones del documento, no
+        // significa un producto: enseñarlo sería enseñar una mentira que
+        // además valdría para todas las cotizaciones futuras del proveedor.
+        if ($this->apareceVariasVeces($ingestion, $textoDelProveedor)) {
+            return;
+        }
+
         $delaPartida = PurchaseProductLink::para((string) $partida->product_service, $partnerId);
 
         PurchaseProductLink::query()->updateOrCreate(
@@ -270,6 +322,7 @@ class PurchaseQuoteComparisonController extends Controller
             $purchaseRequest,
             is_array($lineas) ? array_values($lineas) : [],
             $partnerId,
+            $ingestion->parejasConfirmadas(),
         );
 
         $precios = [];
@@ -311,6 +364,27 @@ class PurchaseQuoteComparisonController extends Controller
                 $purchaseRequest->odoo_reference,
             )
             : 'Los precios de Odoo ya coincidían con los de la cotización: no había nada que cambiar.');
+    }
+
+    /** ¿Ese nombre se repite en el documento, y por tanto no identifica nada? */
+    private function apareceVariasVeces(PurchaseRequestIngestion $ingestion, string $texto): bool
+    {
+        $lineas = $ingestion->extracted['items'] ?? [];
+
+        if (! is_array($lineas)) {
+            return false;
+        }
+
+        $buscado = PurchaseProductLink::normalizar($texto);
+        $veces = 0;
+
+        foreach ($lineas as $linea) {
+            if (PurchaseProductLink::normalizar((string) ($linea['product_service'] ?? '')) === $buscado) {
+                $veces++;
+            }
+        }
+
+        return $veces > 1;
     }
 
     /** El proveedor en Odoo de una cotización, si se le conoce el RUT. */

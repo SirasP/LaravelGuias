@@ -29,18 +29,27 @@ class QuotationComparison
 
     /**
      * @param  list<array<string, mixed>>  $lineasDelDocumento
+     * @param  array<int, int>  $parejasConfirmadas  Renglón del documento => id de la partida.
      */
     public function comparar(
         PurchaseRequest $solicitud,
         array $lineasDelDocumento,
         ?int $odooPartnerId = null,
+        array $parejasConfirmadas = [],
     ): QuotationComparisonResult {
         $pedidas = $solicitud->items()->orderBy('sort_order')->get()->all();
         $this->partnerId = $odooPartnerId;
 
+        $dichas = $this->porPosicion($pedidas, $lineasDelDocumento, $parejasConfirmadas);
+
         $emparejado = $this->emparejador
             ->conCantidades($pedidas, $lineasDelDocumento)
-            ->emparejar($pedidas, $lineasDelDocumento, fn ($item, array $linea): float => $this->parecido($item, $linea));
+            ->emparejar(
+                $pedidas,
+                $lineasDelDocumento,
+                fn ($item, array $linea): float => $this->parecido($item, $linea),
+                $dichas,
+            );
 
         $filas = [];
 
@@ -53,13 +62,21 @@ class QuotationComparison
                 continue;
             }
 
+            // Lo que dijo una persona no se pone en duda ni se vuelve a puntuar.
+            if (($dichas[$i] ?? null) === $j) {
+                $filas[] = QuotationComparisonRow::emparejada($item, $lineasDelDocumento[$j], 1.0, true, $j);
+
+                continue;
+            }
+
             $filas[] = $emparejado->esProbable($i)
-                ? QuotationComparisonRow::propuesta($item, $lineasDelDocumento[$j], $emparejado->confianza($i, $j))
+                ? QuotationComparisonRow::propuesta($item, $lineasDelDocumento[$j], $emparejado->confianza($i, $j), $j)
                 : QuotationComparisonRow::emparejada(
                     $item,
                     $lineasDelDocumento[$j],
                     $emparejado->confianza($i, $j),
                     $this->loEnsenoAlguien((string) ($lineasDelDocumento[$j]['product_service'] ?? '')),
+                    $j,
                 );
         }
 
@@ -70,10 +87,54 @@ class QuotationComparison
         $sobrantes = [];
 
         foreach ($emparejado->lineasLibres(count($lineasDelDocumento)) as $j) {
-            $sobrantes[] = QuotationComparisonRow::noPedida($lineasDelDocumento[$j]);
+            $sobrantes[] = QuotationComparisonRow::noPedida($lineasDelDocumento[$j], $j);
         }
 
         return new QuotationComparisonResult($filas, $sobrantes);
+    }
+
+    /**
+     * Traduce las parejas confirmadas a posiciones dentro de esta comparación.
+     *
+     * Se guardan como «renglón 11 es la partida 347» porque el id de la partida
+     * sobrevive a que se reordene la solicitud, y el número de renglón es lo
+     * único que distingue cuatro overoles impresos con el mismo nombre. Aquí se
+     * vuelven índices, que es lo que el emparejador entiende.
+     *
+     * @param  list<mixed>  $pedidas
+     * @param  list<array<string, mixed>>  $lineas
+     * @param  array<int, int>  $confirmadas
+     * @return array<int, int>
+     */
+    private function porPosicion(array $pedidas, array $lineas, array $confirmadas): array
+    {
+        if ($confirmadas === []) {
+            return [];
+        }
+
+        $posicionDe = [];
+
+        foreach ($pedidas as $i => $item) {
+            $posicionDe[(int) $item->getKey()] = $i;
+        }
+
+        $dichas = [];
+        $renglonesUsados = [];
+
+        foreach ($confirmadas as $renglon => $idPartida) {
+            $i = $posicionDe[$idPartida] ?? null;
+
+            // Una partida borrada, o un renglón que ya no existe porque el
+            // documento se volvió a leer: la confirmación caduca sola.
+            if ($i === null || ! isset($lineas[$renglon]) || isset($dichas[$i]) || isset($renglonesUsados[$renglon])) {
+                continue;
+            }
+
+            $dichas[$i] = (int) $renglon;
+            $renglonesUsados[$renglon] = true;
+        }
+
+        return $dichas;
     }
 
     /**

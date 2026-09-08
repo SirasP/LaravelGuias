@@ -320,6 +320,7 @@ class PurchaseRequestController extends Controller
                     // El proveedor acota los alias: el mismo texto puede
                     // significar productos distintos según quién lo escriba.
                     $this->partnerDeOdoo($cotizacion),
+                    $cotizacion->parejasConfirmadas(),
                 ),
             ];
         }
