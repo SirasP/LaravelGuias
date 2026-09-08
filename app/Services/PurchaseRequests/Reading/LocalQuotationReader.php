@@ -34,7 +34,10 @@ class LocalQuotationReader implements QuotationReader
      * cuando el modelo lo confunde con el del proveedor.
      */
     private const ETIQUETAS_DE_CLIENTE = [
-        'cliente', 'señor(es)', 'senor(es)', 'señores',
+        // «señor» en singular incluido: la confirmación de pedido de la
+        // SC-2026-000031 escribe «Señor AGRICOLA EPPLE...» y sin esta forma
+        // el destinatario se colaba como proveedor.
+        'cliente', 'señor(es)', 'senor(es)', 'señores', 'señor ', 'senor ',
         'razon social', 'razón social', 'empresa',
     ];
 
@@ -668,16 +671,26 @@ class LocalQuotationReader implements QuotationReader
         }
 
         // Tiene que haber al menos una palabra que no sea un rótulo.
+        // Rótulos que encabezan un documento y no nombran a nadie. Sin
+        // «confirmacion» y «pedido», el respaldo tomó «Confirmación de pedido»
+        // como si fuera el proveedor: era el título del papel.
         $rotulos = ['cotizacion', 'cotización', 'factura', 'electronica', 'electrónica',
             'presupuesto', 'orden', 'compra', 'guia', 'guía', 'despacho', 'nota',
-            'venta', 'documento', 'fecha', 'senor', 'señor', 'pagina', 'página'];
+            'venta', 'documento', 'fecha', 'senor', 'señor', 'pagina', 'página',
+            'confirmacion', 'confirmación', 'pedido', 'numero', 'número',
+            'referencia', 'cliente', 'neto', 'total', 'observaciones', 'rut'];
 
         $tieneAlgoPropio = false;
 
-        foreach (explode(' ', $this->normalizar($texto)) as $palabra) {
-            $palabra = preg_replace('/[^a-z0-9áéíóúñ]/u', '', $palabra) ?? '';
+        // Se separa por cualquier cosa que no sea letra: «Número/Fecha» son dos
+        // rótulos, y tratarlo como una sola palabra lo hacía pasar por nombre.
+        foreach (preg_split('/[^a-záéíóúñ0-9]+/u', $this->normalizar($texto)) ?: [] as $palabra) {
 
-            if (mb_strlen($palabra) >= 4 && ! in_array($palabra, $rotulos, true)) {
+            // Con letras: un número de ocho cifras no nombra a nadie, y sin
+            // esto la línea «RUT 77415879-0» pasaba por razón social.
+            if (mb_strlen($palabra) >= 4
+                && ! in_array($palabra, $rotulos, true)
+                && preg_match('/[a-záéíóúñ]/u', $palabra) === 1) {
                 $tieneAlgoPropio = true;
 
                 break;
@@ -752,7 +765,10 @@ class LocalQuotationReader implements QuotationReader
         $palabras = [];
 
         foreach (preg_split('/[\s.,]+/u', $this->normalizar($nombre)) ?: [] as $palabra) {
-            $palabra = preg_replace('/[^a-z0-9]/', '', $palabra) ?? '';
+            // Con la ñ y las tildes dentro: sin ellas «señor» quedaba en
+            // «seor», que no calza con ningún texto, y el destinatario se
+            // colaba como proveedor. Lo mismo le pasaría a «CAÑETE» o «MUÑOZ».
+            $palabra = preg_replace('/[^a-z0-9áéíóúñü]/u', '', $palabra) ?? '';
 
             if (mb_strlen($palabra) >= 4 && ! in_array($palabra, $genericas, true)) {
                 $palabras[] = $palabra;
