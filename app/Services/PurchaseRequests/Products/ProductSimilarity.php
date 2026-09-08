@@ -128,24 +128,76 @@ final class ProductSimilarity
     /**
      * ¿Hablan de medidas distintas?
      *
-     * «Tubo PVC 75» y «Tubo PVC 110» comparten casi todas las letras y no
-     * sirven para lo mismo. Igual con 12V y 24V. Se comparan los números que
-     * aparecen en cada nombre: si ambos traen y no coinciden, son distintos.
+     * «Tubo PVC 75 mm» y «Tubo PVC 110 mm» comparten casi todas las letras y
+     * no sirven para lo mismo. Igual con 12V y 24V. Pero la comparación sólo
+     * concluye algo cuando los dos textos miden lo mismo: «1000 ml» contra
+     * «1 KG» no se contradicen, hablan de cosas distintas del mismo envase, y
+     * durante meses eso descartó el bloqueador solar con un 0,0000.
+     *
+     * Un número pegado a letras tampoco es una medida: es un código o una
+     * marca. El 3 de «3M» no contradice al 510 de «H510A».
      */
     private function difierenMedidas(string $a, string $b): bool
     {
-        preg_match_all('/\d+/', $a, $enA);
-        preg_match_all('/\d+/', $b, $enB);
+        $enA = $this->medidas($a);
+        $enB = $this->medidas($b);
 
-        $numerosA = array_unique($enA[0] ?? []);
-        $numerosB = array_unique($enB[0] ?? []);
+        foreach ($enA as $familia => $valores) {
+            if (! isset($enB[$familia])) {
+                // Que uno declare el largo y el otro no, no prueba nada.
+                continue;
+            }
 
-        if ($numerosA === [] || $numerosB === []) {
-            return false;
+            if (array_intersect($valores, $enB[$familia]) === []) {
+                return true;
+            }
         }
 
-        // Basta con que compartan alguno: los nombres traen números de sobra
-        // —códigos, años— y exigir igualdad exacta descartaría casi todo.
-        return array_intersect($numerosA, $numerosB) === [];
+        return false;
+    }
+
+    /**
+     * Las medidas del texto, agrupadas por unidad.
+     *
+     * La familia vacía son los números sueltos sin unidad —el 75 de un codo,
+     * la talla 7 de un guante—, que sólo se comparan entre ellos.
+     *
+     * @return array<string, list<string>>
+     */
+    private function medidas(string $normalizado): array
+    {
+        $unidades = [
+            'mm', 'cm', 'mt', 'km', 'lt', 'ml', 'cc', 'kg', 'gr', 'mg',
+            'v', 'w', 'kw', 'hp', 'amp', 'psi', 'pulg', 'oz', 'lb',
+        ];
+
+        $tokens = array_values(array_filter(explode(' ', $normalizado), fn ($t) => $t !== ''));
+        $medidas = [];
+
+        foreach ($tokens as $i => $token) {
+            $familia = null;
+            $valor = null;
+
+            if (preg_match('/^(\d+)$/', $token, $m) === 1) {
+                // «1000 ml»: la unidad viene en la palabra siguiente.
+                $siguiente = $tokens[$i + 1] ?? '';
+                $familia = in_array($siguiente, $unidades, true) ? $siguiente : '';
+                $valor = $m[1];
+            } elseif (preg_match('/^(\d+)([a-z]+)$/', $token, $m) === 1 && in_array($m[2], $unidades, true)) {
+                // «12v», «75mm». La «m» sola queda fuera a propósito: «3M» es
+                // una marca, no tres metros.
+                $familia = $m[2];
+                $valor = $m[1];
+            }
+
+            if ($familia === null || $valor === null) {
+                continue;
+            }
+
+            $valor = ltrim($valor, '0') === '' ? '0' : ltrim($valor, '0');
+            $medidas[$familia][] = $valor;
+        }
+
+        return array_map(fn (array $v): array => array_values(array_unique($v)), $medidas);
     }
 }
