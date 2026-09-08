@@ -36,6 +36,30 @@ class QuotationComparisonResult
         return count(array_filter($this->todas(), fn (QuotationComparisonRow $f) => ! $f->estaBien()));
     }
 
+    /** Cuántas partidas pediste: la tabla tiene siempre exactamente estas filas. */
+    public function partidas(): int
+    {
+        return count($this->filas);
+    }
+
+    /** Cuántas cruzaron con un renglón del proveedor, firmes o propuestas. */
+    public function cruzadas(): int
+    {
+        return count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->cruzo()));
+    }
+
+    /** Las parejas que el programa propone y nadie ha confirmado. */
+    public function porConfirmar(): int
+    {
+        return count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->esPropuesta()));
+    }
+
+    /** Lo que se pidió y el proveedor no cotizó. */
+    public function sinCotizar(): int
+    {
+        return count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->estado === 'sin_cotizar'));
+    }
+
     /**
      * Las filas ordenadas por lo que hay que hacer con ellas.
      *
@@ -50,10 +74,11 @@ class QuotationComparisonResult
     public function ordenadas(): array
     {
         $peso = [
-            'no_pedida' => 0,
-            'sin_cotizar' => 1,
-            'difiere' => 2,
-            'igual' => 3,
+            'propuesta' => 0,
+            'no_pedida' => 1,
+            'sin_cotizar' => 2,
+            'difiere' => 3,
+            'igual' => 4,
         ];
 
         $filas = $this->todas();
@@ -97,9 +122,26 @@ class QuotationComparisonResult
             return 'La cotización coincide con lo que pediste.';
         }
 
-        return match ($n = $this->conDiferencias()) {
-            1 => 'Hay 1 diferencia con lo que pediste.',
-            default => sprintf('Hay %d diferencias con lo que pediste.', $n),
-        };
+        $partes = [];
+
+        if (($n = $this->porConfirmar()) > 0) {
+            $partes[] = $n === 1 ? '1 pareja por confirmar' : sprintf('%d parejas por confirmar', $n);
+        }
+
+        if (($n = $this->sinCotizar()) > 0) {
+            $partes[] = $n === 1 ? '1 partida sin cotizar' : sprintf('%d partidas sin cotizar', $n);
+        }
+
+        if (($n = count(array_filter($this->filas, fn (QuotationComparisonRow $f) => $f->estado === 'difiere'))) > 0) {
+            $partes[] = $n === 1 ? '1 diferencia' : sprintf('%d diferencias', $n);
+        }
+
+        if (($n = count($this->sobrantes)) > 0) {
+            $partes[] = $n === 1 ? '1 línea que no pediste' : sprintf('%d líneas que no pediste', $n);
+        }
+
+        return $partes === []
+            ? 'La cotización coincide con lo que pediste.'
+            : ucfirst(implode(', ', $partes)).'.';
     }
 }

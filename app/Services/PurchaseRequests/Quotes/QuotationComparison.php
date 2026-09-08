@@ -19,24 +19,13 @@ use App\Services\PurchaseRequests\Products\ProductSimilarity;
  */
 class QuotationComparison
 {
-    /**
-     * Bajo esto, dos textos no son el mismo producto aunque se parezcan.
-     *
-     * Medido contra la cotización de MARYUN para la SC-2026-000031: «Casco de
-     * seguridad MSA V-GARD BLANCO con barbiquejo» y «CASCO MSA V-GARD -
-     * (BLANCO)» dan 0,5487, y los dos trajes de agua 0,51 y 0,52. Con 0,55
-     * quedaban fuera tres partidas que son obviamente la misma cosa.
-     *
-     * Bajarlo no abre la puerta a confundir tallas: «Traje de agua XXL» contra
-     * el XL, o la talla 7 contra la 8, dan exactamente 0,0000 porque el
-     * comparador las descalifica antes de puntuarlas.
-     */
-    private const UMBRAL = 0.50;
-
     /** El proveedor de la cotización que se está comparando, si se sabe. */
     private ?int $partnerId = null;
 
-    public function __construct(private readonly ProductSimilarity $similitud) {}
+    public function __construct(
+        private readonly ProductSimilarity $similitud,
+        private readonly QuoteLineMatcher $emparejador,
+    ) {}
 
     /**
      * @param  list<array<string, mixed>>  $lineasDelDocumento
@@ -46,67 +35,45 @@ class QuotationComparison
         array $lineasDelDocumento,
         ?int $odooPartnerId = null,
     ): QuotationComparisonResult {
-        $pedidas = $solicitud->items()->orderBy('sort_order')->get();
+        $pedidas = $solicitud->items()->orderBy('sort_order')->get()->all();
         $this->partnerId = $odooPartnerId;
-        $usadas = [];
+
+        $emparejado = $this->emparejador
+            ->conCantidades($pedidas, $lineasDelDocumento)
+            ->emparejar($pedidas, $lineasDelDocumento, fn ($item, array $linea): float => $this->parecido($item, $linea));
+
         $filas = [];
 
-        foreach ($pedidas as $item) {
-            [$indice, $puntaje] = $this->mejorPareja($item, $lineasDelDocumento, $usadas);
+        foreach ($pedidas as $i => $item) {
+            $j = $emparejado->lineaDe($i);
 
-            if ($indice === null) {
+            if ($j === null) {
                 $filas[] = QuotationComparisonRow::sinCotizar($item);
 
                 continue;
             }
 
-            $usadas[$indice] = true;
-            $filas[] = QuotationComparisonRow::emparejada($item, $lineasDelDocumento[$indice], $puntaje);
+            $filas[] = $emparejado->esProbable($i)
+                ? QuotationComparisonRow::propuesta($item, $lineasDelDocumento[$j], $emparejado->confianza($i, $j))
+                : QuotationComparisonRow::emparejada(
+                    $item,
+                    $lineasDelDocumento[$j],
+                    $emparejado->confianza($i, $j),
+                    $this->loEnsenoAlguien((string) ($lineasDelDocumento[$j]['product_service'] ?? '')),
+                );
         }
 
         // Lo que el proveedor agregó por su cuenta: fletes, insumos, o una
-        // partida que alguien olvidó pedir. Es tan importante como lo que falta.
+        // partida que alguien olvidó pedir. Es tan importante como lo que falta,
+        // pero va aparte: sumarlo a la tabla convertía una solicitud de
+        // diecinueve partidas en treinta y tres filas que nadie pidió leer.
         $sobrantes = [];
 
-        foreach ($lineasDelDocumento as $i => $linea) {
-            if (! isset($usadas[$i])) {
-                $sobrantes[] = QuotationComparisonRow::noPedida($linea);
-            }
+        foreach ($emparejado->lineasLibres(count($lineasDelDocumento)) as $j) {
+            $sobrantes[] = QuotationComparisonRow::noPedida($lineasDelDocumento[$j]);
         }
 
         return new QuotationComparisonResult($filas, $sobrantes);
-    }
-
-    /**
-     * La línea del documento que mejor calza con la partida, si alguna calza.
-     *
-     * Cada línea del documento se usa una sola vez: si dos partidas pidieran
-     * lo mismo, emparejar ambas contra el mismo renglón diría que todo está
-     * bien cuando el proveedor cotizó la mitad.
-     *
-     * @param  list<array<string, mixed>>  $lineas
-     * @param  array<int, bool>  $usadas
-     * @return array{0: ?int, 1: float}
-     */
-    private function mejorPareja($item, array $lineas, array $usadas): array
-    {
-        $mejor = null;
-        $mejorPuntaje = 0.0;
-
-        foreach ($lineas as $i => $linea) {
-            if (isset($usadas[$i])) {
-                continue;
-            }
-
-            $puntaje = $this->parecido($item, $linea);
-
-            if ($puntaje > $mejorPuntaje) {
-                $mejor = $i;
-                $mejorPuntaje = $puntaje;
-            }
-        }
-
-        return $mejorPuntaje >= self::UMBRAL ? [$mejor, $mejorPuntaje] : [null, 0.0];
     }
 
     /**
@@ -125,10 +92,11 @@ class QuotationComparison
         // lo reemplaza. «valvula mariposa» y «VALVULA MARIPOSA 8" 200MM
         // C/PALANCA» se parecen un 52%, por debajo de cualquier umbral
         // razonable, y son lo mismo.
-        $productoPedido = $this->productoDe((string) $item->product_service);
-        $productoOfrecido = $this->productoDe((string) ($linea['product_service'] ?? ''));
-
-        if ($productoPedido !== null && $productoPedido === $productoOfrecido) {
+        if (PurchaseProductLink::equivalentes(
+            (string) $item->product_service,
+            (string) ($linea['product_service'] ?? ''),
+            $this->partnerId,
+        )) {
             return 1.0;
         }
 
@@ -158,18 +126,19 @@ class QuotationComparison
     }
 
     /**
-     * El producto de Odoo que alguien ya enseñó para ese texto.
+     * ¿Este texto del proveedor cruza porque alguien lo dijo?
      *
-     * Sólo alias confirmados: nada de adivinar aquí. Si nadie lo enseñó
-     * todavía, se devuelve null y decide el parecido, como antes.
+     * Importa para la pantalla: un cruce que salió de un clic humano tiene que
+     * poder deshacerse con otro clic. Uno que salió del parecido no: ahí no hay
+     * nada guardado que borrar.
      */
-    private function productoDe(string $texto): ?int
+    private function loEnsenoAlguien(string $textoDelProveedor): bool
     {
-        if (trim($texto) === '') {
-            return null;
+        if (trim($textoDelProveedor) === '') {
+            return false;
         }
 
-        return PurchaseProductLink::para($texto, $this->partnerId)?->odoo_product_id;
+        return PurchaseProductLink::para($textoDelProveedor, $this->partnerId)?->source === PurchaseProductLink::CONFIRMADO;
     }
 
     private function limpiar(mixed $valor): ?string

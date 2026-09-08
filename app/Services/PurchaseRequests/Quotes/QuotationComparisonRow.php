@@ -23,11 +23,39 @@ class QuotationComparisonRow
         public readonly float $confianza = 0.0,
         /** Distingue un problema de una nota informativa: el precio que llega. */
         public readonly bool $hayProblema = false,
+        /** El cruce lo enseñó una persona, así que una persona puede deshacerlo. */
+        public readonly bool $aprendida = false,
     ) {}
 
     /** @param array<string, mixed> $linea */
-    public static function emparejada(PurchaseRequestItem $item, array $linea, float $confianza): self
+    public static function emparejada(PurchaseRequestItem $item, array $linea, float $confianza, bool $aprendida = false): self
     {
+        return self::cruzada($item, $linea, $confianza, false, $aprendida);
+    }
+
+    /**
+     * Una pareja que el programa cree, pero no afirma.
+     *
+     * Aparece cruzada en pantalla, con sus diferencias calculadas y un botón
+     * para confirmarla. Es lo único honesto cuando el proveedor imprime el
+     * nombre cortado a veintiocho caracteres y lo único que respalda la pareja
+     * es la cantidad y el orden de los renglones.
+     *
+     * @param  array<string, mixed>  $linea
+     */
+    public static function propuesta(PurchaseRequestItem $item, array $linea, float $confianza): self
+    {
+        return self::cruzada($item, $linea, $confianza, true);
+    }
+
+    /** @param array<string, mixed> $linea */
+    private static function cruzada(
+        PurchaseRequestItem $item,
+        array $linea,
+        float $confianza,
+        bool $propuesta,
+        bool $aprendida = false,
+    ): self {
         $diferencias = [];
         $notas = [];
 
@@ -46,7 +74,7 @@ class QuotationComparisonRow
         $unidadOfrecida = trim((string) ($linea['unit'] ?? ''));
 
         if ($unidadPedida !== '' && $unidadOfrecida !== ''
-            && mb_strtolower($unidadPedida) !== mb_strtolower($unidadOfrecida)) {
+            && self::unidad($unidadPedida) !== self::unidad($unidadOfrecida)) {
             $diferencias[] = sprintf('La unidad no coincide: %s contra %s.', $unidadPedida, $unidadOfrecida);
         }
 
@@ -75,13 +103,18 @@ class QuotationComparisonRow
             $diferencias[] = 'El documento no trae precio para esta partida.';
         }
 
+        if ($propuesta) {
+            array_unshift($notas, 'Propuesta: nadie ha confirmado todavía que sean lo mismo.');
+        }
+
         return new self(
-            $diferencias === [] ? 'igual' : 'difiere',
+            $propuesta ? 'propuesta' : ($diferencias === [] ? 'igual' : 'difiere'),
             $item,
             $linea,
             [...$diferencias, ...$notas],
             $confianza,
             $diferencias !== [],
+            $aprendida,
         );
     }
 
@@ -99,6 +132,42 @@ class QuotationComparisonRow
     public function estaBien(): bool
     {
         return $this->estado === 'igual';
+    }
+
+    /** ¿Está cruzada con una línea del proveedor, sea firme o propuesta? */
+    public function cruzo(): bool
+    {
+        return $this->cotizada !== null && $this->pedida !== null;
+    }
+
+    /** ¿Falta que una persona diga que sí? */
+    public function esPropuesta(): bool
+    {
+        return $this->estado === 'propuesta';
+    }
+
+    /**
+     * La unidad reducida a lo que significa.
+     *
+     * Cada proveedor la abrevia a su manera —«UN», «UND», «Unidades», «C/U»—
+     * y anunciar una diferencia por eso llenaba la comparación de ámbar en
+     * partidas donde no pasaba absolutamente nada.
+     */
+    private static function unidad(string $valor): string
+    {
+        $limpio = trim(preg_replace('/[^a-z0-9]+/', ' ', \Illuminate\Support\Str::of($valor)->ascii()->lower()->value()) ?? '');
+
+        return match ($limpio) {
+            'un', 'und', 'unid', 'unids', 'unidad', 'unidades', 'uds', 'u', 'c u', 'cu', 'ea' => 'un',
+            'par', 'pares', 'paa', 'pr' => 'par',
+            'kg', 'kgs', 'kilo', 'kilos' => 'kg',
+            'lt', 'lts', 'litro', 'litros', 'l' => 'lt',
+            'mt', 'mts', 'm', 'metro', 'metros' => 'mt',
+            'cja', 'caja', 'cajas', 'cj' => 'caja',
+            'pza', 'pzas', 'pieza', 'piezas' => 'pza',
+            'rll', 'rollo', 'rollos' => 'rollo',
+            default => $limpio,
+        };
     }
 
     private static function numero(mixed $valor): ?float
