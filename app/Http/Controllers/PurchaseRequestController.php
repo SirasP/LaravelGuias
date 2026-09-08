@@ -661,6 +661,67 @@ class PurchaseRequestController extends Controller
     }
 
     /**
+     * Da la compra por cerrada.
+     *
+     * Sin esto, una solicitud aprobada se quedaba «Aprobada» para siempre y
+     * la lista no distinguía la que sigue en marcha de la que ya llegó. No se
+     * exige haber pasado por Odoo: no todas las compras pasan.
+     */
+    public function complete(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        Gate::authorize('complete', $purchaseRequest);
+
+        $datos = $request->validate([
+            'comment' => ['nullable', 'string', 'max:1000'],
+        ], [], ['comment' => 'la nota de cierre']);
+
+        DB::transaction(function () use ($purchaseRequest, $request, $datos): void {
+            $bloqueada = PurchaseRequest::query()->lockForUpdate()->findOrFail($purchaseRequest->getKey());
+            Gate::authorize('complete', $bloqueada);
+
+            $desde = $bloqueada->status;
+            $bloqueada->forceFill([
+                'status' => PurchaseRequestStatus::COMPLETED,
+                'lock_version' => $bloqueada->lock_version + 1,
+            ])->save();
+
+            $this->recordEvent(
+                $bloqueada, $request->user(), PurchaseRequestEvent::COMPLETED,
+                $desde, PurchaseRequestStatus::COMPLETED, $request, [],
+                $datos['comment'] ?? null,
+            );
+        });
+
+        return to_route('purchase_requests.show', $purchaseRequest)
+            ->with('success', 'Solicitud terminada. Queda cerrada y sale de lo pendiente.');
+    }
+
+    /** Vuelve a abrir la que se cerró de más. */
+    public function reopen(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        Gate::authorize('reopen', $purchaseRequest);
+
+        DB::transaction(function () use ($purchaseRequest, $request): void {
+            $bloqueada = PurchaseRequest::query()->lockForUpdate()->findOrFail($purchaseRequest->getKey());
+            Gate::authorize('reopen', $bloqueada);
+
+            $desde = $bloqueada->status;
+            $bloqueada->forceFill([
+                'status' => PurchaseRequestStatus::APPROVED,
+                'lock_version' => $bloqueada->lock_version + 1,
+            ])->save();
+
+            $this->recordEvent(
+                $bloqueada, $request->user(), PurchaseRequestEvent::REOPENED,
+                $desde, PurchaseRequestStatus::APPROVED, $request,
+            );
+        });
+
+        return to_route('purchase_requests.show', $purchaseRequest)
+            ->with('success', 'La solicitud vuelve a estar abierta.');
+    }
+
+    /**
      * El solicitante no anula lo ya enviado: deja constancia de que pide la
      * anulación y un revisor decide.
      */

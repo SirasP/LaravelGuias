@@ -12,6 +12,14 @@ enum PurchaseRequestStatus: string
     case REJECTED = 'rejected';
     case CANCELLED = 'cancelled';
 
+    /**
+     * La compra está hecha y cerrada: no queda nada que hacer con ella.
+     *
+     * Sin esto, una solicitud aprobada se quedaba «Aprobada» para siempre y
+     * no había forma de distinguir la que sigue en marcha de la que ya llegó.
+     */
+    case COMPLETED = 'completed';
+
     public function label(): string
     {
         return match ($this) {
@@ -22,6 +30,7 @@ enum PurchaseRequestStatus: string
             self::APPROVED => 'Aprobada',
             self::REJECTED => 'Rechazada',
             self::CANCELLED => 'Anulada',
+            self::COMPLETED => 'Terminada',
         };
     }
 
@@ -40,6 +49,7 @@ enum PurchaseRequestStatus: string
             self::APPROVED => '✓',
             self::REJECTED => '✕',
             self::CANCELLED => '⊘',
+            self::COMPLETED => '⏹',
         };
     }
 
@@ -53,6 +63,7 @@ enum PurchaseRequestStatus: string
             self::APPROVED => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300',
             self::REJECTED => 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300',
             self::CANCELLED => 'bg-zinc-100 text-zinc-700 ring-zinc-600/20 dark:bg-zinc-800 dark:text-zinc-300',
+            self::COMPLETED => 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/40 dark:text-violet-300',
         };
     }
 
@@ -82,6 +93,7 @@ enum PurchaseRequestStatus: string
             self::APPROVED => 'aprobada',
             self::REJECTED => 'rechazada',
             self::CANCELLED => 'anulada',
+            self::COMPLETED => 'dada por terminada',
         };
     }
 
@@ -116,7 +128,11 @@ enum PurchaseRequestStatus: string
             // a crear otra solicitud y dejar ésta colgada para siempre.
             // Una vez en Odoo la puerta se cierra, pero eso lo decide la
             // policy: el estado por sí solo no sabe si ya se exportó.
-            self::APPROVED => [self::CHANGES_REQUESTED, self::CANCELLED],
+            self::APPROVED => [self::CHANGES_REQUESTED, self::CANCELLED, self::COMPLETED],
+            // Terminada se puede reabrir. Cerrar por equivocación pasa, y un
+            // estado del que no se sale obliga a crear otra solicitud para
+            // arreglar un clic.
+            self::COMPLETED => [self::APPROVED],
             self::REJECTED, self::CANCELLED => [],
         };
     }

@@ -77,7 +77,7 @@
             </div>
         @endif
 
-        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen de solicitudes">
+        <section class="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Resumen de solicitudes">
             <a href="{{ route('purchase_requests.index') }}"
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
                 <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total</p>
@@ -103,6 +103,16 @@
                 class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/50 dark:bg-emerald-950/30">
                 <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Aprobadas</p>
                 <p class="mt-2 text-2xl font-black tabular-nums text-emerald-800 dark:text-emerald-200">{{ $countFor('approved') }}</p>
+                <p class="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">en marcha</p>
+            </a>
+            {{-- Lo cerrado, aparte. Sin esta casilla una compra terminada
+                 seguía contando entre las aprobadas y no se sabía qué
+                 quedaba pendiente de verdad. --}}
+            <a href="{{ route('purchase_requests.index', ['status' => 'completed']) }}"
+                class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/50 dark:bg-violet-950/30">
+                <p class="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">Terminadas</p>
+                <p class="mt-2 text-2xl font-black tabular-nums text-violet-800 dark:text-violet-200">{{ $countFor('completed') }}</p>
+                <p class="mt-1 text-xs font-semibold text-violet-700 dark:text-violet-300">compra cerrada</p>
             </a>
         </section>
 

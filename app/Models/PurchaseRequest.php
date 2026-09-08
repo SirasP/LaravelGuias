@@ -150,6 +150,7 @@ class PurchaseRequest extends Model
         $sinPrecio = $this->items_sin_precio_count ?? $this->items()->whereNull('unit_price')->count();
 
         return match (true) {
+            $this->status === PurchaseRequestStatus::COMPLETED => ['Terminada', false],
             $this->status === PurchaseRequestStatus::CANCELLED => ['Anulada', false],
             $this->status === PurchaseRequestStatus::REJECTED => ['Rechazada', false],
             $this->status === PurchaseRequestStatus::DRAFT => ['Enviarla a revisión', true],

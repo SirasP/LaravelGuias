@@ -140,6 +140,13 @@ Route::middleware('auth')
             Route::delete('/{purchaseRequest}/adjuntos/{attachment}', [PurchaseRequestController::class, 'destroyAttachment'])
                 ->name('attachments.destroy');
 
+            // Dar la compra por cerrada, y poder reabrirla: sin esto una
+            // aprobada se quedaba «Aprobada» para siempre.
+            Route::post('/{purchaseRequest}/terminar', [PurchaseRequestController::class, 'complete'])
+                ->name('complete');
+            Route::post('/{purchaseRequest}/reabrir', [PurchaseRequestController::class, 'reopen'])
+                ->name('reopen');
+
             // Enviar a Odoo: sólo tras aprobar, y siempre por una acción
             // explícita de Compras. Nunca automático al aprobar.
             // La cotización que manda el proveedor, para contrastarla con lo

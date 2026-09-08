@@ -65,6 +65,26 @@ class PurchaseRequestPolicy
             && $purchaseRequest->status === PurchaseRequestStatus::APPROVED;
     }
 
+    /**
+     * Dar la compra por cerrada.
+     *
+     * Es de Compras, como enviar a Odoo: quien recibe la mercadería y paga la
+     * factura es quien sabe que ya no queda nada pendiente. No se exige que
+     * haya pasado por Odoo, porque no todas las compras pasan.
+     */
+    public function complete(User $user, PurchaseRequest $purchaseRequest): bool
+    {
+        return $user->isPurchaseReviewer()
+            && $purchaseRequest->status->canTransitionTo(PurchaseRequestStatus::COMPLETED);
+    }
+
+    /** Volver a abrir la que se cerró de más. */
+    public function reopen(User $user, PurchaseRequest $purchaseRequest): bool
+    {
+        return $user->isPurchaseReviewer()
+            && $purchaseRequest->status === PurchaseRequestStatus::COMPLETED;
+    }
+
     public function requestChanges(User $user, PurchaseRequest $purchaseRequest): bool
     {
         return $this->canReview($user, $purchaseRequest, PurchaseRequestStatus::CHANGES_REQUESTED);

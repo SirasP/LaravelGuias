@@ -260,6 +260,31 @@
                             @endif
                         @endcan
 
+                        {{-- Terminada: lo que faltaba para saber qué sigue en
+                             marcha y qué ya llegó. Va en verde y primero,
+                             porque es el final normal de una compra. --}}
+                        @can('complete', $purchaseRequest)
+                            <form method="POST" action="{{ route('purchase_requests.complete', $purchaseRequest) }}">
+                                @csrf
+                                <button type="submit"
+                                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 active:scale-95">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Terminada</span>
+                                </button>
+                            </form>
+                        @endcan
+
+                        @can('reopen', $purchaseRequest)
+                            <form method="POST" action="{{ route('purchase_requests.reopen', $purchaseRequest) }}">
+                                @csrf
+                                <button type="submit"
+                                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-violet-300/80 bg-violet-50 px-4 text-sm font-bold text-violet-900 transition hover:bg-violet-100 active:scale-95 dark:border-violet-700/60 dark:bg-violet-950/40 dark:text-violet-300 dark:hover:bg-violet-900/60">
+                                    <svg class="h-4 w-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    <span>Volver a abrir</span>
+                                </button>
+                            </form>
+                        @endcan
+
                         @can('cancel', $purchaseRequest)
                             <button type="button" @click="panel = panel === 'anular' ? null : 'anular'"
                                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-rose-300/80 bg-rose-50 px-4 text-sm font-bold text-rose-800 transition hover:bg-rose-100 active:scale-95 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60">
@@ -522,6 +547,12 @@
                             Borrador interno · No enviada a revisión
                         @elseif($rawStatus === 'submitted')
                             Esperando resolución de Compras
+                        @elseif($rawStatus === 'completed')
+                            Compra cerrada · No queda nada pendiente
+                        @elseif($rawStatus === 'cancelled')
+                            Anulada · No sigue su curso
+                        @elseif($rawStatus === 'rejected')
+                            Rechazada · No sigue su curso
                         @else
                             Ciclo de revisión en curso (v{{ $purchaseRequest->revision_number }})
                         @endif

@@ -43,6 +43,12 @@ class PurchaseRequestEvent extends Model
 
     public const AI_DRAFTED = 'ai_drafted';
 
+    /** Alguien dio la compra por cerrada. */
+    public const COMPLETED = 'completed';
+
+    /** Y alguien la volvió a abrir. */
+    public const REOPENED = 'reopened';
+
     protected $fillable = [
         'purchase_request_id',
         'actor_id',
@@ -102,6 +108,8 @@ class PurchaseRequestEvent extends Model
             self::ATTACHMENT_ADDED => 'Adjunto agregado',
             self::ATTACHMENT_REMOVED => 'Adjunto eliminado',
             self::AI_DRAFTED => 'Borrador sugerido por el asistente',
+            self::COMPLETED => 'Compra terminada',
+            self::REOPENED => 'Vuelta a abrir',
             default => \Illuminate\Support\Str::headline((string) $this->event_type),
         };
     }
@@ -114,6 +122,8 @@ class PurchaseRequestEvent extends Model
             self::REJECTED, self::CANCELLED => 'bg-rose-500',
             self::CHANGES_REQUESTED, self::CANCELLATION_REQUESTED => 'bg-amber-500',
             self::EXPORTED => 'bg-violet-500',
+            self::COMPLETED => 'bg-emerald-600',
+            self::REOPENED => 'bg-violet-400',
             self::CANCELLATION_WITHDRAWN => 'bg-slate-400',
             self::SUBMITTED, self::RESUBMITTED => 'bg-blue-500',
             default => 'bg-slate-400',
