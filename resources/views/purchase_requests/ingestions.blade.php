@@ -56,8 +56,12 @@
             </div>
         @endif
 
-        <div class="grid gap-5 lg:grid-cols-3">
-            <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
+        {{-- El formulario arriba y la tabla a lo ancho, no uno al lado del otro:
+             partir la pantalla en un tercio y dos tercios dejaba las columnas
+             tan estrechas que los nombres de archivo se rompían en tres líneas,
+             y era eso lo que hacía crecer la lista hacia abajo. --}}
+        <div class="space-y-5">
+            <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h2 class="font-extrabold text-slate-900 dark:text-white">Subir documento</h2>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     PDF o foto de una cotización. Se lee por detrás: puedes cerrar esta página y seguir trabajando.
@@ -70,11 +74,11 @@
                 @endif
 
                 <form method="POST" action="{{ route('purchase_requests.ingestions.store') }}"
-                    enctype="multipart/form-data" class="mt-4 space-y-3"
+                    enctype="multipart/form-data" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
                     x-data="{ enviando: false, archivo: '' }"
                     @submit="enviando = true">
                     @csrf
-                    <div>
+                    <div class="min-w-0 flex-1">
                         <label for="document" class="block text-sm font-bold text-slate-700 dark:text-slate-200">
                             Documento <span class="text-rose-500">*</span>
                         </label>
@@ -96,19 +100,19 @@
                     </div>
 
                     <button type="submit" :disabled="enviando || {{ $readerEnabled ? 'false' : 'true' }}"
-                        class="min-h-11 w-full rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                        class="min-h-11 shrink-0 rounded-xl bg-blue-600 px-6 text-sm font-extrabold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-48">
                         <span x-show="!enviando">Subir y leer</span>
                         <span x-show="enviando" x-cloak>Subiendo…</span>
                     </button>
                 </form>
 
-                <p class="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
                     El asistente <strong>sólo prepara un borrador</strong>. Nada se envía a revisión hasta que tú lo confirmes.
                     Si no logra leer una cantidad, la deja vacía en vez de inventarla.
                 </p>
             </section>
 
-            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
                     <div>
                         <h2 class="font-extrabold text-slate-900 dark:text-white">Documentos leídos</h2>
@@ -123,14 +127,59 @@
                     </span>
                 </div>
 
-                <div class="divide-y divide-slate-100 dark:divide-slate-800">
-                    @forelse($ingestions as $ingestion)
-                        <div class="p-4">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <p class="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
-                                        <span class="truncate">{{ $ingestion->original_name }}</span>
-                                        <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold
+                {{-- Una tabla y no tarjetas: con diecinueve documentos la lista
+                     se iba hacia abajo sin fin y había que hacer scroll para
+                     saber si algo falló. Aquí cada documento es un renglón y
+                     los avisos se abren sólo si alguien los pide. --}}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3 font-bold">Documento</th>
+                                <th class="w-40 whitespace-nowrap px-4 py-3 font-bold">Estado</th>
+                                <th class="w-44 whitespace-nowrap px-4 py-3 font-bold">Fue a parar a</th>
+                                <th class="w-32 whitespace-nowrap px-4 py-3 text-right font-bold">Subido</th>
+                                <th class="w-px whitespace-nowrap px-4 py-3 text-right font-bold">Acciones</th>
+                            </tr>
+                        </thead>
+                        {{-- Un tbody por documento, no uno para todos: el detalle
+                             es una fila hermana de la principal, y con el x-data
+                             en la fila quedaba fuera de su alcance —el
+                             desplegable no abría nunca—. El tbody es el único
+                             elemento que puede envolver a las dos sin romper la
+                             tabla. --}}
+                        @forelse($ingestions as $ingestion)
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80" x-data="{ abierto: false }">
+                                @php
+                                    $avisos = filled($ingestion->warnings) ? $ingestion->warnings : [];
+                                    $dictada = $ingestion->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT;
+                                    $conProblema = in_array($ingestion->status, ['failed', 'needs_review'], true);
+                                @endphp
+                                <tr class="align-middle transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                    <td class="px-4 py-3">
+                                        <p class="font-bold text-slate-800 dark:text-slate-100">{{ $ingestion->original_name }}</p>
+                                        <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                            @if(filled($ingestion->supplier_name))
+                                                <span class="font-semibold text-slate-600 dark:text-slate-300">{{ \Illuminate\Support\Str::limit($ingestion->supplier_name, 32) }}</span>
+                                            @endif
+                                            <span class="tabular-nums">{{ number_format($ingestion->size / 1024, 0, ',', '.') }} KB</span>
+                                            @if($ingestion->duration_ms)
+                                                <span class="tabular-nums">· {{ number_format($ingestion->duration_ms / 1000, 1, ',', '.') }} s</span>
+                                            @endif
+                                            @if($dictada)
+                                                <span class="rounded bg-indigo-100 px-1.5 font-bold text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300">escrita a mano</span>
+                                            @endif
+                                            @if($avisos !== [])
+                                                <button type="button" @click="abierto = !abierto"
+                                                    class="rounded bg-amber-100 px-1.5 font-bold text-amber-900 hover:bg-amber-200 dark:bg-amber-950/60 dark:text-amber-300">
+                                                    ⚠ {{ count($avisos) }} {{ count($avisos) === 1 ? 'aviso' : 'avisos' }}
+                                                    <span x-text="abierto ? '▴' : '▾'"></span>
+                                                </button>
+                                            @endif
+                                        </p>
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-3">
+                                        <span class="rounded-full px-2 py-0.5 text-xs font-bold
                                             @class([
                                                 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' => $ingestion->status === 'completed',
                                                 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' => $ingestion->status === 'needs_review',
@@ -140,85 +189,82 @@
                                             ])">
                                             {{ $ingestion->statusIcon() }} {{ $ingestion->statusLabel() }}
                                         </span>
-                                    </p>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        {{ $ingestion->created_at?->format('d-m-Y H:i') }}
-                                        · {{ number_format($ingestion->size / 1024, 0, ',', '.') }} KB
-                                        @if($ingestion->duration_ms) · leído en {{ number_format($ingestion->duration_ms / 1000, 1, ',', '.') }} s @endif
-                                    </p>
-                                </div>
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-xs">
+                                        @if($ingestion->purchaseRequest)
+                                            <a href="{{ route('purchase_requests.edit', $ingestion->purchaseRequest) }}"
+                                                class="font-mono font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900 dark:text-blue-400">
+                                                {{ $ingestion->purchaseRequest->folio }}
+                                            </a>
+                                            <span class="block text-slate-400">borrador</span>
+                                        @elseif($ingestion->comparedRequest)
+                                            <a href="{{ route('purchase_requests.show', $ingestion->comparedRequest) }}"
+                                                class="font-mono font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
+                                                {{ $ingestion->comparedRequest->folio }}
+                                            </a>
+                                            <span class="block text-slate-400">comparada</span>
+                                        @else
+                                            <span class="italic text-slate-400">todavía a nada</span>
+                                        @endif
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                                        {{ $ingestion->created_at?->format('d-m-Y') }}
+                                        <span class="block text-[11px] text-slate-400">{{ $ingestion->created_at?->format('H:i') }}</span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-right">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <a href="{{ route('purchase_requests.ingestions.download', $ingestion) }}"
+                                                class="inline-flex min-h-9 items-center rounded-xl border border-slate-200 px-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
+                                                {{ $dictada ? 'Ver texto' : 'Ver' }}
+                                            </a>
+                                            @if($conProblema)
+                                                <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $ingestion) }}">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="inline-flex min-h-9 items-center rounded-xl border border-violet-300 px-2.5 text-xs font-bold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300">
+                                                        Releer
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
 
-                                <div class="flex shrink-0 flex-wrap items-center gap-2">
-                                    <a href="{{ route('purchase_requests.ingestions.download', $ingestion) }}"
-                                        class="inline-flex min-h-11 items-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
-                                        {{ $ingestion->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT ? 'Ver lo escrito' : 'Documento' }}
-                                    </a>
-
-                                    {{-- Releer estaba implementado y enrutado desde
-                                         siempre, pero la pantalla nunca lo ofreció:
-                                         una lectura fallida había que reencolarla
-                                         por consola. --}}
-                                    @if(in_array($ingestion->status, ['failed', 'needs_review'], true))
-                                        <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $ingestion) }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-violet-300 px-3 text-xs font-bold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40">
-                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                                Releer
-                                            </button>
-                                        </form>
-                                    @endif
-
-                                    {{-- Adonde fue a parar esta lectura. Antes sólo
-                                         se enlazaba el borrador; una cotización
-                                         comparada decía «listo» y no llevaba a
-                                         ningún sitio. --}}
-                                    @if($ingestion->purchaseRequest)
-                                        <a href="{{ route('purchase_requests.edit', $ingestion->purchaseRequest) }}"
-                                            class="inline-flex min-h-11 items-center rounded-xl bg-blue-600 px-3 text-xs font-extrabold text-white hover:bg-blue-700">
-                                            Revisar {{ $ingestion->purchaseRequest->folio }}
-                                        </a>
-                                    @elseif($ingestion->comparedRequest)
-                                        <a href="{{ route('purchase_requests.show', $ingestion->comparedRequest) }}"
-                                            class="inline-flex min-h-11 items-center rounded-xl bg-sky-600 px-3 text-xs font-extrabold text-white hover:bg-sky-700">
-                                            Ver {{ $ingestion->comparedRequest->folio }}
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
-
-                            {{-- Esperar no es fallar: no hay nada que hacer ni nada
-                                 que reintentar a mano, y decirlo evita que alguien
-                                 vuelva a subir el mismo archivo creyendo que se perdió. --}}
-                            @if($ingestion->status === 'waiting')
-                                <p class="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-                                    El asistente de lectura no está disponible ahora mismo.
-                                    Este documento se leerá solo en cuanto vuelva; no hace falta subirlo de nuevo.
-                                </p>
-                            @endif
-
-                            @if($ingestion->status === 'failed' && $ingestion->error_message)
-                                <p class="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
-                                    {{ $ingestion->error_message }}
-                                </p>
-                            @endif
-
-                            @if(filled($ingestion->warnings))
-                                <div class="mt-2 rounded-xl bg-amber-50 px-3 py-2 dark:bg-amber-950/40">
-                                    <p class="text-xs font-bold text-amber-900 dark:text-amber-200">Revisa antes de enviar</p>
-                                    <ul class="mt-1 list-inside list-disc space-y-0.5 text-xs text-amber-800 dark:text-amber-200">
-                                        @foreach($ingestion->warnings as $aviso)
-                                            <li>{{ $aviso }}</li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <div class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                            Todavía no has subido ninguna cotización.
-                        </div>
-                    @endforelse
+                                @if($avisos !== [] || ($ingestion->status === 'failed' && $ingestion->error_message) || $ingestion->status === 'waiting')
+                                    <tr x-show="abierto" x-cloak class="bg-slate-50/60 dark:bg-slate-950/40">
+                                        <td colspan="5" class="px-4 pb-3 pt-0">
+                                            @if($ingestion->status === 'waiting')
+                                                <p class="rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+                                                    El asistente de lectura no está disponible ahora mismo.
+                                                    Este documento se leerá solo en cuanto vuelva; no hace falta subirlo de nuevo.
+                                                </p>
+                                            @endif
+                                            @if($ingestion->status === 'failed' && $ingestion->error_message)
+                                                <p class="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+                                                    {{ $ingestion->error_message }}
+                                                </p>
+                                            @endif
+                                            @if($avisos !== [])
+                                                <ul class="mt-1 list-inside list-disc space-y-0.5 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                                                    @foreach($avisos as $aviso)
+                                                        <li>{{ $aviso }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        @empty
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                                        Todavía no has subido ninguna cotización.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        @endforelse
+                    </table>
                 </div>
 
                 @if($ingestions->hasPages())

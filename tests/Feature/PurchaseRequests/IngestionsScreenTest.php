@@ -58,7 +58,8 @@ it('does not claim a draft that was never created', function () {
         ->assertOk()
         ->assertDontSee('Borrador creado')
         // Y lleva a donde de verdad fue a parar.
-        ->assertSee('Ver '.$solicitud->folio);
+        ->assertSee($solicitud->folio)
+        ->assertSee('comparada');
 });
 
 it('says draft created when there really is one', function () {
@@ -73,5 +74,6 @@ it('says draft created when there really is one', function () {
     $this->actingAs($owner)
         ->get(route('purchase_requests.ingestions.index'))
         ->assertOk()
-        ->assertSee('Revisar '.$solicitud->folio);
+        ->assertSee($solicitud->folio)
+        ->assertSee('borrador');
 });
