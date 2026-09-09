@@ -61,11 +61,9 @@
              tan estrechas que los nombres de archivo se rompían en tres líneas,
              y era eso lo que hacía crecer la lista hacia abajo. --}}
         <div class="space-y-5">
+            {{-- La subida ocupa una franja, no media pantalla: es una acción de
+                 dos segundos y lo que uno viene a mirar es la lista. --}}
             <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <h2 class="font-extrabold text-slate-900 dark:text-white">Subir documento</h2>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    PDF o foto de una cotización. Se lee por detrás: puedes cerrar esta página y seguir trabajando.
-                </p>
 
                 @if(! $readerEnabled)
                     <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
@@ -74,41 +72,35 @@
                 @endif
 
                 <form method="POST" action="{{ route('purchase_requests.ingestions.store') }}"
-                    enctype="multipart/form-data" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+                    enctype="multipart/form-data" class="flex flex-col gap-3 sm:flex-row sm:items-center"
                     x-data="{ enviando: false, archivo: '' }"
                     @submit="enviando = true">
                     @csrf
-                    <div class="min-w-0 flex-1">
-                        <label for="document" class="block text-sm font-bold text-slate-700 dark:text-slate-200">
-                            Documento <span class="text-rose-500">*</span>
-                        </label>
-                        {{-- El input nativo se pinta solo y mal: el navegador
-                             escribe «Sin archivos seleccionados» y el nombre del
-                             archivo se recorta a media palabra. Se esconde y se
-                             dibuja la etiqueta, que además cabe entera. --}}
-                        <label for="document"
-                            class="mt-1.5 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 px-4 py-4 text-center transition hover:border-blue-400 hover:bg-blue-50/50 dark:border-slate-700 dark:bg-slate-950/40 dark:hover:border-blue-600">
-                            <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
-                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200"
-                                x-text="archivo || 'Elegir el PDF o la foto'"></span>
-                            <span class="text-xs text-slate-500 dark:text-slate-400">PDF, JPG o PNG · hasta 15 MB</span>
-                        </label>
-                        <input id="document" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png"
-                            @change="archivo = $event.target.files[0]?.name ?? ''"
-                            class="sr-only">
-                        @error('document') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
-                    </div>
+                    {{-- El input nativo se pinta solo y mal: el navegador escribe
+                         «Sin archivos seleccionados» y recorta el nombre a media
+                         palabra. Se esconde y se dibuja la etiqueta. --}}
+                    <label for="document"
+                        class="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 transition hover:border-blue-400 hover:bg-blue-50/50 dark:border-slate-700 dark:bg-slate-950/40 dark:hover:border-blue-600">
+                        <svg class="h-5 w-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                        <span class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-slate-200"
+                            x-text="archivo || 'Elegir el PDF o la foto de la cotización'"></span>
+                        <span class="ml-auto hidden shrink-0 text-xs text-slate-400 sm:block">PDF, JPG o PNG · 15 MB</span>
+                    </label>
+                    <input id="document" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png"
+                        @change="archivo = $event.target.files[0]?.name ?? ''"
+                        class="sr-only">
 
                     <button type="submit" :disabled="enviando || {{ $readerEnabled ? 'false' : 'true' }}"
-                        class="min-h-11 shrink-0 rounded-xl bg-blue-600 px-6 text-sm font-extrabold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-48">
+                        class="min-h-12 shrink-0 rounded-xl bg-blue-600 px-6 text-sm font-extrabold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                         <span x-show="!enviando">Subir y leer</span>
                         <span x-show="enviando" x-cloak>Subiendo…</span>
                     </button>
                 </form>
+                @error('document') <p class="mt-2 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
 
-                <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    El asistente <strong>sólo prepara un borrador</strong>. Nada se envía a revisión hasta que tú lo confirmes.
-                    Si no logra leer una cantidad, la deja vacía en vez de inventarla.
+                <p class="mt-2.5 text-xs text-slate-500 dark:text-slate-400">
+                    Se lee por detrás: puedes cerrar la página. <strong>Sólo prepara un borrador</strong> —nada se envía a
+                    revisión hasta que tú lo confirmes— y si no logra leer una cantidad la deja vacía en vez de inventarla.
                 </p>
             </section>
 
@@ -196,20 +188,19 @@
                                                 class="font-mono font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900 dark:text-blue-400">
                                                 {{ $ingestion->purchaseRequest->folio }}
                                             </a>
-                                            <span class="block text-slate-400">borrador</span>
+                                            <span class="ml-1.5 text-[11px] text-slate-400">borrador</span>
                                         @elseif($ingestion->comparedRequest)
                                             <a href="{{ route('purchase_requests.show', $ingestion->comparedRequest) }}"
                                                 class="font-mono font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
                                                 {{ $ingestion->comparedRequest->folio }}
                                             </a>
-                                            <span class="block text-slate-400">comparada</span>
+                                            <span class="ml-1.5 text-[11px] text-slate-400">comparada</span>
                                         @else
-                                            <span class="italic text-slate-400">todavía a nada</span>
+                                            <span class="text-slate-300 dark:text-slate-600">—</span>
                                         @endif
                                     </td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
-                                        {{ $ingestion->created_at?->format('d-m-Y') }}
-                                        <span class="block text-[11px] text-slate-400">{{ $ingestion->created_at?->format('H:i') }}</span>
+                                        {{ $ingestion->created_at?->format('d-m-Y H:i') }}
                                     </td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right">
                                         <div class="flex items-center justify-end gap-1.5">
