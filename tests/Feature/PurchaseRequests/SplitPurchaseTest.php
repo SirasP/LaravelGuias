@@ -131,3 +131,62 @@ it('says who the supplier is before creating anything', function () {
         ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura->fresh()]))
         ->assertSessionHas('error', fn ($m) => str_contains((string) $m, 'quién es este proveedor'));
 });
+
+it('stops proposing a pairing that somebody rejected', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+    $cinta = $solicitud->items()->where('product_service', 'CINTA PELIGRO')->firstOrFail();
+
+    // La propuesta sale de un cálculo que se rehace en cada carga: sin dejar
+    // el rechazo escrito, «CINTA PELIGRO» volvía a aparecer emparejada con lo
+    // que no era a la siguiente visita.
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.reject', [$solicitud, $lectura]), [
+            'item_id' => $cinta->getKey(),
+            'line_index' => 2,
+        ])
+        ->assertSessionHas('success');
+
+    $lectura->refresh();
+
+    expect($lectura->parejasRechazadas())->toBe([[2, $cinta->getKey()]]);
+
+    $r = app(App\Services\PurchaseRequests\Quotes\QuotationComparison::class)->comparar(
+        $solicitud->fresh(),
+        array_values($lectura->extracted['items']),
+        null,
+        $lectura->parejasConfirmadas(),
+        $lectura->parejasRechazadas(),
+    );
+
+    // Esa partida queda sin cotizar y esa pareja no vuelve nunca.
+    //
+    // El renglón puede acabar propuesto contra otra partida: el texto no
+    // distingue —«CINTA PELIGRO» contra «GALON PINTURA» da 0,2192 y «Filtro 3M
+    // 6003» contra «CARTUCHO AIR F600MP3», que sí era correcto, da 0,2016—.
+    // Por eso son propuestas y no hechos, y por eso el «No es» se puede apretar
+    // las veces que haga falta: cada rechazo queda escrito.
+    expect($r->filas[2]->estado)->toBe('sin_cotizar')
+        ->and($r->filas[2]->cotizada)->toBeNull();
+});
+
+it('lets a request be detached from its Odoo order, without touching Odoo', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud] = compraRepartida($revisor);
+
+    config(['purchase_requests.odoo.enabled' => true]);
+    Http::preventStrayRequests();
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.odoo.detach', $solicitud))
+        ->assertSessionHas('success', fn ($m) => str_contains((string) $m, 'sigue existiendo en Odoo'));
+
+    $solicitud->refresh();
+
+    // La solicitud vuelve a estar libre para repartirse bien...
+    expect($solicitud->odoo_order_id)->toBeNull()
+        ->and($solicitud->items()->whereNotNull('odoo_order_id')->count())->toBe(0)
+        // ...y a Odoo no se le dijo ni una palabra: la orden de allá se anula
+        // allá, que es donde cuelgan sus recepciones y sus facturas.
+        ->and($solicitud->events()->where('comment', 'like', '%sigue en Odoo%')->exists())->toBeTrue();
+});

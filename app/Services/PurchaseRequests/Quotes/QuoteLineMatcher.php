@@ -50,10 +50,16 @@ final class QuoteLineMatcher
      * @param  list<array<string, mixed>>  $lineas  Lo que el documento traía.
      * @param  callable(mixed, array<string, mixed>): float  $parecido
      * @param  array<int, int>  $yaDichas  Lo que una persona ya confirmó: partida => renglón.
+     * @param  array<string, bool>  $vetadas  Lo que una persona dijo que NO era.
      */
-    public function emparejar(array $items, array $lineas, callable $parecido, array $yaDichas = []): QuoteMatching
-    {
-        $puntajes = $this->puntuar($items, $lineas, $parecido);
+    public function emparejar(
+        array $items,
+        array $lineas,
+        callable $parecido,
+        array $yaDichas = [],
+        array $vetadas = [],
+    ): QuoteMatching {
+        $puntajes = $this->puntuar($items, $lineas, $parecido, $vetadas);
 
         [$seguras, $conApoyo] = $this->porConfianza($puntajes, $yaDichas);
 
@@ -78,12 +84,19 @@ final class QuoteLineMatcher
      * @param  callable(mixed, array<string, mixed>): float  $parecido
      * @return array<string, float>
      */
-    private function puntuar(array $items, array $lineas, callable $parecido): array
+    private function puntuar(array $items, array $lineas, callable $parecido, array $vetadas = []): array
     {
         $puntajes = [];
 
         foreach ($items as $i => $item) {
             foreach ($lineas as $j => $linea) {
+                // Lo que una persona ya descartó no vuelve a puntuar: si dijo
+                // que «CINTA PELIGRO» no es «ESCOBILLON DOMESTICO», no hay que
+                // proponérselo cada vez que abra la página.
+                if (isset($vetadas[$i.':'.$j])) {
+                    continue;
+                }
+
                 $puntaje = $parecido($item, $linea);
 
                 if ($puntaje > 0.0) {

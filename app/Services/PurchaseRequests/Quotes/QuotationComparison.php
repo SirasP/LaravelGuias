@@ -30,17 +30,20 @@ class QuotationComparison
     /**
      * @param  list<array<string, mixed>>  $lineasDelDocumento
      * @param  array<int, int>  $parejasConfirmadas  Renglón del documento => id de la partida.
+     * @param  list<array{0: int, 1: int}>  $parejasRechazadas  Lo que alguien dijo que NO era.
      */
     public function comparar(
         PurchaseRequest $solicitud,
         array $lineasDelDocumento,
         ?int $odooPartnerId = null,
         array $parejasConfirmadas = [],
+        array $parejasRechazadas = [],
     ): QuotationComparisonResult {
         $pedidas = $solicitud->items()->orderBy('sort_order')->get()->all();
         $this->partnerId = $odooPartnerId;
 
         $dichas = $this->porPosicion($pedidas, $lineasDelDocumento, $parejasConfirmadas);
+        $vetadas = $this->vetosPorPosicion($pedidas, $parejasRechazadas);
 
         $emparejado = $this->emparejador
             ->conCantidades($pedidas, $lineasDelDocumento)
@@ -49,6 +52,7 @@ class QuotationComparison
                 $lineasDelDocumento,
                 fn ($item, array $linea): float => $this->parecido($item, $linea),
                 $dichas,
+                $vetadas,
             );
 
         $filas = [];
@@ -135,6 +139,41 @@ class QuotationComparison
         }
 
         return $dichas;
+    }
+
+    /**
+     * Lo que alguien rechazó, en la forma que entiende el emparejador.
+     *
+     * Una propuesta se recalcula en cada carga de la página, así que decir
+     * «ésa no es» sin dejarlo escrito no servía de nada: volvía a aparecer.
+     *
+     * @param  list<mixed>  $pedidas
+     * @param  list<array{0: int, 1: int}>  $rechazadas
+     * @return array<string, bool> «índiceDePartida:índiceDeRenglón»
+     */
+    private function vetosPorPosicion(array $pedidas, array $rechazadas): array
+    {
+        if ($rechazadas === []) {
+            return [];
+        }
+
+        $posicionDe = [];
+
+        foreach ($pedidas as $i => $item) {
+            $posicionDe[(int) $item->getKey()] = $i;
+        }
+
+        $vetos = [];
+
+        foreach ($rechazadas as [$renglon, $idPartida]) {
+            $i = $posicionDe[$idPartida] ?? null;
+
+            if ($i !== null) {
+                $vetos[$i.':'.$renglon] = true;
+            }
+        }
+
+        return $vetos;
     }
 
     /**

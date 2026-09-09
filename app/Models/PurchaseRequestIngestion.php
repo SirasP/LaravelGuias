@@ -78,15 +78,57 @@ class PurchaseRequestIngestion extends Model
             return [];
         }
 
+        // Las primeras se guardaron como un mapa plano; las de ahora van bajo
+        // «pares» para poder guardar también los rechazos en la misma columna.
+        $planas = is_array($guardadas['pares'] ?? null) ? $guardadas['pares'] : $guardadas;
         $parejas = [];
 
-        foreach ($guardadas as $renglon => $partida) {
+        foreach ($planas as $renglon => $partida) {
             if (is_numeric($renglon) && is_numeric($partida)) {
                 $parejas[(int) $renglon] = (int) $partida;
             }
         }
 
         return $parejas;
+    }
+
+    /**
+     * Los emparejados que una persona rechazó: «ésa no es».
+     *
+     * Sin esto, decir que no a una propuesta no servía de nada: el programa la
+     * volvía a proponer en cuanto se recargaba la página, porque la propuesta
+     * se calcula cada vez. «CINTA PELIGRO» contra «ESCOBILLON DOMESTICO MANGO
+     * MADERA VIRUTEX» no es un emparejado que haya que discutir dos veces.
+     *
+     * @return list<array{0: int, 1: int}> renglón del documento e id de la partida
+     */
+    public function parejasRechazadas(): array
+    {
+        $guardadas = $this->confirmed_pairings;
+        $rechazos = is_array($guardadas['rechazos'] ?? null) ? $guardadas['rechazos'] : [];
+        $limpios = [];
+
+        foreach ($rechazos as $par) {
+            if (is_array($par) && is_numeric($par[0] ?? null) && is_numeric($par[1] ?? null)) {
+                $limpios[] = [(int) $par[0], (int) $par[1]];
+            }
+        }
+
+        return $limpios;
+    }
+
+    /**
+     * Guarda las dos decisiones juntas, que es como se toman.
+     *
+     * @param  array<int, int>  $parejas
+     * @param  list<array{0: int, 1: int}>  $rechazos
+     */
+    public function guardarDecisiones(array $parejas, array $rechazos): void
+    {
+        $this->forceFill(['confirmed_pairings' => $parejas === [] && $rechazos === []
+            ? null
+            : ['pares' => $parejas, 'rechazos' => array_values($rechazos)],
+        ])->save();
     }
 
     protected static function booted(): void

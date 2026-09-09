@@ -1315,19 +1315,33 @@
                                                     </td>
                                                     <td class="hidden px-6 py-4 text-xs md:table-cell">
                                                         @if($fila->esPropuesta())
-                                                            <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}"
-                                                                class="flex flex-wrap items-center gap-2">
-                                                                @csrf
-                                                                <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
-                                                                <input type="hidden" name="item_id" value="{{ $fila->pedida?->getKey() }}">
-                                                                <input type="hidden" name="line_index" value="{{ $fila->renglon }}">
-                                                                <button type="submit"
-                                                                    class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
-                                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                                                                    Sí, es esa
-                                                                </button>
-                                                                <span class="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">por confirmar</span>
-                                                            </form>
+                                                            <div class="flex flex-wrap items-center gap-2">
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}">
+                                                                    @csrf
+                                                                    <input type="hidden" name="quote_line" value="{{ $fila->cotizada['product_service'] ?? '' }}">
+                                                                    <input type="hidden" name="item_id" value="{{ $fila->pedida?->getKey() }}">
+                                                                    <input type="hidden" name="line_index" value="{{ $fila->renglon }}">
+                                                                    <button type="submit"
+                                                                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
+                                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                                                        Sí, es esa
+                                                                    </button>
+                                                                </form>
+
+                                                                {{-- El «no» faltaba, y sin él una propuesta equivocada
+                                                                     volvía a aparecer en cada carga de la página: se
+                                                                     recalculan siempre. --}}
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.reject', [$purchaseRequest, $lectura]) }}">
+                                                                    @csrf
+                                                                    <input type="hidden" name="item_id" value="{{ $fila->pedida?->getKey() }}">
+                                                                    <input type="hidden" name="line_index" value="{{ $fila->renglon }}">
+                                                                    <button type="submit"
+                                                                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-300 px-3 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-rose-950/40">
+                                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                        No es
+                                                                    </button>
+                                                                </form>
+                                                            </div>
                                                         @elseif($fila->estado === 'sin_cotizar')
                                                             <span class="font-bold text-rose-700 dark:text-rose-300">No la cotizaron</span>
                                                         @else
@@ -1731,6 +1745,18 @@
                                     <p class="mt-1 text-[11px] text-violet-800 dark:text-violet-300">
                                         Exportada el {{ $purchaseRequest->odoo_exported_at?->format('d-m-Y H:i') }}. No se vuelve a enviar.
                                     </p>
+
+                                    {{-- Soltarla es la única salida cuando la orden de allá
+                                         quedó mal —por ejemplo con partidas de dos proveedores
+                                         juntas— y hay que rehacer el reparto. No toca Odoo. --}}
+                                    <form method="POST" action="{{ route('purchase_requests.odoo.detach', $purchaseRequest) }}" class="mt-3"
+                                        onsubmit="return confirm('La solicitud se suelta de {{ $purchaseRequest->odoo_reference }} y sus partidas vuelven a estar en espera.\n\nOJO: {{ $purchaseRequest->odoo_reference }} NO se borra ni se anula en Odoo. Si hay que anularla, se hace allá.\n\n¿Seguimos?')">
+                                        @csrf
+                                        <button type="submit"
+                                            class="text-[11px] font-bold text-violet-700 underline decoration-dotted underline-offset-2 hover:text-rose-600 dark:text-violet-300 dark:hover:text-rose-400">
+                                            Soltar de {{ $purchaseRequest->odoo_reference }} y rehacer el reparto
+                                        </button>
+                                    </form>
                                 </div>
                             @else
                             @if($faltaProveedor || session()->exists('odoo_candidates') || session('odoo_query'))

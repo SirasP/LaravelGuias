@@ -329,6 +329,7 @@ class PurchaseRequestController extends Controller
                     // significar productos distintos según quién lo escriba.
                     $this->partnerDeOdoo($cotizacion),
                     $cotizacion->parejasConfirmadas(),
+                    $cotizacion->parejasRechazadas(),
                 ),
             ];
         }

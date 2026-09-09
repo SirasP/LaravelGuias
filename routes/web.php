@@ -161,6 +161,12 @@ Route::middleware('auth')
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');
+            // «Ésa no es»: descarta la propuesta y no vuelve a ofrecerla.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/descartar', [PurchaseQuoteComparisonController::class, 'reject'])
+                ->name('quotes.reject');
+            // Soltar la solicitud de su orden de Odoo, para rehacerla.
+            Route::post('/{purchaseRequest}/soltar-de-odoo', [PurchaseQuoteComparisonController::class, 'detach'])
+                ->name('odoo.detach');
             // «Esto se lo compro a este proveedor»: reparte la compra.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/enviar-a-odoo', [PurchaseQuoteComparisonController::class, 'split'])
                 ->name('quotes.split');

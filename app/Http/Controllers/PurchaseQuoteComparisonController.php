@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ReadQuotationDocument;
 use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestEvent;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseRequestItem;
 use App\Models\PurchaseSupplier;
@@ -258,6 +259,7 @@ class PurchaseQuoteComparisonController extends Controller
             is_array($lineas) ? array_values($lineas) : [],
             $partnerId,
             $ingestion->parejasConfirmadas(),
+            $ingestion->parejasRechazadas(),
         );
 
         $aprendidas = 0;
@@ -284,6 +286,88 @@ class PurchaseQuoteComparisonController extends Controller
                 )
                 : 'No había ninguna propuesta pendiente de confirmar.',
         );
+    }
+
+    /**
+     * «Ésa no es»: descarta una propuesta y no la vuelve a ofrecer.
+     *
+     * Las propuestas se recalculan en cada carga de la página, así que sin
+     * dejarlo escrito el rechazo no duraba nada: «CINTA PELIGRO» volvía a
+     * aparecer emparejada con «ESCOBILLON DOMESTICO MANGO MADERA VIRUTEX» a la
+     * siguiente visita. Con el rechazo guardado, la partida queda sin cotizar
+     * y el renglón baja al bloque de lo que el proveedor trajo de más, donde
+     * se le puede asignar la partida correcta.
+     */
+    public function reject(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'item_id' => ['required', 'integer'],
+            'line_index' => ['required', 'integer', 'min:0'],
+        ], [], ['item_id' => 'la partida', 'line_index' => 'la línea de la cotización']);
+
+        abort_if($purchaseRequest->items()->whereKey($datos['item_id'])->doesntExist(), 404);
+
+        $rechazos = $ingestion->parejasRechazadas();
+        $rechazos[] = [(int) $datos['line_index'], (int) $datos['item_id']];
+
+        // Y si además estaba confirmada, deja de estarlo: rechazar es la forma
+        // de deshacer una confirmación equivocada.
+        $parejas = $ingestion->parejasConfirmadas();
+        unset($parejas[(int) $datos['line_index']]);
+
+        $ingestion->guardarDecisiones($parejas, $rechazos);
+
+        return to_route('purchase_requests.show', $purchaseRequest)
+            ->with('success', 'Descartado. Esa pareja no se vuelve a proponer, y el renglón queda '
+                .'abajo para que le digas cuál era.');
+    }
+
+    /**
+     * Suelta la solicitud de su orden de Odoo, para poder rehacerla.
+     *
+     * No toca Odoo. La orden de allá se queda donde está —si hay que anularla,
+     * se anula allá, que es donde cuelgan sus recepciones y facturas—; lo que
+     * se suelta es el vínculo, para que la solicitud pueda repartirse bien
+     * entre sus proveedores con una orden nueva.
+     */
+    public function detach(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+
+        $anterior = (string) ($purchaseRequest->odoo_reference ?: $purchaseRequest->odoo_order_id);
+
+        if ($anterior === '') {
+            return back()->with('info', 'Esta solicitud no está vinculada a ninguna orden de Odoo.');
+        }
+
+        $purchaseRequest->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+        $purchaseRequest->forceFill([
+            'odoo_order_id' => null,
+            'odoo_reference' => null,
+            'odoo_exported_at' => null,
+        ])->save();
+
+        $purchaseRequest->events()->create([
+            'actor_id' => $request->user()->getKey(),
+            'actor_name_snapshot' => $request->user()->name,
+            'actor_role_snapshot' => $request->user()->role,
+            'event_type' => PurchaseRequestEvent::EXPORTED,
+            'from_status' => $purchaseRequest->status,
+            'to_status' => $purchaseRequest->status,
+            'revision_number' => $purchaseRequest->revision_number,
+            'comment' => 'Se soltó el vínculo con '.$anterior.'. La orden sigue en Odoo.',
+            'ip_address' => $request->ip(),
+        ]);
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with('success', sprintf(
+            'La solicitud se soltó de %s y sus partidas vuelven a estar en espera. '
+                .'Ojo: %s sigue existiendo en Odoo — si hay que anularla, se anula allá.',
+            $anterior,
+            $anterior,
+        ));
     }
 
     /**
@@ -404,6 +488,7 @@ class PurchaseQuoteComparisonController extends Controller
             is_array($lineas) ? array_values($lineas) : [],
             $partnerId,
             $ingestion->parejasConfirmadas(),
+            $ingestion->parejasRechazadas(),
         );
 
         return collect($comparacion->filas)
@@ -562,6 +647,7 @@ class PurchaseQuoteComparisonController extends Controller
             is_array($lineas) ? array_values($lineas) : [],
             $partnerId,
             $ingestion->parejasConfirmadas(),
+            $ingestion->parejasRechazadas(),
         );
 
         $cambios = [];
