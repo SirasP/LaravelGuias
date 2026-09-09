@@ -190,3 +190,30 @@ it('lets a request be detached from its Odoo order, without touching Odoo', func
         // allá, que es donde cuelgan sus recepciones y sus facturas.
         ->and($solicitud->events()->where('comment', 'like', '%sigue en Odoo%')->exists())->toBeTrue();
 });
+
+it('lets you say who signs a quotation that came with no tax id', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    // Una cotización dictada a mano no trae RUT, y el buscador de la tarjeta
+    // de Odoo resuelve el proveedor de la SOLICITUD, que es otra cosa: una
+    // solicitud puede comprarse a dos. Sin esto, «comprarle a este proveedor»
+    // no tenía a nombre de quién crear la orden y no había forma de decirlo.
+    $lectura->forceFill(['supplier_tax_id' => null, 'supplier_name' => 'HARCHA'])->save();
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.supplier', [$solicitud, $lectura]), [
+            'odoo_partner_id' => 4120,
+            'name' => 'COMERCIAL HARCHA LIMITADA',
+            'vat' => '77.118.278-K',
+        ])
+        ->assertSessionHas('success');
+
+    $lectura->refresh();
+
+    expect($lectura->supplier_tax_id)->toBe('77118278-K')
+        ->and($lectura->supplier_name)->toBe('COMERCIAL HARCHA LIMITADA')
+        // Y queda aprendido: no se vuelve a preguntar por este proveedor.
+        ->and(App\Models\PurchaseSupplier::where('tax_id', '77118278-K')->value('odoo_partner_id'))
+        ->toBe(4120);
+});

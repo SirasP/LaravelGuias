@@ -161,6 +161,12 @@ Route::middleware('auth')
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');
+            // Quién firma ESTA cotización, que no es lo mismo que el proveedor
+            // de la solicitud: una solicitud puede comprarse a dos.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/buscar-proveedor', [PurchaseQuoteComparisonController::class, 'supplierSearch'])
+                ->name('quotes.supplier_search');
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/proveedor', [PurchaseQuoteComparisonController::class, 'supplierAssign'])
+                ->name('quotes.supplier');
             // «Ésa no es»: descarta la propuesta y no vuelve a ofrecerla.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/descartar', [PurchaseQuoteComparisonController::class, 'reject'])
                 ->name('quotes.reject');

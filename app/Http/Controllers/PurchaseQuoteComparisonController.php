@@ -11,6 +11,7 @@ use App\Models\PurchaseRequestItem;
 use App\Models\PurchaseSupplier;
 use App\Models\UnitOfMeasure;
 use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;
+use App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier;
 use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
 use App\Services\PurchaseRequests\Quotes\QuotationComparison;
@@ -115,11 +116,13 @@ class PurchaseQuoteComparisonController extends Controller
         $datos = $request->validate([
             'text' => ['required', 'string', 'min:3', 'max:4000'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
+            'supplier_tax_id' => ['nullable', 'string', 'max:32'],
             'document_number' => ['nullable', 'string', 'max:60'],
             'kind' => ['nullable', 'in:cotizacion,factura'],
         ], [], [
             'text' => 'lo que escribiste',
             'supplier_name' => 'el proveedor',
+            'supplier_tax_id' => 'el RUT del proveedor',
             'document_number' => 'el número de documento',
         ]);
 
@@ -182,6 +185,10 @@ class PurchaseQuoteComparisonController extends Controller
             'status' => PurchaseRequestIngestion::COMPLETED,
             'source_kind' => PurchaseRequestSourceKind::TEXT,
             'supplier_name' => $proveedor,
+            // El RUT es lo que después permite crearle su orden en Odoo a
+            // nombre de quien corresponde. Sin él, una cotización dictada se
+            // quedaba sin poder comprarse.
+            'supplier_tax_id' => Rut::normalize((string) ($datos['supplier_tax_id'] ?? '')),
             'extracted' => [
                 'items' => $partidas,
                 'supplier' => $proveedor,
@@ -285,6 +292,74 @@ class PurchaseQuoteComparisonController extends Controller
                     Str::plural('pareja', $aprendidas),
                 )
                 : 'No había ninguna propuesta pendiente de confirmar.',
+        );
+    }
+
+    /**
+     * Busca en Odoo el proveedor de ESTA cotización.
+     *
+     * El buscador de la tarjeta de Odoo resuelve el proveedor de la solicitud,
+     * que es otra cosa: una solicitud puede comprarse a dos. Y una cotización
+     * dictada a mano no trae RUT, así que sin esto no había forma de decir
+     * quién la firma —y sin eso no se le puede crear su orden—.
+     */
+    public function supplierSearch(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestIngestion $ingestion,
+        PurchaseRequestExporter $exporter,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'q' => ['required', 'string', 'min:2', 'max:120'],
+        ], [], ['q' => 'la búsqueda']);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        $encontrados = $exporter->buscarProveedores($datos['q']);
+
+        return back()
+            ->with('cot_candidatos', [$ingestion->getKey() => $encontrados])
+            ->with('cot_busqueda', [$ingestion->getKey() => $datos['q']])
+            ->with($encontrados === [] ? 'warning' : 'info', $encontrados === []
+                ? 'Odoo no tiene ningún proveedor que coincida con «'.$datos['q'].'».'
+                : 'Odoo encontró '.count($encontrados).' '.Str::plural('proveedor', count($encontrados)).'.');
+    }
+
+    /**
+     * Anota quién es, y lo deja aprendido para las próximas cotizaciones suyas.
+     */
+    public function supplierAssign(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestIngestion $ingestion,
+        ConfirmOdooSupplier $confirmar,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'odoo_partner_id' => ['required', 'integer', 'min:1'],
+            'name' => ['required', 'string', 'max:255'],
+            'vat' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $proveedor = $confirmar($purchaseRequest, (int) $datos['odoo_partner_id'], $datos['name'], $datos['vat'] ?? null);
+
+        // El RUT queda en la cotización: es por donde se la reconoce después,
+        // y lo que permite crearle su orden a nombre de quien corresponde.
+        $ingestion->forceFill([
+            'supplier_name' => $datos['name'],
+            'supplier_tax_id' => $proveedor->tax_id,
+        ])->save();
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            'success',
+            'Anotado: esta cotización es de '.$datos['name'].'. Ya se le puede crear su orden en Odoo.',
         );
     }
 

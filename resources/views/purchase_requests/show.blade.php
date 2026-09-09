@@ -946,6 +946,17 @@
                                                 placeholder="Factura 12345"
                                                 class="mt-1 block w-full rounded-xl border-slate-300 bg-white py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
                                         </label>
+                                        {{-- El RUT es lo que permite crearle después su orden en
+                                             Odoo. Sin él, una cotización dictada se quedaba sin
+                                             poder comprarse y había que buscar el proveedor a mano. --}}
+                                        <label class="block sm:col-span-2">
+                                            <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                RUT del proveedor <span class="font-semibold normal-case tracking-normal text-slate-400">— para poder crearle su orden en Odoo</span>
+                                            </span>
+                                            <input type="text" name="supplier_tax_id" maxlength="32" value="{{ old('supplier_tax_id') }}"
+                                                placeholder="76.569.041-2"
+                                                class="mt-1 block w-full rounded-xl border-slate-300 bg-white py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+                                        </label>
                                     </div>
 
                                     <fieldset class="flex flex-wrap gap-4 text-sm">
@@ -1230,7 +1241,12 @@
                                              Odoo recibía las nueve partidas a nombre de
                                              uno solo y el stock salía torcido. --}}
                                         @can('exportToOdoo', $purchaseRequest)
-                                            @if($resultado->cruzadas() - $porConfirmar > 0 && $resultado->cruzadas() < $resultado->partidas())
+                                            @php
+                                                $rutCot = \App\Support\Rut::normalize($lectura->supplier_tax_id);
+                                                $proveedorCot = $rutCot === null ? null : \App\Models\PurchaseSupplier::query()
+                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutCot)->first();
+                                            @endphp
+                                            @if($resultado->cruzadas() - $porConfirmar > 0 && $resultado->cruzadas() < $resultado->partidas() && $proveedorCot !== null)
                                                 <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
                                                     onsubmit="return confirm('Se enviará a Odoo, a nombre de este proveedor, sólo lo que cotizó. El resto queda en espera. ¿Seguimos?')">
                                                     @csrf
@@ -1240,6 +1256,51 @@
                                                         Comprarle a este proveedor sus {{ $resultado->cruzadas() - $porConfirmar }}
                                                     </button>
                                                 </form>
+                                            @elseif($resultado->cruzadas() - $porConfirmar > 0 && $proveedorCot === null)
+                                                {{-- Sin saber quién firma esta cotización no hay a
+                                                     nombre de quién crear su orden. El buscador de la
+                                                     tarjeta de Odoo resuelve el proveedor de la
+                                                     solicitud, que es otra cosa: una solicitud puede
+                                                     comprarse a dos. Y una dictada a mano no trae RUT. --}}
+                                                @php
+                                                    $candidatosCot = session('cot_candidatos.'.$lectura->getKey(), []);
+                                                @endphp
+                                                <div class="w-full rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                                    <p class="text-xs font-bold text-amber-900 dark:text-amber-200">
+                                                        ¿Quién es «{{ $lectura->supplier_name ?: 'este proveedor' }}» en Odoo?
+                                                    </p>
+                                                    <p class="mt-0.5 text-[11px] text-amber-800 dark:text-amber-300">
+                                                        Hace falta para crearle su orden. Se pregunta una vez por proveedor.
+                                                    </p>
+
+                                                    <form method="POST" action="{{ route('purchase_requests.quotes.supplier_search', [$purchaseRequest, $lectura]) }}"
+                                                        class="mt-2 flex gap-2">
+                                                        @csrf
+                                                        <input name="q" value="{{ session('cot_busqueda.'.$lectura->getKey(), $lectura->supplier_name) }}"
+                                                            placeholder="Buscar en Odoo por nombre o RUT"
+                                                            class="min-h-9 w-full rounded-xl border-amber-300 bg-white px-3 text-xs dark:border-amber-800 dark:bg-slate-950 dark:text-white">
+                                                        <button type="submit"
+                                                            class="min-h-9 shrink-0 rounded-xl border border-amber-300 bg-white px-3 text-xs font-bold text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-200">
+                                                            Buscar
+                                                        </button>
+                                                    </form>
+
+                                                    @foreach($candidatosCot as $candidato)
+                                                        <form method="POST" action="{{ route('purchase_requests.quotes.supplier', [$purchaseRequest, $lectura]) }}" class="mt-1.5">
+                                                            @csrf
+                                                            <input type="hidden" name="odoo_partner_id" value="{{ $candidato['id'] }}">
+                                                            <input type="hidden" name="name" value="{{ $candidato['name'] }}">
+                                                            <input type="hidden" name="vat" value="{{ $candidato['vat'] }}">
+                                                            <button type="submit"
+                                                                class="w-full rounded-xl border border-amber-200 bg-white p-2 text-left text-xs shadow-sm hover:bg-amber-100 dark:border-amber-800 dark:bg-slate-950">
+                                                                <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
+                                                                <span class="block text-[11px] {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
+                                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}
+                                                                </span>
+                                                            </button>
+                                                        </form>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         @endcan
                                         <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
