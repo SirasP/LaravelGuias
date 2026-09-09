@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,4 +77,21 @@ it('says draft created when there really is one', function () {
         ->assertOk()
         ->assertSee($solicitud->folio)
         ->assertSee('borrador');
+});
+
+it('does not send you to edit a request that can no longer be edited', function () {
+    $owner = User::factory()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($owner)->approved()->create();
+    lecturaDe($owner, PurchaseRequestIngestion::COMPLETED, [
+        'purchase_request_id' => $solicitud->getKey(),
+    ]);
+
+    // Una aprobada no se edita, y eso es a propósito. El enlace llevaba igual
+    // a /editar, así que la fila terminaba en un 403 sin explicar nada.
+    $this->actingAs($owner)
+        ->get(route('purchase_requests.ingestions.index'))
+        ->assertOk()
+        ->assertDontSee(route('purchase_requests.edit', $solicitud), false)
+        ->assertSee(route('purchase_requests.show', $solicitud), false)
+        ->assertSee('aprobada');
 });

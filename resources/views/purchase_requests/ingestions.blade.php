@@ -184,11 +184,19 @@
                                     </td>
                                     <td class="whitespace-nowrap px-4 py-3 text-xs">
                                         @if($ingestion->purchaseRequest)
-                                            <a href="{{ route('purchase_requests.edit', $ingestion->purchaseRequest) }}"
+                                            {{-- A editar sólo mientras se pueda editar. Una
+                                                 solicitud aprobada no se toca —eso es a
+                                                 propósito— y el enlace llevaba igual, así que
+                                                 la fila terminaba en un 403 sin explicación. --}}
+                                            <a href="{{ $ingestion->purchaseRequest->status->isEditable()
+                                                    ? route('purchase_requests.edit', $ingestion->purchaseRequest)
+                                                    : route('purchase_requests.show', $ingestion->purchaseRequest) }}"
                                                 class="font-mono font-bold text-blue-700 underline decoration-dotted underline-offset-2 hover:text-blue-900 dark:text-blue-400">
                                                 {{ $ingestion->purchaseRequest->folio }}
                                             </a>
-                                            <span class="ml-1.5 text-[11px] text-slate-400">borrador</span>
+                                            <span class="ml-1.5 text-[11px] text-slate-400">
+                                                {{ \Illuminate\Support\Str::lower($ingestion->purchaseRequest->status->label()) }}
+                                            </span>
                                         @elseif($ingestion->comparedRequest)
                                             <a href="{{ route('purchase_requests.show', $ingestion->comparedRequest) }}"
                                                 class="font-mono font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
