@@ -623,7 +623,31 @@
         </section>
 
         {{-- ── TABS Y CONTENIDO PRINCIPAL FULL SCREEN (ALPINE VISTA) ────── --}}
-        <div x-data="{ vista: 'solicitud', itemFilter: '', itemStatus: 'all' }">
+        {{-- La pestaña abierta sobrevive a la recarga.
+             Cada botón de esta pantalla manda un formulario y vuelve por un
+             redirect, y la pestaña vivía sólo en memoria: buscar un proveedor
+             dentro de una cotización te devolvía a «Solicitud», y había que
+             volver a buscarla para ver el resultado de lo que acababas de
+             hacer. Se guarda por solicitud, así que dos pestañas del navegador
+             en dos solicitudes distintas no se pisan. --}}
+        <div x-data="{
+                clave: 'sc-vista-{{ $purchaseRequest->public_id }}',
+                vista: 'solicitud',
+                itemFilter: '',
+                itemStatus: 'all',
+                init() {
+                    // En una ventana privada, o con las cookies de sitio
+                    // bloqueadas, esto lanza excepción: se sigue sin memoria.
+                    try {
+                        const guardada = sessionStorage.getItem(this.clave);
+                        if (guardada) this.vista = guardada;
+                    } catch (e) {}
+
+                    this.$watch('vista', valor => {
+                        try { sessionStorage.setItem(this.clave, valor); } catch (e) {}
+                    });
+                },
+            }">
             
             {{-- Barra de pestañas tipo Segmented Control --}}
             <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
