@@ -130,7 +130,11 @@ class PurchaseRequestIngestion extends Model
             self::PENDING => 'En cola',
             self::WAITING => 'Esperando al lector',
             self::PROCESSING => 'Leyendo el documento',
-            self::COMPLETED => 'Borrador creado',
+            // «Borrador creado» sólo si de verdad se creó uno. Una lectura
+            // completa puede haber sido una cotización para comparar o un
+            // dictado, y decir que hay un borrador que no existe manda a
+            // buscar algo que no está en ninguna parte.
+            self::COMPLETED => $this->purchase_request_id !== null ? 'Borrador creado' : 'Leído',
             self::NEEDS_REVIEW => 'Leído con dudas',
             self::FAILED => 'No se pudo leer',
             default => Str::headline((string) $this->status),

@@ -78,10 +78,20 @@
                         <label for="document" class="block text-sm font-bold text-slate-700 dark:text-slate-200">
                             Documento <span class="text-rose-500">*</span>
                         </label>
+                        {{-- El input nativo se pinta solo y mal: el navegador
+                             escribe «Sin archivos seleccionados» y el nombre del
+                             archivo se recorta a media palabra. Se esconde y se
+                             dibuja la etiqueta, que además cabe entera. --}}
+                        <label for="document"
+                            class="mt-1.5 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 px-4 py-4 text-center transition hover:border-blue-400 hover:bg-blue-50/50 dark:border-slate-700 dark:bg-slate-950/40 dark:hover:border-blue-600">
+                            <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200"
+                                x-text="archivo || 'Elegir el PDF o la foto'"></span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">PDF, JPG o PNG · hasta 15 MB</span>
+                        </label>
                         <input id="document" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png"
                             @change="archivo = $event.target.files[0]?.name ?? ''"
-                            class="mt-1.5 block w-full text-sm text-slate-600 file:mr-3 file:min-h-11 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:text-sm file:font-bold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">PDF, JPG o PNG. Hasta 15 MB.</p>
+                            class="sr-only">
                         @error('document') <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p> @enderror
                     </div>
 
@@ -99,11 +109,18 @@
             </section>
 
             <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
-                <div class="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                    <h2 class="font-extrabold text-slate-900 dark:text-white">Documentos leídos</h2>
-                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        Motor: {{ $readerDescription }}
-                    </p>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+                    <div>
+                        <h2 class="font-extrabold text-slate-900 dark:text-white">Documentos leídos</h2>
+                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {{ $ingestions->total() }} en total · el archivo y lo que entendió la IA quedan guardados
+                        </p>
+                    </div>
+                    {{-- Qué modelo leyó: importa cuando algo sale raro, pero no
+                         es lo primero que alguien viene a ver aquí. --}}
+                    <span class="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        {{ $readerDescription }}
+                    </span>
                 </div>
 
                 <div class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -131,15 +148,40 @@
                                     </p>
                                 </div>
 
-                                <div class="flex shrink-0 gap-2">
+                                <div class="flex shrink-0 flex-wrap items-center gap-2">
                                     <a href="{{ route('purchase_requests.ingestions.download', $ingestion) }}"
                                         class="inline-flex min-h-11 items-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
-                                        Documento
+                                        {{ $ingestion->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT ? 'Ver lo escrito' : 'Documento' }}
                                     </a>
+
+                                    {{-- Releer estaba implementado y enrutado desde
+                                         siempre, pero la pantalla nunca lo ofreció:
+                                         una lectura fallida había que reencolarla
+                                         por consola. --}}
+                                    @if(in_array($ingestion->status, ['failed', 'needs_review'], true))
+                                        <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $ingestion) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-violet-300 px-3 text-xs font-bold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                Releer
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    {{-- Adonde fue a parar esta lectura. Antes sólo
+                                         se enlazaba el borrador; una cotización
+                                         comparada decía «listo» y no llevaba a
+                                         ningún sitio. --}}
                                     @if($ingestion->purchaseRequest)
                                         <a href="{{ route('purchase_requests.edit', $ingestion->purchaseRequest) }}"
                                             class="inline-flex min-h-11 items-center rounded-xl bg-blue-600 px-3 text-xs font-extrabold text-white hover:bg-blue-700">
                                             Revisar {{ $ingestion->purchaseRequest->folio }}
+                                        </a>
+                                    @elseif($ingestion->comparedRequest)
+                                        <a href="{{ route('purchase_requests.show', $ingestion->comparedRequest) }}"
+                                            class="inline-flex min-h-11 items-center rounded-xl bg-sky-600 px-3 text-xs font-extrabold text-white hover:bg-sky-700">
+                                            Ver {{ $ingestion->comparedRequest->folio }}
                                         </a>
                                     @endif
                                 </div>
