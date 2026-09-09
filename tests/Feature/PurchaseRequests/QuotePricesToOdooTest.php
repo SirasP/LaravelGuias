@@ -120,7 +120,7 @@ it('does not rewrite a price that already matches', function () {
     odooContesta([
         7,
         [['id' => 240, 'state' => 'draft', 'order_line' => [811]]],
-        [['id' => 811, 'product_id' => [8723, 'CURVA PVC'],
+        [['id' => 811, 'product_id' => [8723, 'CURVA PVC'], 'product_qty' => 2,
             'price_unit' => 65174, 'name' => 'CURVA PVC HIDRAUL. 200x90 CEMENTAR']],
     ]);
 
@@ -446,4 +446,48 @@ it('recognises a line that Odoo carries with something appended', function () {
     Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
         && ($r['params']['args'][5][0] ?? null) === [2002]
         && ($r['params']['args'][5][1]['price_unit'] ?? null) === 54900.0);
+});
+
+it('never lets Odoo drift the quantity away from what was requested', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 245, 'odoo_reference' => 'P00245', 'odoo_exported_at' => now(),
+    ]);
+    $partida = $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Pino verde 1x4',
+        'quantity' => 10, 'unit' => 'Unidades', 'unit_price' => null,
+    ]);
+
+    $lectura = PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'f.jpeg', 'original_name' => 'WhatsApp Image.jpeg', 'mime_type' => 'image/jpeg',
+        'size' => 10, 'sha256' => str_repeat('f', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        // El proveedor cotizó cinco de las diez que se pidieron.
+        'extracted' => ['items' => [[
+            'product_service' => 'MADERA PINO BRUTO 1 X 4 X 3,20MT', 'specification' => null,
+            'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '2990',
+        ]]],
+        'confirmed_pairings' => [0 => $partida->getKey()],
+    ]);
+
+    odooContesta([
+        7,
+        [['id' => 245, 'state' => 'draft', 'order_line' => [3001]]],
+        // Odoo la recalculó a cinco por su cuenta al ponerle el producto.
+        [['id' => 3001, 'product_id' => [8767, 'MADERA PINO'], 'product_qty' => 5,
+            'price_unit' => 0, 'name' => 'MADERA PINO BRUTO 1 X 4 X 3,20MT']],
+        true,
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud->fresh(), $lectura]))
+        ->assertSessionHas('success');
+
+    // Lo que se compra es lo que se pidió. Que el proveedor cotice otra cosa
+    // es una diferencia que la pantalla muestra, no un cambio que se aplica
+    // solo a una orden de compra.
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['product_qty'] ?? null) === 10.0);
 });

@@ -482,6 +482,8 @@ class PurchaseQuoteComparisonController extends Controller
                 'producto' => $exporter->productoDe($fila->pedida, $partnerId),
                 'textos' => $textos,
                 'precio' => is_numeric($precio) ? (float) $precio : null,
+                // La cantidad es siempre la que se pidió, nunca la cotizada.
+                'cantidad' => is_numeric($fila->pedida->quantity) ? (float) $fila->pedida->quantity : null,
                 // El nombre de verdad, el que trae la cotización oficial.
                 'nombre' => $nombre,
             ];

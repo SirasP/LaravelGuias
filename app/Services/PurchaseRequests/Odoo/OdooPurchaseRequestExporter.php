@@ -741,11 +741,11 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         $cambios = [];
 
         foreach ($preciosPorProducto as $producto => $precio) {
-            $cambios[] = ['producto' => (int) $producto, 'textos' => [], 'precio' => (float) $precio, 'nombre' => null];
+            $cambios[] = ['producto' => (int) $producto, 'textos' => [], 'precio' => (float) $precio, 'nombre' => null, 'cantidad' => null];
         }
 
         foreach ($preciosPorTexto as $texto => $precio) {
-            $cambios[] = ['producto' => null, 'textos' => [(string) $texto], 'precio' => (float) $precio, 'nombre' => null];
+            $cambios[] = ['producto' => null, 'textos' => [(string) $texto], 'precio' => (float) $precio, 'nombre' => null, 'cantidad' => null];
         }
 
         [$actualizadas, $motivo] = $this->actualizarLineas($purchaseRequest, $cambios);
@@ -772,7 +772,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * solicitud sólo existe el nombre genérico, y crear con eso sería llenar
      * el catálogo de basura.
      *
-     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string}>  $cambios
+     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float}>  $cambios
      * @return array{0: int, 1: ?string, 2: int} actualizadas, motivo, productos creados
      */
     public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios, ?int $partnerId = null): array
@@ -801,7 +801,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'purchase.order.line',
                 'read',
                 [$cabecera[0]['order_line'] ?? []],
-                ['fields' => ['id', 'product_id', 'price_unit', 'name']],
+                ['fields' => ['id', 'product_id', 'price_unit', 'name', 'product_qty']],
             );
 
             // Los nombres reales de las líneas que viajaron sin producto, en
@@ -857,6 +857,18 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                     $escribir['name'] = trim((string) $cambio['nombre']);
                 }
 
+                // La cantidad se reafirma, nunca se toma de la cotización.
+                //
+                // Odoo la recalcula por su cuenta al cambiarle el producto o la
+                // unidad a una línea: en la P00245 el pino de 1x4 pasó de las
+                // diez que se pidieron a las cinco de la cotización, sin que
+                // nadie lo tocara ni lo dijera. Lo que se compra es lo que se
+                // pidió; que el proveedor cotice otra cosa es una diferencia
+                // que la pantalla muestra, no un cambio que se aplica solo.
+                if ($cambio['cantidad'] !== null && abs((float) ($linea['product_qty'] ?? 0) - $cambio['cantidad']) >= 0.0001) {
+                    $escribir['product_qty'] = $cambio['cantidad'];
+                }
+
                 if ($escribir === []) {
                     continue;
                 }
@@ -890,8 +902,8 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * calza y no se toca: ya no es la línea que salió de aquí.
      *
      * @param  array<string, mixed>  $linea
-     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string}>  $cambios
-     * @return array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string}|null
+     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float}>  $cambios
+     * @return array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float}|null
      */
     private function cambioDe(array $linea, array $cambios): ?array
     {
