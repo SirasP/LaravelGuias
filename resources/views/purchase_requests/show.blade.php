@@ -75,6 +75,16 @@
             return $enCurso || $comparacion['resultado']->elDocumentoNoAporto();
         })->values();
 
+        // Qué pestaña le toca a cada cotización. El número de vuelta del
+        // recorrido no sirve: las pestañas salen de $comparables, que deja
+        // fuera las ilegibles, y entonces un documento roto corría de lugar a
+        // todos los que venían detrás.
+        $tabDe = [];
+
+        foreach ($comparables as $posicion => $comparacion) {
+            $tabDe[(int) $comparacion['ingestion']->getKey()] = $posicion;
+        }
+
         $hayEspecificacion = $purchaseRequest->items->contains(fn ($linea) => filled($linea->specification));
         $hayPrecio = $purchaseRequest->items->contains(fn ($linea) => filled($linea->unit_price));
         $hayDestino = $purchaseRequest->items->contains(fn ($linea) => filled($linea->destination));
@@ -1075,7 +1085,7 @@
                                                             @endphp
                                                             @if($firmes > 0 && $provFila !== null)
                                                                 <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
-                                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de {{ $provFila->name }}, sólo lo que cotizó. El resto queda en espera. ¿Seguimos?')">
+                                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de {{ addslashes($provFila->name) }}, lo que cotizó. ¿Seguimos?')">
                                                                     @csrf
                                                                     <button type="submit"
                                                                         class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-violet-700">
@@ -1084,7 +1094,7 @@
                                                                     </button>
                                                                 </form>
                                                             @elseif($firmes > 0)
-                                                                <button type="button" @click="vista = 'cot{{ $loop->index }}'"
+                                                                <button type="button" @click="vista = 'cot{{ $tabDe[$lectura->getKey()] ?? 0 }}'"
                                                                     class="text-xs font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:text-amber-400">
                                                                     Falta decir quién es en Odoo
                                                                 </button>
@@ -1300,18 +1310,20 @@
                                                 $rutCot = \App\Support\Rut::normalize($lectura->supplier_tax_id);
                                                 $proveedorCot = $rutCot === null ? null : \App\Models\PurchaseSupplier::query()
                                                     ->whereNotNull('odoo_partner_id')->where('tax_id', $rutCot)->first();
+                                                $firmesCot = $resultado->cruzadas() - $porConfirmar;
+                                                $enEsperaCot = $resultado->partidas() - $firmesCot;
                                             @endphp
-                                            @if($resultado->cruzadas() - $porConfirmar > 0 && $resultado->cruzadas() < $resultado->partidas() && $proveedorCot !== null)
+                                            @if($firmesCot > 0 && $proveedorCot !== null)
                                                 <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
-                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de este proveedor, sólo lo que cotizó. El resto queda en espera. ¿Seguimos?')">
+                                                    onsubmit="return confirm('Se le comprará a {{ addslashes($proveedorCot->name) }}, en su propia orden de Odoo, {{ $firmesCot }} {{ \Illuminate\Support\Str::plural('partida', $firmesCot) }} con el precio que cotizó.{{ $enEsperaCot > 0 ? ' Las otras '.$enEsperaCot.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
                                                     @csrf
                                                     <button type="submit"
                                                         class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">
                                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                        Comprarle a este proveedor sus {{ $resultado->cruzadas() - $porConfirmar }}
+                                                        Comprarle a este proveedor {{ $enEsperaCot > 0 ? 'sus '.$firmesCot : ($firmesCot === 1 ? 'la partida' : 'las '.$firmesCot) }}
                                                     </button>
                                                 </form>
-                                            @elseif($resultado->cruzadas() - $porConfirmar > 0 && $proveedorCot === null)
+                                            @elseif($firmesCot > 0 && $proveedorCot === null)
                                                 {{-- Sin saber quién firma esta cotización no hay a
                                                      nombre de quién crear su orden. El buscador de la
                                                      tarjeta de Odoo resuelve el proveedor de la
@@ -1820,6 +1832,40 @@
                                                     El precio y el nombre real del proveedor, en las partidas que cruzaron. No toca el catálogo de Odoo ni las cantidades.
                                                 </p>
                                             </form>
+                                        @endif
+
+                                        {{-- Comprarle a éste. Existe también en la pestaña
+                                             Cotizaciones, que es donde nadie lo encontró:
+                                             aquí queda pegado al botón que ya se aprieta,
+                                             y esta tarjeta es la primera pantalla. --}}
+                                        @if(! $leyendo && ! $resultado->elDocumentoNoAporto())
+                                            @php
+                                                $rutLat = \App\Support\Rut::normalize($lectura->supplier_tax_id);
+                                                $provLat = $rutLat === null ? null : \App\Models\PurchaseSupplier::query()
+                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutLat)->first();
+                                                $firmesLat = $resultado->cruzadas() - $resultado->porConfirmar();
+                                                $esperaLat = $resultado->partidas() - $firmesLat;
+                                            @endphp
+                                            @if($firmesLat > 0 && $provLat !== null)
+                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
+                                                    class="mt-3 border-t border-slate-100 pt-2.5 dark:border-slate-800"
+                                                    onsubmit="return confirm('Se le comprará a {{ addslashes($provLat->name) }}, en su propia orden de Odoo, {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} con el precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-violet-700 transition">
+                                                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                        <span class="truncate">Comprarle a {{ \Illuminate\Support\Str::limit($provLat->name, 22) }}</span>
+                                                    </button>
+                                                    <p class="mt-1 text-[11px] text-violet-800 dark:text-violet-300">
+                                                        Su propia orden en Odoo, con {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} al precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera.' : '' }}
+                                                    </p>
+                                                </form>
+                                            @elseif($firmesLat > 0)
+                                                <button type="button" @click="vista = 'cot{{ $tabDe[$lectura->getKey()] ?? 0 }}'"
+                                                    class="mt-3 w-full border-t border-slate-100 pt-2.5 text-left text-[11px] font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:border-slate-800 dark:text-amber-400">
+                                                    Para comprarle sólo a éste, falta decir quién es en Odoo
+                                                </button>
+                                            @endif
                                         @endif
                                     @endcan
                                 </div>

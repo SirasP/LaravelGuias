@@ -489,8 +489,16 @@ class PurchaseQuoteComparisonController extends Controller
         // crear la nueva: si Odoo rechaza el recorte, no queremos una segunda
         // orden creada sobre una primera que sigue mintiendo.
         $anterior = (int) $purchaseRequest->odoo_order_id;
+        $referenciaAnterior = (string) $purchaseRequest->odoo_reference;
 
-        if ($anterior !== 0) {
+        // Recortar exige saber qué línea de allá es cada partida, y eso sólo se
+        // guarda desde que existe la columna. En una orden anterior a eso no
+        // sabemos nada: la lista de «las que se quedan» saldría vacía y el
+        // recorte le borraría hasta la última línea. Se deja intacta.
+        $seSabeQueHayAlla = $anterior !== 0 && $purchaseRequest->items()
+            ->where('odoo_order_id', $anterior)->exists();
+
+        if ($anterior !== 0 && $seSabeQueHayAlla) {
             $sonSuyas = $suyas->pluck('id')->all();
 
             // Las que estaban en la primera orden y este proveedor no cotizó:
@@ -556,13 +564,18 @@ class PurchaseQuoteComparisonController extends Controller
         $enEspera = $purchaseRequest->items()->whereNull('odoo_order_id')->count();
 
         return to_route('purchase_requests.show', $purchaseRequest)->with('success', sprintf(
-            'Se creó %s en Odoo con %d %s de %s.%s',
+            'Se creó %s en Odoo con %d %s de %s.%s%s',
             $referencia,
             $suyas->count(),
             Str::plural('partida', $suyas->count()),
             $ingestion->supplier_name ?: 'este proveedor',
             $enEspera > 0
                 ? sprintf(' Quedan %d en espera de otro proveedor.', $enEspera)
+                : '',
+            $anterior !== 0 && ! $seSabeQueHayAlla
+                ? sprintf(' %s quedó igual porque no sabemos qué línea es cuál allá: en Odoo las dos '
+                    .'quedan como alternativas, confirma la que compres y anula la otra.',
+                    $referenciaAnterior !== '' ? $referenciaAnterior : 'La orden anterior')
                 : '',
         ));
     }

@@ -286,3 +286,73 @@ it('unsticks a request whose Odoo order was deleted over there', function () {
 
     expect($solicitud->fresh()->odoo_reference)->toBe('P00251');
 });
+
+/**
+ * La SC-2026-000037 tenía su orden P00246 creada antes de que se guardara el
+ * número de línea de cada partida. Recortarla habría dejado la lista de «las
+ * que se quedan» vacía, y el recorte le habría borrado hasta la última línea
+ * a una orden que nadie pidió vaciar.
+ */
+it('does not empty an order whose lines it cannot identify', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    $solicitud->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    odooDice([7, [], 251, [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]]]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order'
+        && ($r['params']['args'][4] ?? null) === 'read'
+        && ($r['params']['args'][5][0] ?? null) === [250]);
+
+    // Y la orden anterior sigue siendo la de la solicitud: no se perdió.
+    expect((int) $solicitud->fresh()->odoo_order_id)->toBe(250);
+});
+
+/**
+ * Dos proveedores cotizando la única partida de la SC-2026-000037: el botón
+ * pedía que la cotización cubriera menos de lo pedido, así que desaparecía
+ * justo en el caso donde más falta hace, que es cuando hay que elegir a uno.
+ */
+it('offers to buy from a supplier that quoted every single line', function () {
+    $revisor = User::factory()->admin()->create();
+
+    odooDice([]);
+
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 246, 'odoo_reference' => 'P00246', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Casco seguridad Amarillo con Barbiquejo',
+        'quantity' => 5, 'unit' => 'Unidades',
+    ]);
+
+    PurchaseSupplier::query()->create([
+        'company_code' => 'EHE', 'name' => 'MAXSERVICE SPA',
+        'tax_id' => '76821142-6', 'odoo_partner_id' => 3597,
+    ]);
+
+    PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'n.pdf', 'original_name' => 'NV_0000679894.pdf', 'mime_type' => 'application/pdf',
+        'size' => 10, 'sha256' => str_repeat('b', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'supplier_tax_id' => '76821142-6', 'supplier_name' => 'MAXSERVICE SPA',
+        'extracted' => ['items' => [[
+            'product_service' => 'Casco seguridad Amarillo con Barbiquejo',
+            'specification' => 'CASCO ECO CONSTRUCTOR',
+            'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '1695',
+        ]]],
+    ]);
+
+    $this->actingAs($revisor)
+        ->get(route('purchase_requests.show', $solicitud))
+        ->assertOk()
+        ->assertSee('Comprarle a MAXSERVICE SPA')
+        ->assertSee('Comprarle a este proveedor la partida');
+});
