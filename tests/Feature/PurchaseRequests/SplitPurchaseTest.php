@@ -217,3 +217,36 @@ it('lets you say who signs a quotation that came with no tax id', function () {
         ->and(App\Models\PurchaseSupplier::where('tax_id', '77118278-K')->value('odoo_partner_id'))
         ->toBe(4120);
 });
+
+it('creates the split order already carrying the quoted names and prices', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    // Sin orden previa: la de este proveedor es la primera.
+    $solicitud->forceFill(['odoo_order_id' => null, 'odoo_reference' => null])->save();
+    $solicitud->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    odooDice([
+        7,      // autenticación
+        [],     // productos que Odoo confirma: ninguno
+        251,    // la orden creada
+        [['id' => 251, 'name' => 'P00251', 'order_line' => [950, 951, 952]]],
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud->fresh(), $lectura]))
+        ->assertSessionHas('success');
+
+    // Nace con el precio y el nombre de la cotización, no en cero y con el
+    // nombre genérico esperando a que alguien la corrija después.
+    Http::assertSent(function ($r) {
+        if (($r['params']['args'][4] ?? null) !== 'create') {
+            return false;
+        }
+
+        $lineas = collect($r['params']['args'][5][0]['order_line'] ?? [])->map(fn ($l) => $l[2]);
+
+        return $lineas->every(fn (array $l): bool => (float) $l['price_unit'] === 1000.0)
+            && $lineas->pluck('name')->contains('SPRAY BLANCO');
+    });
+});

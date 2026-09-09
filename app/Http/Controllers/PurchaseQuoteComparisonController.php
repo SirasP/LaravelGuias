@@ -517,7 +517,15 @@ class PurchaseQuoteComparisonController extends Controller
             }
         }
 
-        [$id, $referencia, $motivo] = $exporter->ordenParaProveedor($purchaseRequest, $suyas, $partnerId);
+        // La orden nace ya con lo que dice la cotización que tenemos delante:
+        // su nombre, su precio y su cantidad. Crearla con lo de la solicitud y
+        // obligar a corregirla después era hacer dos veces el mismo trabajo.
+        [$id, $referencia, $motivo] = $exporter->ordenParaProveedor(
+            $purchaseRequest,
+            $suyas,
+            $partnerId,
+            $this->loCotizado($purchaseRequest, $ingestion, $partnerId),
+        );
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);
@@ -545,6 +553,48 @@ class PurchaseQuoteComparisonController extends Controller
                 ? sprintf(' Quedan %d en espera de otro proveedor.', $enEspera)
                 : '',
         ));
+    }
+
+    /**
+     * Lo que la cotización dice de cada partida: nombre, precio y cantidad.
+     *
+     * Es lo mismo que después llevaría el botón de «precios y nombres», pero
+     * puesto ya al crear la orden: no tiene sentido nacer en cero y con el
+     * nombre genérico teniendo la cotización delante.
+     *
+     * @return array<int, array{nombre: ?string, precio: ?float, cantidad: ?float}>
+     */
+    private function loCotizado(PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion, ?int $partnerId): array
+    {
+        $lineas = $ingestion->extracted['items'] ?? [];
+
+        $comparacion = app(QuotationComparison::class)->comparar(
+            $purchaseRequest,
+            is_array($lineas) ? array_values($lineas) : [],
+            $partnerId,
+            $ingestion->parejasConfirmadas(),
+            $ingestion->parejasRechazadas(),
+        );
+
+        $numero = fn (mixed $v): ?float => is_string($v)
+            ? \App\Support\ChileanMoney::parse($v)
+            : (is_numeric($v) ? (float) $v : null);
+
+        $cotizado = [];
+
+        foreach ($comparacion->filas as $fila) {
+            if ($fila->pedida === null || $fila->cotizada === null || $fila->esPropuesta()) {
+                continue;
+            }
+
+            $cotizado[(int) $fila->pedida->getKey()] = [
+                'nombre' => trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null,
+                'precio' => $numero($fila->cotizada['unit_price'] ?? null),
+                'cantidad' => $numero($fila->cotizada['quantity'] ?? null),
+            ];
+        }
+
+        return $cotizado;
     }
 
     /**
@@ -779,6 +829,9 @@ class PurchaseQuoteComparisonController extends Controller
                     : (is_numeric($fila->cotizada['quantity'] ?? null) ? (float) $fila->cotizada['quantity'] : null),
                 // El nombre de verdad, el que trae la cotización oficial.
                 'nombre' => $nombre,
+                // Y en qué orden vive esta partida: desde que una solicitud
+                // puede repartirse entre dos proveedores, ya no hay una sola.
+                'orden' => $fila->pedida->odoo_order_id,
             ];
         }
 
@@ -790,9 +843,31 @@ class PurchaseQuoteComparisonController extends Controller
             array_filter($cambios, fn (array $c): bool => $c['precio'] !== null || $c['nombre'] !== null),
         ));
 
-        [$actualizadas, $motivo, $creados] = $exporter->actualizarLineas($purchaseRequest, $cambios, $partnerId);
+        // Un lote por orden. Corregir los precios de la segunda orden
+        // escribiéndolos en la primera sería mover la compra de otro.
+        $porOrden = collect($cambios)->groupBy(
+            fn (array $c) => (int) ($c['orden'] ?? $purchaseRequest->odoo_order_id),
+        );
 
-        if ($motivo !== null) {
+        $actualizadas = 0;
+        $creados = 0;
+        $motivo = null;
+
+        foreach ($porOrden as $orden => $lote) {
+            if ((int) $orden === 0) {
+                continue;
+            }
+
+            [$n, $porQue, $nuevos] = $exporter->actualizarLineas(
+                $purchaseRequest, $lote->values()->all(), $partnerId, (int) $orden,
+            );
+
+            $actualizadas += $n;
+            $creados += $nuevos;
+            $motivo ??= $porQue;
+        }
+
+        if ($motivo !== null && $actualizadas === 0) {
             return back()->with('error', $motivo);
         }
 

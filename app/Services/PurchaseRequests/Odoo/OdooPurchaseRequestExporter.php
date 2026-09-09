@@ -775,9 +775,13 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float}>  $cambios
      * @return array{0: int, 1: ?string, 2: int} actualizadas, motivo, productos creados
      */
-    public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios, ?int $partnerId = null): array
+    public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios, ?int $partnerId = null, ?int $enLaOrden = null): array
     {
-        $orden = (int) $purchaseRequest->odoo_order_id;
+        // Desde que una solicitud puede repartirse entre dos proveedores, la
+        // orden ya no es una sola: cada partida sabe en cuál está, y el que
+        // llama dice a cuál va este lote. Sin eso, corregir los precios de la
+        // segunda orden los escribía en la primera.
+        $orden = $enLaOrden ?? (int) $purchaseRequest->odoo_order_id;
 
         if ($orden === 0) {
             return [0, 'Esta solicitud todavía no está en Odoo.', 0];
@@ -978,7 +982,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * @param  \Illuminate\Support\Collection<int, mixed>  $partidas  Las de este proveedor.
      * @return array{0: ?int, 1: ?string, 2: ?string} id, referencia y el motivo si no se pudo
      */
-    public function ordenParaProveedor(PurchaseRequest $purchaseRequest, $partidas, int $proveedor): array
+    public function ordenParaProveedor(PurchaseRequest $purchaseRequest, $partidas, int $proveedor, array $cotizado = []): array
     {
         if ($partidas->isEmpty()) {
             return [null, null, 'No hay partidas de ese proveedor que enviar.'];
@@ -990,7 +994,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'picking_type_id' => (int) config('purchase_requests.odoo.picking_type_id'),
                 'origin' => (string) $purchaseRequest->folio,
                 'date_order' => now()->format('Y-m-d H:i:s'),
-                'order_line' => $this->lineasDe($purchaseRequest, $proveedor, $partidas),
+                'order_line' => $this->lineasDe($purchaseRequest, $proveedor, $partidas, $cotizado),
             ]]);
 
             $leido = $this->client->execute('purchase.order', 'read', [[$id]], ['fields' => ['name', 'order_line']]);
@@ -1139,7 +1143,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return list<array{0: int, 1: int, 2: array<string, mixed>}>
      */
-    private function lineasDe(PurchaseRequest $purchaseRequest, ?int $proveedor, $soloEstas = null): array
+    private function lineasDe(PurchaseRequest $purchaseRequest, ?int $proveedor, $soloEstas = null, array $cotizado = []): array
     {
         // Sin lista, van todas: es el primer envío de una solicitud entera.
         // Con lista, sólo las de ese proveedor, que es como se reparte una
@@ -1155,13 +1159,14 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         $confirmados = $this->productosQueOdooConfirma(array_values($emparejados));
 
         return $partidas
-            ->map(function ($item) use ($purchaseRequest, $emparejados, $confirmados): array {
+            ->map(function ($item) use ($purchaseRequest, $emparejados, $confirmados, $cotizado): array {
                 $id = $emparejados[$item->getKey()] ?? null;
 
                 return [0, 0, $this->linea(
                     $item,
                     $purchaseRequest,
                     $id !== null && in_array($id, $confirmados, true) ? $id : null,
+                    $cotizado,
                 )];
             })
             ->values()
@@ -1181,17 +1186,24 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return array<string, mixed>
      */
-    private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $productoConfirmado): array
+    private function linea(mixed $item, PurchaseRequest $purchaseRequest, ?int $productoConfirmado, array $cotizado = []): array
     {
         $descripcion = $this->descripcionDe($item);
         $unidad = $this->unidadOdoo($item);
 
+        // Cuando la orden nace de una cotización que ya está en la mano, nace
+        // con lo que dice esa cotización: su nombre, su precio y su cantidad.
+        // Crearla con lo que decía la solicitud y obligar a corregirla después
+        // era hacer dos veces el mismo trabajo, y dejaba una orden en cero
+        // mientras tanto.
+        $suyo = $cotizado[$item->getKey()] ?? [];
+
         $linea = [
-            'name' => $descripcion,
-            'product_qty' => (float) $item->quantity,
+            'name' => filled($suyo['nombre'] ?? null) ? (string) $suyo['nombre'] : $descripcion,
+            'product_qty' => (float) ($suyo['cantidad'] ?? $item->quantity),
             // Odoo lo exige. Sin cotizar, la RFQ nace en cero y Compras lo
             // completa allá: es preferible a inventar un precio.
-            'price_unit' => (float) ($item->unit_price ?? 0),
+            'price_unit' => (float) ($suyo['precio'] ?? $item->unit_price ?? 0),
             'product_uom' => $unidad,
         ];
 
@@ -1211,7 +1223,10 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 ->where('odoo_id', $productoConfirmado)
                 ->value('name');
 
-            if (filled($delCatalogo)) {
+            // Salvo que la cotización traiga el nombre del proveedor, que es
+            // más específico que el del catálogo y es el que hay que volver a
+            // pedir la próxima vez.
+            if (filled($delCatalogo) && blank($suyo['nombre'] ?? null)) {
                 $linea['name'] = (string) $delCatalogo;
             }
 
