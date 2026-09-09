@@ -1060,6 +1060,37 @@
                                                             <span class="block text-slate-500 dark:text-slate-400">{{ $resultado->resumen() }}</span>
                                                         @endif
                                                     </td>
+                                                    {{-- Comprarle a este proveedor vive también aquí.
+                                                         Estaba sólo dentro de la pestaña de cada
+                                                         cotización, que es donde nadie va a buscarlo:
+                                                         a gestionar las cotizaciones se entra por esta
+                                                         lista. --}}
+                                                    <td class="whitespace-nowrap px-6 py-4">
+                                                        @can('exportToOdoo', $purchaseRequest)
+                                                            @php
+                                                                $rutFila = \App\Support\Rut::normalize($lectura->supplier_tax_id);
+                                                                $provFila = $rutFila === null ? null : \App\Models\PurchaseSupplier::query()
+                                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutFila)->first();
+                                                                $firmes = $leyendo ? 0 : $resultado->cruzadas() - $resultado->porConfirmar();
+                                                            @endphp
+                                                            @if($firmes > 0 && $provFila !== null)
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
+                                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de {{ $provFila->name }}, sólo lo que cotizó. El resto queda en espera. ¿Seguimos?')">
+                                                                    @csrf
+                                                                    <button type="submit"
+                                                                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-violet-700">
+                                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                                        Comprarle sus {{ $firmes }}
+                                                                    </button>
+                                                                </form>
+                                                            @elseif($firmes > 0)
+                                                                <button type="button" @click="vista = 'cot{{ $loop->index }}'"
+                                                                    class="text-xs font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:text-amber-400">
+                                                                    Falta decir quién es en Odoo
+                                                                </button>
+                                                            @endif
+                                                        @endcan
+                                                    </td>
                                                     <td class="w-40 whitespace-nowrap px-6 py-4 text-right">
                                                         <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
                                                             class="text-xs font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
