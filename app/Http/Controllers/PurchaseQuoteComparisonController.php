@@ -482,8 +482,14 @@ class PurchaseQuoteComparisonController extends Controller
                 'producto' => $exporter->productoDe($fila->pedida, $partnerId),
                 'textos' => $textos,
                 'precio' => is_numeric($precio) ? (float) $precio : null,
-                // La cantidad es siempre la que se pidió, nunca la cotizada.
-                'cantidad' => is_numeric($fila->pedida->quantity) ? (float) $fila->pedida->quantity : null,
+                // La cantidad que va a Odoo es la COTIZADA, no la pedida: la
+                // orden de compra dice lo que se compra, y eso es lo que se va
+                // a recibir y lo que van a facturar. La solicitud guarda lo que
+                // se quería, y la pantalla muestra la diferencia —«pediste 10 y
+                // cotizaron 5»— para que se mire antes de llevarla.
+                'cantidad' => is_string($fila->cotizada['quantity'] ?? null)
+                    ? \App\Support\ChileanMoney::parse($fila->cotizada['quantity'])
+                    : (is_numeric($fila->cotizada['quantity'] ?? null) ? (float) $fila->cotizada['quantity'] : null),
                 // El nombre de verdad, el que trae la cotización oficial.
                 'nombre' => $nombre,
             ];

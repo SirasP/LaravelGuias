@@ -857,14 +857,17 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                     $escribir['name'] = trim((string) $cambio['nombre']);
                 }
 
-                // La cantidad se reafirma, nunca se toma de la cotización.
+                // La cantidad que manda es la COTIZADA.
                 //
-                // Odoo la recalcula por su cuenta al cambiarle el producto o la
-                // unidad a una línea: en la P00245 el pino de 1x4 pasó de las
-                // diez que se pidieron a las cinco de la cotización, sin que
-                // nadie lo tocara ni lo dijera. Lo que se compra es lo que se
-                // pidió; que el proveedor cotice otra cosa es una diferencia
-                // que la pantalla muestra, no un cambio que se aplica solo.
+                // La solicitud dice lo que se quería; la orden de compra dice
+                // lo que se compra, y eso es lo que se va a recibir y lo que
+                // van a facturar. Si se pidieron diez y el proveedor cotiza
+                // cinco, la orden va por cinco: dejarla en diez haría que la
+                // recepción y la factura no cuadraran con su propia orden.
+                //
+                // La diferencia no se pierde: la solicitud conserva las diez y
+                // la pantalla la muestra —«pediste 10 y cotizaron 5»— antes de
+                // que nadie apriete nada.
                 if ($cambio['cantidad'] !== null && abs((float) ($linea['product_qty'] ?? 0) - $cambio['cantidad']) >= 0.0001) {
                     $escribir['product_qty'] = $cambio['cantidad'];
                 }
