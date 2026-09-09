@@ -20,6 +20,11 @@ class PurchaseRequestItem extends Model
         'unit_price',
         'quantity_note',
         'destination',
+        // En qué orden de Odoo quedó esta partida. No llega de ningún
+        // formulario: lo escribe la exportación, y `replaceItems` recorta lo
+        // que viene del usuario a una lista explícita que no los incluye.
+        'odoo_order_id',
+        'odoo_line_id',
     ];
 
     protected function casts(): array
@@ -28,7 +33,22 @@ class PurchaseRequestItem extends Model
             'sort_order' => 'integer',
             'quantity' => 'decimal:6',
             'unit_price' => 'decimal:2',
+            'odoo_order_id' => 'integer',
+            'odoo_line_id' => 'integer',
         ];
+    }
+
+    /**
+     * ¿Esta partida ya se compró, o sigue esperando proveedor?
+     *
+     * Una solicitud puede repartirse entre dos proveedores: unas partidas se
+     * van en la orden de uno, otras esperan a que llegue la cotización del
+     * otro. Antes esto lo decía la solicitud entera y no había dónde anotar
+     * media compra.
+     */
+    public function estaEnOdoo(): bool
+    {
+        return $this->odoo_order_id !== null;
     }
 
     /**

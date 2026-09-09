@@ -161,6 +161,9 @@ Route::middleware('auth')
             // «Esta línea del proveedor es esta partida»: se aprende una vez.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/emparejar', [PurchaseQuoteComparisonController::class, 'link'])
                 ->name('quotes.link');
+            // «Esto se lo compro a este proveedor»: reparte la compra.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/enviar-a-odoo', [PurchaseQuoteComparisonController::class, 'split'])
+                ->name('quotes.split');
             // «Ese emparejado estaba mal»: borra lo aprendido.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/desemparejar', [PurchaseQuoteComparisonController::class, 'unlink'])
                 ->name('quotes.unlink');

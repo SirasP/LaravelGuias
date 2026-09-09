@@ -957,6 +957,161 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
     }
 
     /** @return array{0: int, 1: string} */
+    /**
+     * Reparte una solicitud entre dos proveedores, como se compró de verdad.
+     *
+     * La SC-2026-000024 se compró en dos sitios y Odoo tenía sus nueve
+     * partidas en una sola orden a nombre de uno solo. Como allá la recepción
+     * cuelga de la orden, ese dato falso llegaba derecho al stock.
+     *
+     * Hace tres cosas, todas sobre borradores:
+     *
+     * 1. Deja en la orden que ya existe sólo las partidas de su proveedor.
+     * 2. Crea otra orden con las que compró el segundo, a su nombre.
+     * 3. Las enlaza en el mismo `purchase_group_id`, que es lo que Odoo llama
+     *    órdenes alternativas —el mecanismo que esa instancia ya usa en 78
+     *    órdenes— y que da la comparación línea por línea allá.
+     *
+     * Lo que nadie cotizó no va a ninguna orden: se queda sin `odoo_order_id`,
+     * en espera y a la vista, hasta que alguien lo cotice.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $partidas  Las de este proveedor.
+     * @return array{0: ?int, 1: ?string, 2: ?string} id, referencia y el motivo si no se pudo
+     */
+    public function ordenParaProveedor(PurchaseRequest $purchaseRequest, $partidas, int $proveedor): array
+    {
+        if ($partidas->isEmpty()) {
+            return [null, null, 'No hay partidas de ese proveedor que enviar.'];
+        }
+
+        try {
+            $id = (int) $this->client->execute('purchase.order', 'create', [[
+                'partner_id' => $proveedor,
+                'picking_type_id' => (int) config('purchase_requests.odoo.picking_type_id'),
+                'origin' => (string) $purchaseRequest->folio,
+                'date_order' => now()->format('Y-m-d H:i:s'),
+                'order_line' => $this->lineasDe($purchaseRequest, $proveedor, $partidas),
+            ]]);
+
+            $leido = $this->client->execute('purchase.order', 'read', [[$id]], ['fields' => ['name', 'order_line']]);
+            $referencia = (string) ($leido[0]['name'] ?? $id);
+
+            $this->anotarLineas($partidas, $id, (array) ($leido[0]['order_line'] ?? []));
+
+            return [$id, $referencia, null];
+        } catch (Throwable $e) {
+            Log::warning('No se pudo crear la orden del segundo proveedor en Odoo.', [
+                'folio' => $purchaseRequest->folio,
+                'proveedor' => $proveedor,
+                'motivo' => $e->getMessage(),
+            ]);
+
+            return [null, null, 'Odoo no aceptó la orden: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Guarda en cada partida la línea de Odoo que le tocó.
+     *
+     * Las líneas vuelven en el orden en que se mandaron, que es el de las
+     * partidas. Buscarlas después por su texto también funcionaría, pero ese
+     * texto cambia —se le escribe el nombre real del proveedor— y ya nos costó
+     * una orden entera que dejó de reconocerse.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $partidas
+     * @param  list<int>  $lineas
+     */
+    private function anotarLineas($partidas, int $orden, array $lineas): void
+    {
+        foreach ($partidas->values() as $i => $partida) {
+            $partida->forceFill([
+                'odoo_order_id' => $orden,
+                'odoo_line_id' => $lineas[$i] ?? null,
+            ])->save();
+        }
+    }
+
+    /**
+     * Deja en una orden borrador sólo las partidas que se le compran a ella.
+     *
+     * @param  list<int>  $lineasQueSeQuedan  ids de línea de Odoo
+     * @return array{0: int, 1: ?string} cuántas se quitaron y el motivo si no se pudo
+     */
+    public function dejarSoloEstasLineas(int $orden, array $lineasQueSeQuedan): array
+    {
+        try {
+            $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['state', 'order_line']]);
+            $estado = (string) ($cabecera[0]['state'] ?? '');
+
+            if ($estado !== 'draft') {
+                return [0, 'Esa orden ya no está en borrador en Odoo: sus líneas no se tocan desde aquí.'];
+            }
+
+            $sobran = array_values(array_diff(
+                array_map('intval', (array) ($cabecera[0]['order_line'] ?? [])),
+                array_map('intval', $lineasQueSeQuedan),
+            ));
+
+            if ($sobran === []) {
+                return [0, null];
+            }
+
+            $this->client->execute('purchase.order.line', 'unlink', [$sobran]);
+
+            return [count($sobran), null];
+        } catch (Throwable $e) {
+            Log::warning('No se pudieron quitar líneas de una orden de Odoo.', [
+                'orden' => $orden,
+                'motivo' => $e->getMessage(),
+            ]);
+
+            return [0, 'Odoo no aceptó quitar las líneas: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Enlaza varias órdenes como alternativas entre sí.
+     *
+     * `alternative_po_ids` no se escribe: es el reflejo de `purchase_group_id`,
+     * que sí se guarda. Se crea un grupo y se apuntan todas a él.
+     *
+     * @param  list<int>  $ordenes
+     */
+    public function enlazarComoAlternativas(array $ordenes): bool
+    {
+        $ordenes = array_values(array_unique(array_filter($ordenes)));
+
+        if (count($ordenes) < 2) {
+            return false;
+        }
+
+        try {
+            $existente = $this->client->execute('purchase.order', 'read', [$ordenes], ['fields' => ['purchase_group_id']]);
+            $grupo = null;
+
+            foreach (is_array($existente) ? $existente : [] as $fila) {
+                if (is_array($fila['purchase_group_id'] ?? null)) {
+                    $grupo = (int) $fila['purchase_group_id'][0];
+
+                    break;
+                }
+            }
+
+            $grupo ??= (int) $this->client->execute('purchase.order.group', 'create', [[]]);
+
+            $this->client->execute('purchase.order', 'write', [$ordenes, ['purchase_group_id' => $grupo]]);
+
+            return true;
+        } catch (Throwable $e) {
+            Log::warning('No se pudieron enlazar las órdenes como alternativas en Odoo.', [
+                'ordenes' => $ordenes,
+                'motivo' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     private function crearRfq(PurchaseRequest $purchaseRequest, int $proveedor): array
     {
         $id = (int) $this->client->execute('purchase.order', 'create', [[
@@ -968,8 +1123,13 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'order_line' => $this->lineasDe($purchaseRequest, $proveedor),
         ]]);
 
-        $leido = $this->client->execute('purchase.order', 'read', [[$id]], ['fields' => ['name']]);
+        $leido = $this->client->execute('purchase.order', 'read', [[$id]], ['fields' => ['name', 'order_line']]);
         $referencia = (string) ($leido[0]['name'] ?? $id);
+
+        // Cada partida se queda con la línea que le tocó: es lo que después
+        // permite repartir la compra entre dos proveedores sin adivinar cuál
+        // línea era cuál.
+        $this->anotarLineas($purchaseRequest->items, $id, (array) ($leido[0]['order_line'] ?? []));
 
         return [$id, $referencia];
     }
@@ -979,18 +1139,22 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      *
      * @return list<array{0: int, 1: int, 2: array<string, mixed>}>
      */
-    private function lineasDe(PurchaseRequest $purchaseRequest, ?int $proveedor): array
+    private function lineasDe(PurchaseRequest $purchaseRequest, ?int $proveedor, $soloEstas = null): array
     {
+        // Sin lista, van todas: es el primer envío de una solicitud entera.
+        // Con lista, sólo las de ese proveedor, que es como se reparte una
+        // compra hecha en dos sitios.
+        $partidas = $soloEstas ?? $purchaseRequest->items;
         $emparejados = [];
 
-        foreach ($purchaseRequest->items as $item) {
+        foreach ($partidas as $item) {
             $m = $this->emparejador->match((string) $item->product_service, $proveedor, $item->specification);
             $emparejados[$item->getKey()] = $m->resolved() ? $m->odooProductId : null;
         }
 
         $confirmados = $this->productosQueOdooConfirma(array_values($emparejados));
 
-        return $purchaseRequest->items
+        return $partidas
             ->map(function ($item) use ($purchaseRequest, $emparejados, $confirmados): array {
                 $id = $emparejados[$item->getKey()] ?? null;
 

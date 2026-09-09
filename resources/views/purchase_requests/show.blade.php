@@ -1223,6 +1223,25 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        {{-- Una compra se reparte: lo que cotizó este
+                                             proveedor se va en SU orden, y lo demás
+                                             queda esperando a quien lo venda. Sin esto,
+                                             Odoo recibía las nueve partidas a nombre de
+                                             uno solo y el stock salía torcido. --}}
+                                        @can('exportToOdoo', $purchaseRequest)
+                                            @if($resultado->cruzadas() - $porConfirmar > 0 && $resultado->cruzadas() < $resultado->partidas())
+                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
+                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de este proveedor, sólo lo que cotizó. El resto queda en espera. ¿Seguimos?')">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">
+                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                        Comprarle a este proveedor sus {{ $resultado->cruzadas() - $porConfirmar }}
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endcan
                                         <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
                                             class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                             <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>

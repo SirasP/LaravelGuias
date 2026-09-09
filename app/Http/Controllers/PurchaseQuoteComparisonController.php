@@ -287,6 +287,132 @@ class PurchaseQuoteComparisonController extends Controller
     }
 
     /**
+     * Manda a Odoo lo que se le compra a este proveedor, y sólo eso.
+     *
+     * Una compra se reparte: la SC-2026-000024 se hizo en dos sitios, y Odoo
+     * tenía sus nueve partidas en una sola orden a nombre de uno solo. Como
+     * allá la recepción cuelga de la orden, ese dato falso llegaba al stock.
+     *
+     * Si la solicitud aún no tiene orden, se crea con las partidas de este
+     * proveedor. Si ya tiene una, se le quitan las que no son suyas y se crea
+     * otra orden para éste, enlazada a la primera como alternativa —el
+     * mecanismo de Odoo que esa instancia ya usa—. Lo que nadie cotizó no va a
+     * ninguna: se queda en espera, a la vista.
+     */
+    public function split(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestIngestion $ingestion,
+        PurchaseRequestExporter $exporter,
+    ): RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        $partnerId = $this->partnerDeOdoo($ingestion);
+
+        if ($partnerId === null) {
+            return back()->with('error', 'Todavía no se sabe quién es este proveedor en Odoo. '
+                .'Búscalo en la tarjeta de Odoo y elígelo primero.');
+        }
+
+        $suyas = $this->partidasDe($purchaseRequest, $ingestion, $partnerId);
+
+        if ($suyas->isEmpty()) {
+            return back()->with('error', 'Ninguna partida cruzó con esta cotización, así que no hay '
+                .'nada que comprarle a este proveedor.');
+        }
+
+        // La orden que ya existe se queda sólo con lo suyo. Se hace antes de
+        // crear la nueva: si Odoo rechaza el recorte, no queremos una segunda
+        // orden creada sobre una primera que sigue mintiendo.
+        $anterior = (int) $purchaseRequest->odoo_order_id;
+
+        if ($anterior !== 0) {
+            $sonSuyas = $suyas->pluck('id')->all();
+
+            // Las que estaban en la primera orden y este proveedor no cotizó:
+            // salen de allá y se quedan esperando a quien sí las venda.
+            $sobran = $purchaseRequest->items()
+                ->where('odoo_order_id', $anterior)
+                ->whereNotIn('id', $sonSuyas)
+                ->get();
+
+            [, $motivo] = $exporter->dejarSoloEstasLineas(
+                $anterior,
+                $purchaseRequest->items()
+                    ->where('odoo_order_id', $anterior)
+                    ->whereIn('id', $sonSuyas)
+                    ->pluck('odoo_line_id')->filter()->all(),
+            );
+
+            if ($motivo !== null) {
+                return back()->with('error', $motivo);
+            }
+
+            foreach ($sobran as $partida) {
+                $partida->forceFill(['odoo_order_id' => null, 'odoo_line_id' => null])->save();
+            }
+        }
+
+        [$id, $referencia, $motivo] = $exporter->ordenParaProveedor($purchaseRequest, $suyas, $partnerId);
+
+        if ($motivo !== null) {
+            return back()->with('error', $motivo);
+        }
+
+        if ($anterior !== 0) {
+            $exporter->enlazarComoAlternativas([$anterior, (int) $id]);
+        } else {
+            $purchaseRequest->forceFill([
+                'odoo_order_id' => $id,
+                'odoo_reference' => $referencia,
+                'odoo_exported_at' => now(),
+            ])->save();
+        }
+
+        $enEspera = $purchaseRequest->items()->whereNull('odoo_order_id')->count();
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with('success', sprintf(
+            'Se creó %s en Odoo con %d %s de %s.%s',
+            $referencia,
+            $suyas->count(),
+            Str::plural('partida', $suyas->count()),
+            $ingestion->supplier_name ?: 'este proveedor',
+            $enEspera > 0
+                ? sprintf(' Quedan %d en espera de otro proveedor.', $enEspera)
+                : '',
+        ));
+    }
+
+    /**
+     * Las partidas que este proveedor cotizó y alguien dio por buenas.
+     *
+     * Una propuesta sin confirmar no entra: de aquí sale una orden de compra.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\PurchaseRequestItem>
+     */
+    private function partidasDe(PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion, ?int $partnerId)
+    {
+        $lineas = $ingestion->extracted['items'] ?? [];
+
+        $comparacion = app(QuotationComparison::class)->comparar(
+            $purchaseRequest,
+            is_array($lineas) ? array_values($lineas) : [],
+            $partnerId,
+            $ingestion->parejasConfirmadas(),
+        );
+
+        return collect($comparacion->filas)
+            ->filter(fn ($fila): bool => $fila->cruzo() && ! $fila->esPropuesta())
+            ->map(fn ($fila) => $fila->pedida)
+            ->values();
+    }
+
+    /**
      * Deshace un emparejado que alguien enseñó mal.
      *
      * Un clic equivocado aquí no se queda en esta pantalla: el alias vale para
