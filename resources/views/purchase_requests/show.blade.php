@@ -1319,7 +1319,7 @@
                                                                 class="w-full rounded-xl border border-amber-200 bg-white p-2 text-left text-xs shadow-sm hover:bg-amber-100 dark:border-amber-800 dark:bg-slate-950">
                                                                 <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
                                                                 <span class="block text-[11px] {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}
+                                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}@if(array_key_exists('es_proveedor', $candidato) && ! $candidato['es_proveedor']) · <span class="font-bold">todavía no le has comprado</span>@endif
                                                                 </span>
                                                             </button>
                                                         </form>
@@ -1879,7 +1879,7 @@
                                                 class="w-full rounded-xl border border-violet-200 bg-white p-2.5 text-left text-xs shadow-sm hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-950">
                                                 <span class="block font-bold text-slate-900 dark:text-white">{{ $candidato['name'] }}</span>
                                                 <span class="block text-[11px] {{ blank($candidato['vat'] ?? null) ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">
-                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}
+                                                    {{ filled($candidato['vat'] ?? null) ? 'RUT '.$candidato['vat'] : 'Sin RUT en Odoo' }}@if(array_key_exists('es_proveedor', $candidato) && ! $candidato['es_proveedor']) · <span class="font-bold">todavía no le has comprado</span>@endif
                                                 </span>
                                             </button>
                                         </form>

@@ -276,19 +276,29 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
         $criterio = $rut !== null && Rut::isValid($rut)
             ? [['vat', '=', $rut]]
-            : [['name', 'ilike', $texto], ['supplier_rank', '>', 0]];
+            // Sin exigir que ya sea proveedor.
+            //
+            // Odoo pone `supplier_rank` en cuanto se le confirma una compra,
+            // así que exigirlo escondía exactamente a los que hacen falta
+            // buscar: los nuevos. MAXSERVICE SPA estaba en Odoo con su RUT
+            // desde siempre y la búsqueda juraba que no existía. Los que ya
+            // son proveedores salen primero, y de los demás se avisa.
+            : [['name', 'ilike', $texto]];
 
         $filas = $this->client->execute(
             'res.partner',
             'search_read',
             [$criterio],
-            ['fields' => ['id', 'name', 'vat'], 'limit' => 15, 'order' => 'name'],
+            ['fields' => ['id', 'name', 'vat', 'supplier_rank'], 'limit' => 15, 'order' => 'supplier_rank desc, name'],
         );
 
         return array_map(fn (array $f): array => [
             'id' => (int) $f['id'],
             'name' => (string) $f['name'],
             'vat' => filled($f['vat'] ?? null) ? (string) $f['vat'] : null,
+            // Que todavía no se le haya comprado nada no lo descalifica: sólo
+            // conviene decirlo, para que nadie elija a un cliente por error.
+            'es_proveedor' => (int) ($f['supplier_rank'] ?? 0) > 0,
         ], is_array($filas) ? $filas : []);
     }
 
@@ -1045,10 +1055,18 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
     {
         try {
             $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['state', 'order_line']]);
+
+            // Borrada en Odoo. Es distinto de estar confirmada, y confundirlo
+            // dejaba a la solicitud sin salida: el programa creía que había una
+            // orden que respetar y esa orden ya no existía.
+            if (! is_array($cabecera) || ! isset($cabecera[0])) {
+                return [0, null, false];
+            }
+
             $estado = (string) ($cabecera[0]['state'] ?? '');
 
             if ($estado !== 'draft') {
-                return [0, 'Esa orden ya no está en borrador en Odoo: sus líneas no se tocan desde aquí.'];
+                return [0, 'Esa orden ya no está en borrador en Odoo: sus líneas no se tocan desde aquí.', true];
             }
 
             $sobran = array_values(array_diff(
@@ -1057,19 +1075,19 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             ));
 
             if ($sobran === []) {
-                return [0, null];
+                return [0, null, true];
             }
 
             $this->client->execute('purchase.order.line', 'unlink', [$sobran]);
 
-            return [count($sobran), null];
+            return [count($sobran), null, true];
         } catch (Throwable $e) {
             Log::warning('No se pudieron quitar líneas de una orden de Odoo.', [
                 'orden' => $orden,
                 'motivo' => $e->getMessage(),
             ]);
 
-            return [0, 'Odoo no aceptó quitar las líneas: '.$e->getMessage()];
+            return [0, 'Odoo no aceptó quitar las líneas: '.$e->getMessage(), true];
         }
     }
 

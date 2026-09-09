@@ -250,3 +250,39 @@ it('creates the split order already carrying the quoted names and prices', funct
             && $lineas->pluck('name')->contains('SPRAY BLANCO');
     });
 });
+
+it('finds a contact that Odoo does not yet call a supplier', function () {
+    odooDice([
+        7,
+        [['id' => 3597, 'name' => 'MAXSERVICE SPA', 'vat' => '76821142-6', 'supplier_rank' => 0]],
+    ]);
+
+    // Odoo pone supplier_rank en cuanto se le confirma una compra, así que
+    // exigirlo escondía justo a los que hace falta buscar: los nuevos.
+    // MAXSERVICE SPA estaba en Odoo con su RUT y la búsqueda juraba que no.
+    $encontrados = app(PurchaseRequestExporter::class)->buscarProveedores('maxservice');
+
+    expect($encontrados)->toHaveCount(1)
+        ->and($encontrados[0]['name'])->toBe('MAXSERVICE SPA')
+        ->and($encontrados[0]['es_proveedor'])->toBeFalse();
+});
+
+it('unsticks a request whose Odoo order was deleted over there', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    odooDice([
+        7,
+        [],     // la orden 250 ya no existe en Odoo: read no devuelve nada
+        251,    // la orden nueva
+        [['id' => 251, 'name' => 'P00251', 'order_line' => [950, 951, 952]]],
+    ]);
+
+    // Borrar la orden allá dejaba a la solicitud atrapada: el programa creía
+    // que había una orden que respetar y decía «ya no está en borrador».
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]))
+        ->assertSessionHas('success');
+
+    expect($solicitud->fresh()->odoo_reference)->toBe('P00251');
+});

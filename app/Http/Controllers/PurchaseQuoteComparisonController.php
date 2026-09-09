@@ -500,7 +500,7 @@ class PurchaseQuoteComparisonController extends Controller
                 ->whereNotIn('id', $sonSuyas)
                 ->get();
 
-            [, $motivo] = $exporter->dejarSoloEstasLineas(
+            [, $motivo, $sigueExistiendo] = $exporter->dejarSoloEstasLineas(
                 $anterior,
                 $purchaseRequest->items()
                     ->where('odoo_order_id', $anterior)
@@ -510,6 +510,18 @@ class PurchaseQuoteComparisonController extends Controller
 
             if ($motivo !== null) {
                 return back()->with('error', $motivo);
+            }
+
+            // Borrada en Odoo. Se limpia el vínculo muerto y se sigue: sin
+            // esto la solicitud quedaba atrapada, protegiendo una orden que ya
+            // no existía y sin poder repartirse nunca.
+            if (! $sigueExistiendo) {
+                $purchaseRequest->items()->where('odoo_order_id', $anterior)
+                    ->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+                $purchaseRequest->forceFill([
+                    'odoo_order_id' => null, 'odoo_reference' => null, 'odoo_exported_at' => null,
+                ])->save();
+                $anterior = 0;
             }
 
             foreach ($sobran as $partida) {
