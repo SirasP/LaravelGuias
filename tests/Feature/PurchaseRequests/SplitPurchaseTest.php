@@ -84,6 +84,7 @@ it('empties the first order: what he sells moves out, and the rest waits', funct
 
     odooDice([
         7,                                                                  // autenticación
+        [['id' => 250, 'state' => 'draft', 'partner_id' => [1111, 'ORIGINAL'], 'order_line' => [900, 901, 902, 903, 904]]],  // cabecera
         [['id' => 250, 'state' => 'draft', 'order_line' => [900, 901, 902, 903, 904]]],
         true,                                                               // el unlink de las cinco
         251,                                                                // la orden nueva
@@ -236,8 +237,7 @@ it('creates the split order already carrying the quoted names and prices', funct
 
     odooDice([
         7,      // autenticación
-        [],     // productos que Odoo confirma: ninguno
-        251,    // la orden creada
+        251,    // la orden creada (sin productos emparejados no se consulta el catálogo)
         [['id' => 251, 'name' => 'P00251', 'order_line' => [950, 951, 952]]],
     ]);
 
@@ -281,7 +281,7 @@ it('unsticks a request whose Odoo order was deleted over there', function () {
 
     odooDice([
         7,
-        [],     // la orden 250 ya no existe en Odoo: read no devuelve nada
+        [],     // la orden 250 ya no existe: la búsqueda no la encuentra
         251,    // la orden nueva
         [['id' => 251, 'name' => 'P00251', 'order_line' => [950, 951, 952]]],
     ]);
@@ -309,9 +309,9 @@ it('does not empty an order whose lines it cannot identify', function () {
 
     odooDice([
         7,                                                                  // autenticación
+        [['id' => 250, 'state' => 'draft', 'partner_id' => [1111, 'ORIGINAL'], 'order_line' => [900, 901]]],  // cabecera: le quedan cosas
         251,                                                                // la orden nueva
         [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]],
-        [['id' => 250, 'order_line' => [900, 901]]],                        // ¿le queda algo a la vieja?
         [],                                                                 // grupo existente
         7788,                                                               // el grupo nuevo
         true,                                                               // las dos apuntan al grupo
@@ -415,9 +415,9 @@ it('leaves the first supplier order alone when the second one is split off', fun
 
     odooDice([
         7,                                                                  // autenticación
+        [['id' => 250, 'state' => 'draft', 'partner_id' => [1111, 'ORIGINAL'], 'order_line' => []]],  // cabecera: la vieja quedó vacía
         252,                                                                // la orden de B
         [['id' => 252, 'name' => 'P00252', 'order_line' => [920, 921]]],
-        [['id' => 250, 'order_line' => []]],                                // la vieja quedó vacía
     ]);
 
     $this->actingAs($revisor)
@@ -433,4 +433,80 @@ it('leaves the first supplier order alone when the second one is split off', fun
 
     // Y una orden vacía no se pelea nada con nadie: no son alternativas.
     Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.group');
+});
+
+/**
+ * La P00246 de la SC-2026-000037 ya es de MAXSERVICE y ya tiene su casco. El
+ * botón «Comprarle a MAXSERVICE» le habría creado una segunda orden igual, al
+ * mismo proveedor, enlazada como alternativa de sí misma.
+ */
+it('does not open a second order for the supplier the order already belongs to', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    // Exportada antes de que se guardara el número de línea.
+    $solicitud->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    odooDice([
+        7,
+        [['id' => 250, 'state' => 'draft', 'partner_id' => [3557, 'PROVEEDOR A'], 'order_line' => [900, 901, 902]]],
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]))
+        ->assertSessionHas('error', fn (string $m) => str_contains($m, 'ya está a nombre de PROVEEDOR A')
+            && str_contains($m, 'Llevar precios y nombres a P00250'));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
+});
+
+/** Una orden ya confirmada no tiene alternativas: esa compra ya se hizo. */
+it('does not offer a confirmed order an alternative', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+    $solicitud->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    odooDice([
+        7,
+        [['id' => 250, 'state' => 'purchase', 'partner_id' => [1111, 'ORIGINAL'], 'order_line' => [900, 901]]],
+        251,
+        [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]],
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]))
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'P00250 no se tocó'));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.group');
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
+});
+
+/**
+ * La SC-2026-000024 ya estaba repartida: lo de S&M vivía en la P00251. Volver a
+ * apretar «Comprarle a S&M» le habría creado otra orden con las mismas cuatro
+ * partidas, porque el botón no miraba si ya tenían dónde estar.
+ */
+it('does not buy again what already has its own order', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    // Lo de A ya vive en su orden, la 251; la de la solicitud, la 250, quedó vacía.
+    $solicitud->items()->whereIn('product_service', ['SPRAY BLANCO', 'GRASA LIQUIDA', 'CINTA PELIGRO'])
+        ->update(['odoo_order_id' => 251, 'odoo_line_id' => 910]);
+    $solicitud->items()->whereIn('product_service', ['ROLLO FILM', 'GALON PINTURA'])
+        ->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    odooDice([
+        7,
+        [['id' => 250, 'state' => 'draft', 'partner_id' => [1111, 'ORIGINAL'], 'order_line' => []]],
+        [['id' => 251, 'name' => 'P00251']],                                // cómo se llama allá
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]))
+        ->assertSessionHas('error', fn (string $m) => str_contains($m, 'Lo de este proveedor ya tiene su orden en Odoo: P00251'));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
 });

@@ -1062,30 +1062,77 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
     }
 
     /**
-     * Cuántas líneas tiene una orden. Null si ya no existe en Odoo.
+     * A nombre de quién está una orden, en qué estado y cuántas líneas tiene.
+     * Null si ya no existe en Odoo.
      *
-     * Sirve para no enlazar como alternativa una orden que quedó vacía: dos
-     * órdenes son alternativas cuando se pelean lo mismo, y una sin líneas no
-     * se pelea nada.
+     * Si la orden ya no existe, la búsqueda vuelve vacía y eso se dice con
+     * null. Es distinto de estar confirmada, y confundirlo dejaba a la
+     * solicitud protegiendo una orden que ya no estaba.
+     *
+     * Si Odoo no contesta, el error sube: decidir un reparto a ciegas es peor
+     * que no hacerlo.
+     *
+     * @return array{partner: ?int, estado: string, lineas: int}|null
      */
-    public function cuantasLineasTiene(int $orden): ?int
+    public function cabeceraDe(int $orden): ?array
     {
-        try {
-            $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['order_line']]);
+        return $this->cabecerasDe([$orden])[$orden] ?? null;
+    }
 
-            if (! is_array($cabecera) || ! isset($cabecera[0])) {
-                return null;
-            }
+    /**
+     * El nombre con que Odoo muestra cada orden —«P00251»—, por su id. Las que
+     * ya no existen no vienen.
+     *
+     * @param  list<int>  $ordenes
+     * @return array<int, string>
+     */
+    public function referenciasDe(array $ordenes): array
+    {
+        $ordenes = array_values(array_unique(array_filter(array_map('intval', $ordenes))));
 
-            return count((array) ($cabecera[0]['order_line'] ?? []));
-        } catch (Throwable $e) {
-            Log::warning('No se pudo mirar cuántas líneas tiene una orden de Odoo.', [
-                'orden' => $orden,
-                'motivo' => $e->getMessage(),
-            ]);
-
-            return null;
+        if ($ordenes === []) {
+            return [];
         }
+
+        try {
+            $filas = $this->client->execute('purchase.order', 'search_read', [[['id', 'in', $ordenes]]], ['fields' => ['name']]);
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        $nombres = [];
+
+        foreach (is_array($filas) ? $filas : [] as $fila) {
+            $nombres[(int) $fila['id']] = (string) $fila['name'];
+        }
+
+        return $nombres;
+    }
+
+    /**
+     * @param  list<int>  $ordenes
+     * @return array<int, array{partner: ?int, estado: string, lineas: int}>
+     */
+    private function cabecerasDe(array $ordenes): array
+    {
+        $filas = $this->client->execute(
+            'purchase.order',
+            'search_read',
+            [[['id', 'in', array_values($ordenes)]]],
+            ['fields' => ['partner_id', 'state', 'order_line']],
+        );
+
+        $cabeceras = [];
+
+        foreach (is_array($filas) ? $filas : [] as $fila) {
+            $cabeceras[(int) $fila['id']] = [
+                'partner' => is_array($fila['partner_id'] ?? null) ? (int) $fila['partner_id'][0] : null,
+                'estado' => (string) ($fila['state'] ?? ''),
+                'lineas' => count((array) ($fila['order_line'] ?? [])),
+            ];
+        }
+
+        return $cabeceras;
     }
 
     /**

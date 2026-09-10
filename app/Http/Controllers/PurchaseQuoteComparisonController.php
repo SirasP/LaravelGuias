@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Cotizaciones que manda el proveedor, para contrastarlas con la solicitud.
@@ -506,6 +507,71 @@ class PurchaseQuoteComparisonController extends Controller
 
         $seSabeQueHayAlla = $viviendoAlla->isNotEmpty();
 
+        // Cómo está la orden anterior, antes de tocar nada.
+        try {
+            $cabecera = $anterior === 0 ? null : $exporter->cabeceraDe($anterior);
+        } catch (Throwable $e) {
+            return back()->with('error', 'Odoo no respondió al consultar '.$referenciaAnterior.': '.$e->getMessage());
+        }
+
+        // Borrada en Odoo: se limpia el vínculo muerto y se sigue como si no
+        // hubiera habido orden. Sin esto la solicitud quedaba atrapada,
+        // protegiendo una orden que ya no existía y sin poder repartirse.
+        $ordenBorrada = 0;
+
+        if ($anterior !== 0 && $cabecera === null) {
+            $ordenBorrada = $anterior;
+            $purchaseRequest->items()->where('odoo_order_id', $anterior)
+                ->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+            $purchaseRequest->forceFill([
+                'odoo_order_id' => null, 'odoo_reference' => null, 'odoo_exported_at' => null,
+            ])->save();
+            $anterior = 0;
+            $viviendoAlla = collect();
+            $seSabeQueHayAlla = false;
+        }
+
+        // Lo que ya tiene su propia orden, de un reparto anterior, no se vuelve
+        // a comprar. La SC-2026-000024 ya estaba repartida y apretar otra vez
+        // «Comprarle a S&M» le creaba una segunda orden con las mismas cuatro
+        // partidas que ya vivían en la P00251. Sólo se mueve lo que está en la
+        // orden de la solicitud, o en ninguna.
+        $yaTienenOrden = $suyas->filter(fn ($partida): bool => filled($partida->odoo_order_id)
+            && ! in_array((int) $partida->odoo_order_id, [$anterior, $ordenBorrada], true));
+
+        if ($yaTienenOrden->isNotEmpty()) {
+            $donde = $exporter->referenciasDe($yaTienenOrden->pluck('odoo_order_id')->all());
+
+            return back()->with('error', sprintf(
+                '%s ya %s su orden en Odoo: %s. Para rehacer el reparto, suelta la solicitud de su orden primero.',
+                $yaTienenOrden->count() === $suyas->count() ? 'Lo de este proveedor' : sprintf('%d de sus partidas', $yaTienenOrden->count()),
+                // «Lo de este proveedor ya tiene», «1 de sus partidas ya tiene», «3 de sus partidas ya tienen».
+                $yaTienenOrden->count() === $suyas->count() || $yaTienenOrden->count() === 1 ? 'tiene' : 'tienen',
+                $donde === [] ? 'otra orden' : implode(', ', $donde),
+            ));
+        }
+
+        // La orden ya es de este proveedor y no sabemos qué línea es cuál: lo
+        // que cotizó ya está allá. Crearle otra sería la misma compra dos veces
+        // a nombre del mismo —la P00246 de la SC-2026-000037 iba derecho a
+        // eso—. Lo que falta en ese caso es llevarle el precio y el nombre.
+        if ($cabecera !== null && $cabecera['partner'] === $partnerId && ! $seSabeQueHayAlla) {
+            return back()->with('error', sprintf(
+                '%s ya está a nombre de %s: no hace falta otra orden. Para llevarle los precios y '
+                .'nombres de esta cotización, usa «Llevar precios y nombres a %s».',
+                $referenciaAnterior,
+                $ingestion->supplier_name ?: 'este proveedor',
+                $referenciaAnterior,
+            ));
+        }
+
+        // Si hay que sacarle líneas y ya salió de borrador, no se toca: allá
+        // puede tener recepciones o facturas detrás. Se dice antes de mover
+        // nada, no a medio camino.
+        if ($seSabeQueHayAlla && $cabecera !== null && $cabecera['estado'] !== 'draft') {
+            return back()->with('error', 'Esa orden ya no está en borrador en Odoo: sus líneas no se tocan desde aquí.');
+        }
+
         if ($seSabeQueHayAlla) {
             $sonSuyas = $suyas->pluck('id')->all();
 
@@ -559,9 +625,14 @@ class PurchaseQuoteComparisonController extends Controller
         // otro. Se pelean lo mismo justo cuando no se pudo vaciar la orden
         // anterior, porque entonces allá sigue estando lo que acabamos de
         // pedirle a este proveedor.
-        if ($anterior !== 0 && ! $seSabeQueHayAlla
-            && ($exporter->cuantasLineasTiene($anterior) ?? 0) > 0) {
-            $exporter->enlazarComoAlternativas([$anterior, (int) $id]);
+        //
+        // Y sólo con una orden que todavía se puede elegir: una confirmada no
+        // tiene alternativa, porque esa compra ya se hizo.
+        $enlazadas = false;
+
+        if ($anterior !== 0 && ! $seSabeQueHayAlla && $cabecera !== null
+            && $cabecera['lineas'] > 0 && in_array($cabecera['estado'], ['draft', 'sent'], true)) {
+            $enlazadas = $exporter->enlazarComoAlternativas([$anterior, (int) $id]);
         }
 
         if ($anterior === 0) {
@@ -583,12 +654,13 @@ class PurchaseQuoteComparisonController extends Controller
             $enEspera > 0
                 ? sprintf(' Quedan %d en espera de otro proveedor.', $enEspera)
                 : '',
-            $anterior === 0 ? '' : ($seSabeQueHayAlla
-                ? sprintf(' %s quedó vacía: la puedes borrar en Odoo.',
-                    $referenciaAnterior !== '' ? $referenciaAnterior : 'La orden anterior')
-                : sprintf(' %s quedó igual porque no sabemos qué línea es cuál allá: en Odoo las dos '
-                    .'quedan como alternativas, confirma la que compres y anula la otra.',
-                    $referenciaAnterior !== '' ? $referenciaAnterior : 'La orden anterior')),
+            match (true) {
+                $anterior === 0 => '',
+                $seSabeQueHayAlla => sprintf(' %s quedó vacía: la puedes borrar en Odoo.', $referenciaAnterior),
+                $enlazadas => sprintf(' %s quedó igual porque no sabemos qué línea es cuál allá: en Odoo las dos '
+                    .'quedan como alternativas, confirma la que compres y anula la otra.', $referenciaAnterior),
+                default => sprintf(' %s no se tocó.', $referenciaAnterior),
+            },
         ));
     }
 
