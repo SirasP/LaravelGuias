@@ -128,7 +128,9 @@ it('offers the price form whether or not the request is already in Odoo', functi
     $this->actingAs($revisor)->get(route('purchase_requests.show', $enOdoo))
         ->assertOk()
         ->assertSee('Precios unitarios')
-        ->assertSee('Llevar precios y nombres a P00241');
+        // Escrita a mano: lleva precios y nada más. El botón lo dice.
+        ->assertSee('Llevar precios a P00241')
+        ->assertDontSee('Llevar precios y productos');
 
     $sinEnviar = PurchaseRequest::factory()->forUser($revisor)->approved()->create();
     $sinEnviar->items()->create([
@@ -139,7 +141,7 @@ it('offers the price form whether or not the request is already in Odoo', functi
         ->assertOk()
         ->assertSee('Precios unitarios')
         // Sin orden en Odoo no hay líneas que actualizar.
-        ->assertDontSee('Llevar precios y nombres a');
+        ->assertDontSee('Llevar precios a P00241');
 });
 
 it('carries prices for a line that Odoo matched by name, with no alias saved', function () {
@@ -259,4 +261,107 @@ it('leaves alone a line somebody rewrote in Odoo', function () {
     $this->actingAs($revisor)
         ->post(route('purchase_requests.prices.push', $solicitud->fresh()))
         ->assertSessionHas('error', fn ($m) => str_contains((string) $m, 'reescrito'));
+});
+
+/**
+ * La SC-2026-000039 nació del PDF de RODASERVIC: sus cuatro nombres son los del
+ * proveedor y ninguno existía en Odoo. La P00252 salió con las cuatro líneas
+ * sin producto, y el botón que prometía «precios y nombres» llevaba sólo el
+ * precio —que además ya estaba bien—, así que no hacía absolutamente nada.
+ */
+it('gives Odoo the product when the names came off a document', function () {
+    $revisor = User::factory()->admin()->create();
+
+    $solicitud = PurchaseRequest::factory()->forUser($revisor)->approved()->create([
+        'odoo_order_id' => 252, 'odoo_reference' => 'P00252', 'odoo_exported_at' => now(),
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'RET-NITRILO 65X90X12 WLK',
+        'specification' => 'A10190', 'quantity' => 6, 'unit' => 'Unidades', 'unit_price' => 6723,
+    ]);
+
+    // Nació de un papel leído: eso es lo que autoriza dar de alta el producto.
+    App\Models\PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'purchase_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => '582.pdf', 'original_name' => '582.pdf', 'mime_type' => 'application/pdf',
+        'size' => 10, 'sha256' => str_repeat('d', 64),
+        'status' => App\Models\PurchaseRequestIngestion::COMPLETED,
+    ]);
+
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.ejemplo.cl',
+        'purchase_requests.odoo.db' => 'prueba',
+        'purchase_requests.odoo.user' => 'quien@ejemplo.cl',
+        'purchase_requests.odoo.password' => 'secreta',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => Http::sequence([
+        Http::response(['jsonrpc' => '2.0', 'result' => 7]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 252, 'state' => 'draft', 'order_line' => [2009]]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [[
+            'id' => 2009, 'product_id' => false, 'price_unit' => 6723, 'product_qty' => 6,
+            'name' => 'RET-NITRILO 65X90X12 WLK · A10190',
+        ]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => []]),          // Odoo no lo tiene
+        Http::response(['jsonrpc' => '2.0', 'result' => 9001]),         // se da de alta
+        Http::response(['jsonrpc' => '2.0', 'result' => [[
+            'id' => 9001, 'name' => 'RET-NITRILO 65X90X12 WLK', 'default_code' => false, 'barcode' => false,
+            'uom_id' => [1, 'Units'], 'type' => 'consu', 'is_storable' => true, 'purchase_ok' => true, 'active' => true,
+        ]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => true]),         // la línea recibe su producto
+    ])]);
+    app()->bind(PurchaseRequestExporter::class, fn () => new OdooPurchaseRequestExporter(new OdooClient(
+        'https://odoo.ejemplo.cl', 'prueba', 'quien@ejemplo.cl', 'secreta',
+    )));
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.prices.push', $solicitud))
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'dio de alta 1 producto'));
+
+    // Se da de alta con el nombre limpio: el código del proveedor va en la
+    // línea, no en el catálogo.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'product.product'
+        && ($r['params']['args'][4] ?? null) === 'create'
+        && ($r['params']['args'][5][0]['name'] ?? null) === 'RET-NITRILO 65X90X12 WLK'
+        && ($r['params']['args'][5][0]['is_storable'] ?? null) === true);
+
+    // Y la línea de Odoo queda apuntando al producto, sin que le reescriban
+    // el nombre: allá ya decía lo que corresponde.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.line'
+        && ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['product_id'] ?? null) === 9001
+        && ! array_key_exists('name', $r['params']['args'][5][1] ?? []));
+});
+
+/** Y lo contrario: escrita a mano, no se le da de alta nada a nadie. */
+it('refuses to put hand-typed words into the Odoo catalogue', function () {
+    $revisor = User::factory()->admin()->create();
+    $solicitud = aprobadaConPartida($revisor, 4747.9);
+
+    config([
+        'purchase_requests.odoo.enabled' => true,
+        'purchase_requests.odoo.url' => 'https://odoo.ejemplo.cl',
+        'purchase_requests.odoo.db' => 'prueba',
+        'purchase_requests.odoo.user' => 'quien@ejemplo.cl',
+        'purchase_requests.odoo.password' => 'secreta',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => Http::sequence([
+        Http::response(['jsonrpc' => '2.0', 'result' => 7]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [['id' => 241, 'state' => 'draft', 'order_line' => [901]]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => [[
+            'id' => 901, 'product_id' => false, 'price_unit' => 0, 'product_qty' => 10, 'name' => 'cemento',
+        ]]]),
+        Http::response(['jsonrpc' => '2.0', 'result' => true]),
+    ])]);
+    app()->bind(PurchaseRequestExporter::class, fn () => new OdooPurchaseRequestExporter(new OdooClient(
+        'https://odoo.ejemplo.cl', 'prueba', 'quien@ejemplo.cl', 'secreta',
+    )));
+
+    $this->actingAs($revisor)->post(route('purchase_requests.prices.push', $solicitud));
+
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'product.product'
+        && ($r['params']['args'][4] ?? null) === 'create');
 });

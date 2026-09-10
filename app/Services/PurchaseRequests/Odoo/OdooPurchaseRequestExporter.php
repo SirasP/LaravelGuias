@@ -782,7 +782,13 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * solicitud sólo existe el nombre genérico, y crear con eso sería llenar
      * el catálogo de basura.
      *
-     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float}>  $cambios
+     * `crear_como` es para cuando el nombre de la línea ya está bien y lo único
+     * que falta es el producto: dice con qué nombre buscarlo o darlo de alta,
+     * sin reescribir la línea. La solicitud que nació de un PDF llega así —su
+     * línea dice «RET-NITRILO 65X90X12 WLK · A10190», y el producto se busca
+     * como «RET-NITRILO 65X90X12 WLK», sin el código del proveedor pegado.
+     *
+     * @param  list<array{producto: ?int, textos: list<string>, precio: ?float, nombre: ?string, cantidad: ?float, crear_como?: ?string}>  $cambios
      * @return array{0: int, 1: ?string, 2: int} actualizadas, motivo, productos creados
      */
     public function actualizarLineas(PurchaseRequest $purchaseRequest, array $cambios, ?int $partnerId = null, ?int $enLaOrden = null): array
@@ -826,8 +832,8 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             foreach ($lineas ?: [] as $linea) {
                 $cambio = $this->cambioDe($linea, $cambios);
 
-                if ($cambio !== null && ! is_array($linea['product_id'] ?? null) && filled($cambio['nombre'])) {
-                    $sinProducto[] = (string) $cambio['nombre'];
+                if ($cambio !== null && ! is_array($linea['product_id'] ?? null) && $this->comoBuscarlo($cambio) !== '') {
+                    $sinProducto[] = $this->comoBuscarlo($cambio);
                 }
             }
 
@@ -849,8 +855,8 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
 
                 // La línea sin producto recibe el suyo, con su unidad, para que
                 // Odoo no quede con una línea que dice una cosa y mide otra.
-                if (! is_array($linea['product_id'] ?? null) && filled($cambio['nombre'])) {
-                    $producto = $productos[trim((string) $cambio['nombre'])] ?? null;
+                if (! is_array($linea['product_id'] ?? null) && $this->comoBuscarlo($cambio) !== '') {
+                    $producto = $productos[$this->comoBuscarlo($cambio)] ?? null;
 
                     if ($producto !== null) {
                         $escribir['product_id'] = $producto['id'];
@@ -1043,6 +1049,16 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'odoo_line_id' => $lineas[$i] ?? null,
             ])->save();
         }
+    }
+
+    /**
+     * Con qué nombre buscar —o dar de alta— el producto de esta línea.
+     *
+     * @param  array<string, mixed>  $cambio
+     */
+    private function comoBuscarlo(array $cambio): string
+    {
+        return trim((string) ($cambio['crear_como'] ?? $cambio['nombre'] ?? ''));
     }
 
     /**

@@ -2084,13 +2084,30 @@
                             </form>
 
                             @if($yaEnOdoo)
-                                <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2">
+                                {{-- El botón decía «precios y nombres» y llevaba sólo
+                                     precios. Ahora dice lo que hace, y lo que hace
+                                     depende de dónde salieron los nombres: los de un
+                                     PDF leído sirven para dar de alta el producto en
+                                     Odoo; los que escribió una persona, no. --}}
+                                <form method="POST" action="{{ route('purchase_requests.prices.push', $purchaseRequest) }}" class="mt-2"
+                                    @if($nombresDeUnPapel)
+                                        onsubmit="return confirm('Se llevan los precios a {{ $purchaseRequest->odoo_reference }}, y el producto que Odoo no tenga se da de alta con el nombre de la solicitud. ¿Seguimos?')"
+                                    @endif>
                                     @csrf
                                     <button type="submit"
                                         class="min-h-10 w-full rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-md shadow-violet-500/25 hover:bg-violet-700 active:scale-95 transition">
-                                        Llevar precios y nombres a {{ $purchaseRequest->odoo_reference }}
+                                        {{ $nombresDeUnPapel ? 'Llevar precios y productos' : 'Llevar precios' }} a {{ $purchaseRequest->odoo_reference }}
                                     </button>
                                 </form>
+                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                    @if($nombresDeUnPapel)
+                                        Los nombres salieron de un documento leído, así que sirven: la línea que
+                                        viajó sin producto recibe el suyo, y si Odoo no lo tiene, se da de alta.
+                                    @else
+                                        Sólo el precio. Los nombres los escribió una persona y con eso no se dan de
+                                        alta productos en Odoo: sube la cotización del proveedor y hazlo desde ahí.
+                                    @endif
+                                </p>
                             @endif
                         </section>
                     @endif @endcan

@@ -296,6 +296,8 @@ class PurchaseRequestController extends Controller
             'comparaciones' => $comparaciones,
             // Sólo tiene sentido con dos o más: devuelve null si no.
             'cuadricula' => \App\Services\PurchaseRequests\Quotes\QuoteMatrix::de($comparaciones),
+            // Para que el botón de Odoo diga lo que va a hacer y no más.
+            'nombresDeUnPapel' => $this->nombresDeUnPapel($purchaseRequest),
         ]);
     }
 
@@ -412,52 +414,110 @@ class PurchaseRequestController extends Controller
             return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
         }
 
-        $precios = [];
-        $porTexto = [];
         $proveedor = $this->proveedorDeLaSolicitud($purchaseRequest);
+        $conPrecio = $purchaseRequest->items()->get()->filter(fn ($item): bool => $item->unit_price !== null);
 
-        foreach ($purchaseRequest->items()->get() as $item) {
-            if ($item->unit_price === null) {
-                continue;
+        // Un texto que se repite entre partidas no identifica a ninguna. Se
+        // cuentan primero y después se descartan los repetidos: dejarlos
+        // habría puesto el precio de una en la línea de la otra.
+        $cuantasVeces = [];
+
+        foreach ($conPrecio as $item) {
+            foreach ($this->textosDe($exporter, $item) as $texto) {
+                $cuantasVeces[$texto] = ($cuantasVeces[$texto] ?? 0) + 1;
             }
+        }
+
+        // ¿Los nombres de esta solicitud salieron de un papel? Si nació de un
+        // PDF leído, o si alguien subió una cotización, los nombres son los
+        // del proveedor y sirven para dar de alta el producto en Odoo. Si los
+        // escribió una persona, no: «cemento» no entra al catálogo.
+        $deUnPapel = $this->nombresDeUnPapel($purchaseRequest);
+
+        $cambios = [];
+
+        foreach ($conPrecio as $item) {
+            $textos = array_values(array_filter(
+                $this->textosDe($exporter, $item),
+                fn (string $texto): bool => ($cuantasVeces[$texto] ?? 0) === 1,
+            ));
 
             // Igual que al exportar: alias aprendido, código o nombre idéntico.
             $producto = $exporter->productoDe($item, $proveedor);
 
-            if ($producto !== null) {
-                $precios[(int) $producto] = (float) $item->unit_price;
-            }
-
-            // Y por el texto, para las líneas que viajaron sin producto: un
-            // texto repetido entre partidas no identifica ninguna y se anula.
-            // Por los dos nombres con que puede estar la línea allá: el de la
-            // partida y el que viajó, con la especificación pegada. Sin
-            // especificación los dos son el mismo, y hay que contarlo una vez:
-            // la guardia contra textos repetidos se anulaba a sí misma.
-            $claves = array_unique(array_filter([
-                PurchaseProductLink::normalizar((string) $item->product_service),
-                PurchaseProductLink::normalizar($exporter->descripcionDe($item)),
-            ]));
-
-            foreach ($claves as $clave) {
-                $porTexto[$clave] = array_key_exists($clave, $porTexto) ? null : (float) $item->unit_price;
-            }
+            $cambios[] = [
+                'producto' => $producto === null ? null : (int) $producto,
+                'textos' => $textos,
+                'precio' => (float) $item->unit_price,
+                // La línea de Odoo ya se llama como corresponde: se escribió
+                // con este mismo texto al exportar. No hay nada que reescribir.
+                'nombre' => null,
+                'cantidad' => null,
+                'crear_como' => $deUnPapel ? (string) $item->product_service : null,
+            ];
         }
 
-        [$actualizadas, $motivo] = $exporter->actualizarPrecios($purchaseRequest, $precios, array_filter($porTexto));
+        [$actualizadas, $motivo, $creados] = $exporter->actualizarLineas($purchaseRequest, $cambios);
 
         if ($motivo !== null) {
             return back()->with('error', $motivo);
         }
 
-        return back()->with('success', $actualizadas > 0
+        $nuevos = $creados > 0
             ? sprintf(
-                'Se actualizaron %d %s en %s.',
+                ' Se %s %d %s nuevos en Odoo, porque no existían.',
+                $creados === 1 ? 'dio de alta' : 'dieron de alta',
+                $creados,
+                Str::plural('producto', $creados),
+            )
+            : '';
+
+        if ($actualizadas > 0) {
+            return back()->with('success', sprintf(
+                'Se actualizaron %d %s en %s.%s',
                 $actualizadas,
                 Str::plural('línea', $actualizadas),
                 $purchaseRequest->odoo_reference,
-            )
-            : 'Los precios de Odoo ya coincidían: no había nada que cambiar.');
+                $nuevos,
+            ));
+        }
+
+        return back()->with($creados > 0 ? 'success' : 'info',
+            'Los precios de Odoo ya coincidían: no había nada que cambiar.'.$nuevos);
+    }
+
+    /**
+     * Los dos nombres con que una partida puede estar escrita en Odoo.
+     *
+     * El de la partida y el que viajó con la especificación pegada. Sin
+     * especificación los dos son el mismo, y hay que contarlo una sola vez: si
+     * no, la guardia contra textos repetidos se anulaba a sí misma.
+     *
+     * @return list<string>
+     */
+    private function textosDe(OdooPurchaseRequestExporter $exporter, mixed $item): array
+    {
+        return array_values(array_unique(array_filter([
+            PurchaseProductLink::normalizar((string) $item->product_service),
+            PurchaseProductLink::normalizar($exporter->descripcionDe($item)),
+        ])));
+    }
+
+    /**
+     * ¿Los nombres de esta solicitud los leyó una máquina de un documento?
+     *
+     * Es la línea que separa dar de alta un producto en Odoo de ensuciar el
+     * catálogo. Un PDF de proveedor trae «RET-NITRILO 65X90X12 WLK»; una
+     * persona apurada escribe «retenes». Lo primero es un producto; lo segundo
+     * es un recado.
+     */
+    private function nombresDeUnPapel(PurchaseRequest $purchaseRequest): bool
+    {
+        return PurchaseRequestIngestion::query()
+            ->where(fn ($q) => $q
+                ->where('purchase_request_id', $purchaseRequest->getKey())
+                ->orWhere('compared_request_id', $purchaseRequest->getKey()))
+            ->exists();
     }
 
     /** El proveedor en Odoo de una cotización recibida, si se le conoce el RUT. */
