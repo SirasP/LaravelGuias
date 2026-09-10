@@ -485,35 +485,37 @@ class PurchaseQuoteComparisonController extends Controller
                 .'nada que comprarle a este proveedor.');
         }
 
-        // La orden que ya existe se queda sólo con lo suyo. Se hace antes de
-        // crear la nueva: si Odoo rechaza el recorte, no queremos una segunda
-        // orden creada sobre una primera que sigue mintiendo.
+        // La orden original se vacía: lo de este proveedor se muda a la suya y
+        // lo que nadie cotizó queda en espera. Antes se quedaba con lo del
+        // proveedor y la orden nueva nacía con eso mismo, o sea la misma
+        // partida en dos órdenes y el stock contado dos veces.
+        //
+        // Se hace antes de crear la nueva: si Odoo rechaza el recorte, no
+        // queremos una segunda orden creada sobre una primera que sigue
+        // mintiendo.
         $anterior = (int) $purchaseRequest->odoo_order_id;
         $referenciaAnterior = (string) $purchaseRequest->odoo_reference;
 
-        // Recortar exige saber qué línea de allá es cada partida, y eso sólo se
-        // guarda desde que existe la columna. En una orden anterior a eso no
-        // sabemos nada: la lista de «las que se quedan» saldría vacía y el
-        // recorte le borraría hasta la última línea. Se deja intacta.
-        $seSabeQueHayAlla = $anterior !== 0 && $purchaseRequest->items()
-            ->where('odoo_order_id', $anterior)->exists();
+        // Quitar exige saber qué línea de allá es cada partida, y eso sólo se
+        // guarda desde que existe la columna. Si ninguna partida dice vivir en
+        // esa orden no sabemos nada de ella y no se toca: puede ser anterior a
+        // la columna, o la de otro proveedor de un reparto anterior.
+        $viviendoAlla = $anterior === 0
+            ? $purchaseRequest->items()->whereRaw('1 = 0')->get()
+            : $purchaseRequest->items()->where('odoo_order_id', $anterior)->get();
 
-        if ($anterior !== 0 && $seSabeQueHayAlla) {
+        $seSabeQueHayAlla = $viviendoAlla->isNotEmpty();
+
+        if ($seSabeQueHayAlla) {
             $sonSuyas = $suyas->pluck('id')->all();
 
-            // Las que estaban en la primera orden y este proveedor no cotizó:
-            // salen de allá y se quedan esperando a quien sí las venda.
-            $sobran = $purchaseRequest->items()
-                ->where('odoo_order_id', $anterior)
-                ->whereNotIn('id', $sonSuyas)
-                ->get();
+            // Las que estaban allá y este proveedor no cotizó: salen también y
+            // se quedan esperando a quien sí las venda.
+            $sobran = $viviendoAlla->reject(fn ($partida) => in_array($partida->getKey(), $sonSuyas, true));
 
-            [, $motivo, $sigueExistiendo] = $exporter->dejarSoloEstasLineas(
+            [, $motivo, $sigueExistiendo] = $exporter->quitarLineas(
                 $anterior,
-                $purchaseRequest->items()
-                    ->where('odoo_order_id', $anterior)
-                    ->whereIn('id', $sonSuyas)
-                    ->pluck('odoo_line_id')->filter()->all(),
+                $viviendoAlla->pluck('odoo_line_id')->filter()->map(fn ($v) => (int) $v)->values()->all(),
             );
 
             if ($motivo !== null) {
@@ -524,8 +526,6 @@ class PurchaseQuoteComparisonController extends Controller
             // esto la solicitud quedaba atrapada, protegiendo una orden que ya
             // no existía y sin poder repartirse nunca.
             if (! $sigueExistiendo) {
-                $purchaseRequest->items()->where('odoo_order_id', $anterior)
-                    ->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
                 $purchaseRequest->forceFill([
                     'odoo_order_id' => null, 'odoo_reference' => null, 'odoo_exported_at' => null,
                 ])->save();
@@ -551,9 +551,20 @@ class PurchaseQuoteComparisonController extends Controller
             return back()->with('error', $motivo);
         }
 
-        if ($anterior !== 0) {
+        // Alternativas sólo cuando las dos órdenes se pelean lo mismo.
+        //
+        // En Odoo, confirmar una alternativa te ofrece anular las otras. Eso es
+        // lo que quieres con dos proveedores cotizando el mismo casco, y es lo
+        // contrario de lo que quieres en un reparto: anularías la compra del
+        // otro. Se pelean lo mismo justo cuando no se pudo vaciar la orden
+        // anterior, porque entonces allá sigue estando lo que acabamos de
+        // pedirle a este proveedor.
+        if ($anterior !== 0 && ! $seSabeQueHayAlla
+            && ($exporter->cuantasLineasTiene($anterior) ?? 0) > 0) {
             $exporter->enlazarComoAlternativas([$anterior, (int) $id]);
-        } else {
+        }
+
+        if ($anterior === 0) {
             $purchaseRequest->forceFill([
                 'odoo_order_id' => $id,
                 'odoo_reference' => $referencia,
@@ -572,11 +583,12 @@ class PurchaseQuoteComparisonController extends Controller
             $enEspera > 0
                 ? sprintf(' Quedan %d en espera de otro proveedor.', $enEspera)
                 : '',
-            $anterior !== 0 && ! $seSabeQueHayAlla
-                ? sprintf(' %s quedó igual porque no sabemos qué línea es cuál allá: en Odoo las dos '
-                    .'quedan como alternativas, confirma la que compres y anula la otra.',
+            $anterior === 0 ? '' : ($seSabeQueHayAlla
+                ? sprintf(' %s quedó vacía: la puedes borrar en Odoo.',
                     $referenciaAnterior !== '' ? $referenciaAnterior : 'La orden anterior')
-                : '',
+                : sprintf(' %s quedó igual porque no sabemos qué línea es cuál allá: en Odoo las dos '
+                    .'quedan como alternativas, confirma la que compres y anula la otra.',
+                    $referenciaAnterior !== '' ? $referenciaAnterior : 'La orden anterior')),
         ));
     }
 

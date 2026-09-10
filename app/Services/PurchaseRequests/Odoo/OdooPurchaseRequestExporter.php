@@ -1046,12 +1046,44 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
     }
 
     /**
-     * Deja en una orden borrador sólo las partidas que se le compran a ella.
+     * Cuántas líneas tiene una orden. Null si ya no existe en Odoo.
      *
-     * @param  list<int>  $lineasQueSeQuedan  ids de línea de Odoo
-     * @return array{0: int, 1: ?string} cuántas se quitaron y el motivo si no se pudo
+     * Sirve para no enlazar como alternativa una orden que quedó vacía: dos
+     * órdenes son alternativas cuando se pelean lo mismo, y una sin líneas no
+     * se pelea nada.
      */
-    public function dejarSoloEstasLineas(int $orden, array $lineasQueSeQuedan): array
+    public function cuantasLineasTiene(int $orden): ?int
+    {
+        try {
+            $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['order_line']]);
+
+            if (! is_array($cabecera) || ! isset($cabecera[0])) {
+                return null;
+            }
+
+            return count((array) ($cabecera[0]['order_line'] ?? []));
+        } catch (Throwable $e) {
+            Log::warning('No se pudo mirar cuántas líneas tiene una orden de Odoo.', [
+                'orden' => $orden,
+                'motivo' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Saca de una orden borrador las líneas que se mudan a otra.
+     *
+     * Antes esto se dijo al revés —«deja sólo éstas»— y era una trampa doble:
+     * con la lista vacía borraba la orden entera, y en el reparto dejaba en la
+     * orden vieja justo las líneas que se estaban copiando a la nueva, o sea
+     * la misma partida contada dos veces. Se nombra lo que se quita.
+     *
+     * @param  list<int>  $lineasQueSeVan  ids de línea de Odoo
+     * @return array{0: int, 1: ?string, 2: bool} cuántas se quitaron, el motivo si no se pudo, y si la orden sigue existiendo
+     */
+    public function quitarLineas(int $orden, array $lineasQueSeVan): array
     {
         try {
             $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['state', 'order_line']]);
@@ -1069,18 +1101,20 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 return [0, 'Esa orden ya no está en borrador en Odoo: sus líneas no se tocan desde aquí.', true];
             }
 
-            $sobran = array_values(array_diff(
+            // Sólo las que de verdad están allá. Una línea que ya no existe
+            // haría fallar el unlink entero y con él el reparto completo.
+            $seVan = array_values(array_intersect(
                 array_map('intval', (array) ($cabecera[0]['order_line'] ?? [])),
-                array_map('intval', $lineasQueSeQuedan),
+                array_map('intval', $lineasQueSeVan),
             ));
 
-            if ($sobran === []) {
+            if ($seVan === []) {
                 return [0, null, true];
             }
 
-            $this->client->execute('purchase.order.line', 'unlink', [$sobran]);
+            $this->client->execute('purchase.order.line', 'unlink', [$seVan]);
 
-            return [count($sobran), null, true];
+            return [count($seVan), null, true];
         } catch (Throwable $e) {
             Log::warning('No se pudieron quitar líneas de una orden de Odoo.', [
                 'orden' => $orden,

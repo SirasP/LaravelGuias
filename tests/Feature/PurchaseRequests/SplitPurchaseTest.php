@@ -78,29 +78,37 @@ function compraRepartida(User $owner): array
     return [$solicitud->fresh(), $lectura];
 }
 
-it('leaves in the first order only what that supplier sells, and parks the rest', function () {
+it('empties the first order: what he sells moves out, and the rest waits', function () {
     $revisor = User::factory()->admin()->create();
     [$solicitud, $lectura] = compraRepartida($revisor);
 
     odooDice([
         7,                                                                  // autenticación
         [['id' => 250, 'state' => 'draft', 'order_line' => [900, 901, 902, 903, 904]]],
-        true,                                                               // el unlink de las 2 que sobran
-        [],                                                                 // productos que Odoo confirma
-        251,                                                                // la orden nueva… (no llega aquí)
+        true,                                                               // el unlink de las cinco
+        251,                                                                // la orden nueva
+        [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]],
     ]);
 
     $this->actingAs($revisor)
         ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]));
 
-    // Las tres que cotizó A siguen en P00250; las otras dos quedan en espera,
-    // sin orden, a la vista y listas para la cotización del segundo.
+    // P00250 se queda sin nada: las tres de A se mudaron a la suya y las otras
+    // dos quedan en espera, a la vista y listas para la cotización del segundo.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.line'
+        && ($r['params']['args'][4] ?? null) === 'unlink'
+        && ($r['params']['args'][5][0] ?? null) === [900, 901, 902, 903, 904]);
+
     expect($solicitud->items()->whereNull('odoo_order_id')->pluck('product_service')->sort()->values()->all())
         ->toBe(['GALON PINTURA', 'ROLLO FILM']);
 
-    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.line'
-        && ($r['params']['args'][4] ?? null) === 'unlink'
-        && ($r['params']['args'][5][0] ?? null) === [903, 904]);
+    // Y las tres de A viven ahora en la orden de A, no en las dos a la vez.
+    expect($solicitud->items()->where('odoo_order_id', 251)->count())->toBe(3)
+        ->and($solicitud->items()->where('odoo_order_id', 250)->count())->toBe(0);
+
+    // Un reparto no son alternativas: en Odoo, confirmar una alternativa te
+    // ofrece anular las otras, y ahí anularías la compra del otro proveedor.
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.group');
 });
 
 it('refuses to touch an order Odoo already confirmed', function () {
@@ -299,15 +307,27 @@ it('does not empty an order whose lines it cannot identify', function () {
 
     $solicitud->items()->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
 
-    odooDice([7, [], 251, [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]]]);
+    odooDice([
+        7,                                                                  // autenticación
+        251,                                                                // la orden nueva
+        [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]],
+        [['id' => 250, 'order_line' => [900, 901]]],                        // ¿le queda algo a la vieja?
+        [],                                                                 // grupo existente
+        7788,                                                               // el grupo nuevo
+        true,                                                               // las dos apuntan al grupo
+    ]);
 
     $this->actingAs($revisor)
         ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]));
 
+    // A P00250 no se le quita ni una línea.
     Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
-    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order'
-        && ($r['params']['args'][4] ?? null) === 'read'
-        && ($r['params']['args'][5][0] ?? null) === [250]);
+
+    // Y como allá sigue estando lo que acabamos de pedirle a este proveedor,
+    // las dos se pelean lo mismo: eso sí son alternativas.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order'
+        && ($r['params']['args'][4] ?? null) === 'write'
+        && ($r['params']['args'][5][1]['purchase_group_id'] ?? null) === 7788);
 
     // Y la orden anterior sigue siendo la de la solicitud: no se perdió.
     expect((int) $solicitud->fresh()->odoo_order_id)->toBe(250);
@@ -355,4 +375,62 @@ it('offers to buy from a supplier that quoted every single line', function () {
         ->assertOk()
         ->assertSee('Comprarle a MAXSERVICE SPA')
         ->assertSee('Comprarle a este proveedor la partida');
+});
+
+/**
+ * El segundo proveedor del reparto no le toca nada al primero.
+ *
+ * Repartir dos veces era el momento peligroso: la orden del primero era ahora
+ * «la orden anterior», y quitarle lo que el segundo no cotizó le habría
+ * desarmado la compra al primero.
+ */
+it('leaves the first supplier order alone when the second one is split off', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = compraRepartida($revisor);
+
+    // Como queda la solicitud después del primer reparto: P00250 vacía y
+    // todavía es la de la solicitud, lo de A en P00251, y dos en espera.
+    $solicitud->items()->whereIn('product_service', ['SPRAY BLANCO', 'GRASA LIQUIDA', 'CINTA PELIGRO'])
+        ->update(['odoo_order_id' => 251, 'odoo_line_id' => 910]);
+    $solicitud->items()->whereIn('product_service', ['ROLLO FILM', 'GALON PINTURA'])
+        ->update(['odoo_order_id' => null, 'odoo_line_id' => null]);
+
+    PurchaseSupplier::query()->create([
+        'company_code' => 'EHE', 'name' => 'PROVEEDOR B',
+        'tax_id' => '77071100-2', 'odoo_partner_id' => 1732,
+    ]);
+
+    $segunda = PurchaseRequestIngestion::query()->create([
+        'user_id' => $revisor->getKey(), 'uploader_name_snapshot' => $revisor->name,
+        'compared_request_id' => $solicitud->getKey(), 'disk' => 'local',
+        'path' => 'b.pdf', 'original_name' => 'cot B.pdf', 'mime_type' => 'application/pdf',
+        'size' => 10, 'sha256' => str_repeat('c', 64),
+        'status' => PurchaseRequestIngestion::COMPLETED,
+        'supplier_tax_id' => '77071100-2', 'supplier_name' => 'PROVEEDOR B',
+        'extracted' => ['items' => array_map(fn (string $n): array => [
+            'product_service' => $n, 'specification' => null,
+            'quantity' => '1', 'unit' => 'Unidades', 'unit_price' => '2000',
+        ], ['ROLLO FILM', 'GALON PINTURA'])],
+    ]);
+
+    odooDice([
+        7,                                                                  // autenticación
+        252,                                                                // la orden de B
+        [['id' => 252, 'name' => 'P00252', 'order_line' => [920, 921]]],
+        [['id' => 250, 'order_line' => []]],                                // la vieja quedó vacía
+    ]);
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.split', [$solicitud, $segunda]));
+
+    // Ni una línea quitada en ningún lado, y menos en la orden del primero.
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'unlink');
+
+    // Las tres del primero siguen donde estaban.
+    expect($solicitud->items()->where('odoo_order_id', 251)->count())->toBe(3)
+        ->and($solicitud->items()->where('odoo_order_id', 252)->count())->toBe(2)
+        ->and($solicitud->items()->whereNull('odoo_order_id')->count())->toBe(0);
+
+    // Y una orden vacía no se pelea nada con nadie: no son alternativas.
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order.group');
 });
