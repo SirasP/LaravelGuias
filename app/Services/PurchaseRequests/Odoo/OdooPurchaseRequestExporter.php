@@ -1240,20 +1240,24 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
      * ningún lado. El jefe mira la cotización en Odoo y eso es justo lo que
      * quiere saber.
      *
+     * Va el **motivo**, no quién teclea la solicitud. Las solicitudes las crea
+     * siempre la misma persona, así que su nombre en todas no distingue nada;
+     * el que pide de verdad está escrito en el motivo: «SOLICITUD CRISTIAN
+     * PERALTA», «Corchetes, vanessa», «JOHAN casa».
+     *
      * Va en `notes` —«Términos y condiciones»—, que es la nota que se ve en el
      * formulario de la cotización. Ojo: ese campo también se imprime en el
      * documento que recibe el proveedor.
      */
     private function notaDeQuienPide(PurchaseRequest $purchaseRequest): string
     {
-        $solicita = trim((string) $purchaseRequest->requester_name_snapshot);
-        $lineas = $solicita === '' ? [] : ['Solicita: '.$solicita];
+        $motivo = trim((string) $purchaseRequest->reason);
+        $lineas = $motivo === '' ? [] : [$motivo];
 
-        // «Para» sólo cuando se pide para otro: repetir el mismo nombre dos
-        // veces no agrega nada.
+        // «Para» sólo cuando dice algo distinto: repetirlo no agrega nada.
         $para = trim((string) $purchaseRequest->requested_for_name);
 
-        if ($para !== '' && $para !== $solicita) {
+        if ($para !== '' && $para !== $motivo) {
             $lineas[] = 'Para: '.$para;
         }
 

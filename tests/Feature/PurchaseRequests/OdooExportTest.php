@@ -1049,7 +1049,8 @@ it('writes on the Odoo order who asked for the purchase', function () {
 
     $solicitud = solicitudAprobadaCon([
         'suggested_suppliers' => ['RUT 77.045.469-7'],
-        'requester_name_snapshot' => 'JOSE ANCACURA',
+        'reason' => 'SOLICITUD CRISTIAN PERALTA',
+        'requester_name_snapshot' => 'SEBASTIAN ANDRES LOPEZ EPPLE',
     ]);
     $solicitud->items()->create([
         'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
@@ -1062,7 +1063,7 @@ it('writes on the Odoo order who asked for the purchase', function () {
         $args = $request['params']['args'] ?? [];
 
         return ($args[3] ?? null) === 'purchase.order' && ($args[4] ?? null) === 'create'
-            && ($args[5][0]['notes'] ?? null) === '<p>Solicita: JOSE ANCACURA</p>';
+            && ($args[5][0]['notes'] ?? null) === '<p>SOLICITUD CRISTIAN PERALTA</p>';
     });
 });
 
@@ -1072,7 +1073,7 @@ it('names both people when somebody asks on behalf of another', function () {
 
     $solicitud = solicitudAprobadaCon([
         'suggested_suppliers' => ['RUT 77.045.469-7'],
-        'requester_name_snapshot' => 'SEBASTIAN ANDRES LOPEZ EPPLE',
+        'reason' => 'Compra de EPP',
         'requested_for_name' => 'jose ancacura',
     ]);
     $solicitud->items()->create([
@@ -1082,5 +1083,5 @@ it('names both people when somebody asks on behalf of another', function () {
     exportador()->exportApproved($solicitud);
 
     Http::assertSent(fn ($request) => ($request['params']['args'][5][0]['notes'] ?? null)
-        === '<p>Solicita: SEBASTIAN ANDRES LOPEZ EPPLE</p><p>Para: jose ancacura</p>');
+        === '<p>Compra de EPP</p><p>Para: jose ancacura</p>');
 });
