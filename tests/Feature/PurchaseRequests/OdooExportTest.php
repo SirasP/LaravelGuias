@@ -1038,3 +1038,49 @@ it('names the supplier it is going to buy from', function () {
         ->assertSee('LIBRERIA MACKENNA SPA')
         ->assertDontSee('no dice a quién comprarle', false);
 });
+
+/**
+ * El jefe mira la cotización en Odoo y quiere saber quién pidió la compra. De
+ * la orden se deduce todo menos eso: el proveedor, el monto y las partidas
+ * están a la vista, la persona no aparecía por ningún lado.
+ */
+it('writes on the Odoo order who asked for the purchase', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    $solicitud = solicitudAprobadaCon([
+        'suggested_suppliers' => ['RUT 77.045.469-7'],
+        'requester_name_snapshot' => 'JOSE ANCACURA',
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Rodamiento 6202',
+        'quantity' => '5', 'unit' => 'Unidades', 'unit_price' => '4500',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(function ($request) {
+        $args = $request['params']['args'] ?? [];
+
+        return ($args[3] ?? null) === 'purchase.order' && ($args[4] ?? null) === 'create'
+            && ($args[5][0]['notes'] ?? null) === '<p>Solicita: JOSE ANCACURA</p>';
+    });
+});
+
+/** Y cuando uno pide para otro, se dicen los dos: quién pidió y para quién. */
+it('names both people when somebody asks on behalf of another', function () {
+    odooResponde([8, [3528], 219, [['id' => 219, 'name' => 'P00219']]]);
+
+    $solicitud = solicitudAprobadaCon([
+        'suggested_suppliers' => ['RUT 77.045.469-7'],
+        'requester_name_snapshot' => 'SEBASTIAN ANDRES LOPEZ EPPLE',
+        'requested_for_name' => 'jose ancacura',
+    ]);
+    $solicitud->items()->create([
+        'sort_order' => 1, 'product_service' => 'Casco', 'quantity' => '5', 'unit' => 'Unidades',
+    ]);
+
+    exportador()->exportApproved($solicitud);
+
+    Http::assertSent(fn ($request) => ($request['params']['args'][5][0]['notes'] ?? null)
+        === '<p>Solicita: SEBASTIAN ANDRES LOPEZ EPPLE</p><p>Para: jose ancacura</p>');
+});

@@ -1009,6 +1009,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
                 'partner_id' => $proveedor,
                 'picking_type_id' => (int) config('purchase_requests.odoo.picking_type_id'),
                 'origin' => (string) $purchaseRequest->folio,
+                'notes' => $this->notaDeQuienPide($purchaseRequest),
                 'date_order' => now()->format('Y-m-d H:i:s'),
                 'order_line' => $this->lineasDe($purchaseRequest, $proveedor, $partidas, $cotizado),
             ]]);
@@ -1231,6 +1232,34 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         }
     }
 
+    /**
+     * Quién pidió esta compra, escrito para que se lea en Odoo.
+     *
+     * De la orden de allá se deduce todo menos la persona: el proveedor, el
+     * monto y las partidas están a la vista, y quién lo pidió no aparece por
+     * ningún lado. El jefe mira la cotización en Odoo y eso es justo lo que
+     * quiere saber.
+     *
+     * Va en `notes` —«Términos y condiciones»—, que es la nota que se ve en el
+     * formulario de la cotización. Ojo: ese campo también se imprime en el
+     * documento que recibe el proveedor.
+     */
+    private function notaDeQuienPide(PurchaseRequest $purchaseRequest): string
+    {
+        $solicita = trim((string) $purchaseRequest->requester_name_snapshot);
+        $lineas = $solicita === '' ? [] : ['Solicita: '.$solicita];
+
+        // «Para» sólo cuando se pide para otro: repetir el mismo nombre dos
+        // veces no agrega nada.
+        $para = trim((string) $purchaseRequest->requested_for_name);
+
+        if ($para !== '' && $para !== $solicita) {
+            $lineas[] = 'Para: '.$para;
+        }
+
+        return implode('', array_map(fn (string $linea): string => '<p>'.e($linea).'</p>', $lineas));
+    }
+
     private function crearRfq(PurchaseRequest $purchaseRequest, int $proveedor): array
     {
         $id = (int) $this->client->execute('purchase.order', 'create', [[
@@ -1238,6 +1267,7 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             'picking_type_id' => (int) config('purchase_requests.odoo.picking_type_id'),
             // De dónde viene: deja el rastro visible dentro de Odoo.
             'origin' => (string) $purchaseRequest->folio,
+            'notes' => $this->notaDeQuienPide($purchaseRequest),
             'date_order' => now()->format('Y-m-d H:i:s'),
             'order_line' => $this->lineasDe($purchaseRequest, $proveedor),
         ]]);

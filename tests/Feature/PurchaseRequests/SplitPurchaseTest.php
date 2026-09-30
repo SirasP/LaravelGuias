@@ -91,8 +91,15 @@ it('empties the first order: what he sells moves out, and the rest waits', funct
         [['id' => 251, 'name' => 'P00251', 'order_line' => [910, 911, 912]]],
     ]);
 
+    $solicitud->forceFill(['requester_name_snapshot' => 'JOSE ANCACURA'])->save();
+
     $this->actingAs($revisor)
         ->post(route('purchase_requests.quotes.split', [$solicitud, $lectura]));
+
+    // La orden del proveedor también dice quién pidió la compra.
+    Http::assertSent(fn ($r) => ($r['params']['args'][3] ?? null) === 'purchase.order'
+        && ($r['params']['args'][4] ?? null) === 'create'
+        && ($r['params']['args'][5][0]['notes'] ?? null) === '<p>Solicita: JOSE ANCACURA</p>');
 
     // P00250 se queda sin nada: las tres de A se mudaron a la suya y las otras
     // dos quedan en espera, a la vista y listas para la cotización del segundo.
