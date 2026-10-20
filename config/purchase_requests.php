@@ -41,6 +41,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Quién acepta las solicitudes
+    |--------------------------------------------------------------------------
+    |
+    | El correo de «enviada a revisión» sale a esta dirección y a ninguna otra.
+    | Hay una sola persona que acepta las solicitudes para Odoo, y el correo es
+    | el aviso que empuja a decidir: repartirlo entre todos los revisores hacía
+    | que nadie se sintiera el dueño de la decisión.
+    |
+    | Los demás revisores siguen viendo el aviso dentro del sistema, en Avisos,
+    | que es donde trabajan.
+    |
+    | Vacío: cada revisor recibe su propio correo, como antes.
+    |
+    */
+    'approver_mail' => trim((string) env('PURCHASE_REQUESTS_APPROVER_MAIL', '')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Odoo
     |--------------------------------------------------------------------------
     |

@@ -13,8 +13,10 @@ use Illuminate\Notifications\Notification;
 /**
  * Avisa al grupo revisor de que hay una solicitud esperando decisión.
  *
- * Sólo canal `database`: el MVP notifica dentro del sistema y no envía correo
- * externo. Si más adelante se habilita correo, esta clase ya es encolable.
+ * El aviso en pantalla es para todos los revisores; el correo, para uno solo.
+ * Quien acepta las solicitudes para Odoo es una persona, y el correo es lo que
+ * empuja a decidir: mandárselo a los tres hacía que ninguno se sintiera el
+ * dueño de la decisión.
  */
 class PurchaseRequestSubmitted extends Notification implements ShouldQueue
 {
@@ -29,9 +31,18 @@ class PurchaseRequestSubmitted extends Notification implements ShouldQueue
     /** @return list<string> */
     public function via(object $notifiable): array
     {
+        // La dirección suelta de quien acepta: sólo correo, porque no hay a
+        // quién escribirle un aviso dentro del sistema.
+        if (! $notifiable instanceof User) {
+            return PurchaseMailRouting::alcanza($notifiable) ? ['mail'] : [];
+        }
+
         $channels = ['database'];
 
-        if (PurchaseMailRouting::alcanza($notifiable)) {
+        // Con un aprobador configurado el correo no sale por persona: sale una
+        // sola vez, hacia él. Sin él, cada revisor recibe el suyo, como antes.
+        if (trim((string) config('purchase_requests.approver_mail', '')) === ''
+            && PurchaseMailRouting::alcanza($notifiable)) {
             $channels[] = 'mail';
         }
 

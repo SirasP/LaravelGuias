@@ -1023,6 +1023,20 @@ class PurchaseRequestController extends Controller
             fn () => Notification::send($reviewers, new PurchaseRequestSubmitted($purchaseRequest, $actor, $reason)),
             $purchaseRequest,
         );
+
+        // Y el correo, a una sola dirección: la de quien acepta las solicitudes
+        // para Odoo. Los revisores ya tienen su aviso en pantalla, arriba.
+        $aprobador = trim((string) config('purchase_requests.approver_mail', ''));
+
+        if ($aprobador === '') {
+            return;
+        }
+
+        $this->dispatchNotification(
+            fn () => Notification::route('mail', $aprobador)
+                ->notify(new PurchaseRequestSubmitted($purchaseRequest, $actor, $reason)),
+            $purchaseRequest,
+        );
     }
 
     /** Notifica al solicitante el resultado de la revisión. */

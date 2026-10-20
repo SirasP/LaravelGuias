@@ -28,7 +28,10 @@ class QuotationDraftReady extends Notification implements ShouldQueue
     {
         $channels = ['database'];
 
-        if (PurchaseMailRouting::alcanza($notifiable)) {
+        // El correo es para quien está cotizando: es quien tiene que ir a
+        // revisar lo leído. El administrador lo ve dentro del sistema; un
+        // correo por cada documento que sube cualquiera era puro ruido.
+        if ($this->esElAutor($notifiable) && PurchaseMailRouting::alcanza($notifiable)) {
             $channels[] = 'mail';
         }
 

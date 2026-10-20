@@ -139,3 +139,74 @@ it('does not email when the channel is switched off', function () {
         return in_array('database', $channels, true) && ! in_array('mail', $channels, true);
     });
 });
+
+/**
+ * El correo de «enviada a revisión» tiene un solo dueño: quien acepta las
+ * solicitudes para Odoo. Repartirlo entre los tres revisores hacía que ninguno
+ * se sintiera el responsable de decidir.
+ */
+it('sends the review email to the one address that accepts requests', function () {
+    config()->set('purchase_requests.approver_mail', 'sebastian.lopez@ehe.cl');
+    Notification::fake();
+
+    $owner = User::factory()->create();
+    $unRevisor = User::factory()->admin()->create();
+    $otroRevisor = User::factory()->admin()->create();
+
+    $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
+    // Los revisores siguen viendo el aviso en pantalla. Sin correo.
+    foreach ([$unRevisor, $otroRevisor] as $revisor) {
+        Notification::assertSentTo(
+            $revisor,
+            PurchaseRequestSubmitted::class,
+            fn ($notificacion, array $canales): bool => $canales === ['database'],
+        );
+    }
+
+    // Y el correo sale una sola vez, hacia la dirección configurada.
+    Notification::assertSentOnDemand(
+        PurchaseRequestSubmitted::class,
+        fn ($notificacion, array $canales, $destinatario): bool => $canales === ['mail']
+            && ($destinatario->routes['mail'] ?? null) === 'sebastian.lopez@ehe.cl',
+    );
+});
+
+/** Sin dirección configurada se comporta como siempre: cada revisor, su correo. */
+it('falls back to emailing every reviewer when no address is set', function () {
+    config()->set('purchase_requests.approver_mail', '');
+    Notification::fake();
+
+    $owner = User::factory()->create();
+    $revisor = User::factory()->admin()->create();
+
+    $this->submitPurchaseRequest($owner, $this->createPurchaseRequestDraft($owner));
+
+    Notification::assertSentTo(
+        $revisor,
+        PurchaseRequestSubmitted::class,
+        fn ($notificacion, array $canales): bool => in_array('mail', $canales, true),
+    );
+});
+
+/**
+ * El resultado de la lectura es para quien subió el documento: es quien tiene
+ * que ir a revisar lo leído. El administrador lo ve dentro del sistema.
+ */
+it('emails the reading result to whoever is quoting, not to the admins', function () {
+    $quienCotiza = User::factory()->create();
+    $admin = User::factory()->admin()->create();
+
+    $lectura = App\Models\PurchaseRequestIngestion::query()->create([
+        'user_id' => $quienCotiza->getKey(),
+        'uploader_name_snapshot' => $quienCotiza->name,
+        'disk' => 'local', 'path' => 'cot.pdf', 'original_name' => 'cot.pdf',
+        'mime_type' => 'application/pdf', 'size' => 10, 'sha256' => str_repeat('e', 64),
+        'status' => App\Models\PurchaseRequestIngestion::COMPLETED,
+    ]);
+
+    $aviso = new App\Notifications\QuotationDraftReady($lectura);
+
+    expect($aviso->via($quienCotiza))->toBe(['database', 'mail'])
+        ->and($aviso->via($admin))->toBe(['database']);
+});
