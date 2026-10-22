@@ -517,6 +517,39 @@
             color: #cbd5e1
         }
 
+        .chart-expand {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            border: 1px solid #e2e8f0; border-radius: 9px; padding: 6px 9px;
+            color: #475569; background: #f8fafc; font-size: 11px; font-weight: 700;
+            cursor: pointer; white-space: nowrap; flex-shrink: 0;
+        }
+        .chart-expand:hover { color: #4f46e5; border-color: #a5b4fc; background: #eef2ff }
+        .chart-expand:focus-visible { outline: 2px solid #6366f1; outline-offset: 3px }
+        .dark .chart-expand { color: #cbd5e1; background: #111827; border-color: #334155 }
+        .dark .chart-expand:hover { color: #c7d2fe; border-color: #818cf8 }
+        .chart-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0 }
+        .chart-card > div:first-child { gap: 12px; flex-wrap: wrap }
+
+        .fuel-chart-dialog {
+            box-sizing: border-box; width: 100vw; max-width: none; height: 100vh; height: 100dvh;
+            max-height: none; margin: 0; padding: 20px; border: 0; background: #f8fafc;
+            color: #334155; overscroll-behavior: contain;
+        }
+        .fuel-chart-dialog[open] { display: flex; flex-direction: column; gap: 20px }
+        .fuel-chart-dialog::backdrop { background: rgba(15,23,42,.7); backdrop-filter: blur(6px) }
+        .dark .fuel-chart-dialog { background: #0d1117; color: #e2e8f0 }
+        .fuel-chart-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0 }
+        .fuel-chart-dialog-head h2 { font-size: 18px; font-weight: 800 }
+        .fuel-chart-dialog-head p { font-size: 12px; color: #64748b; margin-top: 4px }
+        .fuel-chart-dialog-body { flex: 1; min-height: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px }
+        .dark .fuel-chart-dialog-body { background: #161c2c; border-color: #1e2a3b }
+        .fuel-chart-dialog-canvas { position: relative; height: 100%; width: 100% }
+        @media (max-width: 640px) {
+            .fuel-chart-dialog { padding: 12px; gap: 12px }
+            .fuel-chart-dialog-head h2 { font-size: 15px }
+            .fuel-chart-dialog-body { padding: 10px }
+        }
+
         /* ── Divider label ── */
         .section-label {
             font-size: 10px;
@@ -657,7 +690,10 @@
                             <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
                             Gasolina — últimos 30 días
                         </div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                        <div class="chart-actions">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                            @include('fuelcontrol.partials.chart-expand', ['chartId' => 'gasolinaChart', 'chartTitle' => 'Gasolina — últimos 30 días'])
+                        </div>
                     </div>
                     <div class="relative h-48">
                         <canvas id="gasolinaChart"></canvas>
@@ -669,14 +705,39 @@
                     <div class="flex items-center justify-between mb-5">
                         <div class="chart-title">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                            Diésel — últimos 30 días
+                            Diésel total — últimos 30 días
                         </div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                        <div class="chart-actions">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                            @include('fuelcontrol.partials.chart-expand', ['chartId' => 'dieselChart', 'chartTitle' => 'Diésel total — últimos 30 días'])
+                        </div>
                     </div>
                     <div class="relative h-48">
                         <canvas id="dieselChart"></canvas>
                     </div>
+                    <p class="mt-3 text-[11px] text-gray-400">Incluye históricos sin estanque y cargas directas a vehículos.</p>
                 </div>
+
+                @foreach($chartsEstanques as $chartEstanque)
+                    <div class="chart-card au d4">
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="chart-title">
+                                <span class="w-2.5 h-2.5 rounded-full {{ $loop->first ? 'bg-amber-500' : 'bg-cyan-500' }} inline-block"></span>
+                                {{ $chartEstanque['nombre'] }} - Diésel — últimos 30 días
+                            </div>
+                            <div class="chart-actions">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                                @include('fuelcontrol.partials.chart-expand', ['chartId' => 'estanqueChart'.$chartEstanque['id'], 'chartTitle' => $chartEstanque['nombre'].' - Diésel — últimos 30 días'])
+                            </div>
+                        </div>
+                        <div class="relative h-48">
+                            <canvas id="estanqueChart{{ $chartEstanque['id'] }}"></canvas>
+                        </div>
+                        <p class="mt-3 text-[11px] text-gray-400">
+                            {{ array_sum($chartEstanque['data']) > 0 ? 'Salidas registradas en este estanque.' : 'Sin salidas registradas para este estanque en el período.' }}
+                        </p>
+                    </div>
+                @endforeach
 
             </div>
 
@@ -688,7 +749,10 @@
                             <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
                             Vehículos que más consumen (30 días)
                         </div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                        <div class="chart-actions">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros</span>
+                            @include('fuelcontrol.partials.chart-expand', ['chartId' => 'vehiculosConsumoChart', 'chartTitle' => 'Vehículos que más consumen (30 días)'])
+                        </div>
                     </div>
                     <div class="relative h-56">
                         <canvas id="vehiculosConsumoChart"></canvas>
@@ -707,7 +771,10 @@
                             <span class="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span>
                             Uso diario vehículos (30 días)
                         </div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros / km/L</span>
+                        <div class="chart-actions">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Litros / km/L</span>
+                            @include('fuelcontrol.partials.chart-expand', ['chartId' => 'usoDiarioVehiculosChart', 'chartTitle' => 'Uso diario vehículos (30 días)'])
+                        </div>
                     </div>
                     <div class="relative h-56">
                         <canvas id="usoDiarioVehiculosChart"></canvas>
@@ -722,25 +789,6 @@
                             Sin odómetro disponible (odómetro/odómetro bomba): se muestra solo consumo en litros.
                         </p>
                     @endif
-                </div>
-            </div>
-
-            <div class="panel au d6">
-                <div class="panel-head">
-                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100">Debug charts vehículos</div>
-                </div>
-                <div class="px-5 py-3 text-[12px] text-gray-600 dark:text-gray-300 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                    <div>Rows source: <b>{{ $vehiculosDebug['rows_source'] ?? 0 }}</b></div>
-                    <div>Rows top: <b>{{ $vehiculosDebug['rows_top'] ?? 0 }}</b></div>
-                    <div>Rows daily: <b>{{ $vehiculosDebug['rows_daily_grouped'] ?? 0 }}</b></div>
-                    <div>Labels top: <b>{{ $vehiculosDebug['labels_top'] ?? 0 }}</b></div>
-                    <div>Labels daily: <b>{{ $vehiculosDebug['labels_daily'] ?? 0 }}</b></div>
-                    <div>Litros top: <b>{{ number_format((float) ($vehiculosDebug['litros_top'] ?? 0), 2, ',', '.') }}</b></div>
-                    <div>Litros daily: <b>{{ number_format((float) ($vehiculosDebug['litros_daily'] ?? 0), 2, ',', '.') }}</b></div>
-                    <div>Ciclos: <b>{{ $vehiculosDebug['ciclos_total'] ?? 0 }}</b></div>
-                    <div>Primera carga inicial:
-                        <b>{{ $vehiculosDebug['primera_carga_inicial'] ?? '—' }}</b>
-                    </div>
                 </div>
             </div>
 
@@ -809,7 +857,7 @@
                                     actual</span>
                                 <span
                                     class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                                    {{ count($productos) }} productos
+                                    {{ count($productosInventario ?? $productos) }} {{ config('fuelcontrol.web_estanques') ? 'saldos' : 'productos' }}
                                 </span>
                             </div>
                             <svg class="chevron-icon" :class="{ rotated: !open }" fill="none" stroke="currentColor"
@@ -833,25 +881,29 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse($productos as $p)
+                                    @forelse(($productosInventario ?? $productos) as $p)
                                         @php
                                             $caps = ['diesel' => 10000, 'gasolina' => 100];
-                                            $nombre = strtolower($p->nombre);
+                                            $nombre = strtolower($p->combustible_nombre ?? $p->nombre);
                                             $cap = $caps[$nombre] ?? 100;
-                                            $pct = min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                            $pct = isset($p->estanque_id) ? $p->porcentaje : min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                            $critico = $pct === null ? $p->cantidad !== null && $p->cantidad <= 0 : $pct < 20;
+                                            $bajo = $pct !== null && $pct < 50;
                                             [$barColor, $badgeClass, $estado] = match (true) {
-                                                $pct < 20 => ['bg-rose-500', 'badge-crit', 'Crítico'],
-                                                $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
+                                                $p->cantidad === null => ['bg-gray-400', 'badge-warn', 'Pendiente'],
+                                                $pct === null && ! $critico => ['bg-emerald-500', 'badge-ok', 'Disponible'],
+                                                $critico => ['bg-rose-500', 'badge-crit', 'Crítico'],
+                                            $bajo => ['bg-amber-400', 'badge-warn', 'Bajo'],
                                                 default => ['bg-emerald-500', 'badge-ok', 'Normal'],
                                             };
                                             $iconBg = match (true) {
-                                                $pct < 20 => 'bg-rose-50 dark:bg-rose-900/20',
-                                                $pct < 50 => 'bg-amber-50 dark:bg-amber-900/20',
+                                            $critico => 'bg-rose-50 dark:bg-rose-900/20',
+                                            $bajo => 'bg-amber-50 dark:bg-amber-900/20',
                                                 default => 'bg-emerald-50 dark:bg-emerald-900/20',
                                             };
                                             $iconColor = match (true) {
-                                                $pct < 20 => 'text-rose-500',
-                                                $pct < 50 => 'text-amber-500',
+                                            $critico => 'text-rose-500',
+                                            $bajo => 'text-amber-500',
                                                 default => 'text-emerald-500',
                                             };
                                         @endphp
@@ -871,17 +923,17 @@
                                                 </div>
                                             </td>
                                             <td class="text-right font-bold tabular-nums text-gray-800 dark:text-gray-100">
-                                                {{ number_format($p->cantidad, 2) }}
+                                                {{ $p->cantidad === null ? 'Pendiente' : number_format($p->cantidad, 2) }}
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-2">
                                                     <div class="prog-track flex-1">
-                                                        <div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%">
+                                                        <div class="{{ $barColor }} prog-fill" style="width:{{ $pct ?? 0 }}%">
                                                         </div>
                                                     </div>
                                                     <span
-                                                        class="text-[11px] font-bold text-gray-400 w-9 text-right tabular-nums">
-                                                        {{ $pct }}%
+                                                        title="{{ $pct === null ? 'Capacidad pendiente de confirmar' : 'Porcentaje de llenado' }}" class="text-[11px] font-bold text-gray-400 w-9 text-right tabular-nums">
+                                                        {{ $pct === null ? '—' : $pct.'%' }}
                                                     </span>
                                                 </div>
                                             </td>
@@ -907,25 +959,29 @@
 
                         {{-- Mobile cards --}}
                         <div class="lg:hidden p-3 space-y-2">
-                            @forelse($productos as $p)
+                            @forelse(($productosInventario ?? $productos) as $p)
                                 @php
                                     $caps = ['diesel' => 10000, 'gasolina' => 100];
-                                    $nombre = strtolower($p->nombre);
+                                    $nombre = strtolower($p->combustible_nombre ?? $p->nombre);
                                     $cap = $caps[$nombre] ?? 100;
-                                    $pct = min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                    $pct = isset($p->estanque_id) ? $p->porcentaje : min(100, max(0, round(($p->cantidad / $cap) * 100)));
+                                    $critico = $pct === null ? $p->cantidad !== null && $p->cantidad <= 0 : $pct < 20;
+                                    $bajo = $pct !== null && $pct < 50;
                                     [$barColor, $badgeClass, $estado] = match (true) {
-                                        $pct < 20 => ['bg-rose-500', 'badge-crit', 'Crítico'],
-                                        $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
+                                        $p->cantidad === null => ['bg-gray-400', 'badge-warn', 'Pendiente'],
+                                        $pct === null && ! $critico => ['bg-emerald-500', 'badge-ok', 'Disponible'],
+                                        $critico => ['bg-rose-500', 'badge-crit', 'Crítico'],
+                                    $bajo => ['bg-amber-400', 'badge-warn', 'Bajo'],
                                         default => ['bg-emerald-500', 'badge-ok', 'Normal'],
                                     };
                                     $iconBg = match (true) {
-                                        $pct < 20 => 'bg-rose-50 dark:bg-rose-900/20',
-                                        $pct < 50 => 'bg-amber-50 dark:bg-amber-900/20',
+                                    $critico => 'bg-rose-50 dark:bg-rose-900/20',
+                                    $bajo => 'bg-amber-50 dark:bg-amber-900/20',
                                         default => 'bg-emerald-50 dark:bg-emerald-900/20',
                                     };
                                     $iconColor = match (true) {
-                                        $pct < 20 => 'text-rose-500',
-                                        $pct < 50 => 'text-amber-500',
+                                    $critico => 'text-rose-500',
+                                    $bajo => 'text-amber-500',
                                         default => 'text-emerald-500',
                                     };
                                 @endphp
@@ -947,15 +1003,15 @@
                                             </div>
                                         </div>
                                         <p class="text-base font-black tabular-nums text-gray-900 dark:text-gray-100 shrink-0">
-                                            {{ number_format($p->cantidad, 2) }}
+                                            {{ $p->cantidad === null ? 'Pendiente' : number_format($p->cantidad, 2) }}
                                             <span class="text-[10px] font-bold text-gray-400">L</span>
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <div class="prog-track flex-1">
-                                            <div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%"></div>
+                                            <div class="{{ $barColor }} prog-fill" style="width:{{ $pct ?? 0 }}%"></div>
                                         </div>
-                                        <span class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct }}%</span>
+                                        <span title="{{ $pct === null ? 'Capacidad pendiente de confirmar' : 'Porcentaje de llenado' }}" class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct === null ? '—' : $pct.'%' }}</span>
                                     </div>
                                 </div>
                             @empty
@@ -1070,6 +1126,24 @@
         </div>
     </div>
 
+    <dialog id="fuel-chart-dialog" class="fuel-chart-dialog" aria-modal="true" aria-labelledby="fuel-chart-dialog-title">
+        <div class="fuel-chart-dialog-head">
+            <div>
+                <h2 id="fuel-chart-dialog-title"></h2>
+                <p>Últimos 30 días · Pulsa Esc o Cerrar para volver</p>
+            </div>
+            <button type="button" class="chart-expand" data-fuel-chart-close autofocus>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 6 12 12M6 18 18 6" />
+                </svg>
+                Cerrar
+            </button>
+        </div>
+        <div class="fuel-chart-dialog-body">
+            <div class="fuel-chart-dialog-canvas" data-fuel-chart-host></div>
+        </div>
+    </dialog>
+
     {{-- ══ Chart.js ══ --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -1081,7 +1155,12 @@
             const tooltipBg = isDark ? '#1e293b' : '#fff';
             const tooltipFg = isDark ? '#f1f5f9' : '#1e293b';
 
-            const sharedOpts = (color) => ({
+            const shortDate = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' });
+            const fullDate = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            // Mediodía local conserva el día de calendario al interpretar fechas sin hora.
+            const calendarDate = value => new Date(`${value}T12:00:00`);
+
+            const sharedOpts = (color, dated = false) => ({
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -1095,6 +1174,9 @@
                         padding: 10,
                         cornerRadius: 10,
                         callbacks: {
+                            title: (items) => dated && items.length
+                                ? fullDate.format(calendarDate(items[0].label))
+                                : (items[0]?.label ?? ''),
                             label: (ctx) => ` ${ctx.parsed.y.toLocaleString('es-CL')} L`,
                         }
                     }
@@ -1102,7 +1184,15 @@
                 scales: {
                     x: {
                         grid: { color: gridColor, drawTicks: false },
-                        ticks: { color: tickColor, font: { size: 10 }, maxRotation: 0 },
+                        ticks: {
+                            color: tickColor, font: { size: 10 }, maxRotation: 0,
+                            autoSkip: true, autoSkipPadding: dated ? 18 : 8,
+                            callback: function (value) {
+                                const label = this.getLabelForValue(value);
+                                return dated ? shortDate.format(calendarDate(label)).replace(/\./g, '') : label;
+                            },
+                        },
+                        title: { display: dated, text: 'Fecha', color: tickColor, font: { size: 10 } },
                         border: { display: false },
                     },
                     y: {
@@ -1134,7 +1224,7 @@
                         borderSkipped: false,
                     }]
                 },
-                options: sharedOpts('indigo')
+                options: sharedOpts('indigo', true)
             });
 
             if (dieCtx) new Chart(dieCtx, {
@@ -1142,7 +1232,7 @@
                 data: {
                     labels: @json($labelsDiesel),
                     datasets: [{
-                        label: 'Diésel (L)',
+                        label: 'Diésel total (L)',
                         data: @json($dataDiesel),
                         backgroundColor: 'rgba(16,185,129,.75)',
                         hoverBackgroundColor: 'rgba(16,185,129,1)',
@@ -1150,7 +1240,29 @@
                         borderSkipped: false,
                     }]
                 },
-                options: sharedOpts('emerald')
+                options: sharedOpts('emerald', true)
+            });
+
+            const tankCharts = @json($chartsEstanques);
+            tankCharts.forEach((tank, index) => {
+                const canvas = document.getElementById(`estanqueChart${tank.id}`);
+                if (!canvas) return;
+                const color = index === 0 ? '245,158,11' : '6,182,212';
+                new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: @json($labelsDiesel),
+                        datasets: [{
+                            label: `${tank.nombre} - Diésel (L)`,
+                            data: tank.data,
+                            backgroundColor: `rgba(${color},.75)`,
+                            hoverBackgroundColor: `rgba(${color},1)`,
+                            borderRadius: 7,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: sharedOpts(color, true)
+                });
             });
 
             if (topVehCtx) {
@@ -1253,9 +1365,9 @@
                     type: 'bar',
                     data: { labels: dailyLabels, datasets: dailyDatasets },
                     options: {
-                        ...sharedOpts('sky'),
+                        ...sharedOpts('sky', true),
                         scales: {
-                            x: sharedOpts('sky').scales.x,
+                            x: sharedOpts('sky', true).scales.x,
                             y: {
                                 ...sharedOpts('sky').scales.y,
                                 ticks: {

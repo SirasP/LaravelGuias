@@ -146,17 +146,19 @@
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 au d1">
                     @foreach ($productos as $p)
                         @php
-                            $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                            $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) ($p->combustible_nombre ?? $p->nombre)));
                             $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
-                            $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                            $pct = isset($p->estanque_id) ? $p->porcentaje : min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                            $critico = $pct === null ? $p->cantidad !== null && $p->cantidad <= 0 : $pct < 20;
+                            $bajo = $pct !== null && $pct < 50;
                         @endphp
                         <div class="stat-card">
                             <div>
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{{ ucfirst($p->nombre) }}</p>
-                                <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ number_format($p->cantidad, 2) }} <span class="text-xs text-gray-400">L</span></p>
+                                <p class="text-xl font-black text-gray-900 dark:text-gray-100 tabular-nums">{{ $p->cantidad === null ? 'Pendiente' : number_format($p->cantidad, 2) }} <span class="text-xs text-gray-400">L</span></p>
                             </div>
-                            <div class="w-9 h-9 rounded-xl {{ $pct < 20 ? 'bg-rose-50 dark:bg-rose-900/20' : ($pct < 50 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20') }} flex items-center justify-center">
-                                <svg class="w-4 h-4 {{ $pct < 20 ? 'text-rose-500' : ($pct < 50 ? 'text-amber-500' : 'text-emerald-500') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-9 h-9 rounded-xl {{ $critico ? 'bg-rose-50 dark:bg-rose-900/20' : ($bajo ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20') }} flex items-center justify-center">
+                                <svg class="w-4 h-4 {{ $critico ? 'text-rose-500' : ($bajo ? 'text-amber-500' : 'text-emerald-500') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                                 </svg>
@@ -165,8 +167,8 @@
                     @endforeach
                     <div class="stat-card">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Normal</p>
-                            <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{{ $productos->filter(fn($p) => $p->cantidad >= 50)->count() }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{{ config('fuelcontrol.web_estanques') ? 'Disponible' : 'Normal' }}</p>
+                            <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{{ $productos->filter(fn($p) => config('fuelcontrol.web_estanques') ? $p->cantidad !== null && $p->cantidad > 0 : $p->cantidad >= 50)->count() }}</p>
                         </div>
                         <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
                             <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +179,7 @@
                     <div class="stat-card">
                         <div>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Bajo</p>
-                            <p class="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">{{ $productos->filter(fn($p) => $p->cantidad < 20)->count() }}</p>
+                            <p class="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">{{ $productos->filter(fn($p) => config('fuelcontrol.web_estanques') ? (isset($p->estanque_id) ? $p->porcentaje !== null && $p->porcentaje < 50 : $p->cantidad < 50) : $p->cantidad !== null && $p->cantidad < 20)->count() }}</p>
                         </div>
                         <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
                             <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,12 +278,16 @@
                         <tbody>
                             @forelse ($productos as $p)
                                 @php
-                                    $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                                    $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) ($p->combustible_nombre ?? $p->nombre)));
                                     $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
-                                    $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                                    $pct = isset($p->estanque_id) ? $p->porcentaje : min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                                    $critico = $pct === null ? $p->cantidad !== null && $p->cantidad <= 0 : $pct < 20;
+                                    $bajo = $pct !== null && $pct < 50;
                                     [$barColor, $badgeClass, $estado] = match(true) {
-                                        $pct < 20 => ['bg-rose-500', 'badge-crit', 'Critico'],
-                                        $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
+                                        $p->cantidad === null => ['bg-gray-400', 'badge-warn', 'Pendiente'],
+                                        $pct === null && ! $critico => ['bg-emerald-500', 'badge-ok', 'Disponible'],
+                                        $critico => ['bg-rose-500', 'badge-crit', 'Critico'],
+                                    $bajo => ['bg-amber-400', 'badge-warn', 'Bajo'],
                                         default   => ['bg-emerald-500', 'badge-ok', 'Normal'],
                                     };
                                 @endphp
@@ -292,7 +298,7 @@
                                                 {{ strtoupper(substr($p->nombre, 0, 1)) }}
                                             </div>
                                             @if(str_contains(strtolower($p->nombre), 'diesel'))
-                                                <a href="{{ route('fuelcontrol.productos.auditoria', $p->id) }}" class="font-semibold text-gray-800 dark:text-gray-100 hover:text-indigo-600 hover:underline transition">
+                                                <a href="{{ route('fuelcontrol.productos.auditoria', ['id' => $p->id, 'estanque_id' => $p->estanque_id ?? null]) }}" class="font-semibold text-gray-800 dark:text-gray-100 hover:text-indigo-600 hover:underline transition">
                                                     {{ ucfirst($p->nombre) }}
                                                 </a>
                                             @else
@@ -300,22 +306,26 @@
                                             @endif
                                         </div>
                                     </td>
-                                    <td class="text-right font-bold tabular-nums text-gray-800 dark:text-gray-100">{{ number_format($p->cantidad, 2) }}</td>
+                                    <td class="text-right font-bold tabular-nums text-gray-800 dark:text-gray-100">{{ $p->cantidad === null ? 'Pendiente' : number_format($p->cantidad, 2) }}</td>
                                     <td>
                                         <div class="flex items-center gap-2">
-                                            <div class="prog-track flex-1"><div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%"></div></div>
-                                            <span class="text-[11px] font-bold text-gray-400 w-9 text-right tabular-nums">{{ $pct }}%</span>
+                                            <div class="prog-track flex-1"><div class="{{ $barColor }} prog-fill" style="width:{{ $pct ?? 0 }}%"></div></div>
+                                            <span class="text-[11px] font-bold text-gray-400 w-9 text-right tabular-nums">{{ $pct === null ? '—' : $pct.'%' }}</span>
                                         </div>
                                     </td>
                                     <td class="text-center"><span class="badge-pill {{ $badgeClass }}">{{ $estado }}</span></td>
                                     <td class="text-center">
                                         <div class="flex justify-center gap-1.5">
+                                            @if(isset($p->estanque_id))
+                                                <a href="{{ route('fuelcontrol.movimientos', ['producto_id' => $p->id, 'estanque_id' => $p->estanque_id]) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hover:bg-indigo-100 transition">Ver movimientos</a>
+                                            @else
                                             <button
                                                 @click='editOpen=true; editId={{ $p->id }}; editNombre=@json($nombreNorm); editCantidad=@json((string) $p->cantidad)'
                                                 class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 hover:bg-indigo-100 transition">Editar</button>
                                             <button @click="open=true; deleteId={{ $p->id }}"
                                                 class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 transition">Eliminar</button>
                                             <form id="delete-form-{{ $p->id }}" action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST" class="hidden">@csrf @method('DELETE')</form>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -331,12 +341,16 @@
             <div class="sm:hidden space-y-2 au d2">
                 @forelse ($productos as $p)
                     @php
-                        $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) $p->nombre));
+                        $nombreNorm = strtolower(str_replace(['é', 'É'], 'e', (string) ($p->combustible_nombre ?? $p->nombre)));
                         $capacidad = $nombreNorm === 'diesel' ? 10000 : 100;
-                        $pct = min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                        $pct = isset($p->estanque_id) ? $p->porcentaje : min(100, max(0, round(($p->cantidad / $capacidad) * 100)));
+                        $critico = $pct === null ? $p->cantidad !== null && $p->cantidad <= 0 : $pct < 20;
+                        $bajo = $pct !== null && $pct < 50;
                         [$barColor, $badgeClass, $estado] = match(true) {
-                            $pct < 20 => ['bg-rose-500', 'badge-crit', 'Critico'],
-                            $pct < 50 => ['bg-amber-400', 'badge-warn', 'Bajo'],
+                            $p->cantidad === null => ['bg-gray-400', 'badge-warn', 'Pendiente'],
+                            $pct === null && ! $critico => ['bg-emerald-500', 'badge-ok', 'Disponible'],
+                            $critico => ['bg-rose-500', 'badge-crit', 'Critico'],
+                        $bajo => ['bg-amber-400', 'badge-warn', 'Bajo'],
                             default   => ['bg-emerald-500', 'badge-ok', 'Normal'],
                         };
                     @endphp
@@ -348,7 +362,7 @@
                                 </div>
                                 <div>
                                     @if(str_contains(strtolower($p->nombre), 'diesel'))
-                                        <a href="{{ route('fuelcontrol.productos.auditoria', $p->id) }}" class="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 hover:underline">
+                                        <a href="{{ route('fuelcontrol.productos.auditoria', ['id' => $p->id, 'estanque_id' => $p->estanque_id ?? null]) }}" class="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 hover:underline">
                                             {{ ucfirst($p->nombre) }}
                                         </a>
                                     @else
@@ -358,21 +372,25 @@
                                 </div>
                             </div>
                             <p class="text-lg font-black text-gray-900 dark:text-gray-100 tabular-nums">
-                                {{ number_format($p->cantidad, 2) }}
+                                {{ $p->cantidad === null ? 'Pendiente' : number_format($p->cantidad, 2) }}
                                 <span class="text-xs text-gray-400">L</span>
                             </p>
                         </div>
                         <div class="flex items-center gap-2 mb-3">
-                            <div class="prog-track flex-1"><div class="{{ $barColor }} prog-fill" style="width:{{ $pct }}%"></div></div>
-                            <span class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct }}%</span>
+                            <div class="prog-track flex-1"><div class="{{ $barColor }} prog-fill" style="width:{{ $pct ?? 0 }}%"></div></div>
+                            <span class="text-[11px] font-bold text-gray-400 tabular-nums">{{ $pct === null ? '—' : $pct.'%' }}</span>
                         </div>
                         <div class="flex items-center justify-end gap-2 border-t border-gray-100 dark:border-gray-800 pt-2.5">
+                            @if(isset($p->estanque_id))
+                                <a href="{{ route('fuelcontrol.movimientos', ['producto_id' => $p->id, 'estanque_id' => $p->estanque_id]) }}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">Ver movimientos</a>
+                            @else
                             <button
                                 @click='editOpen=true; editId={{ $p->id }}; editNombre=@json($nombreNorm); editCantidad=@json((string) $p->cantidad)'
                                 class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">Editar</button>
                             <button @click="open=true; deleteId={{ $p->id }}"
                                 class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">Eliminar</button>
                             <form id="delete-form-{{ $p->id }}" action="{{ route('fuelcontrol.productos.destroy', $p->id) }}" method="POST" class="hidden">@csrf @method('DELETE')</form>
+                            @endif
                         </div>
                     </div>
                 @empty

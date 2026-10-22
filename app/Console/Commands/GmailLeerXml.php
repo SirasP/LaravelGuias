@@ -24,6 +24,12 @@ class GmailLeerXml extends Command
 
     public function handle(): int
     {
+        if (config('fuelcontrol.preview')) {
+            $this->error('La copia local no ejecuta la importación de Gmail.');
+
+            return Command::FAILURE;
+        }
+
         /* ─────────────────────────────────────────
          | 1. CONEXIÓN BD
          ───────────────────────────────────────── */
@@ -328,6 +334,7 @@ class GmailLeerXml extends Command
 
                         $fuelDetails[] = [
                             'producto' => $productoNombre,
+                            'linea' => (int) $detalle->NroLinDet,
                             'cantidad' => $cantidad,
                             'filename' => $part->getFilename(),
                         ];
@@ -397,6 +404,29 @@ class GmailLeerXml extends Command
                         $producto = $db->table('productos')->where('nombre', $productoNombre)->first();
                         if (! $producto) {
                             $this->warn("⚠ Producto '{$productoNombre}' no encontrado en BD.");
+
+                            continue;
+                        }
+
+                        if (config('fuelcontrol.estanques') && $productoNombre === 'Diesel' && ! $vehiculoExcluido && ! $usaVehiculo) {
+                            $tipoDteFuel = (int) ($xml->xpath('//sii:IdDoc/sii:TipoDTE')[0] ?? 0);
+                            $folioFuel = trim((string) ($xml->xpath('//sii:IdDoc/sii:Folio')[0] ?? ''));
+                            $rutFuel = trim((string) ($xml->xpath('//sii:Emisor/sii:RUTEmisor')[0] ?? ''));
+                            $canonicalFile = $db->table('gmail_dte_documents')->where('tipo_dte', $tipoDteFuel)->where('folio', $folioFuel)->where('proveedor_rut', $rutFuel)->value('xml_filename');
+                            // Los documentos históricos ya contabilizados conservan su saldo.
+                            if ($canonicalFile && $db->table('movimientos')->where('producto_id', $producto->id)->where('xml_path', $canonicalFile)->where(fn ($query) => $query->whereNull('origen')->orWhere('origen', '!=', 'xml_oc_estanque'))->exists()) {
+                                continue;
+                            }
+                            $tankHash = hash('sha256', implode('|', ['fuel-tank-dte', $tipoDteFuel, $folioFuel, $rutFuel, $fuel['linea']]));
+                            $ordersFuel = \App\Services\FuelTankService::ordenesCompra($xml);
+                            $buyerFuel = trim((string) ($xml->xpath('//sii:Receptor/sii:RUTRecep')[0] ?? ''));
+                            $destinationVerified = app(\App\Services\FuelOcResolver::class)->resolve($ordersFuel, $producto->id, $rutFuel, $buyerFuel);
+                            app(\App\Services\FuelTankService::class)->entrada(
+                                $producto->id, $cantidad,
+                                $ordersFuel, $tankHash,
+                                ['usuario' => 'gmail', 'fecha_movimiento' => $fechaEmision, 'xml_path' => $filename, 'referencia' => $filename],
+                                $afectaStock && $destinationVerified,
+                            );
 
                             continue;
                         }
@@ -629,7 +659,7 @@ class GmailLeerXml extends Command
         $fechaContable = $fechaFactura;
         $fechaVencimiento = $get('//sii:Encabezado/sii:IdDoc/sii:FchVenc');
 
-        $referencia = $get('//sii:Referencia/sii:NroRef') ?? $get('//sii:Referencia/sii:RazonRef');
+        $referencia = $get('//sii:Referencia/sii:FolioRef') ?? $get('//sii:Referencia/sii:RazonRef');
 
         $montoNeto = (float) ($get('//sii:Encabezado/sii:Totales/sii:MntNeto') ?? 0);
         $montoIva = (float) ($get('//sii:Encabezado/sii:Totales/sii:IVA') ?? 0);
@@ -905,5 +935,4 @@ class GmailLeerXml extends Command
             ]);
         }
     }
-
 }

@@ -196,7 +196,14 @@
             <div x-show="activeTab === 'entradas'" x-transition class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
                     <h3 class="text-sm font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">Historial de Entradas a Estanque</h3>
-                    <span class="text-xs text-gray-400">Total registros: {{ $ingresos->total() }}</span>
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        @if(($estanques ?? collect())->isNotEmpty())
+                            <form method="GET" action="{{ route('fuelcontrol.ingreso.index') }}">
+                                @include('fuelcontrol.partials.estanque-filter', ['selectClass' => 'rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-600 dark:text-gray-300 px-3 py-2'])
+                            </form>
+                        @endif
+                        <span class="text-xs text-gray-400">Total registros: {{ $ingresos->total() }}</span>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm border-collapse">

@@ -12,7 +12,7 @@
                         <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider mt-1.5">{{ $producto->nombre }} / Control de Odómetros</p>
                     </div>
                 </div>
-                <a href="{{ route('fuelcontrol.productos.auditoria.export', $producto->id) }}" class="px-5 py-2.5 rounded-xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg flex items-center justify-center">
+                <a href="{{ route('fuelcontrol.productos.auditoria.export', ['id' => $producto->id, 'estanque_id' => request('estanque_id')]) }}" class="px-5 py-2.5 rounded-xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg flex items-center justify-center">
                     <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -76,9 +76,15 @@
                         <p class="text-xs text-gray-400 mt-1">Validación matemática de odómetro de bomba vs entregas manuales.</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        @if($estanques->isNotEmpty())
+                         <form method="GET" action="{{ route('fuelcontrol.productos.auditoria', $producto->id) }}">
+                            @include('fuelcontrol.partials.estanque-filter', ['selectClass' => 'px-4 py-2 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-500'])
+                         </form>
+                        @else
                          <div class="px-4 py-2 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-500">
                             Filtro: Todo el historial
                          </div>
+                        @endif
                     </div>
                 </div>
 
@@ -107,6 +113,9 @@
                                     <td class="px-4 py-5">
                                         <div class="flex flex-col">
                                             <span class="text-[11px] font-black text-gray-800 dark:text-white uppercase truncate max-w-[150px]">{{ $row['maquina'] }}</span>
+                                            @if($row['origen'])
+                                                <span class="text-[10px] font-bold text-gray-400 mt-1">{{ $row['origen'] }}</span>
+                                            @endif
                                         </div>
                                     </td>
                                     <td class="px-4 py-5">

@@ -370,6 +370,8 @@
                             </option>
                         @endforeach
                     </select>
+                    @include('fuelcontrol.partials.estanque-filter')
+
                     <select name="fecha" onchange="this.form.submit()" class="flt-select">
                         <option value="">Fecha — todas</option>
                         <option value="hoy" {{ request('fecha') == 'hoy' ? 'selected' : '' }}>Hoy</option>
@@ -379,7 +381,7 @@
                         </option>
                     </select>
 
-                    @if(request('estado') || request('tipo') || request('producto_id') || request('fecha'))
+                    @if(request('estado') || request('tipo') || request('producto_id') || request('fecha') || request('estanque_id'))
                         <a href="{{ route('fuelcontrol.movimientos') }}"
                             class="text-xs font-semibold text-gray-500 hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                             Limpiar

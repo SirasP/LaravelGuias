@@ -68,6 +68,9 @@ class MovimientoController extends Controller
             }
         }
 
+        $tankView = app(\App\Services\FuelTankViewData::class);
+        $tankView->filter($query, $request->query('estanque_id'));
+
         $movimientos = $query
             ->orderByDesc('m.fecha_movimiento')
             ->paginate(20)
@@ -79,7 +82,10 @@ class MovimientoController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        return view('fuelcontrol.movimientos.index', compact('movimientos', 'productos'));
+        $movimientos->setCollection($tankView->movements($movimientos->getCollection()));
+        $estanques = $tankView->tanks();
+
+        return view('fuelcontrol.movimientos.index', compact('movimientos', 'productos', 'estanques'));
     }
 
     /**
@@ -105,6 +111,8 @@ class MovimientoController extends Controller
         if (! $movimiento || ! $movimiento->vehiculo_id) {
             return redirect()->route('fuelcontrol.movimientos')->with('error', 'Vehículo no encontrado');
         }
+        $tankView = app(\App\Services\FuelTankViewData::class);
+        $movimiento = $tankView->movements(collect([$movimiento]))->first();
 
         // Clasificación: ¿Es maquinaria? (usa Horas en lugar de Km)
         $esMaquinaria = preg_match('/tractor|excavadora|telescopico|pala|fumigador|moto\s?bomba|retro|generador|mini/i', $movimiento->vehiculo_descripcion);
@@ -123,6 +131,7 @@ class MovimientoController extends Controller
             ->orderBy('m.id')
             ->get();
 
+        $historialRaw = $tankView->movements($historialRaw);
         $historial = collect();
         $prevOdo = null;
         $prevFecha = null;
@@ -260,6 +269,16 @@ class MovimientoController extends Controller
             ], 400);
         }
 
+        $tanks = app(\App\Services\FuelTankService::class);
+        if ($tanks->isManagedProduct($movimiento->producto_id)) {
+            if ($movimiento->origen === 'xml_oc_estanque') {
+                $tanks->confirmarEntrada((int) $id);
+
+                return response()->json(['success' => true]);
+            }
+            $tanks->rejectUnassignedStockChange($movimiento->producto_id);
+        }
+
         $conexion->transaction(function () use ($conexion, $movimiento) {
 
             $producto = $conexion->table('productos')
@@ -344,6 +363,8 @@ class MovimientoController extends Controller
                 throw new \Exception('Producto no encontrado');
             }
 
+            app(\App\Services\FuelTankService::class)->rejectUnassignedStockChange($producto->id);
+
             $nuevaCantidad = $request->tipo === 'ingreso'
                 ? $producto->cantidad + $request->cantidad
                 : $producto->cantidad - $request->cantidad;
@@ -384,25 +405,21 @@ class MovimientoController extends Controller
             )
             ->where('m.tipo', 'entrada');
 
-        $ingresos = $query
+        $tankView = app(\App\Services\FuelTankViewData::class);
+        $tankView->filter($query, $request->query('estanque_id'));
+
+        $ingresos = (clone $query)
             ->orderByDesc('m.fecha_movimiento')
             ->paginate(20)
             ->withQueryString();
 
-        // KPIs de Totales (Basados en Entradas)
-        $total_gasolina = DB::connection('fuelcontrol')->table('movimientos as m')
-            ->join('productos as p', 'p.id', '=', 'm.producto_id')
-            ->where('m.tipo', 'entrada')
-            ->where('p.nombre', 'LIKE', '%gasolina%')
-            ->sum('m.cantidad');
+        $total_gasolina = (clone $query)->where('p.nombre', 'LIKE', '%gasolina%')->sum('m.cantidad');
+        $total_diesel = (clone $query)->where('p.nombre', 'LIKE', '%diesel%')->sum('m.cantidad');
 
-        $total_diesel = DB::connection('fuelcontrol')->table('movimientos as m')
-            ->join('productos as p', 'p.id', '=', 'm.producto_id')
-            ->where('m.tipo', 'entrada')
-            ->where('p.nombre', 'LIKE', '%diesel%')
-            ->sum('m.cantidad');
+        $ingresos->setCollection($tankView->movements($ingresos->getCollection()));
+        $estanques = $tankView->tanks();
 
-        return view('fuelcontrol.ingreso.index', compact('ingresos', 'total_gasolina', 'total_diesel'));
+        return view('fuelcontrol.ingreso.index', compact('ingresos', 'total_gasolina', 'total_diesel', 'estanques'));
     }
 
     /**
@@ -492,6 +509,7 @@ class MovimientoController extends Controller
                 if ($productoNombre && $cantidad > 0) {
                     $fuelDetails[] = [
                         'producto' => $productoNombre,
+                        'linea' => (int) $detalle->NroLinDet,
                         'cantidad' => $cantidad,
                     ];
                 }
@@ -513,6 +531,23 @@ class MovimientoController extends Controller
                 $producto = $db->table('productos')->where('nombre', $productoNombre)->first();
                 if (! $producto) {
                     throw new \Exception("El producto '{$productoNombre}' no está registrado en FuelControl.");
+                }
+
+                if (config('fuelcontrol.estanques') && $productoNombre === 'Diesel') {
+                    $tipoDte = (int) ($xml->xpath('//sii:IdDoc/sii:TipoDTE')[0] ?? 0);
+                    $folio = trim((string) ($xml->xpath('//sii:IdDoc/sii:Folio')[0] ?? ''));
+                    $supplier = trim((string) ($xml->xpath('//sii:Emisor/sii:RUTEmisor')[0] ?? ''));
+                    $buyer = trim((string) ($xml->xpath('//sii:Receptor/sii:RUTRecep')[0] ?? ''));
+                    $orders = \App\Services\FuelTankService::ordenesCompra($xml);
+                    $verified = app(\App\Services\FuelOcResolver::class)->resolve($orders, $producto->id, $supplier, $buyer);
+                    $hash = hash('sha256', implode('|', ['fuel-tank-dte', $tipoDte, $folio, $supplier, $fuel['linea']]));
+                    $movimientoIds[] = app(\App\Services\FuelTankService::class)->entrada(
+                        $producto->id, $cantidad, $orders, $hash,
+                        ['usuario' => 'manual_reconcile', 'fecha_movimiento' => $dte->fecha_factura, 'xml_path' => $dte->xml_filename, 'referencia' => $dte->xml_filename],
+                        $verified,
+                    );
+
+                    continue;
                 }
 
                 // Actualizar stock del producto
@@ -558,7 +593,9 @@ class MovimientoController extends Controller
 
             return response()->json([
                 'ok' => true,
-                'message' => 'Ingreso registrado correctamente en stock',
+                'message' => $db->table('movimientos')->whereIn('id', $movimientoIds)->where('estado', 'pendiente')->exists()
+                    ? 'Ingreso pendiente: la OC debe indicar el estanque de destino.'
+                    : 'Ingreso registrado correctamente en stock',
                 'movements' => $movimientoIds,
             ]);
 

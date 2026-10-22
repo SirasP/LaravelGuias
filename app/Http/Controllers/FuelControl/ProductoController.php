@@ -107,6 +107,8 @@ class ProductoController extends Controller
             $avgGasolina = $totalGasolina / $diaActual;
         }
 
+        $productos = app(\App\Services\FuelTankViewData::class)->inventory($productos);
+
         return view('fuelcontrol.productos.index', compact(
             'productos',
             'totalDiesel', 'avgDiesel',
@@ -137,6 +139,7 @@ class ProductoController extends Controller
                 ->first();
 
             if ($producto) {
+                app(\App\Services\FuelTankService::class)->rejectUnassignedStockChange($producto->id);
                 // 🔁 Sumar stock existente
                 DB::connection('fuelcontrol')
                     ->table('productos')
@@ -184,6 +187,8 @@ class ProductoController extends Controller
 
         abort_if(! $producto, 404);
 
+        app(\App\Services\FuelTankService::class)->rejectUnassignedStockChange($producto->id);
+
         DB::connection('fuelcontrol')
             ->table('productos')
             ->where('id', $id)
@@ -201,6 +206,8 @@ class ProductoController extends Controller
             'cantidad' => 'required|numeric|min:0',
         ]);
 
+        app(\App\Services\FuelTankService::class)->rejectUnassignedStockChange((int) $id);
+
         DB::connection('fuelcontrol')
             ->table('productos')
             ->where('id', $id)
@@ -217,6 +224,7 @@ class ProductoController extends Controller
 
     public function importarXml($id)
     {
+        app(\App\Services\FuelTankService::class)->rejectUnassignedStockChange((int) $id);
         $producto = DB::connection('fuelcontrol')
             ->table('productos')
             ->where('id', $id)
@@ -283,20 +291,21 @@ class ProductoController extends Controller
     /**
      * Auditoría de odómetros de bomba (especialmente Diesel)
      */
-    public function auditoria($id)
+    public function auditoria(Request $request, $id)
     {
-        $data = $this->getAuditData($id);
+        $data = $this->getAuditData($id, $request->query('estanque_id'));
         $producto = $data['producto'];
         $auditData = $data['auditData']->reverse();
         $isDiesel = $data['isDiesel'];
+        $estanques = app(\App\Services\FuelTankViewData::class)->tanks()->where('producto_id', $id);
 
-        return view('fuelcontrol.productos.auditoria', compact('producto', 'auditData', 'isDiesel'));
+        return view('fuelcontrol.productos.auditoria', compact('producto', 'auditData', 'isDiesel', 'estanques'));
     }
 
     /**
      * Centralizar lógica de obtención de datos para auditoría
      */
-    private function getAuditData($id)
+    private function getAuditData($id, mixed $selectedTank = null)
     {
         $producto = DB::connection('fuelcontrol')
             ->table('productos')
@@ -307,22 +316,46 @@ class ProductoController extends Controller
 
         $isDiesel = str_contains(strtolower($producto->nombre), 'diesel');
 
-        $movimientos = DB::connection('fuelcontrol')
-            ->table('movimientos')
-            ->leftJoin('vehiculos', 'movimientos.vehiculo_id', '=', 'vehiculos.id')
-            ->select('movimientos.*', 'vehiculos.descripcion as vehiculo_nombre', 'vehiculos.patente as vehiculo_patente')
-            ->where('movimientos.producto_id', $id)
+        $tankView = app(\App\Services\FuelTankViewData::class);
+        $query = DB::connection('fuelcontrol')
+            ->table('movimientos as m')
+            ->leftJoin('vehiculos', 'm.vehiculo_id', '=', 'vehiculos.id')
+            ->select('m.*', 'vehiculos.descripcion as vehiculo_nombre', 'vehiculos.patente as vehiculo_patente')
+            ->where('m.producto_id', $id)
             ->where(function ($q) {
-                $q->whereNull('movimientos.estado')->orWhere('movimientos.estado', 'aprobado');
-            })
-            ->orderBy('movimientos.fecha_movimiento')
-            ->orderBy('movimientos.id')
-            ->get();
+                $q->whereNull('m.estado')->orWhere('m.estado', 'aprobado');
+            });
+        // El filtro limita las filas visibles, pero la comparación necesita también
+        // las lecturas históricas intermedias del mismo contador.
+        $visibleIds = $tankView->enabled() && $selectedTank !== null && $selectedTank !== ''
+            ? $tankView->filter(clone $query, $selectedTank, (int) $id)->pluck('m.id')->flip()
+            : null;
+        $movimientos = $query->orderBy('m.fecha_movimiento')->orderBy('m.id')->get();
+        foreach ($movimientos as $movement) {
+            $movement->producto_nombre = $producto->nombre;
+        }
+        $movimientos = $tankView->movements($movimientos);
+        if ($tankView->enabled() && $selectedTank !== null && $selectedTank !== '') {
+            $tank = $tankView->tanks()->firstWhere('id', $selectedTank);
+            $producto->nombre = $tank ? $tank->nombre.' - '.ucfirst($producto->nombre)
+                : ucfirst($producto->nombre).' · Sin estanque';
+        }
 
         $auditData = collect();
-        $prevOdo = null;
+        // El contador histórico anterior a crear los estanques continúa en el primero.
+        // Esto sólo enlaza su auditoría, sin cambiar la atribución de los movimientos.
+        $legacyTank = $isDiesel && config('fuelcontrol.estanques')
+            ? DB::connection('fuelcontrol')->table('fuel_estanques')->where('producto_id', $id)
+                ->orderBy('id')->first(['id', 'created_at'])
+            : null;
+        $prevOdoByTank = [];
 
         foreach ($movimientos as $m) {
+            $origin = $m->estanque_id ?? (
+                $legacyTank && $legacyTank->created_at && $m->fecha_movimiento < $legacyTank->created_at
+                    ? $legacyTank->id : 'historico'
+            );
+            $prevOdo = $prevOdoByTank[$origin] ?? null;
             $odo = (float) $m->odometro_bomba;
             $cantidad = (float) $m->cantidad;
             $descuadrado = false;
@@ -337,6 +370,13 @@ class ProductoController extends Controller
                         $diferencia = $odo - $esperado;
                     }
                 }
+            }
+
+            if ($odo > 0) {
+                $prevOdoByTank[$origin] = $odo;
+            }
+            if ($visibleIds !== null && ! $visibleIds->has($m->id)) {
+                continue;
             }
 
             // Construcción del nombre de la máquina más robusta
@@ -363,11 +403,9 @@ class ProductoController extends Controller
                 'tipo' => $m->tipo,
                 'usuario' => $m->usuario ?? 'N/A',
                 'maquina' => $maquinaNombre,
+                'origen' => $tankView->enabled() ? $m->producto_nombre : null,
             ]);
 
-            if ($odo > 0) {
-                $prevOdo = $odo;
-            }
         }
 
         return [
@@ -380,9 +418,9 @@ class ProductoController extends Controller
     /**
      * Exportar auditoría a Excel
      */
-    public function exportAuditoria($id): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function exportAuditoria(Request $request, $id): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $data = $this->getAuditData($id);
+        $data = $this->getAuditData($id, $request->query('estanque_id'));
         $producto = $data['producto'];
         $auditData = $data['auditData']->reverse();
 
@@ -391,7 +429,7 @@ class ProductoController extends Controller
         $sheet->setTitle('Auditoria de Flujo');
 
         // Encabezados
-        $sheet->mergeCells('A1:G1');
+        $sheet->mergeCells('A1:H1');
         $sheet->setCellValue('A1', 'FuelControl - Auditoría de Flujo: '.strtoupper($producto->nombre));
         $sheet->setCellValue('A2', 'Generado: '.now()->format('d-m-Y H:i'));
 
@@ -401,7 +439,7 @@ class ProductoController extends Controller
         $row = 5;
         foreach ($auditData as $item) {
             $sheet->setCellValue("A{$row}", \Carbon\Carbon::parse($item['fecha'])->format('d-m-Y H:i'));
-            $sheet->setCellValue("B{$row}", $item['maquina']);
+            $sheet->setCellValue("B{$row}", $item['maquina'].($item['origen'] ? ' / '.$item['origen'] : ''));
             $sheet->setCellValue("C{$row}", strtoupper($item['tipo']));
             $sheet->setCellValue("D{$row}", abs($item['cantidad']));
             $sheet->setCellValue("E{$row}", $item['odometro']);

@@ -44,6 +44,9 @@ class DashboardController extends Controller
 
                 ->get();
 
+            $tankView = app(\App\Services\FuelTankViewData::class);
+            $movimientos = $tankView->movements($movimientos);
+
             /* =========================
              * NOTIFICACIONES (SOLO ADMIN)
              * ========================= */
@@ -87,52 +90,12 @@ class DashboardController extends Controller
             /* =========================
              * GRÁFICOS: CONSUMO ÚLTIMOS 30 DÍAS
              * ========================= */
-            $desde = now()->subDays(30)->startOfDay();
-
-            $consumo = DB::connection('fuelcontrol')
-                ->table('movimientos')
-                ->join('productos', 'productos.id', '=', 'movimientos.producto_id')
-                ->selectRaw('
-        DATE(fecha_movimiento) as fecha,
-        LOWER(productos.nombre) as producto,
-        SUM(ABS(movimientos.cantidad)) as total
-    ')
-                // 'vehiculo' = carga en bomba: no sale del estanque, pero es consumo
-                ->whereIn('tipo', ['salida', 'vehiculo'])
-                ->where('fecha_movimiento', '>=', $desde)
-                ->groupBy('fecha', 'producto')
-                ->orderBy('fecha')
-                ->get();
-
-            /* =========================
-             * GASOLINA
-             * ========================= */
-
-            $gasolina = $consumo->filter(fn ($r) => str_contains($r->producto, 'gas'));
-
-            $labelsGasolina = $gasolina
-                ->pluck('fecha')
-                ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
-                ->values();
-
-            $dataGasolina = $gasolina
-                ->pluck('total')
-                ->values();
-
-            /* =========================
-             * DIESEL
-             * ========================= */
-
-            $diesel = $consumo->filter(fn ($r) => str_contains($r->producto, 'die'));
-
-            $labelsDiesel = $diesel
-                ->pluck('fecha')
-                ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
-                ->values();
-
-            $dataDiesel = $diesel
-                ->pluck('total')
-                ->values();
+            $desde = now()->subDays(29)->startOfDay();
+            $consumoCharts = app(\App\Services\FuelConsumptionCharts::class)->series($desde, now());
+            $labelsGasolina = $labelsDiesel = $consumoCharts['labels'];
+            $dataGasolina = $consumoCharts['gasolina'];
+            $dataDiesel = $consumoCharts['diesel'];
+            $chartsEstanques = $consumoCharts['estanques'];
 
             /* =========================
              * CHARTS VEHÍCULOS (30 DÍAS)
@@ -150,7 +113,6 @@ class DashboardController extends Controller
             $usoDiarioLitros = collect();
             $usoDiarioKmL = collect();
             $ciclosEstanque = collect();
-            $vehiculosDebug = [];
 
             if ($hasVehiculoId && $hasOdomAny) {
                 $vehRows = DB::connection('fuelcontrol')
@@ -273,7 +235,6 @@ class DashboardController extends Controller
 
                 $usoDiarioLabels = $usoDiarioAgg
                     ->keys()
-                    ->map(fn ($f) => Carbon::parse($f)->format('d-m'))
                     ->values();
 
                 $usoDiarioLitros = $usoDiarioAgg
@@ -289,21 +250,6 @@ class DashboardController extends Controller
                     ->take(12)
                     ->values();
 
-                $primeraCargaInicial = $ciclosEstanque->isNotEmpty()
-                    ? Carbon::parse((string) $ciclosEstanque->sortBy('fecha_inicial')->first()['fecha_inicial'])->format('d-m-Y')
-                    : null;
-
-                $vehiculosDebug = [
-                    'rows_source' => $vehRows->count(),
-                    'rows_top' => $top->count(),
-                    'rows_daily_grouped' => $usoDiarioAgg->count(),
-                    'litros_top' => round($top->sum(fn ($r) => (float) ($r['litros'] ?? 0)), 2),
-                    'litros_daily' => round($usoDiarioAgg->sum(fn ($r) => (float) ($r['litros'] ?? 0)), 2),
-                    'labels_top' => $topVehiculosLabels->count(),
-                    'labels_daily' => $usoDiarioLabels->count(),
-                    'ciclos_total' => $ciclosEstanque->count(),
-                    'primera_carga_inicial' => $primeraCargaInicial,
-                ];
             } else {
                 $ultimosCiclosEstanque = collect();
             }
@@ -316,7 +262,10 @@ class DashboardController extends Controller
             ]);
         }
 
+        $productosInventario = $tankView->inventory($productos);
+
         return view('fuelcontrol.index', compact(
+            'productosInventario',
             'productos',
             'movimientos',
             'resumen',
@@ -324,6 +273,7 @@ class DashboardController extends Controller
             'dataGasolina',
             'labelsDiesel',
             'dataDiesel',
+            'chartsEstanques',
             'topVehiculosLabels',
             'topVehiculosLitros',
             'topVehiculosKmL',
@@ -332,7 +282,6 @@ class DashboardController extends Controller
             'usoDiarioKmL',
             'ultimosCiclosEstanque',
             'hasOdomAny',
-            'vehiculosDebug',
             'notificaciones'
         ));
     }
@@ -656,6 +605,18 @@ class DashboardController extends Controller
             return response()->json([
                 'error' => 'Este documento ya fue procesado',
             ], 400);
+        }
+
+        $tanks = app(\App\Services\FuelTankService::class);
+        if ($tanks->isManagedProduct($movimiento->producto_id)) {
+            if ($movimiento->origen === 'xml_oc_estanque') {
+                $tanks->confirmarEntrada((int) $movimientoId);
+
+                return response()->json(['ok' => true]);
+            }
+            if ($movimiento->tipo === 'vehiculo') {
+                $tanks->rejectUnassignedStockChange($movimiento->producto_id);
+            }
         }
 
         $db->beginTransaction();
