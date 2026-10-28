@@ -89,7 +89,7 @@ además de las facturas recientes, para mantener esa comprobación.
 
 ```bash
 # Primero simular un documento, con las lecturas habilitadas conscientemente.
-php artisan dtes:sync-purchase-references --document=4026 --dry-run
+php artisan dtes:sync-purchase-references --document=123 --dry-run
 
 # Después de revisar los resultados, guardar los vínculos comprobados.
 php artisan dtes:sync-purchase-references --limit=100
@@ -100,12 +100,10 @@ Nunca cambia Odoo. Este proyecto usa cron directo; no se añadió un Schedule qu
 pareciera programado sin ejecutarse. Programar el nuevo comando en el VPS es un
 paso de despliegue explícito, posterior a la revisión.
 
-La comprobación de sólo lectura contra la API real confirmó la existencia de
-todos los campos necesarios y que las dos configuraciones usan la misma
-instancia. En esa comprobación no se encontraron líneas de facturas
-contabilizadas enlazadas a las líneas Odoo guardadas en las solicitudes. Por
-tanto, no hay base para unir automáticamente esas compras históricas: requieren
-confirmación o completar primero el recorrido de compra en Odoo.
+Antes de activar la lectura, comprobar la existencia de esos campos y que las
+dos configuraciones usen la misma instancia. La disponibilidad de relaciones
+automáticas depende de que se haya registrado el recorrido de compra en Odoo.
+Cuando no exista, se requiere confirmación manual o completar ese recorrido.
 
 ## Datos y despliegue
 
@@ -134,10 +132,10 @@ credenciales de prueba, evidencias y resultados están en `.local/`, ignorado po
 Git. El archivo original de respaldo es `.local/backups/vps-20261028.sql`, con
 permisos 600. No se copió el `.env` ni las claves de producción.
 
-La demo SC-103 y las facturas locales 4030–4032 se identifican como **DEMO LOCAL**.
-Son datos ficticios añadidos a la copia para probar reparto y facturación
-parcial; no se deben exportar al VPS. Hoffmann 4026 y SC-102 se conservaron sin
-vincular durante las pruebas de interfaz.
+Los registros de demostración se identifican como **DEMO LOCAL**. Son datos
+ficticios añadidos a la copia para probar reparto y facturación parcial; no se
+deben exportar al VPS. Las pruebas de interfaz sobre documentos reales de la
+copia local no deben guardar relaciones ficticias.
 
 ## Validación
 
