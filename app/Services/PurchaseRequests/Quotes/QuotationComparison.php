@@ -39,6 +39,18 @@ class QuotationComparison
         array $parejasConfirmadas = [],
         array $parejasRechazadas = [],
     ): QuotationComparisonResult {
+        return PurchaseProductLink::conMemoria(fn (): QuotationComparisonResult => $this->compararConMemoria(
+            $solicitud, $lineasDelDocumento, $odooPartnerId, $parejasConfirmadas, $parejasRechazadas,
+        ));
+    }
+
+    private function compararConMemoria(
+        PurchaseRequest $solicitud,
+        array $lineasDelDocumento,
+        ?int $odooPartnerId,
+        array $parejasConfirmadas,
+        array $parejasRechazadas,
+    ): QuotationComparisonResult {
         $pedidas = $solicitud->items()->orderBy('sort_order')->get()->all();
         $this->partnerId = $odooPartnerId;
 

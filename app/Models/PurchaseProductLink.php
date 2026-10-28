@@ -52,6 +52,51 @@ class PurchaseProductLink extends Model
             return null;
         }
 
+        $clave = $odooPartnerId.'|'.$normalizado;
+
+        if (static::$memoria !== null && array_key_exists($clave, static::$memoria)) {
+            return static::$memoria[$clave];
+        }
+
+        $encontrada = static::buscar($normalizado, $odooPartnerId);
+
+        if (static::$memoria !== null) {
+            static::$memoria[$clave] = $encontrada;
+        }
+
+        return $encontrada;
+    }
+
+    /** @var array<string, ?self>|null Sólo mientras dura una comparación. */
+    private static ?array $memoria = null;
+
+    /**
+     * Recuerda las equivalencias mientras dura `$trabajo`.
+     *
+     * Comparar una cotización pregunta por el mismo texto una vez por cada
+     * renglón contra cada partida: catorce mil consultas en las de S&M, para
+     * unas cien palabras distintas. Fuera de la comparación no se recuerda
+     * nada, así que una equivalencia recién enseñada se ve en la siguiente.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $trabajo
+     * @return T
+     */
+    public static function conMemoria(callable $trabajo): mixed
+    {
+        $previa = static::$memoria;
+        static::$memoria ??= [];
+
+        try {
+            return $trabajo();
+        } finally {
+            static::$memoria = $previa;
+        }
+    }
+
+    private static function buscar(string $normalizado, ?int $odooPartnerId): ?self
+    {
         $base = static::query()
             ->where('company_code', 'EHE')
             ->where('normalized_text', $normalizado);
