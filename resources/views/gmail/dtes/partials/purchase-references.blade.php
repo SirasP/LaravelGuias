@@ -31,7 +31,7 @@
                 <article class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-2">
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                         <a :href="reference.request_url || '#'" class="font-bold text-sm text-indigo-600 dark:text-indigo-300" x-text="reference.folio"></a>
-                        <span class="text-xs text-gray-500" x-text="reference.source === 'odoo' ? 'Origen verificado en Odoo' : 'Confirmada por ' + reference.actor"></span>
+                        <span class="text-xs text-gray-500" x-text="reference.source === 'odoo' ? 'Origen verificado en Odoo' : (reference.source === 'auto' ? 'Vinculada automáticamente' : 'Confirmada por ' + reference.actor)"></span>
                     </div>
                     <p class="text-sm text-gray-800 dark:text-gray-100" x-text="reference.invoice_product"></p>
                     <p class="text-xs text-gray-500">
@@ -64,7 +64,7 @@
                 <input id="dte-reference-search" type="search" x-model="query" maxlength="100" placeholder="Buscar solicitud por folio o motivo…" class="w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 text-sm">
                 <button class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold" :disabled="busy">Buscar</button>
             </form>
-            <p class="text-xs text-gray-500">Las sugerencias consideran cotizaciones del mismo RUT. Buscar manualmente permite revisar otras solicitudes; ninguna se vincula por parecido.</p>
+            <p class="text-xs text-gray-500">Se vinculan solas las partidas que calzan sin dudas: cotizadas por este proveedor, o con el mismo nombre, unidad y cantidad que lo solicitado. Las demás quedan como sugerencia: revisa y vincula con un clic.</p>
             <p x-show="searched && !candidates.length" class="text-sm text-gray-500">No se encontraron coincidencias con evidencia suficiente. Puedes buscar una solicitud por su folio o registrar una compra sin solicitud.</p>
 
             <div class="space-y-2 max-h-96 overflow-y-auto">
@@ -77,8 +77,12 @@
                             <p class="text-xs text-gray-500" x-text="candidate.reason"></p>
                             <p class="text-xs text-gray-500 mt-1" x-text="'Disponible para vincular: ' + number(candidate.remaining) + ' ' + candidate.unit"></p>
                             <p class="text-xs mt-1" :class="candidate.supplier_known ? 'text-gray-500' : 'text-amber-700 dark:text-amber-300'" x-text="candidate.explanation"></p>
+                            <p x-show="candidate.quick_quantity" class="text-xs text-gray-500 mt-1" x-text="'Con la partida: ' + (report.lines.find(l => l.id === candidate.line_id)?.description || '') + ' · ' + number(candidate.quick_quantity) + ' ' + candidate.unit"></p>
                         </div>
-                        <button type="button" @click="choose(candidate); $nextTick(() => $refs.linkForm.scrollIntoView({behavior: 'smooth', block: 'center'}))" class="shrink-0 rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300" :disabled="busy">Revisar</button>
+                        <div class="shrink-0 flex flex-col gap-2">
+                            <button type="button" x-show="candidate.quick_quantity" @click="quickLink(candidate)" class="rounded-lg bg-indigo-600 text-white px-3 py-2 text-xs font-semibold" :disabled="busy">Vincular</button>
+                            <button type="button" @click="choose(candidate); $nextTick(() => $refs.linkForm.scrollIntoView({behavior: 'smooth', block: 'center'}))" class="rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300" :disabled="busy" x-text="candidate.quick_quantity ? 'Otra cantidad' : 'Revisar'"></button>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -103,12 +107,12 @@
                     </label>
                 </div>
                 <p class="text-xs text-gray-500">Indica las cantidades de esta relación. Para cajas, paquetes o unidades distintas, confirma la equivalencia; el sistema no la supone.</p>
-                <label class="block text-xs font-semibold">Motivo o antecedente de la relación
+                <label x-show="needsReview" class="block text-xs font-semibold">Motivo o antecedente de la relación
                     <textarea x-model="form.note" maxlength="1500" :required="needsReview" :minlength="needsReview ? 10 : 0" rows="2" class="mt-1 w-full rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700 text-sm"></textarea>
                 </label>
                 <label x-show="needsReview" class="flex gap-2 items-start text-sm text-amber-800 dark:text-amber-200">
                     <input type="checkbox" x-model="form.acknowledge" :required="needsReview" class="mt-1 rounded border-gray-300">
-                    <span>Confirmo que se compró a este proveedor para esta solicitud y que las cantidades indicadas son equivalentes.</span>
+                    <span>Confirmo que las cantidades indicadas son equivalentes.</span>
                 </label>
                 <div class="flex gap-3">
                     <button class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold" :disabled="busy" x-text="busy ? 'Guardando…' : 'Confirmar vínculo'"></button>

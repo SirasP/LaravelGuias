@@ -2,15 +2,22 @@
 
 namespace App\Services\DtePurchases;
 
+use App\Models\DtePurchaseReference;
 use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseRequestItem;
 use App\Services\PurchaseRequests\Products\ProductSimilarity;
 use App\Support\Rut;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseCandidates
 {
+    /** Below this a product is only worth a look, never a link without reading it. */
+    public const SUGGEST = 0.65;
+
+    public const STRONG = 0.85;
+
     private array $quotesByRequest = [];
 
     public function __construct(private ProductSimilarity $similarity) {}
@@ -42,6 +49,13 @@ class PurchaseCandidates
         return false;
     }
 
+    /** Same unit and no boxes or packs on either side: the quantities compare as they are. */
+    private function plainUnits(object $line, PurchaseRequestItem $item): bool
+    {
+        return Quantity::sameUnit($line->unidad, $item->unit)
+            && ! Quantity::packaged($line->descripcion ?? '') && ! Quantity::packaged($item->product_service);
+    }
+
     public function search(int $documentId, string $search = ''): array
     {
         $references = app(PurchaseReferences::class);
@@ -56,43 +70,47 @@ class PurchaseCandidates
         $explicit = trim($search) !== '';
         if ($explicit) {
             $term = '%'.addcslashes(trim($search), '%_\\').'%';
-            $query->where(fn ($q) => $q->where('folio', 'like', $term)->orWhere('reason', 'like', $term));
+            $query->where(fn ($q) => $q->where('folio', 'like', $term)->orWhere('reason', 'like', $term))->limit(25);
         } else {
             if (! $rut) {
                 return [];
             }
-            // A name shared with some unrelated supplier is never a candidate.
-            $requestIds = PurchaseRequestIngestion::whereNotNull('compared_request_id')
-                ->where('company_code', PurchaseRequest::COMPANY_CODE)->get(['compared_request_id', 'supplier_tax_id'])
-                ->filter(fn ($quote): bool => Rut::normalize($quote->supplier_tax_id) === $rut)
-                ->pluck('compared_request_id')->unique();
-            $query->whereIn('id', $requestIds)->whereDate('request_date', '>=', date('Y-m-d', strtotime($document->fecha_factura.' -180 days')));
+            $query->whereDate('request_date', '>=', date('Y-m-d', strtotime($document->fecha_factura.' -180 days')))->limit(300);
         }
 
         $lines = $references->lines($documentId)->filter(fn ($line): bool => Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))->isGreaterThan(0));
+        $lineRemaining = $lines->mapWithKeys(fn ($line) => [$line->id => Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))]);
         $result = [];
-        foreach ($query->orderByDesc('request_date')->orderByDesc('id')->limit(25)->get() as $request) {
+        foreach ($query->orderByDesc('request_date')->orderByDesc('id')->get() as $request) {
             foreach ($request->items as $item) {
                 $remaining = Quantity::of($item->quantity)->minus($references->usedOnItem($item->id));
                 if (! $remaining->isGreaterThan(0)) {
                     continue;
                 }
-                $supplierKnown = $rut && $this->supplierKnown($item, $rut);
-                if (! $explicit && ! $supplierKnown) {
-                    continue;
-                }
                 $best = null;
                 $score = 0.0;
+                $strong = 0;
                 foreach ($lines as $line) {
                     $value = $this->similarity->score((string) $line->descripcion, $item->product_service);
+                    $strong += $value >= self::STRONG ? 1 : 0;
                     if ($value > $score) {
                         $score = $value;
                         $best = $line;
                     }
                 }
-                if (! $explicit && $score < 0.65) {
+                if (! $explicit && $score < self::SUGGEST) {
                     continue;
                 }
+                $supplierKnown = $rut && $this->supplierKnown($item, $rut);
+                $plain = $best && $score >= self::SUGGEST && $this->plainUnits($best, $item);
+                if (! $explicit && ! $supplierKnown) {
+                    // Without this supplier's quotation only the product and an identical
+                    // quantity speak for the match; a shared word like «spray» is not enough.
+                    if ($score < self::STRONG || ! $plain || ! $lineRemaining[$best->id]->isEqualTo($remaining)) {
+                        continue;
+                    }
+                }
+                $quick = $plain ? (string) ($lineRemaining[$best->id]->isLessThan($remaining) ? $lineRemaining[$best->id] : $remaining) : null;
                 $result[] = [
                     'item_id' => $item->id, 'item_version' => $references->itemFingerprint($item),
                     'folio' => $request->folio, 'reason' => $request->reason,
@@ -102,13 +120,75 @@ class PurchaseCandidates
                     'unit' => $item->unit, 'quantity' => (string) Quantity::of($item->quantity),
                     'remaining' => (string) $remaining, 'supplier_known' => (bool) $supplierKnown,
                     'packaged' => Quantity::packaged($item->product_service),
-                    'line_id' => $score >= 0.65 ? $best?->id : null, 'score' => $score,
-                    'explanation' => $supplierKnown ? 'Este proveedor cotizó esta partida; confirma que la factura corresponde a esa compra.' : 'No hay evidencia registrada de este proveedor para esta partida. Requiere confirmación y motivo.',
+                    'line_id' => $score >= self::SUGGEST ? $best?->id : null, 'score' => $score,
+                    'line_version' => $score >= self::SUGGEST && $best ? $references->lineFingerprint($best) : null,
+                    'quick_quantity' => $quick, 'strong_lines' => $strong,
+                    'explanation' => $supplierKnown ? 'Este proveedor cotizó esta partida.'
+                        : ($explicit ? 'No hay cotización de este proveedor para esta partida.' : 'Mismo producto y misma cantidad, aunque no hay cotización de este proveedor adjunta.'),
                 ];
             }
         }
-        usort($result, fn ($a, $b): int => $b['score'] <=> $a['score']);
+        if (! $explicit) {
+            // Two requests that fit the same invoice line equally well are a question for a person.
+            $perLine = array_count_values(array_filter(array_column($result, 'line_id')));
+            $result = array_values(array_filter($result, fn ($row): bool => $row['supplier_known'] || ($perLine[$row['line_id']] ?? 0) === 1));
+        }
+        usort($result, fn ($a, $b): int => [$b['supplier_known'], $b['score']] <=> [$a['supplier_known'], $a['score']]);
 
         return array_slice($result, 0, 100);
+    }
+
+    /**
+     * Links what leaves no doubt: units are plain, the whole invoice line fits in
+     * what is pending, neither side has another candidate, and either this supplier
+     * quoted the item and the product clearly matches, or the name and quantity are
+     * identical to the request's. Everything else stays a suggestion.
+     *
+     * @return int relationships created
+     */
+    public function autoLink(int $documentId): int
+    {
+        $references = app(PurchaseReferences::class);
+        $document = $references->document($documentId);
+        $decision = DB::table('dte_purchase_decisions')->where('document_id', $documentId)->value('classification');
+        if (! $references->eligible($document) || $decision === 'without_request') {
+            return 0;
+        }
+        $candidates = collect($this->search($documentId));
+        $perLine = $candidates->countBy('line_id');
+        $lines = $references->lines($documentId)->keyBy('id');
+        $created = 0;
+        foreach ($candidates as $candidate) {
+            $line = $lines->get($candidate['line_id']);
+            $evidence = $candidate['supplier_known'] ? $candidate['score'] >= self::STRONG : $candidate['score'] >= 1.0;
+            if (! $line || ! $evidence || $candidate['strong_lines'] !== 1
+                || $perLine[$candidate['line_id']] !== 1 || $candidate['quick_quantity'] === null) {
+                continue;
+            }
+            $lineRemaining = Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id));
+            if (! $lineRemaining->isEqualTo($candidate['quick_quantity'])) {
+                continue;
+            }
+            $key = 'auto:'.$documentId.':'.$line->id.':'.$candidate['item_id'];
+            if (DtePurchaseReference::where('source_key', $key)->exists()) {
+                // Includes revoked ones: a person's correction is never undone.
+                continue;
+            }
+            try {
+                $references->link($documentId, [
+                    'document_line_id' => $line->id, 'purchase_request_item_id' => $candidate['item_id'],
+                    'invoice_quantity' => $candidate['quick_quantity'], 'request_quantity' => $candidate['quick_quantity'],
+                    'version' => $references->fingerprint($document), 'line_version' => $candidate['line_version'],
+                    'item_version' => $candidate['item_version'],
+                    'note' => $candidate['supplier_known'] ? 'Vinculada automáticamente: el proveedor cotizó esta partida y producto, unidad y cantidad coinciden.'
+                        : 'Vinculada automáticamente: mismo nombre, unidad y cantidad que la partida solicitada.',
+                ], null, 'auto', ['source_key' => $key, 'score' => round($candidate['score'], 3)]);
+                $created++;
+            } catch (\Illuminate\Validation\ValidationException) {
+                // A rule the search does not see (dates, duplicates); it stays a suggestion.
+            }
+        }
+
+        return $created;
     }
 }

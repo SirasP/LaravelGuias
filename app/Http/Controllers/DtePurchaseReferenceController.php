@@ -9,8 +9,11 @@ use Illuminate\Http\Request;
 
 class DtePurchaseReferenceController extends Controller
 {
-    public function show(int $id, PurchaseReferences $references): JsonResponse
+    public function show(int $id, PurchaseReferences $references, PurchaseCandidates $candidates): JsonResponse
     {
+        // Opening the tab is enough: clear matches link themselves, the rest stays as suggestions.
+        $candidates->autoLink($id);
+
         return response()->json($references->report($id));
     }
 

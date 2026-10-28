@@ -31,17 +31,28 @@ cotizaciones. Bodegueros y otros roles no reciben datos de solicitudes ajenas a
 través de los nuevos endpoints. La solicitud muestra las facturas relacionadas
 al administrador, con sus partidas y enlaces de regreso.
 
-## Sugerencias y confirmaciones
+## Vínculo automático, sugerencias y confirmaciones
 
-La búsqueda inicial exige evidencia del mismo RUT de proveedor en una
-cotización asociada a esa partida y una similitud de producto suficiente. Es
-una sugerencia para revisar, no una relación guardada ni prueba de adjudicación.
-No se usan documentos cuyo cliente se identificó como otra empresa.
+Al abrir la pestaña (o con `php artisan dtes:auto-link-purchases --days=90`) se
+vinculan solas las partidas que no dejan dudas: misma unidad, sin cajas ni packs,
+la partida completa de la factura cabe en lo pendiente de la solicitud, ninguna
+otra solicitud compite por esa partida, y además:
 
-La búsqueda explícita por folio o motivo permite revisar otras solicitudes. Si
-no hay evidencia del proveedor, la persona debe confirmar proveedor y
-equivalencias y escribir el motivo. No se admiten solicitudes en borrador,
-anuladas, rechazadas, de otra empresa o posteriores a la factura.
+- el mismo RUT cotizó esa partida y el producto se parece mucho (≥ 0,85), o
+- el nombre es idéntico al solicitado y la cantidad también.
+
+Se muestran como «Vinculada automáticamente» y se pueden desvincular; una
+relación automática retirada por una persona no se vuelve a crear. En la copia
+del VPS del 28-10-2026 se vincularon así 15 partidas reales.
+
+Lo demás queda como sugerencia. Sin cotización del proveedor, sólo se sugiere un
+producto muy parecido con la misma cantidad y una sola solicitud posible; una
+palabra en común como «spray» no basta. Las sugerencias con unidades simples se
+vinculan con un clic, sin motivo. El motivo y la confirmación de equivalencia se
+piden sólo cuando hay cajas, packs, unidades distintas o cantidades diferentes.
+No se usan documentos cuyo cliente se identificó como otra empresa. No se admiten
+solicitudes en borrador, anuladas, rechazadas, de otra empresa o posteriores a la
+factura.
 
 Cada envío lleva una clave de idempotencia. Los bloqueos por documento y partida
 serializan las decisiones simultáneas. Una clave única de identidad de factura

@@ -15,6 +15,8 @@ class PurchaseReferences
 {
     public const REQUEST_STATES = ['submitted', 'resubmitted', 'changes_requested', 'approved', 'completed'];
 
+    private const SYSTEM = ['odoo' => 'Sincronización de Odoo', 'auto' => 'Vínculo automático'];
+
     public function document(int $id): object
     {
         return DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('id', $id)->firstOrFail();
@@ -118,7 +120,7 @@ class PurchaseReferences
                 'invoice_quantity' => $ref->invoice_quantity, 'request_quantity' => $ref->request_quantity,
                 'requested_quantity' => $ref->snapshot['requested_quantity'],
                 'remaining_request' => $ref->requestItem ? (string) Quantity::of($ref->requestItem->quantity)->minus($this->usedOnItem($ref->requestItem->id)) : null,
-                'actor' => $ref->actor_name ?: 'Sincronización de Odoo', 'date' => $ref->created_at->toIso8601String(),
+                'actor' => $ref->actor_name ?: self::SYSTEM[$ref->source] ?? 'Sistema', 'date' => $ref->created_at->toIso8601String(),
                 'note' => $ref->note,
             ];
         })->values();
@@ -194,7 +196,7 @@ class PurchaseReferences
             $this->require(($data['line_version'] ?? '') === $this->lineFingerprint($line)
                 && ($data['item_version'] ?? '') === $this->itemFingerprint($item), 'Una partida cambió. Vuelve a buscarla antes de confirmar.');
 
-            if ($source === 'odoo') {
+            if ($source !== 'manual') {
                 $existing = DtePurchaseReference::where('source_key', $evidence['source_key'])->first();
                 if ($existing) {
                     // Includes revoked decisions: an automatic sync never undoes a human correction.
@@ -204,15 +206,16 @@ class PurchaseReferences
 
             $this->require($invoiceQty->plus($this->usedOnLine($line->id))->isLessThanOrEqualTo(Quantity::of($line->cantidad)), 'Esa cantidad de la factura ya está vinculada o supera lo facturado.');
             $this->require($requestQty->plus($this->usedOnItem($item->id))->isLessThanOrEqualTo(Quantity::of($item->quantity)), 'La cantidad supera lo pendiente de vincular en la solicitud.');
-            $supplierKnown = app(PurchaseCandidates::class)->supplierKnown($item, $rut);
             $conversion = ! Quantity::sameUnit($line->unidad, $item->unit)
                 || Quantity::packaged($line->descripcion ?? '') || Quantity::packaged($item->product_service)
                 || ! $invoiceQty->isEqualTo($requestQty);
-            if ($source === 'manual' && (! $supplierKnown || $conversion)) {
+            // The click confirms the supplier; only an equivalence between different
+            // presentations needs to be explained.
+            if ($source === 'manual' && $conversion) {
                 $this->require(($data['acknowledge'] ?? false) && mb_strlen(trim($data['note'] ?? '')) >= 10,
-                    'Confirma el proveedor y la equivalencia de cantidades, y explica la relación en al menos 10 caracteres.');
+                    'Confirma la equivalencia de cantidades y explica la relación en al menos 10 caracteres.');
             }
-            $this->require($source !== 'odoo' || ! $conversion, 'La presentación o unidad requiere confirmación manual.');
+            $this->require($source === 'manual' || ! $conversion, 'La presentación o unidad requiere confirmación manual.');
             $ref = DtePurchaseReference::create([
                 'document_id' => $documentId, 'document_line_id' => $line->id,
                 'purchase_request_id' => $request->id, 'purchase_request_item_id' => $item->id,
@@ -314,7 +317,7 @@ class PurchaseReferences
     {
         DB::table('dte_purchase_events')->insert([
             'document_id' => $id, 'event' => $event, 'actor_id' => $actor?->id,
-            'actor_name' => $actor?->name ?: 'Sincronización de Odoo',
+            'actor_name' => $actor?->name ?: self::SYSTEM[$details['source'] ?? 'odoo'] ?? 'Sistema',
             'details' => json_encode($details, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), 'created_at' => now(),
         ]);
     }

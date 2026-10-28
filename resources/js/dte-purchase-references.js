@@ -56,14 +56,14 @@ export default (urls) => ({
     get hasRemaining() { return this.report?.lines.some(line => this.scaled(line.remaining) > 0n) || false; },
     unit(value) {
         const u = (value || '').trim().toLowerCase();
-        if (['un', 'un.', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas'].includes(u)) return 'un';
+        if (['u', 'un', 'un.', 'und', 'unds', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas'].includes(u)) return 'un';
         if (['kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(u)) return 'kg';
         if (['l', 'lt', 'lts', 'litro', 'litros'].includes(u)) return 'l';
         if (['m', 'mt', 'mts', 'metro', 'metros'].includes(u)) return 'm';
         return u;
     },
     get needsReview() {
-        return this.selected && (!this.selected.supplier_known || this.selected.packaged
+        return this.selected && (this.selected.packaged
             || /\b(cajas?|packs?|paquetes?|docenas?|bidones?|rollos?)\b/i.test(this.currentLine?.description || '')
             || !this.unit(this.currentLine?.unit) || this.unit(this.currentLine?.unit) !== this.unit(this.selected.unit)
             || this.scaled(this.form.invoiceQuantity) === null || this.scaled(this.form.invoiceQuantity) !== this.scaled(this.form.requestQuantity));
@@ -107,6 +107,14 @@ export default (urls) => ({
             invoice_quantity: String(this.form.invoiceQuantity), request_quantity: String(this.form.requestQuantity),
             version: this.report.version, line_version: this.currentLine.version, item_version: this.selected.item_version,
             operation_key: this.form.operationKey, acknowledge: this.form.acknowledge, note: this.form.note,
+        });
+    },
+    async quickLink(candidate) {
+        await this.mutate(urls.store, 'POST', {
+            document_line_id: candidate.line_id, purchase_request_item_id: candidate.item_id,
+            invoice_quantity: candidate.quick_quantity, request_quantity: candidate.quick_quantity,
+            version: this.report.version, line_version: candidate.line_version, item_version: candidate.item_version,
+            operation_key: this.newOperationKey(),
         });
     },
     async classify(classification) {

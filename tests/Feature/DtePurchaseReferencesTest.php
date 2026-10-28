@@ -131,9 +131,10 @@ it('allocates one invoice between requests without claiming the whole invoice tw
     $first = referenceItem(null, ['quantity' => 4]);
     $second = referenceItem(null, ['quantity' => 6]);
     referencePost($id, $line, $first)->assertCreated();
-    $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonPath('classification', 'partial');
-    referencePost($id, $line, $second, ['invoice_quantity' => '6', 'request_quantity' => '6'])->assertCreated();
-    $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonPath('classification', 'linked')->assertJsonCount(2, 'references');
+    // The 6 left on the line are exactly the other identical request item, so it links by itself.
+    $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonPath('classification', 'linked')
+        ->assertJsonCount(2, 'references')->assertJsonPath('references.1.source', 'auto');
+    expect(DtePurchaseReference::where('purchase_request_item_id', $second->id)->value('request_quantity'))->toBe('6.000000');
     referencePost($id, $line, referenceItem(), ['invoice_quantity' => '1', 'request_quantity' => '1'])->assertUnprocessable();
 });
 
@@ -403,4 +404,66 @@ it('requires review when an automatic verification becomes old or its origin is 
     ]]])->push(['result' => [['id' => 11, 'vat' => '76569041-2']]])->push(['result' => [['id' => 1, 'vat' => '77415879-0']]])->push(['result' => [['id' => 33, 'code' => '33']]])]);
     app(OdooPurchaseReferenceSync::class)->sync($id);
     expect(app(PurchaseReferences::class)->report($id)['references'][0]['stale'])->toBeTrue();
+});
+
+it('links by itself when the quoted supplier, product, unit and quantity leave no doubt', function () {
+    $item = referenceItem(values: ['quantity' => 4]);
+    [$id] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertOk()->assertJsonPath('classification', 'linked')->assertJsonPath('references.0.source', 'auto')
+        ->assertJsonPath('references.0.actor', 'Vínculo automático');
+    expect(DtePurchaseReference::sole()->purchase_request_item_id)->toBe($item->id);
+    $this->artisan('dtes:auto-link-purchases')->assertSuccessful();
+    expect(DtePurchaseReference::count())->toBe(1);
+});
+
+it('links a partial invoice by itself and leaves the rest of the request pending', function () {
+    referenceItem();
+    [$id] = referenceInvoice();
+    $this->artisan('dtes:auto-link-purchases')->assertSuccessful();
+    $ref = DtePurchaseReference::sole();
+    expect($ref->invoice_quantity)->toBe('4.000000')->and($ref->source)->toBe('auto');
+});
+
+it('does not link by itself when two requests compete or the presentation differs', function () {
+    referenceItem();
+    referenceItem();
+    [$id] = referenceInvoice();
+    referenceItem(values: ['product_service' => 'UNION PVC 50MM', 'unit' => 'cajas']);
+    [$boxes] = referenceInvoice([], ['descripcion' => 'UNION PVC 50MM', 'unidad' => 'CAJA']);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonCount(0, 'references');
+    $this->getJson(route('gmail.dtes.purchase_references.show', $boxes))->assertJsonCount(0, 'references');
+    $this->getJson(route('gmail.dtes.purchase_references.candidates', $id))->assertJsonCount(2, 'candidates');
+});
+
+it('does not recreate an automatic link a person revoked', function () {
+    referenceItem(values: ['quantity' => 4]);
+    [$id] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id));
+    $ref = DtePurchaseReference::sole();
+    $this->deleteJson(route('gmail.dtes.purchase_references.destroy', [$id, $ref->id]), ['note' => 'Era otra compra.'])->assertOk();
+    $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonCount(0, 'references');
+    expect(DtePurchaseReference::count())->toBe(1);
+});
+
+it('suggests without a quotation only an identical product and quantity, linked with one click', function () {
+    $other = referenceItem(null, ['quantity' => 10]);
+    $same = referenceItem(null, ['quantity' => 4]);
+    [$id, $line] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.candidates', $id))
+        ->assertJsonCount(1, 'candidates')->assertJsonPath('candidates.0.item_id', $same->id)
+        ->assertJsonPath('candidates.0.quick_quantity', '4.000000');
+    expect(DtePurchaseReference::count())->toBe(0);
+    referencePost($id, $line, $same, ['acknowledge' => false, 'note' => ''])->assertCreated();
+    expect($other->id)->not->toBe($same->id);
+});
+
+it('links by itself without a quotation only an identical name, unit and quantity', function () {
+    $same = referenceItem(null, ['quantity' => 4, 'unit' => 'u']);
+    referenceItem(null, ['product_service' => 'SPRAY BLANCO MATE', 'quantity' => 4]);
+    [$exact] = referenceInvoice();
+    [$similar] = referenceInvoice([], ['descripcion' => 'SPRAY BLANCO MATE 400ML']);
+    $this->artisan('dtes:auto-link-purchases')->assertSuccessful();
+    expect(DtePurchaseReference::sole()->purchase_request_item_id)->toBe($same->id)
+        ->and(DtePurchaseReference::sole()->document_id)->toBe($exact);
 });
