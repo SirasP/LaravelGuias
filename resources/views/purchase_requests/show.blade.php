@@ -632,6 +632,8 @@
             </div>
         </section>
 
+        @include('purchase_requests.partials.invoice-references')
+
         {{-- ── TABS Y CONTENIDO PRINCIPAL FULL SCREEN (ALPINE VISTA) ────── --}}
         {{-- La pestaña abierta sobrevive a la recarga.
              Cada botón de esta pantalla manda un formulario y vuelve por un

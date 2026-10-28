@@ -1272,14 +1272,8 @@
                         </div>
 
                         {{-- Tab: Referencias cruzadas --}}
-                        <div x-show="tab === 'cruzadas'" x-cloak class="empty-tab">
-                            <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                </svg>
-                            </div>
-                            <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Sin referencias cruzadas</p>
-                            <p class="text-xs text-gray-400 max-w-xs">No hay documentos relacionados a esta factura.</p>
+                        <div x-show="tab === 'cruzadas'" x-cloak>
+                            @include('gmail.dtes.partials.purchase-references')
                         </div>
                     </div>
 
@@ -1658,7 +1652,7 @@
      */
     function dteTabPanel(docId) {
         return {
-            tab: 'lineas',
+            tab: window.location.hash === '#referencias-cruzadas' ? 'cruzadas' : 'lineas',
             apuntes: {
                 loaded:  false,
                 loading: false,

@@ -654,6 +654,14 @@ Route::middleware(['auth'])
 | GMAIL — Admin + Bodeguero (facturas solo lectura + inventario + agregar stock)
 |--------------------------------------------------------------------------
 */
+Route::middleware(['auth', 'role:admin'])->prefix('gmail/dtes')->name('gmail.dtes.')->group(function () {
+    Route::get('/{id}/purchase-references', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'show'])->whereNumber('id')->name('purchase_references.show');
+    Route::get('/{id}/purchase-references/candidates', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'candidates'])->whereNumber('id')->name('purchase_references.candidates');
+    Route::post('/{id}/purchase-references', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'store'])->whereNumber('id')->name('purchase_references.store');
+    Route::post('/{id}/purchase-references/classification', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'classify'])->whereNumber('id')->name('purchase_references.classify');
+    Route::delete('/{id}/purchase-references/{reference}', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'destroy'])->whereNumber('id')->whereNumber('reference')->name('purchase_references.destroy');
+});
+
 Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmail.')->group(function () {
 
     // Facturas proveedor — listado y detalle (bodeguero ve sin valores)
