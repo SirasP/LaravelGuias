@@ -467,3 +467,31 @@ it('links by itself without a quotation only an identical name, unit and quantit
     expect(DtePurchaseReference::sole()->purchase_request_item_id)->toBe($same->id)
         ->and(DtePurchaseReference::sole()->document_id)->toBe($exact);
 });
+
+it('follows the supplier quotation to an invoice that uses the supplier names, even after the request was edited', function () {
+    // SC-102: the request asks in its own words, Entre Riegos quotes and invoices in theirs,
+    // and the confirmed pairs point at items deleted when the request was edited.
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-27']);
+    $union = referenceItem(null, ['product_service' => 'unión americana PVC 32 a pegar', 'quantity' => 6], $request);
+    $terminal = referenceItem(null, ['product_service' => 'terminal PVC 32 /1" hi', 'quantity' => 8], $request);
+    PurchaseRequestIngestion::create([
+        'company_code' => 'EHE', 'user_id' => $request->user_id, 'uploader_name_snapshot' => 'Compras',
+        'compared_request_id' => $request->id, 'disk' => 'local', 'path' => 'ficticio.pdf',
+        'original_name' => 'ficticio.pdf', 'mime_type' => 'application/pdf', 'size' => 1,
+        'sha256' => hash('sha256', 'entre-riegos'), 'status' => 'needs_review',
+        'supplier_name' => 'Entre Riegos del Sur SpA', 'supplier_tax_id' => '76637999-0',
+        'confirmed_pairings' => [0 => 999999],
+        'extracted' => ['items' => [
+            ['product_service' => 'UNION AMERICANA PVC 32MM CEMENTAR', 'quantity' => 6, 'unit' => 'Unidades'],
+            ['product_service' => 'TERMINAL PVC 32 x 1" HI', 'quantity' => 8, 'unit' => 'Unidades'],
+        ]],
+    ]);
+    [$id, $first] = referenceInvoice(['proveedor_rut' => '76637999-0'], ['descripcion' => 'UNION AMERICANA PVC 32MM CEMENTAR', 'cantidad' => 6, 'unidad' => 'UNID']);
+    DB::connection('fuelcontrol')->table('gmail_dte_document_lines')->insert([
+        'document_id' => $id, 'nro_linea' => 2, 'descripcion' => 'TERMINAL PVC 32 x 1&quot; HI', 'cantidad' => 8,
+        'unidad' => 'UNID', 'precio_unitario' => 100, 'monto_item' => 800, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('classification', 'linked')->assertJsonCount(2, 'references');
+    expect(DtePurchaseReference::pluck('purchase_request_item_id')->sort()->values()->all())->toBe([$union->id, $terminal->id]);
+});

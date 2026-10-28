@@ -56,7 +56,7 @@ export default (urls) => ({
     get hasRemaining() { return this.report?.lines.some(line => this.scaled(line.remaining) > 0n) || false; },
     unit(value) {
         const u = (value || '').trim().toLowerCase();
-        if (['u', 'un', 'un.', 'und', 'unds', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas'].includes(u)) return 'un';
+        if (['u', 'un', 'un.', 'und', 'unds', 'unid', 'unid.', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas'].includes(u)) return 'un';
         if (['kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(u)) return 'kg';
         if (['l', 'lt', 'lts', 'litro', 'litros'].includes(u)) return 'l';
         if (['m', 'mt', 'mts', 'metro', 'metros'].includes(u)) return 'm';

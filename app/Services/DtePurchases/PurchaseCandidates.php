@@ -3,11 +3,12 @@
 namespace App\Services\DtePurchases;
 
 use App\Models\DtePurchaseReference;
-use App\Models\PurchaseProductLink;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestIngestion;
 use App\Models\PurchaseRequestItem;
+use App\Models\PurchaseSupplier;
 use App\Services\PurchaseRequests\Products\ProductSimilarity;
+use App\Services\PurchaseRequests\Quotes\QuotationComparison;
 use App\Support\Rut;
 use Illuminate\Support\Facades\DB;
 
@@ -20,40 +21,78 @@ class PurchaseCandidates
 
     private array $quotesByRequest = [];
 
-    public function __construct(private ProductSimilarity $similarity) {}
+    private array $quotedByQuote = [];
+
+    public function __construct(private ProductSimilarity $similarity, private QuotationComparison $comparison) {}
 
     /** Evidence of a supplier's quotation is a suggestion, never proof of a purchase. */
     public function supplierKnown(PurchaseRequestItem $item, string $rut): bool
     {
-        $quotes = $this->quotesByRequest[$item->purchase_request_id] ??= PurchaseRequestIngestion::where('compared_request_id', $item->purchase_request_id)
-            ->where('company_code', PurchaseRequest::COMPANY_CODE)->get();
-
-        return $quotes->contains(fn ($quote): bool => in_array($quote->status, [PurchaseRequestIngestion::COMPLETED, PurchaseRequestIngestion::NEEDS_REVIEW], true)
-            && $quote->customer_matches_company !== false && Rut::normalize($quote->supplier_tax_id) === $rut
-            && $this->quoteContains($quote, $item));
+        return $this->quotedNames($item, $rut) !== [];
     }
 
-    private function quoteContains(PurchaseRequestIngestion $quote, PurchaseRequestItem $item): bool
+    /**
+     * How this supplier called the item in its quotations. The invoice repeats the
+     * supplier's words, not the request's: «uniones estanques pvc 50mm» was quoted
+     * and invoiced as «UNION AMERICANA PVC 50MM CEMENTAR».
+     *
+     * @return list<string>
+     */
+    public function quotedNames(PurchaseRequestItem $item, string $rut): array
     {
-        if (in_array($item->id, $quote->parejasConfirmadas(), true)) {
-            return true;
-        }
-
-        foreach ($quote->extracted['items'] ?? [] as $line) {
-            $name = (string) ($line['product_service'] ?? '');
-            if ($name !== '' && PurchaseProductLink::normalizar($name) === PurchaseProductLink::normalizar($item->product_service)) {
-                return true;
+        $quotes = $this->quotesByRequest[$item->purchase_request_id] ??= PurchaseRequestIngestion::where('compared_request_id', $item->purchase_request_id)
+            ->where('company_code', PurchaseRequest::COMPANY_CODE)->get();
+        $names = [];
+        foreach ($quotes as $quote) {
+            if (in_array($quote->status, [PurchaseRequestIngestion::COMPLETED, PurchaseRequestIngestion::NEEDS_REVIEW], true)
+                && $quote->customer_matches_company !== false && Rut::normalize($quote->supplier_tax_id) === $rut) {
+                array_push($names, ...(($this->quotedByQuote[$quote->id] ??= $this->pairedNames($quote))[$item->id] ?? []));
             }
         }
 
-        return false;
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * The same pairing the quotation screen shows, so it survives a request whose
+     * items were edited and recreated after somebody confirmed the pairs.
+     *
+     * @return array<int, list<string>> item id => quoted names
+     */
+    private function pairedNames(PurchaseRequestIngestion $quote): array
+    {
+        $lines = array_values($quote->extracted['items'] ?? []);
+        $names = [];
+        if ($quote->comparedRequest && $lines !== []) {
+            $partner = PurchaseSupplier::query()->forCompany()->where('tax_id', Rut::normalize($quote->supplier_tax_id))->value('odoo_partner_id');
+            $result = $this->comparison->comparar($quote->comparedRequest, $lines, $partner === null ? null : (int) $partner,
+                $quote->parejasConfirmadas(), $quote->parejasRechazadas());
+            foreach ($result->filas as $row) {
+                if ($row->cruzo() && ! $row->esPropuesta() && filled($row->cotizada['product_service'] ?? null)) {
+                    $names[$row->pedida->id][] = (string) $row->cotizada['product_service'];
+                }
+            }
+        }
+        foreach ($quote->parejasConfirmadas() as $index => $itemId) {
+            if (filled($lines[$index]['product_service'] ?? null)) {
+                $names[$itemId][] = (string) $lines[$index]['product_service'];
+            }
+        }
+
+        return $names;
+    }
+
+    /** XML descriptions arrive with entities: «1 1&#47;2&quot;» is «1 1/2"». */
+    private function description(object $line): string
+    {
+        return html_entity_decode((string) $line->descripcion, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     /** Same unit and no boxes or packs on either side: the quantities compare as they are. */
     private function plainUnits(object $line, PurchaseRequestItem $item): bool
     {
         return Quantity::sameUnit($line->unidad, $item->unit)
-            && ! Quantity::packaged($line->descripcion ?? '') && ! Quantity::packaged($item->product_service);
+            && ! Quantity::packaged($this->description($line)) && ! Quantity::packaged($item->product_service);
     }
 
     public function search(int $documentId, string $search = ''): array
@@ -87,11 +126,13 @@ class PurchaseCandidates
                 if (! $remaining->isGreaterThan(0)) {
                     continue;
                 }
+                $quoted = $rut ? $this->quotedNames($item, $rut) : [];
+                $supplierKnown = $quoted !== [];
                 $best = null;
                 $score = 0.0;
                 $strong = 0;
                 foreach ($lines as $line) {
-                    $value = $this->similarity->score((string) $line->descripcion, $item->product_service);
+                    $value = max(array_map(fn (string $name): float => $this->similarity->score($this->description($line), $name), [$item->product_service, ...$quoted]));
                     $strong += $value >= self::STRONG ? 1 : 0;
                     if ($value > $score) {
                         $score = $value;
@@ -101,7 +142,6 @@ class PurchaseCandidates
                 if (! $explicit && $score < self::SUGGEST) {
                     continue;
                 }
-                $supplierKnown = $rut && $this->supplierKnown($item, $rut);
                 $plain = $best && $score >= self::SUGGEST && $this->plainUnits($best, $item);
                 if (! $explicit && ! $supplierKnown) {
                     // Without this supplier's quotation only the product and an identical

@@ -22,7 +22,7 @@ final class Quantity
         $unit = mb_strtolower(trim((string) $unit));
 
         return match ($unit) {
-            'u', 'un', 'un.', 'und', 'unds', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas' => 'un',
+            'u', 'un', 'un.', 'und', 'unds', 'unid', 'unid.', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas' => 'un',
             'kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos' => 'kg',
             'l', 'lt', 'lts', 'litro', 'litros' => 'l',
             'm', 'mt', 'mts', 'metro', 'metros' => 'm',
