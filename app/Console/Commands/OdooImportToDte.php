@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\OdooAccountMove;
+use App\Models\OdooAccountMoveLine;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -164,6 +165,8 @@ class OdooImportToDte extends Command
             $existingHashes[$hash] = [];
         }
 
+        [$filled, $unbalanced] = $this->fillLinesFromOdoo($dte);
+
         $total_dte = $dte->table('gmail_dte_documents')->count();
 
         $this->info('');
@@ -175,11 +178,113 @@ class OdooImportToDte extends Command
                 ['Duplicados vinculados', $duplicate],
                 ['Estados actualizados', $updated],
                 ['Ya existían sin cambios', $unchanged],
+                ['Detalle armado desde Odoo', $filled],
+                ['Detalle que no cuadra con el total', $unbalanced],
                 ['Total en gmail_dte_documents', $total_dte],
             ]
         );
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Arma el detalle de las facturas que sólo existen en Odoo.
+     *
+     * Son las que nunca llegaron con XML al correo y alguien digitó en Odoo:
+     * entraban acá con el puro encabezado y un neto adivinado dividiendo por
+     * 1,19. Las líneas de producto de Odoo traen cantidad, unidad y precio.
+     * Sólo se arma si producto más impuestos da el total de la factura, y una
+     * factura que ya tiene líneas —por XML o de una pasada anterior— no se toca.
+     *
+     * @return array{0: int, 1: int} facturas completadas y facturas que no cuadran
+     */
+    private function fillLinesFromOdoo($dte): array
+    {
+        $documents = $dte->table('gmail_dte_documents as d')
+            ->where('d.hash_unico', 'like', 'odoo_%')
+            ->whereNull('d.xml_raw')
+            ->whereNotExists(fn ($query) => $query->from('gmail_dte_document_lines as l')->whereColumn('l.document_id', 'd.id'))
+            ->get(['d.id', 'd.hash_unico', 'd.monto_total']);
+
+        $filled = 0;
+        $unbalanced = 0;
+
+        foreach ($documents as $document) {
+            $lines = OdooAccountMoveLine::where('move_odoo_id', (int) substr($document->hash_unico, 5))->orderBy('odoo_id')->get();
+            $products = $lines->where('display_type', 'product')->values();
+
+            // Sin detalle todavía: la sincronización anterior a este cambio no lo traía.
+            if ($products->isEmpty() || $products->contains(fn ($line) => $line->quantity === null)) {
+                continue;
+            }
+
+            // En el asiento, los impuestos van del mismo lado que los productos si
+            // suman (IVA) y del otro si restan (retención de honorarios); en una
+            // nota de crédito todo va al revés. El signo de los productos lo dice.
+            $sign = $products->sum(fn ($line) => $line->debit - $line->credit) < 0 ? -1 : 1;
+            $taxLines = $lines->where('display_type', 'tax');
+            $taxes = round($sign * $taxLines->sum(fn ($line) => $line->debit - $line->credit));
+            $neto = round($products->sum(fn ($line) => (float) $line->price_subtotal));
+            $iva = round($sign * $taxLines->filter(fn ($line) => str_contains(mb_strtoupper((string) $line->name), 'IVA'))
+                ->sum(fn ($line) => $line->debit - $line->credit));
+
+            if (abs($neto + $taxes - (float) $document->monto_total) > 1) {
+                $unbalanced++;
+
+                continue;
+            }
+
+            $dte->transaction(function () use ($dte, $document, $products, $neto, $iva) {
+                foreach ($products as $index => $line) {
+                    [$codigo, $descripcion] = $this->splitCode((string) $line->name);
+                    $taxes = $line->taxes ?? [];
+                    $tasa = collect($taxes)
+                        ->map(fn ($tax) => preg_match('/IVA\D*?(\d+(?:[.,]\d+)?)\s*%/i', (string) $tax, $m) ? (float) str_replace(',', '.', $m[1]) : null)
+                        ->filter(fn ($rate) => $rate !== null)
+                        ->first();
+
+                    $dte->table('gmail_dte_document_lines')->insert([
+                        'document_id' => $document->id,
+                        'nro_linea' => $index + 1,
+                        'codigo' => $codigo,
+                        'descripcion' => $descripcion,
+                        'cantidad' => (float) $line->quantity,
+                        'unidad' => $this->unit($line->uom_name),
+                        'precio_unitario' => (float) $line->price_unit,
+                        'monto_item' => (float) $line->price_subtotal,
+                        'impuesto_codigo' => null,
+                        'impuesto_tasa' => $tasa,
+                        'impuesto_label' => $taxes === [] ? 'Exento' : ($tasa !== null ? 'IVA '.rtrim(rtrim((string) $tasa, '0'), '.').'%' : implode(', ', $taxes)),
+                        'es_exento' => $taxes === [] ? 1 : 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                // El neto y el IVA de Odoo reemplazan los que se adivinaron al importar.
+                $dte->table('gmail_dte_documents')->where('id', $document->id)
+                    ->update(['monto_neto' => $neto, 'monto_iva' => $iva, 'updated_at' => now()]);
+            });
+
+            $filled++;
+        }
+
+        return [$filled, $unbalanced];
+    }
+
+    /** «[6510] HUINCHA DE TELA NEGRA» trae el código del producto delante. */
+    private function splitCode(string $name): array
+    {
+        $name = trim($name);
+
+        return preg_match('/^\[([^\]]+)\]\s*(.+)$/s', $name, $m) ? [trim($m[1]), trim($m[2])] : [null, $name ?: null];
+    }
+
+    private function unit(?string $uom): ?string
+    {
+        $uom = trim((string) $uom);
+
+        return in_array(mb_strtolower($uom), ['units', 'unit', 'unidades', 'unidad'], true) ? 'UN' : (mb_strtoupper($uom) ?: null);
     }
 
     private function documentKey(mixed $folio, ?string $rut): ?string

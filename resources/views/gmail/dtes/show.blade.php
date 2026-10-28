@@ -657,6 +657,11 @@
 
                         {{-- Tab: Líneas --}}
                         <div x-show="tab === 'lineas'">
+                            @if(str_starts_with((string) $document->hash_unico, 'odoo_') && empty($document->xml_raw))
+                                <p class="mx-4 mt-4 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+                                    {{ $lines->isEmpty() ? 'Esta factura no llegó con XML al correo y en Odoo todavía no tiene detalle.' : 'Esta factura no llegó con XML al correo: el detalle viene de lo digitado en Odoo.' }}
+                                </p>
+                            @endif
                             @php
                                 $taxClass = fn(string $lbl): string =>
                                     str_starts_with($lbl, 'IVA')                                        ? 'tp-iva'
