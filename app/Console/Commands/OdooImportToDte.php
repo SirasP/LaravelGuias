@@ -254,7 +254,7 @@ class OdooImportToDte extends Command
                         'monto_item' => (float) $line->price_subtotal,
                         'impuesto_codigo' => null,
                         'impuesto_tasa' => $tasa,
-                        'impuesto_label' => $taxes === [] ? 'Exento' : ($tasa !== null ? 'IVA '.rtrim(rtrim((string) $tasa, '0'), '.').'%' : implode(', ', $taxes)),
+                        'impuesto_label' => $this->taxLabel($taxes, $tasa),
                         'es_exento' => $taxes === [] ? 1 : 0,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -270,6 +270,20 @@ class OdooImportToDte extends Command
         }
 
         return [$filled, $unbalanced];
+    }
+
+    /** «IVA 19%» cuando es sólo IVA; si hay ILA o retención, se nombran todos. */
+    private function taxLabel(array $taxes, ?float $tasa): string
+    {
+        if ($taxes === []) {
+            return 'Exento';
+        }
+
+        if (count($taxes) === 1 && $tasa !== null) {
+            return 'IVA '.rtrim(rtrim((string) $tasa, '0'), '.').'%';
+        }
+
+        return implode(', ', array_map(fn ($tax) => preg_replace(['/\bVAT\b/', '/\bWH\b/'], ['IVA', 'Ret.'], (string) $tax), $taxes));
     }
 
     /** Odoo nombra el IVA según el idioma del usuario: «IVA 19% Compra» o «19% VAT». */
