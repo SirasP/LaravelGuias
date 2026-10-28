@@ -15,11 +15,11 @@ function odooInvoice(int $odooId = 14426, float $total = 164800, array $products
     foreach ($products ?: [
         ['ALARMA RETROCESO INDUSTRIAL', 16, 7563, 121008],
         ['[6510] HUINCHA DE TELA NEGRA 3/4X10MTS', 4, 4369.75, 17479],
-    ] as [$name, $qty, $price, $subtotal]) {
+    ] as $i => [$name, $qty, $price, $subtotal]) {
         OdooAccountMoveLine::create([
             'odoo_id' => ++$id, 'move_odoo_id' => $odooId, 'name' => $name, 'display_type' => 'product', 'quantity' => $qty,
             'uom_name' => 'Units', 'price_unit' => $price, 'discount' => 0, 'price_subtotal' => $subtotal,
-            'debit' => $subtotal, 'credit' => 0, 'taxes' => ['IVA 19% Compra'],
+            'debit' => $subtotal, 'credit' => 0, 'taxes' => [$i === 1 ? '19% VAT' : 'IVA 19% Compra'],
         ]);
     }
     OdooAccountMoveLine::create(['odoo_id' => ++$id, 'move_odoo_id' => $odooId, 'name' => 'IVA 19% Compra', 'display_type' => 'tax', 'quantity' => 0, 'debit' => 26313, 'credit' => 0]);
@@ -40,6 +40,7 @@ it('builds the detail of an invoice typed in Odoo, with exact net and VAT', func
         ->and((float) $lines[0]->cantidad)->toBe(16.0)
         ->and($lines[0]->unidad)->toBe('UN')
         ->and($lines[0]->impuesto_label)->toBe('IVA 19%')
+        ->and($lines[1]->impuesto_label)->toBe('IVA 19%')
         ->and($lines[1]->codigo)->toBe('6510')
         ->and($lines[1]->descripcion)->toBe('HUINCHA DE TELA NEGRA 3/4X10MTS');
 

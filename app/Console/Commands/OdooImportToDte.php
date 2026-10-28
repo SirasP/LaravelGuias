@@ -225,7 +225,7 @@ class OdooImportToDte extends Command
             $taxLines = $lines->where('display_type', 'tax');
             $taxes = round($sign * $taxLines->sum(fn ($line) => $line->debit - $line->credit));
             $neto = round($products->sum(fn ($line) => (float) $line->price_subtotal));
-            $iva = round($sign * $taxLines->filter(fn ($line) => str_contains(mb_strtoupper((string) $line->name), 'IVA'))
+            $iva = round($sign * $taxLines->filter(fn ($line) => $this->vatRate((string) $line->name) !== null || str_contains(mb_strtoupper((string) $line->name), 'IVA'))
                 ->sum(fn ($line) => $line->debit - $line->credit));
 
             if (abs($neto + $taxes - (float) $document->monto_total) > 1) {
@@ -239,7 +239,7 @@ class OdooImportToDte extends Command
                     [$codigo, $descripcion] = $this->splitCode((string) $line->name);
                     $taxes = $line->taxes ?? [];
                     $tasa = collect($taxes)
-                        ->map(fn ($tax) => preg_match('/IVA\D*?(\d+(?:[.,]\d+)?)\s*%/i', (string) $tax, $m) ? (float) str_replace(',', '.', $m[1]) : null)
+                        ->map(fn ($tax) => $this->vatRate((string) $tax))
                         ->filter(fn ($rate) => $rate !== null)
                         ->first();
 
@@ -270,6 +270,14 @@ class OdooImportToDte extends Command
         }
 
         return [$filled, $unbalanced];
+    }
+
+    /** Odoo nombra el IVA según el idioma del usuario: «IVA 19% Compra» o «19% VAT». */
+    private function vatRate(string $tax): ?float
+    {
+        return preg_match('/IVA\D*?(\d+(?:[.,]\d+)?)\s*%|(\d+(?:[.,]\d+)?)\s*%\s*VAT/i', $tax, $m)
+            ? (float) str_replace(',', '.', $m[1] !== '' ? $m[1] : $m[2])
+            : null;
     }
 
     /** «[6510] HUINCHA DE TELA NEGRA» trae el código del producto delante. */
