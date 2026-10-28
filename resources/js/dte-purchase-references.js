@@ -52,6 +52,38 @@ export default (urls) => ({
         const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
         return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     },
+    historyLabels: { linked: 'vinculó', revoked: 'desvinculó', without_request: 'marcó compra directa', unidentified: 'volvió a revisar' },
+    get statusClass() {
+        return {
+            linked: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+            partial: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+            without_request: 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300',
+        }[this.report?.classification] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
+    },
+    get linkedLines() { return this.report?.lines.filter(line => this.scaled(line.remaining) === 0n).length || 0; },
+    get pendingLines() { return this.report?.lines.filter(line => this.scaled(line.remaining) > 0n) || []; },
+    get groups() {
+        const groups = [];
+        for (const reference of this.report?.references || []) {
+            let group = groups.find(g => g.folio === reference.folio);
+            if (!group) groups.push(group = { folio: reference.folio, url: reference.request_url, rows: [] });
+            group.rows.push(reference);
+        }
+        return groups;
+    },
+    sameName(a, b) {
+        const plain = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        return plain(a) === plain(b);
+    },
+    lineDescription(id) { return this.report?.lines.find(line => line.id === id)?.description || ''; },
+    sourceLabel(reference) {
+        return { auto: 'Automática', odoo: 'Verificada en Odoo' }[reference.source] || 'Manual · ' + reference.actor;
+    },
+    sourceClass(source) {
+        return { auto: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300', odoo: 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300' }[source]
+            || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
+    },
+    shortUnit(value) { return this.unit(value) === 'un' ? 'un.' : (value || '').toLowerCase(); },
     get currentLine() { return this.report?.lines.find(line => String(line.id) === String(this.form.lineId)) || null; },
     get hasRemaining() { return this.report?.lines.some(line => this.scaled(line.remaining) > 0n) || false; },
     unit(value) {

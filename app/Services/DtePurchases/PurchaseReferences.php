@@ -115,7 +115,7 @@ class PurchaseReferences
                 'id' => $ref->id, 'request_id' => $ref->purchase_request_id, 'source' => $ref->source, 'stale' => $stale,
                 'folio' => $ref->snapshot['request_folio'],
                 'request_url' => $ref->purchaseRequest ? route('purchase_requests.show', $ref->purchaseRequest) : null,
-                'invoice_product' => $ref->snapshot['invoice_product'], 'invoice_unit' => $ref->snapshot['invoice_unit'],
+                'invoice_product' => self::text($ref->snapshot['invoice_product']), 'invoice_unit' => $ref->snapshot['invoice_unit'],
                 'request_product' => $ref->snapshot['request_product'], 'request_unit' => $ref->snapshot['request_unit'],
                 'invoice_quantity' => $ref->invoice_quantity, 'request_quantity' => $ref->request_quantity,
                 'requested_quantity' => $ref->snapshot['requested_quantity'],
@@ -128,7 +128,7 @@ class PurchaseReferences
         $withoutRequest = ($decision?->classification === 'without_request');
         $decisionStale = $withoutRequest && $decision->document_fingerprint !== $this->fingerprint($document);
         $lineRows = $lines->map(fn ($line): array => [
-            'id' => $line->id, 'description' => $line->descripcion, 'unit' => $line->unidad,
+            'id' => $line->id, 'description' => self::text($line->descripcion), 'unit' => $line->unidad,
             'quantity' => (string) Quantity::of($line->cantidad),
             'version' => $this->lineFingerprint($line),
             'remaining' => (string) Quantity::of($line->cantidad)->minus($this->usedOnLine($line->id)),
@@ -284,15 +284,21 @@ class PurchaseReferences
         return $ids->map(function ($id) use ($request): ?array {
             $document = DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('id', $id)->first();
             if (! $document) {
-                return ['folio' => 'Documento eliminado', 'supplier' => '', 'url' => null, 'references' => []];
+                return ['folio' => 'Documento eliminado', 'supplier' => '', 'date' => null, 'url' => null, 'references' => []];
             }
 
             return [
-                'folio' => $document->folio, 'supplier' => $document->proveedor_nombre,
+                'folio' => $document->folio, 'supplier' => $document->proveedor_nombre, 'date' => $document->fecha_factura,
                 'url' => route('gmail.dtes.show', $id).'#referencias-cruzadas',
                 'references' => array_values(array_filter($this->report($id)['references']->all(), fn ($row): bool => $row['request_id'] === $request->id)),
             ];
         })->all();
+    }
+
+    /** XML descriptions arrive with entities: «1 1&#47;2&quot;» is «1 1/2"». */
+    public static function text(?string $value): string
+    {
+        return html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     private function lockDocument(int $id): object

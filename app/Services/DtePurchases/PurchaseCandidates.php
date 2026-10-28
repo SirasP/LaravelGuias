@@ -91,7 +91,7 @@ class PurchaseCandidates
     /** XML descriptions arrive with entities: «1 1&#47;2&quot;» is «1 1/2"». */
     private function description(object $line): string
     {
-        return html_entity_decode((string) $line->descripcion, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return PurchaseReferences::text($line->descripcion);
     }
 
     /** Same unit and no boxes or packs on either side: the quantities compare as they are. */
