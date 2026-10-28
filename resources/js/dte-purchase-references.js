@@ -22,7 +22,11 @@ export default (urls) => ({
         this.error = '';
         try {
             this.report = await this.request(urls.report);
-            if (this.report.eligible && this.report.classification !== 'without_request' && this.hasRemaining) await this.search();
+            // The report already brings the suggestions; a typed search asks again.
+            this.searchVersion++;
+            this.candidates = this.report.candidates || [];
+            this.searched = true;
+            if (this.query.trim() && this.hasRemaining) await this.search();
         } catch (error) { this.error = error.message; }
         finally { this.loading = false; }
     },

@@ -13,8 +13,10 @@ class DtePurchaseReferenceController extends Controller
     {
         // Opening the tab is enough: clear matches link themselves, the rest stays as suggestions.
         $candidates->autoLink($id);
+        $report = $references->report($id);
+        $report['candidates'] = $report['eligible'] && $report['classification'] !== 'without_request' ? $candidates->suggestions($id) : [];
 
-        return response()->json($references->report($id));
+        return response()->json($report);
     }
 
     public function candidates(int $id, Request $request, PurchaseCandidates $candidates): JsonResponse

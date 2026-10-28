@@ -29,6 +29,9 @@ class PurchaseCandidates
 
     private array $quotedByQuote = [];
 
+    /** What the last automatic pass saw, so opening the tab does not search twice. */
+    private ?array $suggestions = null;
+
     public function __construct(private ProductSimilarity $similarity, private QuotationComparison $comparison) {}
 
     /** Evidence of a supplier's quotation is a suggestion, never proof of a purchase. */
@@ -123,16 +126,31 @@ class PurchaseCandidates
             $query->whereDate('request_date', '>=', date('Y-m-d', strtotime($document->fecha_factura.' -180 days')))->limit(300);
         }
 
-        $lines = $references->lines($documentId)->filter(fn ($line): bool => Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))->isGreaterThan(0));
-        $lineRemaining = $lines->mapWithKeys(fn ($line) => [$line->id => Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))]);
+        $lineRemaining = $references->lines($documentId)->mapWithKeys(fn ($line) => [$line->id => Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))])
+            ->filter(fn ($remaining) => $remaining->isGreaterThan(0));
+        $lines = $references->lines($documentId)->whereIn('id', $lineRemaining->keys())->values();
+        if (! $explicit && $lines->isEmpty()) {
+            // Nothing left to place: the whole search would be for nothing.
+            return [];
+        }
+        $requests = $query->orderByDesc('request_date')->orderByDesc('id')->get();
+        // One query for every item's reserved quantity, and the comparison of
+        // quotations only where this supplier quoted, instead of per item.
+        $used = $references->active()->whereIn('purchase_request_item_id', $requests->pluck('items')->flatten()->pluck('id'))
+            ->groupBy('purchase_request_item_id')->selectRaw('purchase_request_item_id, sum(request_quantity) as total')
+            ->pluck('total', 'purchase_request_item_id');
+        $quotedRequests = $rut ? PurchaseRequestIngestion::whereIn('compared_request_id', $requests->pluck('id'))
+            ->where('company_code', PurchaseRequest::COMPANY_CODE)->get(['compared_request_id', 'supplier_tax_id'])
+            ->filter(fn ($quote): bool => Rut::normalize($quote->supplier_tax_id) === $rut)
+            ->pluck('compared_request_id')->flip() : collect();
         $result = [];
-        foreach ($query->orderByDesc('request_date')->orderByDesc('id')->get() as $request) {
+        foreach ($requests as $request) {
             foreach ($request->items as $item) {
-                $remaining = Quantity::of($item->quantity)->minus($references->usedOnItem($item->id));
+                $remaining = Quantity::of($item->quantity)->minus(Quantity::of($used[$item->id] ?? 0));
                 if (! $remaining->isGreaterThan(0)) {
                     continue;
                 }
-                $quoted = $rut ? $this->quotedNames($item, $rut) : [];
+                $quoted = $quotedRequests->has($request->id) ? $this->quotedNames($item, $rut) : [];
                 $supplierKnown = $quoted !== [];
                 $best = null;
                 $score = 0.0;
@@ -233,10 +251,12 @@ class PurchaseCandidates
         $references = app(PurchaseReferences::class);
         $document = $references->document($documentId);
         $decision = DB::table('dte_purchase_decisions')->where('document_id', $documentId)->value('classification');
+        $this->suggestions = null;
         if (! $references->eligible($document) || $decision === 'without_request') {
             return 0;
         }
-        $candidates = collect($this->search($documentId));
+        $this->suggestions = $this->search($documentId);
+        $candidates = collect($this->suggestions);
         $perLine = $candidates->countBy('line_id');
         $lines = $references->lines($documentId)->keyBy('id');
         $created = 0;
@@ -274,7 +294,16 @@ class PurchaseCandidates
                 // A rule the search does not see (dates, duplicates); it stays a suggestion.
             }
         }
+        if ($created) {
+            $this->suggestions = null;
+        }
 
         return $created;
+    }
+
+    /** The suggestions left after the automatic pass. */
+    public function suggestions(int $documentId): array
+    {
+        return $this->suggestions ?? $this->search($documentId);
     }
 }

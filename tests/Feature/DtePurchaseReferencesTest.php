@@ -514,3 +514,11 @@ it('only suggests a request older than the automatic window', function () {
     $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonCount(0, 'references');
     $this->getJson(route('gmail.dtes.purchase_references.candidates', $id))->assertJsonPath('candidates.0.item_id', $item->id);
 });
+
+it('brings the remaining suggestions with the report so the tab searches once', function () {
+    $item = referenceItem();
+    referenceItem();
+    [$id] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonCount(0, 'references')->assertJsonCount(2, 'candidates')->assertJsonPath('candidates.1.item_id', $item->id);
+});
