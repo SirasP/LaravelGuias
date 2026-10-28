@@ -506,3 +506,11 @@ it('leaves an item to an older unlinked invoice of the same supplier', function 
     expect(DtePurchaseReference::sole()->document_id)->toBe($older)
         ->and(DtePurchaseReference::sole()->purchase_request_item_id)->toBe($item->id);
 });
+
+it('only suggests a request older than the automatic window', function () {
+    $old = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-09-02']);
+    $item = referenceItem(values: ['quantity' => 4], request: $old);
+    [$id] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonCount(0, 'references');
+    $this->getJson(route('gmail.dtes.purchase_references.candidates', $id))->assertJsonPath('candidates.0.item_id', $item->id);
+});

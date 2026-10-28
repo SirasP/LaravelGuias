@@ -19,6 +19,12 @@ class PurchaseCandidates
 
     public const STRONG = 0.85;
 
+    /**
+     * Invoices arrive 0 to 14 days after the request. Later than this, a link is
+     * only a suggestion: S&M's sprays of 28-10 were taken for SC-024 of 02-09.
+     */
+    public const AUTO_DAYS = 30;
+
     private array $quotesByRequest = [];
 
     private array $quotedByQuote = [];
@@ -245,7 +251,8 @@ class PurchaseCandidates
             if (! $lineRemaining->isEqualTo($candidate['quick_quantity'])) {
                 continue;
             }
-            if ($this->claimedEarlier($document, PurchaseRequestItem::find($candidate['item_id']))) {
+            if ($candidate['date'] < date('Y-m-d', strtotime($document->fecha_factura.' -'.self::AUTO_DAYS.' days'))
+                || $this->claimedEarlier($document, PurchaseRequestItem::find($candidate['item_id']))) {
                 continue;
             }
             $key = 'auto:'.$documentId.':'.$line->id.':'.$candidate['item_id'];

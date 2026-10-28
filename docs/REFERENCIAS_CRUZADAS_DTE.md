@@ -36,7 +36,9 @@ al administrador, con sus partidas y enlaces de regreso.
 Al abrir la pestaña (o con `php artisan dtes:auto-link-purchases --days=90`) se
 vinculan solas las partidas que no dejan dudas: misma unidad, sin cajas ni packs,
 la partida completa de la factura cabe en lo pendiente de la solicitud, ninguna
-otra solicitud compite por esa partida, y además:
+otra solicitud compite por esa partida, la solicitud es de los 30 días previos a
+la factura, ninguna factura anterior del mismo proveedor sin vincular calza con
+esa partida, y además:
 
 - el mismo RUT cotizó esa partida y el producto se parece mucho (≥ 0,85), o
 - el nombre es idéntico al solicitado y la cantidad también.
