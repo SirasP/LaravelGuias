@@ -495,3 +495,14 @@ it('follows the supplier quotation to an invoice that uses the supplier names, e
         ->assertJsonPath('classification', 'linked')->assertJsonCount(2, 'references');
     expect(DtePurchaseReference::pluck('purchase_request_item_id')->sort()->values()->all())->toBe([$union->id, $terminal->id]);
 });
+
+it('leaves an item to an older unlinked invoice of the same supplier', function () {
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-01']);
+    $item = referenceItem(values: ['product_service' => 'CODO PVC 50MM x 90° CEMENTAR', 'quantity' => 30], request: $request);
+    [$older] = referenceInvoice(['fecha_factura' => '2026-10-08'], ['descripcion' => 'CODO PVC 50MM x 90&deg; CEMENTAR', 'cantidad' => 30, 'unidad' => 'UNID']);
+    [$later] = referenceInvoice(['fecha_factura' => '2026-10-28'], ['descripcion' => 'CODO PVC 50MM x 90&deg; CEMENTAR', 'cantidad' => 30, 'unidad' => 'UNID']);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $later))->assertJsonCount(0, 'references');
+    $this->artisan('dtes:auto-link-purchases')->assertSuccessful();
+    expect(DtePurchaseReference::sole()->document_id)->toBe($older)
+        ->and(DtePurchaseReference::sole()->purchase_request_item_id)->toBe($item->id);
+});

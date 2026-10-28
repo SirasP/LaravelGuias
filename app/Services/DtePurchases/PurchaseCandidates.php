@@ -179,6 +179,42 @@ class PurchaseCandidates
     }
 
     /**
+     * An older invoice from the same supplier, still unlinked, that also fits the
+     * item comes first: SC-067's thirty elbows were invoiced on 22106, so the
+     * thirty on 22288 cannot be taken for them just because 22106 is unlinked.
+     */
+    private function claimedEarlier(object $document, ?PurchaseRequestItem $item): bool
+    {
+        $rut = Rut::normalize($document->proveedor_rut);
+        if (! $item || ! $rut) {
+            return true;
+        }
+        $references = app(PurchaseReferences::class);
+        $names = [$item->product_service, ...$this->quotedNames($item, $rut)];
+        $earlier = DB::connection('fuelcontrol')->table('gmail_dte_documents')
+            ->whereIn('tipo_dte', [33, 34, 46])->where('id', '<>', $document->id)
+            ->whereIn('proveedor_rut', array_unique([$document->proveedor_rut, $rut]))
+            ->whereDate('fecha_factura', '>=', $item->purchaseRequest->request_date->toDateString())
+            ->where(fn ($q) => $q->whereDate('fecha_factura', '<', $document->fecha_factura)
+                ->orWhere(fn ($q) => $q->whereDate('fecha_factura', $document->fecha_factura)->where('id', '<', $document->id)))
+            ->get();
+        foreach ($earlier as $other) {
+            if (! $references->eligible($other)
+                || DB::table('dte_purchase_decisions')->where('document_id', $other->id)->value('classification') === 'without_request') {
+                continue;
+            }
+            foreach ($references->lines($other->id) as $line) {
+                if (Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))->isGreaterThan(0)
+                    && max(array_map(fn (string $name): float => $this->similarity->score($this->description($line), $name), $names)) >= self::STRONG) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Links what leaves no doubt: units are plain, the whole invoice line fits in
      * what is pending, neither side has another candidate, and either this supplier
      * quoted the item and the product clearly matches, or the name and quantity are
@@ -207,6 +243,9 @@ class PurchaseCandidates
             }
             $lineRemaining = Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id));
             if (! $lineRemaining->isEqualTo($candidate['quick_quantity'])) {
+                continue;
+            }
+            if ($this->claimedEarlier($document, PurchaseRequestItem::find($candidate['item_id']))) {
                 continue;
             }
             $key = 'auto:'.$documentId.':'.$line->id.':'.$candidate['item_id'];

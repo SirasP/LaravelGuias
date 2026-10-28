@@ -16,7 +16,9 @@ class AutoLinkDtePurchases extends Command
     {
         $since = now()->subDays(max(1, (int) $this->option('days')))->toDateString();
         $ids = DB::connection('fuelcontrol')->table('gmail_dte_documents')->whereIn('tipo_dte', [33, 34, 46])
-            ->whereDate('fecha_factura', '>=', $since)->orderBy('id')->pluck('id');
+            ->whereDate('fecha_factura', '>=', $since)
+            // Oldest first: an earlier invoice takes its items before a later one is considered.
+            ->orderBy('fecha_factura')->orderBy('id')->pluck('id');
         $created = 0;
         foreach ($ids as $id) {
             $created += $candidates->autoLink($id);
