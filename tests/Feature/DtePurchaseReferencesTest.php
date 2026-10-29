@@ -578,3 +578,13 @@ it('lists what the request asked for and has not been invoiced yet', function ()
         ->assertSee('Por facturar · 1 partida')->assertSee('SERVICIO DE FLETE');
     expect($billed->id)->toBeInt();
 });
+
+it('takes the VAT out of invoice lines that add up to the total instead of the net', function () {
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-22', 'prices_include_tax' => false]);
+    referenceItem(null, ['product_service' => 'CABLE PREENSAMBLADO PROTEGIDO 3 X 95 50', 'quantity' => 25, 'unit_price' => 5983], $request);
+    [$id] = referenceInvoice(['monto_neto' => 149580, 'monto_iva' => 28420, 'monto_total' => 178000],
+        ['descripcion' => 'CABLE PREENSAMBLADO PROTEGIDO 3 X 95 50', 'cantidad' => 25, 'precio_unitario' => 7120, 'monto_item' => 178000]);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('references.0.price.invoiced_unit', 5983.2)
+        ->assertJsonPath('references.0.price.change', 0);
+});

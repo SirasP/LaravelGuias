@@ -98,7 +98,8 @@ class PurchaseReferences
         $document = $this->document($id);
         $lines = $this->lines($id)->keyBy('id');
         $references = $this->active()->with(['requestItem', 'purchaseRequest'])->where('document_id', $id)->get();
-        $rows = $references->map(function (DtePurchaseReference $ref) use ($document, $lines): array {
+        $net = $this->netFactor($document, $lines);
+        $rows = $references->map(function (DtePurchaseReference $ref) use ($document, $lines, $net): array {
             $line = $lines->get($ref->document_line_id);
             $stale = ! $line || ! $ref->requestItem || ! $ref->purchaseRequest
                 || ! $this->eligible($document)
@@ -126,7 +127,7 @@ class PurchaseReferences
                 'remaining_request' => $ref->requestItem ? (string) Quantity::of($ref->requestItem->quantity)->minus($this->usedOnItem($ref->requestItem->id)) : null,
                 'actor' => $ref->actor_name ?: self::SYSTEM[$ref->source] ?? 'Sistema', 'date' => $ref->created_at->toIso8601String(),
                 'note' => $ref->note,
-                'price' => $this->price($line, $ref),
+                'price' => $this->price($line, $ref, $net),
                 'measures' => $this->measureWarning((string) $ref->snapshot['invoice_product'], (string) $ref->snapshot['request_product']),
             ];
         })->values();
@@ -338,7 +339,7 @@ class PurchaseReferences
      * What the invoice charges for this link against what the request expected,
      * both net and in request units, so a box of 12 compares with 12 sprays.
      */
-    private function price(?object $line, DtePurchaseReference $ref): ?array
+    private function price(?object $line, DtePurchaseReference $ref, float $net): ?array
     {
         $item = $ref->requestItem;
         $request = $ref->purchaseRequest;
@@ -346,7 +347,7 @@ class PurchaseReferences
             || (float) $ref->request_quantity <= 0 || strtoupper($request->currency ?: 'CLP') !== 'CLP') {
             return null;
         }
-        $lineNet = (float) $line->monto_item > 0 ? (float) $line->monto_item : (float) $line->precio_unitario * (float) $line->cantidad;
+        $lineNet = ((float) $line->monto_item > 0 ? (float) $line->monto_item : (float) $line->precio_unitario * (float) $line->cantidad) * $net;
         $invoiced = $lineNet / (float) $line->cantidad * (float) $ref->invoice_quantity;
         $unit = (float) $item->unit_price;
         if ($request->prices_include_tax && empty($line->es_exento)) {
@@ -359,6 +360,20 @@ class PurchaseReferences
             'requested' => round($requested), 'invoiced' => round($invoiced), 'difference' => round($invoiced) - round($requested),
             'change' => round(($invoiced - $requested) * 100 / $requested, 1),
         ];
+    }
+
+    /**
+     * What turns the line amounts into net ones. Some suppliers write the lines
+     * with VAT and never say so: Ferretería Bulnes' 82827 adds up to the total,
+     * not the net, and every product looked 19 % dearer than requested.
+     */
+    private function netFactor(object $document, Collection $lines): float
+    {
+        $sum = $lines->sum(fn ($line): float => (float) $line->monto_item);
+
+        return (float) $document->monto_iva > 0 && $sum > 0
+            && abs($sum - (float) $document->monto_total) <= 2 && abs($sum - (float) $document->monto_neto) > 2
+            ? (float) $document->monto_neto / $sum : 1.0;
     }
 
     /**
