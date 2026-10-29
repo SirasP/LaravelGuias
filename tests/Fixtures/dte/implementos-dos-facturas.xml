@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EnvioDTE xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0" xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd">
+<SetDTE ID="EnvioDTE-78924030-2-77415879-0-20261028-085937-B1CB14C8">
+<Caratula version="1.0">
+<RutEmisor>78924030-2</RutEmisor>
+<RutEnvia>11111111-1</RutEnvia>
+<RutReceptor>77415879-0</RutReceptor>
+<FchResol>2008-06-20</FchResol>
+<NroResol>78</NroResol>
+<TmstFirmaEnv>2026-10-28T08:59:37</TmstFirmaEnv>
+<SubTotDTE>
+<TpoDTE>33</TpoDTE>
+<NroDTE>2</NroDTE>
+</SubTotDTE>
+</Caratula>
+<DTE xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0">
+      <Documento ID="T33F7100539">
+        <Encabezado>
+          <IdDoc>
+            <TipoDTE>33</TipoDTE>
+            <Folio>7100539</Folio>
+            <FchEmis>2026-10-28</FchEmis>
+            <FmaPago>1</FmaPago>
+            <MedioPago>TC</MedioPago>
+          </IdDoc>
+          <Emisor>
+            <RUTEmisor>78924030-2</RUTEmisor>
+            <RznSoc>Implementos S.A.</RznSoc>
+            <GiroEmis>VENTA DE PARTES, REPUESTOS, PIEZAS Y ACCESORIOS DE VEHICULOS AUTOMOTORES</GiroEmis>
+            <Telefono>800 330 088</Telefono>
+            <Acteco>453000</Acteco>
+            <Sucursal>OSORNO</Sucursal>
+            <CdgSIISucur>76856074</CdgSIISucur>
+            <DirOrigen>AV. REGIDOR GUSTAVO BLINDER 1147 OSORNO.</DirOrigen>
+            <CmnaOrigen>OSORNO</CmnaOrigen>
+            <CiudadOrigen>OSORNO</CiudadOrigen>
+            <CdgVendedor>ESTEBAN</CdgVendedor>
+          </Emisor>
+          <Receptor>
+            <RUTRecep>77415879-0</RUTRecep>
+            <RznSocRecep>AGRICOLA EPPLE, HEINRICH Y ENFIELD SPA</RznSocRecep>
+            <GiroRecep>CULTIVO DE OTROS FRUTOS Y NUECES DE ARBO</GiroRecep>
+            <Contacto>-</Contacto>
+            <DirRecep>Pilmaiquen LT A-3B NULL</DirRecep>
+            <CmnaRecep>RIO BUENO</CmnaRecep>
+            <CiudadRecep>RIO BUENO</CiudadRecep>
+          </Receptor>
+          <Totales>
+            <MntNeto>40210</MntNeto>
+            <TasaIVA>19</TasaIVA>
+            <IVA>7640</IVA>
+            <MntTotal>47850</MntTotal>
+          </Totales>
+        </Encabezado>
+        <Detalle>
+          <NroLinDet>1</NroLinDet>
+          <CdgItem>
+            <TpoCodigo>INT1</TpoCodigo>
+            <VlrCodigo>ADILUB1001</VlrCodigo>
+          </CdgItem>
+          <NmbItem>GRASA BLANCA LUBRICANTE MULTIUSO SPRAY 300ML</NmbItem>
+          <QtyItem>15</QtyItem>
+          <UnmdItem>UND</UnmdItem>
+          <PrcItem>2681</PrcItem>
+          <MontoItem>40210</MontoItem>
+        </Detalle>
+        
+        
+      </Documento>
+      
+    </DTE><DTE xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0">
+      <Documento ID="T33F7100545">
+        <Encabezado>
+          <IdDoc>
+            <TipoDTE>33</TipoDTE>
+            <Folio>7100545</Folio>
+            <FchEmis>2026-10-28</FchEmis>
+            <FmaPago>1</FmaPago>
+            <MedioPago>TC</MedioPago>
+          </IdDoc>
+          <Emisor>
+            <RUTEmisor>78924030-2</RUTEmisor>
+            <RznSoc>Implementos S.A.</RznSoc>
+            <GiroEmis>VENTA DE PARTES, REPUESTOS, PIEZAS Y ACCESORIOS DE VEHICULOS AUTOMOTORES</GiroEmis>
+            <Telefono>800 330 088</Telefono>
+            <Acteco>453000</Acteco>
+            <Sucursal>OSORNO</Sucursal>
+            <CdgSIISucur>76856074</CdgSIISucur>
+            <DirOrigen>AV. REGIDOR GUSTAVO BLINDER 1147 OSORNO.</DirOrigen>
+            <CmnaOrigen>OSORNO</CmnaOrigen>
+            <CiudadOrigen>OSORNO</CiudadOrigen>
+            <CdgVendedor>ESTEBAN</CdgVendedor>
+          </Emisor>
+          <Receptor>
+            <RUTRecep>77415879-0</RUTRecep>
+            <RznSocRecep>AGRICOLA EPPLE, HEINRICH Y ENFIELD SPA</RznSocRecep>
+            <GiroRecep>CULTIVO DE OTROS FRUTOS Y NUECES DE ARBO</GiroRecep>
+            <Contacto>-</Contacto>
+            <DirRecep>Pilmaiquen LT A-3B NULL</DirRecep>
+            <CmnaRecep>RIO BUENO</CmnaRecep>
+            <CiudadRecep>RIO BUENO</CiudadRecep>
+          </Receptor>
+          <Totales>
+            <MntNeto>34849</MntNeto>
+            <TasaIVA>19</TasaIVA>
+            <IVA>6621</IVA>
+            <MntTotal>41470</MntTotal>
+          </Totales>
+        </Encabezado>
+        <Detalle>
+          <NroLinDet>1</NroLinDet>
+          <CdgItem>
+            <TpoCodigo>INT1</TpoCodigo>
+            <VlrCodigo>ADILUB1001</VlrCodigo>
+          </CdgItem>
+          <NmbItem>GRASA BLANCA LUBRICANTE MULTIUSO SPRAY 300ML</NmbItem>
+          <QtyItem>13</QtyItem>
+          <UnmdItem>UND</UnmdItem>
+          <PrcItem>2681</PrcItem>
+          <MontoItem>34849</MontoItem>
+        </Detalle>
+        
+        
+      </Documento>
+      
+    </DTE></SetDTE>
+</EnvioDTE>

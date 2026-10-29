@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\FcmNotificationService;
+use App\Support\DteEnvelope;
 use Carbon\Carbon;
 use Google\Client as GoogleClient;
 use Google\Service\Gmail;
@@ -156,49 +157,9 @@ class GmailLeerXml extends Command
                     $this->line('   (sin adjuntos XML)');
                 }
 
-                foreach ($xmlParts as $part) {
-
-                    $this->info("📎 XML encontrado: {$part->getFilename()}");
-
-                    /* ─────────────────────────────────
-                     | 5. DESCARGAR Y PARSEAR XML
-                     ─────────────────────────────────  */
-                    $attachment = $service->users_messages_attachments->get(
-                        'me', $msg->getId(), $part->getBody()->getAttachmentId()
-                    );
-
-                    $rawData = (string) $attachment->getData();
-                    $b64 = strtr($rawData, '-_', '+/');
-                    $pad = strlen($b64) % 4;
-                    if ($pad > 0) {
-                        $b64 .= str_repeat('=', 4 - $pad);
-                    }
-
-                    $contenidoXml = base64_decode($b64, true);
-                    if ($contenidoXml === false || trim($contenidoXml) === '') {
-                        $this->error("❌ Adjunto no decodificable como XML: {$part->getFilename()}");
-
-                        continue;
-                    }
-
-                    // Normaliza XML a UTF-8 para evitar truncamiento en DB (ej. XML ISO-8859-1 con Ñ).
-                    $contenidoXml = $this->normalizeXmlToUtf8($contenidoXml);
-
-                    libxml_use_internal_errors(true);
-                    $xml = simplexml_load_string($contenidoXml);
-                    if (! $xml) {
-                        $err = libxml_get_last_error();
-                        $detail = $err ? trim($err->message) : 'contenido no XML';
-                        libxml_clear_errors();
-                        $this->error("❌ XML inválido: {$part->getFilename()} ({$detail})");
-
-                        continue;
-                    }
-                    libxml_clear_errors();
-
-                    $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
-
-                    Storage::disk('local')->put('xml/'.$part->getFilename(), $contenidoXml);
+                // Un XML puede traer varios documentos (EnvioDTE): cada uno se procesa
+                // por separado, con sus propias líneas. Con uno solo, nada cambia.
+                foreach ($this->xmlDocuments($service, $msg->getId(), $xmlParts) as [$part, $xml, $contenidoXml]) {
 
                     /* ─────────────────────────────────
                      | 6. FECHA EMISIÓN (rango 5 días)
@@ -569,6 +530,82 @@ class GmailLeerXml extends Command
     }
 
     /**
+     * Descarga y abre cada XML adjunto, y entrega un documento a la vez.
+     *
+     * El sobre se guarda entero en disco, como siempre; a la base va cada
+     * documento con su propio XML.
+     *
+     * @return \Generator<int, array{0: mixed, 1: \SimpleXMLElement, 2: string}>
+     */
+    private function xmlDocuments(Gmail $service, string $messageId, array $xmlParts): \Generator
+    {
+        foreach ($xmlParts as $part) {
+
+            $this->info("📎 XML encontrado: {$part->getFilename()}");
+
+            /* ─────────────────────────────────
+             | 5. DESCARGAR Y PARSEAR XML
+             ─────────────────────────────────  */
+            $attachment = $service->users_messages_attachments->get(
+                'me', $messageId, $part->getBody()->getAttachmentId()
+            );
+
+            $rawData = (string) $attachment->getData();
+            $b64 = strtr($rawData, '-_', '+/');
+            $pad = strlen($b64) % 4;
+            if ($pad > 0) {
+                $b64 .= str_repeat('=', 4 - $pad);
+            }
+
+            $contenidoXml = base64_decode($b64, true);
+            if ($contenidoXml === false || trim($contenidoXml) === '') {
+                $this->error("❌ Adjunto no decodificable como XML: {$part->getFilename()}");
+
+                continue;
+            }
+
+            // Normaliza XML a UTF-8 para evitar truncamiento en DB (ej. XML ISO-8859-1 con Ñ).
+            $contenidoXml = $this->normalizeXmlToUtf8($contenidoXml);
+
+            libxml_use_internal_errors(true);
+            $xml = simplexml_load_string($contenidoXml);
+            if (! $xml) {
+                $err = libxml_get_last_error();
+                $detail = $err ? trim($err->message) : 'contenido no XML';
+                libxml_clear_errors();
+                $this->error("❌ XML inválido: {$part->getFilename()} ({$detail})");
+
+                continue;
+            }
+            libxml_clear_errors();
+
+            $xml->registerXPathNamespace('sii', 'http://www.sii.cl/SiiDte');
+
+            Storage::disk('local')->put('xml/'.$part->getFilename(), $contenidoXml);
+
+            $documents = DteEnvelope::documents($contenidoXml);
+            if (count($documents) === 1) {
+                yield [$part, $xml, $contenidoXml];
+
+                continue;
+            }
+
+            $this->info('📦 El XML trae '.count($documents).' documentos: se procesan por separado.');
+            foreach ($documents as $document) {
+                $single = simplexml_load_string($document);
+                if (! $single) {
+                    $this->error("❌ No se pudo separar un documento de {$part->getFilename()}");
+
+                    continue;
+                }
+                $single->registerXPathNamespace('sii', DteEnvelope::NAMESPACE);
+
+                yield [$part, $single, $document];
+            }
+        }
+    }
+
+    /**
      * Recorre recursivamente las partes MIME y devuelve solo las que
      * son adjuntos XML, sin importar qué tan anidada esté la estructura
      * multipart del correo.
@@ -685,6 +722,17 @@ class GmailLeerXml extends Command
                 ->where('folio', $folio)
                 ->where('proveedor_rut', $proveedorRut)
                 ->first();
+        }
+
+        // La misma factura pudo entrar antes desde Odoo, que guarda el RUT sin
+        // puntos ni guion (789240302 y no 78924030-2): no se registra dos veces.
+        if (! $existing && $folio && $proveedorRut) {
+            $plainRut = fn (?string $rut): string => strtoupper((string) preg_replace('/[^0-9k]/i', '', (string) $rut));
+            $existing = $db->table('gmail_dte_documents')
+                ->where('tipo_dte', $tipoDte ?: null)
+                ->where('folio', $folio)
+                ->get()
+                ->first(fn ($document) => $plainRut($document->proveedor_rut) === $plainRut($proveedorRut));
         }
 
         if ($existing) {
