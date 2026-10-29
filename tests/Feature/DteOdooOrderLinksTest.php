@@ -136,7 +136,8 @@ it('lists the invoices of an order in dollars without comparing them with pesos'
 
     $this->actingAs($this->admin)->getJson(route('gmail.dtes.odoo_orders.show', $id))
         ->assertJsonPath('links.0.order.currency', 'USD')->assertJsonPath('links.0.source', 'reference');
-    $this->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertSee('Con 1 factura')->assertDontSee('Facturada');
+    $this->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertSee('1 factura')->assertDontSee('Facturada');
+    $this->get(route('purchase_requests.odoo.show', 352))->assertSee('Orden en USD: las facturas en pesos no se comparan con ella.');
 });
 
 it('tells the request block that the purchase went through an Odoo order', function () {

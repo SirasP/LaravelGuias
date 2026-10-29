@@ -20,7 +20,6 @@
                 ? $currency.' '.number_format($value, 2, ',', '.')
                 : '$'.number_format($value, 0, ',', '.');
         };
-        $qty = fn (float $value): string => rtrim(rtrim(number_format($value, 4, ',', '.'), '0'), ',');
         $stateClasses = fn (string $state): string => match (true) {
             in_array($state, \App\Models\OdooPurchaseOrder::QUOTATION_STATES, true) => 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
             in_array($state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true) => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
@@ -84,48 +83,145 @@
             </form>
         </section>
 
+        @php
+            // Facturación de una orden en una frase corta, para la columna de la tabla.
+            $billing = function (\App\Models\OdooPurchaseOrder $order) use ($invoices): array {
+                $list = $invoices[$order->odoo_id] ?? [];
+                if ($list === []) {
+                    return in_array($order->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true)
+                        ? ['Sin factura', 'text-slate-400'] : ['—', 'text-slate-300 dark:text-slate-600'];
+                }
+                if ($order->currency && $order->currency !== 'CLP') {
+                    return [count($list).' '.(count($list) === 1 ? 'factura' : 'facturas'), 'text-sky-700 dark:text-sky-300'];
+                }
+                $net = array_sum(array_column($list, 'net'));
+                $percent = $order->amount_untaxed > 0 ? round($net * 100 / $order->amount_untaxed) : 0;
+
+                return $percent >= 99
+                    ? ['Facturada'.($percent > 101 ? ' '.$percent.' %' : ''), $percent > 101 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400']
+                    : ['En parte · '.$percent.' %', 'text-sky-700 dark:text-sky-300'];
+            };
+            $rowsCount = $items->sum(fn ($item) => $item['orders']->count());
+        @endphp
+
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
-                @forelse($items as $item)
-                    @if(count($item['orders']) > 1)
-                        @php
-                            $groupOrders = $item['orders'];
-                            $groupStates = $groupOrders->countBy(fn ($o) => in_array($o->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true) ? 'confirmadas' : ($o->state === 'cancel' ? 'canceladas' : 'cotizaciones'));
-                            $firstLine = $groupOrders->flatMap->lines->reject->isNote()->first();
-                        @endphp
-                        {{-- Una misma compra cotizada a varios proveedores: Odoo las une en un grupo. --}}
-                        <li class="bg-slate-50/60 dark:bg-slate-950/30">
-                            <div class="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:px-5">
-                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200">
-                                    Cotizada a {{ $groupOrders->pluck('partner_odoo_id')->unique()->count() }} proveedores
-                                    @if($firstLine) <span class="font-normal text-slate-500">· {{ \Illuminate\Support\Str::limit($firstLine->name, 60) }}</span> @endif
-                                </p>
-                                <p class="text-[11px] font-semibold">
-                                    @foreach(['confirmadas' => ['confirmada', 'text-emerald-700 dark:text-emerald-400'], 'cotizaciones' => ['cotización', 'text-amber-700 dark:text-amber-400'], 'canceladas' => ['cancelada', 'text-slate-400']] as $state => [$one, $color])
-                                        @if($groupStates[$state] ?? 0)<span class="ml-2 {{ $color }}">{{ $groupStates[$state] }} {{ $groupStates[$state] === 1 ? $one : $state }}</span>@endif
-                                    @endforeach
-                                </p>
-                            </div>
-                            <ul class="m-2 overflow-hidden rounded-xl border border-slate-200 bg-white divide-y divide-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:divide-slate-800 sm:m-3">
-                                @foreach($groupOrders as $order)
-                                    <li class="{{ $order->state === 'cancel' ? 'opacity-60' : '' }}">@include('purchase_requests.partials.odoo-order-row')</li>
+            @if($items->isEmpty())
+                <p class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                    {{ $syncedAt ? 'No hay órdenes en esta pestaña.' : 'Aún no se han traído las órdenes de Odoo.' }}
+                </p>
+            @else
+                {{-- Escritorio: una fila por orden, sin nada que se despliegue. El detalle va en su propia página. --}}
+                <div class="hidden overflow-x-auto lg:block">
+                    <table class="min-w-full text-sm">
+                        <thead class="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                            <tr>
+                                <th class="whitespace-nowrap px-5 py-3">Orden</th>
+                                <th class="px-5 py-3">Proveedor</th>
+                                <th class="whitespace-nowrap px-5 py-3">Creada</th>
+                                <th class="whitespace-nowrap px-5 py-3">Estado</th>
+                                <th class="whitespace-nowrap px-5 py-3 text-right">Neto</th>
+                                <th class="whitespace-nowrap px-5 py-3">Facturación</th>
+                            </tr>
+                        </thead>
+                        @foreach($items as $item)
+                            @php $grouped = $item['orders']->count() > 1; @endphp
+                            <tbody class="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                                @if($grouped)
+                                    @php
+                                        $states = $item['orders']->countBy(fn ($o) => in_array($o->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true) ? 'c' : ($o->state === 'cancel' ? 'x' : 'q'));
+                                        $product = $item['orders']->flatMap->lines->reject->isNote()->first()?->name;
+                                    @endphp
+                                    <tr class="bg-slate-50/80 dark:bg-slate-950/40">
+                                        <td colspan="6" class="px-5 py-2.5">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <p class="min-w-0 text-xs text-slate-600 dark:text-slate-300">
+                                                    <span class="font-bold text-slate-800 dark:text-slate-100">{{ \Illuminate\Support\Str::limit($product ?: 'Misma compra', 70) }}</span>
+                                                    · cotizada a {{ $item['orders']->pluck('partner_odoo_id')->unique()->count() }} proveedores
+                                                    @if($states['c'] ?? 0)<span class="ml-1 font-semibold text-emerald-700 dark:text-emerald-400">· {{ $states['c'] }} {{ $states['c'] === 1 ? 'confirmada' : 'confirmadas' }}</span>@endif
+                                                    @if($states['q'] ?? 0)<span class="ml-1 font-semibold text-amber-700 dark:text-amber-400">· {{ $states['q'] }} sin confirmar</span>@endif
+                                                    @if($states['x'] ?? 0)<span class="ml-1 text-slate-400">· {{ $states['x'] }} {{ $states['x'] === 1 ? 'cancelada' : 'canceladas' }}</span>@endif
+                                                </p>
+                                                <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion"
+                                                   class="shrink-0 text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">Comparar precios →</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
+                                @foreach($item['orders'] as $order)
+                                    @php [$billLabel, $billClass] = $billing($order); @endphp
+                                    <tr class="cursor-pointer transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/40 {{ $order->state === 'cancel' ? 'text-slate-400 dark:text-slate-500' : '' }}"
+                                        data-row-href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}">
+                                        <td class="whitespace-nowrap py-3 pr-5 {{ $grouped ? 'pl-9' : 'pl-5' }}">
+                                            <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}" class="font-mono text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">{{ $order->name }}</a>
+                                            @if($order->isRecent() && $order->state !== 'cancel')
+                                                <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Nueva</span>
+                                            @endif
+                                        </td>
+                                        <td class="max-w-xs px-5 py-3">
+                                            <p class="truncate font-semibold {{ $order->state === 'cancel' ? '' : 'text-slate-900 dark:text-white' }}" title="{{ $order->partner_name }}">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
+                                            {{ $order->date_order?->format('d-m-Y') ?? '—' }}
+                                            <span class="block text-slate-400">{{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 22) }}</span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3">
+                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $stateClasses($order->state) }}">{{ $order->stateLabel() }}</span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3 text-right font-semibold tabular-nums {{ $order->state === 'cancel' ? '' : 'text-slate-900 dark:text-white' }}">
+                                            {{ $money($order->amount_untaxed, $order->currency) }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold {{ $billClass }}">{{ $billLabel }}</td>
+                                    </tr>
                                 @endforeach
-                            </ul>
-                        </li>
-                    @else
-                        @php($order = $item['orders']->first())
-                        <li>@include('purchase_requests.partials.odoo-order-row')</li>
-                    @endif
-                @empty
-                    <li class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-                        {{ $syncedAt ? 'No hay órdenes en esta pestaña.' : 'Aún no se han traído las órdenes de Odoo.' }}
-                    </li>
-                @endforelse
-            </ul>
+                            </tbody>
+                        @endforeach
+                    </table>
+                </div>
+
+                {{-- Teléfono: tarjetas simples, cada una lleva a su orden. --}}
+                <div class="divide-y divide-slate-100 lg:hidden dark:divide-slate-800">
+                    @foreach($items as $item)
+                        @if($item['orders']->count() > 1)
+                            <div class="flex items-center justify-between gap-2 bg-slate-50/80 px-4 py-2 dark:bg-slate-950/40">
+                                <p class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    {{ \Illuminate\Support\Str::limit($item['orders']->flatMap->lines->reject->isNote()->first()?->name ?: 'Misma compra', 40) }}
+                                    · {{ $item['orders']->pluck('partner_odoo_id')->unique()->count() }} proveedores
+                                </p>
+                                <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion" class="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400">Comparar →</a>
+                            </div>
+                        @endif
+                        @foreach($item['orders'] as $order)
+                            @php [$billLabel, $billClass] = $billing($order); @endphp
+                            <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}"
+                               class="flex items-start justify-between gap-3 px-4 py-3 {{ $item['orders']->count() > 1 ? 'pl-7' : '' }} {{ $order->state === 'cancel' ? 'opacity-60' : '' }}">
+                                <div class="min-w-0">
+                                    <p class="flex items-center gap-1.5">
+                                        <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ $order->name }}</span>
+                                        <span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $stateClasses($order->state) }}">{{ $order->stateLabel() }}</span>
+                                    </p>
+                                    <p class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
+                                    <p class="text-xs text-slate-500">{{ $order->date_order?->format('d-m-Y') }} · {{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 20) }}</p>
+                                </div>
+                                <div class="shrink-0 text-right">
+                                    <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ $money($order->amount_untaxed, $order->currency) }}</p>
+                                    <p class="text-[11px] font-semibold {{ $billClass }}">{{ $billLabel }}</p>
+                                </div>
+                            </a>
+                        @endforeach
+                    @endforeach
+                </div>
+            @endif
 
             @if($pages->hasPages())
                 <div class="border-t border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">{{ $pages->links() }}</div>
             @endif
         </section>
     </div>
+
+    <script>
+        document.addEventListener('click', (event) => {
+            const row = event.target.closest('tr[data-row-href]');
+            if (row && !event.target.closest('a, button')) window.location = row.dataset.rowHref;
+        });
+    </script>
 </x-app-layout>

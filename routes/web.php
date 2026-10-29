@@ -86,6 +86,10 @@ Route::middleware('auth')
 Route::middleware('auth')
     ->get('solicitudes-compra/odoo', [OdooPurchaseOrderController::class, 'index'])
     ->name('purchase_requests.odoo');
+Route::middleware('auth')
+    ->get('solicitudes-compra/odoo/{odooId}', [OdooPurchaseOrderController::class, 'show'])
+    ->whereNumber('odooId')
+    ->name('purchase_requests.odoo.show');
 
 /*
 |--------------------------------------------------------------------------

@@ -57,7 +57,8 @@ it('does not count twice an order whose first invoice a credit note annulled', f
         ->assertJsonPath('links.0.source', 'reference')->assertJsonPath('links.0.order.invoiced', 1343405);
     $this->getJson(route('gmail.dtes.odoo_orders.show', $annulled))
         ->assertJsonPath('links.0.credit_notes.0.annuls', true)->assertJsonPath('links.0.credited', 1343405);
-    $this->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertSee('100 %')->assertDontSee('200 %')->assertSee('anulada por la NC 92');
+    $this->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertSee('Facturada')->assertDontSee('200 %');
+    $this->get(route('purchase_requests.odoo.show', 184))->assertSee('100 %')->assertSee('Anulada por la nota de crédito N° 92');
 });
 
 it('subtracts a credit note that corrects amounts, and ignores one that only corrects text', function () {

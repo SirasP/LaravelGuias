@@ -26,7 +26,7 @@
     $avisosSinLeer = auth()->user()?->unreadPurchaseNotificationsCount() ?? 0;
     $lectorActivo = request()->routeIs('purchase_requests.ingestions.*');
     $lectorDisponible = (bool) config('purchase_requests.reader.enabled');
-    $odooActivo = request()->routeIs('purchase_requests.odoo');
+    $odooActivo = request()->routeIs('purchase_requests.odoo', 'purchase_requests.odoo.*');
     // Las que el jefe hizo en Odoo sin avisar y siguen sin confirmar.
     $odooCotizaciones = $esAdministrador ? \App\Models\OdooPurchaseOrder::query()->quotations()->count() : 0;
 @endphp

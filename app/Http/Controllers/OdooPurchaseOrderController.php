@@ -70,4 +70,51 @@ class OdooPurchaseOrderController extends Controller
             'syncedAt' => OdooPurchaseOrder::max('synced_at'),
         ]);
     }
+
+    /**
+     * Una orden con sus líneas y facturas y, si se cotizó a varios proveedores,
+     * los precios de todas lado a lado.
+     */
+    public function show(Request $request, int $odooId): Response
+    {
+        abort_unless($request->user()?->isPurchaseReviewer(), 403);
+
+        $order = OdooPurchaseOrder::with('lines')->where('odoo_id', $odooId)->firstOrFail();
+        $rank = fn (OdooPurchaseOrder $o): int => in_array($o->state, OdooPurchaseOrder::CONFIRMED_STATES, true) ? 0 : ($o->state === 'cancel' ? 2 : 1);
+        $group = ($order->purchase_group_id
+            ? OdooPurchaseOrder::with('lines')->where('purchase_group_id', $order->purchase_group_id)->get()
+            : collect([$order]))->sortBy(fn (OdooPurchaseOrder $o): array => [$rank($o), $o->name])->values();
+
+        // Una fila por producto (el de Odoo, o el nombre si la línea no tiene) y una columna por proveedor.
+        $products = [];
+        foreach ($group as $member) {
+            foreach ($member->lines->reject->isNote() as $line) {
+                $key = $line->product_odoo_id ? 'p'.$line->product_odoo_id : 'n'.\App\Models\PurchaseProductLink::normalizar((string) $line->name);
+                $products[$key]['name'] ??= (string) $line->name;
+                $cell = $products[$key]['cells'][$member->odoo_id] ?? ['qty' => 0.0, 'subtotal' => 0.0, 'uom' => $line->uom_name];
+                $cell['qty'] += $line->product_qty;
+                $cell['subtotal'] += $line->price_subtotal;
+                $products[$key]['cells'][$member->odoo_id] = $cell;
+            }
+        }
+        // El más barato de cada producto, entre las que no se cancelaron y en una misma moneda.
+        $sameCurrency = $group->pluck('currency')->unique()->count() === 1;
+        foreach ($products as &$product) {
+            $prices = [];
+            foreach ($product['cells'] as $id => &$cell) {
+                $cell['price'] = $cell['qty'] > 0 ? $cell['subtotal'] / $cell['qty'] : 0.0;
+                if ($cell['price'] > 0 && $group->firstWhere('odoo_id', $id)?->state !== 'cancel') {
+                    $prices[$id] = $cell['price'];
+                }
+            }
+            unset($cell);
+            $product['best'] = $sameCurrency && count($prices) > 1 ? array_keys($prices, min($prices))[0] : null;
+        }
+        unset($product);
+
+        return response()->view('purchase_requests.odoo_show', [
+            'order' => $order, 'group' => $group, 'products' => $products,
+            'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($group->pluck('odoo_id')->all()),
+        ]);
+    }
 }

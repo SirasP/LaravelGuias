@@ -139,6 +139,21 @@ it('keeps together the quotations of one purchase sent to several suppliers', fu
     $this->actingAs(User::factory()->admin()->create())
         ->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertOk()
         // The cancelled one is not "confirmed", but it travels with its group.
-        ->assertSeeInOrder(['Cotizada a 2 proveedores', 'MARTINEZ Y VALDIVIESO S.A', 'Coagra S.A.'])
+        ->assertSeeInOrder(['cotizada a 2 proveedores', 'MARTINEZ Y VALDIVIESO S.A', 'Coagra S.A.'])
         ->assertSee('Transportes Oliva Spa');
+});
+
+it('opens each order on its own page, with the prices of its group side by side', function () {
+    $group = ['purchase_group_id' => 32, 'currency' => 'USD', 'state' => 'purchase', 'synced_at' => now()];
+    $cheap = OdooPurchaseOrder::create($group + ['odoo_id' => 353, 'name' => 'P00353', 'partner_odoo_id' => 2, 'partner_name' => 'COPEVAL S.A.', 'amount_untaxed' => 5548.4]);
+    $dear = OdooPurchaseOrder::create($group + ['odoo_id' => 352, 'name' => 'P00352', 'partner_odoo_id' => 1, 'partner_name' => 'MARTINEZ Y VALDIVIESO S.A', 'amount_untaxed' => 20043]);
+    OdooPurchaseOrder::create(array_replace($group, ['state' => 'cancel']) + ['odoo_id' => 355, 'name' => 'P00355', 'partner_odoo_id' => 3, 'partner_name' => 'Coagra S.A., Catalina Zuñiga', 'amount_untaxed' => 0]);
+    $cheap->lines()->create(['odoo_id' => 1, 'name' => 'UREA GRANULADA SACO 25KG', 'product_odoo_id' => 77, 'product_qty' => 100, 'price_unit' => 55.484, 'price_subtotal' => 5548.4]);
+    $dear->lines()->create(['odoo_id' => 2, 'name' => 'UREA GRANULADA SACO 25KG', 'product_odoo_id' => 77, 'product_qty' => 400, 'price_unit' => 50.1075, 'price_subtotal' => 20043]);
+
+    $page = $this->actingAs(User::factory()->admin()->create())->get(route('purchase_requests.odoo.show', 353))->assertOk()
+        ->assertSee('Cotizada a 3 proveedores')->assertSeeInOrder(['MARTINEZ', 'COPEVAL', 'Coagra']);
+    // Per unit, Martínez is the cheapest even though its order is the largest.
+    expect($page->getContent())->toMatch('/bg-emerald-100[^"]*">USD 50,11</');
+    $this->get(route('purchase_requests.odoo.show', 999))->assertNotFound();
 });
