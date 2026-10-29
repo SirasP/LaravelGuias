@@ -56,6 +56,27 @@ No se usan documentos cuyo cliente se identificó como otra empresa. No se admit
 solicitudes en borrador, anuladas, rechazadas, de otra empresa o posteriores a la
 factura.
 
+### Medidas, precio y lo que falta
+
+- **Medidas.** Los números de un nombre son sus medidas: «TUB CUAD NEG 40 X 2.0»
+  y «40 X 3.0» se parecen un 92 %, pero son otro tubo. Si los números de la
+  factura y de la solicitud no coinciden (y ninguno contiene al otro), la partida
+  nunca cuenta como coincidencia fuerte: no se vincula sola, ni siquiera con
+  cotización, y no le quita la vinculación automática a la partida correcta. La
+  pestaña la marca en rojo («Medidas distintas: factura 2.0 · solicitud 3.0») y
+  no ofrece el clic directo. El aviso sólo aparece cuando los nombres coinciden
+  al quitarles los números, para no saltar con modelos y códigos
+  («SOLDADURA 6011»). En los 112 vínculos del VPS al 29-10-2026 marcó tres.
+- **Precio.** Cada partida vinculada compara el neto facturado con el precio de
+  la solicitud, en unidades de la solicitud. Si la solicitud tenía precios con
+  IVA, se le descuenta la tasa de la línea antes de comparar. Una diferencia de
+  más de un 5 % se pinta en rojo si es más cara y en verde si es más barata.
+  Arriba se muestra el total de la factura contra lo solicitado. Las solicitudes
+  en otra moneda o sin precio no se comparan.
+- **Lo que falta.** Bajo cada solicitud se listan sus partidas que todavía no
+  tienen factura («La solicitud también pidió · sin facturar todavía»). En la
+  solicitud aparece como «Por facturar».
+
 Cada envío lleva una clave de idempotencia. Los bloqueos por documento y partida
 serializan las decisiones simultáneas. Una clave única de identidad de factura
 impide repartir dos importaciones del mismo documento como si fueran compras

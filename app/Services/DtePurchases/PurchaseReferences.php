@@ -6,6 +6,7 @@ use App\Models\DtePurchaseReference;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\User;
+use App\Services\PurchaseRequests\Products\ProductSimilarity;
 use App\Support\Rut;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,9 @@ class PurchaseReferences
     public const REQUEST_STATES = ['submitted', 'resubmitted', 'changes_requested', 'approved', 'completed'];
 
     private const SYSTEM = ['odoo' => 'Sincronización de Odoo', 'auto' => 'Vínculo automático'];
+
+    /** A price within this many percent of the request's is the same price. */
+    public const PRICE_TOLERANCE = 5.0;
 
     public function document(int $id): object
     {
@@ -122,8 +126,14 @@ class PurchaseReferences
                 'remaining_request' => $ref->requestItem ? (string) Quantity::of($ref->requestItem->quantity)->minus($this->usedOnItem($ref->requestItem->id)) : null,
                 'actor' => $ref->actor_name ?: self::SYSTEM[$ref->source] ?? 'Sistema', 'date' => $ref->created_at->toIso8601String(),
                 'note' => $ref->note,
+                'price' => $this->price($line, $ref),
+                'measures' => $this->measureWarning((string) $ref->snapshot['invoice_product'], (string) $ref->snapshot['request_product']),
             ];
         })->values();
+        $priced = $rows->filter(fn (array $row): bool => ! $row['stale'] && $row['price'] !== null);
+        $requested = $priced->sum(fn (array $row): float => $row['price']['requested']);
+        $invoiced = $priced->sum(fn (array $row): float => $row['price']['invoiced']);
+        $billedItems = $references->pluck('purchase_request_item_id')->all();
         $decision = DB::table('dte_purchase_decisions')->where('document_id', $id)->first();
         $withoutRequest = ($decision?->classification === 'without_request');
         $decisionStale = $withoutRequest && $decision->document_fingerprint !== $this->fingerprint($document);
@@ -141,6 +151,14 @@ class PurchaseReferences
             'classification' => $withoutRequest ? 'without_request' : ($rows->isEmpty() ? 'unidentified' : ($complete ? 'linked' : 'partial')),
             'decision_stale' => $decisionStale, 'decision_note' => $decision?->note,
             'version' => $this->fingerprint($document), 'lines' => $lineRows, 'references' => $rows,
+            'prices' => $priced->isEmpty() ? null : [
+                'requested' => $requested, 'invoiced' => $invoiced, 'difference' => $invoiced - $requested,
+                'change' => $requested > 0 ? round(($invoiced - $requested) * 100 / $requested, 1) : null,
+                'without_price' => $rows->filter(fn (array $row): bool => ! $row['stale'] && $row['price'] === null)->count(),
+            ],
+            'price_tolerance' => self::PRICE_TOLERANCE,
+            'unbilled' => $references->pluck('purchaseRequest')->filter()->unique('id')
+                ->mapWithKeys(fn (PurchaseRequest $request): array => [$request->id => $this->unbilled($request, $billedItems)]),
             'history' => DB::table('dte_purchase_events')->where('document_id', $id)->orderByDesc('id')->limit(15)
                 ->get(['event', 'actor_name', 'details', 'created_at'])->map(function ($event) {
                     $event->details = json_decode($event->details, true);
@@ -293,6 +311,70 @@ class PurchaseReferences
                 'references' => array_values(array_filter($this->report($id)['references']->all(), fn ($row): bool => $row['request_id'] === $request->id)),
             ];
         })->all();
+    }
+
+    /**
+     * Items of the request still waiting for an invoice, leaving out `$except`
+     * (those this invoice already covers, which show their own remainder).
+     *
+     * @return list<array{product: string, specification: ?string, quantity: string, remaining: string, unit: ?string}>
+     */
+    public function unbilled(PurchaseRequest $request, array $except = []): array
+    {
+        $used = $this->active()->whereIn('purchase_request_item_id', $request->items->pluck('id'))
+            ->groupBy('purchase_request_item_id')->selectRaw('purchase_request_item_id, sum(request_quantity) as total')
+            ->pluck('total', 'purchase_request_item_id');
+
+        return $request->items->reject(fn (PurchaseRequestItem $item): bool => in_array($item->id, $except, true))
+            ->map(fn (PurchaseRequestItem $item): array => [
+                'product' => $item->product_service, 'specification' => $item->specification,
+                'quantity' => (string) Quantity::of($item->quantity), 'unit' => $item->unit,
+                'remaining' => (string) Quantity::of($item->quantity)->minus(Quantity::of($used[$item->id] ?? 0)),
+            ])
+            ->filter(fn (array $item): bool => Quantity::of($item['remaining'])->isGreaterThan(0))->values()->all();
+    }
+
+    /**
+     * What the invoice charges for this link against what the request expected,
+     * both net and in request units, so a box of 12 compares with 12 sprays.
+     */
+    private function price(?object $line, DtePurchaseReference $ref): ?array
+    {
+        $item = $ref->requestItem;
+        $request = $ref->purchaseRequest;
+        if (! $line || ! $item || ! $request || (float) $item->unit_price <= 0 || (float) $line->cantidad <= 0
+            || (float) $ref->request_quantity <= 0 || strtoupper($request->currency ?: 'CLP') !== 'CLP') {
+            return null;
+        }
+        $lineNet = (float) $line->monto_item > 0 ? (float) $line->monto_item : (float) $line->precio_unitario * (float) $line->cantidad;
+        $invoiced = $lineNet / (float) $line->cantidad * (float) $ref->invoice_quantity;
+        $unit = (float) $item->unit_price;
+        if ($request->prices_include_tax && empty($line->es_exento)) {
+            $unit /= 1 + ((float) ($line->impuesto_tasa ?? 0) ?: 19.0) / 100;
+        }
+        $requested = $unit * (float) $ref->request_quantity;
+
+        return [
+            'requested_unit' => round($unit, 2), 'invoiced_unit' => round($invoiced / (float) $ref->request_quantity, 2),
+            'requested' => round($requested), 'invoiced' => round($invoiced), 'difference' => round($invoiced) - round($requested),
+            'change' => round(($invoiced - $requested) * 100 / $requested, 1),
+        ];
+    }
+
+    /**
+     * Names that read alike once the numbers are set aside, but whose numbers
+     * disagree: «HUINCHA 3/4X10MTS» for «3/4X20MTS». Unlike names are left
+     * alone, since their numbers are models and codes («SOLDADURA 6011»).
+     *
+     * @return array{invoice: list<string>, request: list<string>}|null
+     */
+    public function measureWarning(string $invoice, string $request): ?array
+    {
+        $difference = Measures::difference($invoice, $request);
+        $words = fn (string $name): string => preg_replace('/\d+(?:\s*[.,\/]\s*\d+)*/', ' ', self::text($name));
+
+        return $difference && app(ProductSimilarity::class)->score($words($invoice), $words($request)) >= PurchaseCandidates::SUGGEST
+            ? $difference : null;
     }
 
     /** XML descriptions arrive with entities: «1 1&#47;2&quot;» is «1 1/2"». */

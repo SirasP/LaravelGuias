@@ -6,6 +6,8 @@
         return str_replace('.', ',', $texto === '' ? '0' : $texto);
     };
     $unidad = fn (?string $valor): string => \App\Services\DtePurchases\Quantity::unit($valor) === 'un' ? 'un.' : mb_strtolower((string) $valor);
+    $pesos = fn (float $valor): string => '$'.number_format($valor, 0, ',', '.');
+    $tolerancia = \App\Services\DtePurchases\PurchaseReferences::PRICE_TOLERANCE;
 @endphp
 <section class="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
     <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
@@ -58,6 +60,17 @@
                                         En la factura: {{ $otroNombre ? $reference['invoice_product'] : '' }}{{ $otroNombre && $otraCantidad ? ' · ' : '' }}{{ $otraCantidad ? $cantidad($reference['invoice_quantity']).' '.$unidad($reference['invoice_unit']) : '' }}
                                     </p>
                                 @endif
+                                @if($reference['measures'])
+                                    <p class="mt-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                                        Medidas distintas: factura {{ implode(', ', $reference['measures']['invoice']) }} · solicitud {{ implode(', ', $reference['measures']['request']) }}
+                                    </p>
+                                @endif
+                                @if($price = $reference['price'])
+                                    <p class="mt-0.5 text-xs tabular-nums {{ abs($price['change']) <= $tolerancia ? 'text-slate-400' : ($price['change'] > 0 ? 'font-semibold text-rose-600 dark:text-rose-400' : 'font-semibold text-emerald-600 dark:text-emerald-400') }}">
+                                        {{ $pesos($price['invoiced_unit']) }} c/u · solicitado {{ $pesos($price['requested_unit']) }}
+                                        @if($price['change'] != 0) ({{ $price['change'] > 0 ? '+' : '' }}{{ str_replace('.', ',', (string) $price['change']) }} %) @endif
+                                    </p>
+                                @endif
                                 @if($reference['stale'])
                                     <p class="mt-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">Requiere revisión</p>
                                 @endif
@@ -71,5 +84,22 @@
             </article>
         @endforeach
     </div>
+
+    @if(count($unbilledItems ?? []) > 0)
+        <div class="border-t border-dashed border-slate-200 bg-slate-50/60 px-5 py-4 dark:border-slate-700 dark:bg-slate-800/30">
+            <p class="text-[11px] font-black uppercase tracking-widest text-slate-400">Por facturar · {{ count($unbilledItems) }} {{ count($unbilledItems) === 1 ? 'partida' : 'partidas' }}</p>
+            <ul class="mt-2 space-y-1">
+                @foreach($unbilledItems as $item)
+                    <li class="flex justify-between gap-3 text-sm">
+                        <span class="truncate text-slate-700 dark:text-slate-300" title="{{ $item['product'] }}">{{ $item['product'] }}</span>
+                        <span class="shrink-0 tabular-nums text-slate-500">
+                            {{ $cantidad($item['remaining']) }}@if($cantidad($item['remaining']) !== $cantidad($item['quantity'])) de {{ $cantidad($item['quantity']) }}@endif
+                            <span class="text-xs">{{ $unidad($item['unit']) }}</span>
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 </section>
 @endif

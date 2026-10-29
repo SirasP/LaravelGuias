@@ -97,6 +97,22 @@ class PurchaseCandidates
         return PurchaseReferences::text($line->descripcion);
     }
 
+    /**
+     * How well an invoice line fits any of the names. Never strong when the
+     * measures disagree: «40 X 2.0» and «40 X 3.0» read 92 % alike, and a tube
+     * of the wrong thickness must not be linked, nor crowd out the right one.
+     */
+    private function fit(object $line, array $names): float
+    {
+        $description = $this->description($line);
+
+        return max(array_map(function (string $name) use ($description): float {
+            $score = $this->similarity->score($description, $name);
+
+            return Measures::differ($description, $name) ? min($score, self::STRONG - 0.01) : $score;
+        }, $names));
+    }
+
     /** Same unit and no boxes or packs on either side: the quantities compare as they are. */
     private function plainUnits(object $line, PurchaseRequestItem $item): bool
     {
@@ -156,7 +172,7 @@ class PurchaseCandidates
                 $score = 0.0;
                 $strong = 0;
                 foreach ($lines as $line) {
-                    $value = max(array_map(fn (string $name): float => $this->similarity->score($this->description($line), $name), [$item->product_service, ...$quoted]));
+                    $value = $this->fit($line, [$item->product_service, ...$quoted]);
                     $strong += $value >= self::STRONG ? 1 : 0;
                     if ($value > $score) {
                         $score = $value;
@@ -187,6 +203,10 @@ class PurchaseCandidates
                     'line_id' => $score >= self::SUGGEST ? $best?->id : null, 'score' => $score,
                     'line_version' => $score >= self::SUGGEST && $best ? $references->lineFingerprint($best) : null,
                     'quick_quantity' => $quick, 'strong_lines' => $strong,
+                    'measures' => $best && $score >= self::SUGGEST ? $references->measureWarning($this->description($best), $item->product_service) : null,
+                    // For the line a person may pick by hand in the review form.
+                    'line_measures' => $lines->mapWithKeys(fn ($line): array => [$line->id => $references->measureWarning($this->description($line), $item->product_service)])
+                        ->filter()->all(),
                     'explanation' => $supplierKnown ? 'Este proveedor cotizó esta partida.'
                         : ($explicit ? 'No hay cotización de este proveedor para esta partida.' : 'Mismo producto y misma cantidad, aunque no hay cotización de este proveedor adjunta.'),
                 ];
@@ -229,7 +249,7 @@ class PurchaseCandidates
             }
             foreach ($references->lines($other->id) as $line) {
                 if (Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id))->isGreaterThan(0)
-                    && max(array_map(fn (string $name): float => $this->similarity->score($this->description($line), $name), $names)) >= self::STRONG) {
+                    && $this->fit($line, $names) >= self::STRONG) {
                     return true;
                 }
             }
@@ -242,7 +262,8 @@ class PurchaseCandidates
      * Links what leaves no doubt: units are plain, the whole invoice line fits in
      * what is pending, neither side has another candidate, and either this supplier
      * quoted the item and the product clearly matches, or the name and quantity are
-     * identical to the request's. Everything else stays a suggestion.
+     * identical to the request's. Different measures, even ones the supplier
+     * quoted, are for a person to see. Everything else stays a suggestion.
      *
      * @return int relationships created
      */
@@ -264,7 +285,8 @@ class PurchaseCandidates
             $line = $lines->get($candidate['line_id']);
             $evidence = $candidate['supplier_known'] ? $candidate['score'] >= self::STRONG : $candidate['score'] >= 1.0;
             if (! $line || ! $evidence || $candidate['strong_lines'] !== 1
-                || $perLine[$candidate['line_id']] !== 1 || $candidate['quick_quantity'] === null) {
+                || $perLine[$candidate['line_id']] !== 1 || $candidate['quick_quantity'] === null
+                || $candidate['measures'] !== null) {
                 continue;
             }
             $lineRemaining = Quantity::of($line->cantidad)->minus($references->usedOnLine($line->id));

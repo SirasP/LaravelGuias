@@ -28,6 +28,21 @@
         </div>
     </div>
 
+    {{-- Lo que cobra la factura frente a lo que se pidió --}}
+    <div x-show="report?.prices" x-cloak class="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
+         :class="priceAlert ? (report?.prices?.difference > 0 ? 'bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:text-rose-200' : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200') : 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-300'">
+        <template x-if="report?.prices">
+            <div class="min-w-0 flex-1">
+                <p class="font-semibold" x-text="!priceAlert ? 'Precios dentro de lo solicitado'
+                    : 'La factura cobra ' + money(Math.abs(report.prices.difference)) + (report.prices.difference > 0 ? ' más' : ' menos') + ' que lo solicitado (' + percent(report.prices.change) + ')'"></p>
+                <p class="mt-0.5 text-xs opacity-80">
+                    <span x-text="'Neto de las partidas vinculadas: solicitado ' + money(report.prices.requested) + ' · facturado ' + money(report.prices.invoiced)"></span>
+                    <span x-show="report.prices.without_price" x-text="' · ' + report.prices.without_price + (report.prices.without_price === 1 ? ' partida sin precio en la solicitud' : ' partidas sin precio en la solicitud')"></span>
+                </p>
+            </div>
+        </template>
+    </div>
+
     <p x-show="loading && !report" role="status" class="text-sm text-gray-500">Cargando relaciones…</p>
     <div x-show="error" x-cloak role="alert" class="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">
         <span x-text="error"></span>
@@ -59,6 +74,11 @@
                                     <p x-show="!sameName(reference.invoice_product, reference.request_product)" class="mt-0.5 text-xs text-gray-500 truncate" :title="reference.request_product">
                                         <span class="text-gray-400">En la solicitud:</span> <span x-text="reference.request_product"></span>
                                     </p>
+                                    <p x-show="reference.measures" class="mt-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400" x-text="reference.measures && measuresText(reference.measures)"></p>
+                                    <p x-show="reference.price" class="mt-0.5 text-xs tabular-nums" :class="priceClass(reference.price?.change)">
+                                        <span x-text="reference.price && (money(reference.price.invoiced_unit) + ' c/u · solicitado ' + money(reference.price.requested_unit))"></span>
+                                        <span x-show="reference.price && reference.price.change !== 0" x-text="reference.price && ('(' + percent(reference.price.change) + ')')"></span>
+                                    </p>
                                     <p x-show="reference.stale" class="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">Revisar: cambió una de las partidas</p>
                                     <p x-show="reference.remaining_request !== null && number(reference.remaining_request) !== '0'" class="mt-0.5 text-xs text-gray-400"
                                        x-text="'Quedan ' + number(reference.remaining_request) + ' de ' + number(reference.requested_quantity) + ' por facturar en la solicitud'"></p>
@@ -86,6 +106,18 @@
                         </li>
                     </template>
                 </ul>
+                <div x-show="group.unbilled.length" class="border-t border-dashed border-gray-200 bg-gray-50/60 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/30">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">La solicitud también pidió · sin facturar todavía</p>
+                    <ul class="mt-1.5 space-y-1">
+                        <template x-for="(item, index) in group.unbilled" :key="index">
+                            <li class="flex justify-between gap-3 text-sm">
+                                <span class="truncate text-gray-600 dark:text-gray-300" :title="item.product" x-text="item.product"></span>
+                                <span class="shrink-0 tabular-nums text-gray-500"
+                                      x-text="number(item.remaining) + (number(item.remaining) !== number(item.quantity) ? ' de ' + number(item.quantity) : '') + ' ' + shortUnit(item.unit)"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
             </section>
         </template>
 
@@ -132,14 +164,15 @@
                                 <span class="text-gray-400">Factura:</span> <span x-text="lineDescription(candidate.line_id)"></span>
                             </p>
                             <p class="mt-0.5 text-xs text-gray-500" x-text="'Pendiente en la solicitud: ' + number(candidate.remaining) + ' ' + shortUnit(candidate.unit)"></p>
+                            <p x-show="candidate.measures" class="mt-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400" x-text="candidate.measures && measuresText(candidate.measures)"></p>
                         </div>
                         <div class="shrink-0 flex flex-col items-end gap-1.5">
-                            <button type="button" x-show="candidate.quick_quantity" @click="quickLink(candidate)"
+                            <button type="button" x-show="candidate.quick_quantity && !candidate.measures" @click="quickLink(candidate)"
                                     class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700" :disabled="busy"
                                     x-text="'Vincular ' + number(candidate.quick_quantity)"></button>
                             <button type="button" @click="choose(candidate); $nextTick(() => $refs.linkForm.scrollIntoView({behavior: 'smooth', block: 'center'}))"
                                     class="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300" :disabled="busy"
-                                    x-text="candidate.quick_quantity ? 'Otra cantidad' : 'Revisar'"></button>
+                                    x-text="candidate.quick_quantity && !candidate.measures ? 'Otra cantidad' : 'Revisar'"></button>
                         </div>
                     </div>
                 </template>
@@ -149,6 +182,8 @@
                 <div>
                     <p class="text-xs font-bold text-indigo-600 dark:text-indigo-300" x-text="selected?.folio"></p>
                     <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100" x-text="selected?.product"></h4>
+                    <p x-show="selected?.line_measures?.[form.lineId]" class="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
+                       x-text="selected?.line_measures?.[form.lineId] && (measuresText(selected.line_measures[form.lineId]) + '. Vincúlala sólo si es lo que se pidió.')"></p>
                 </div>
                 <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Línea de esta factura
                     <select x-model="form.lineId" @change="changeLine()" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">

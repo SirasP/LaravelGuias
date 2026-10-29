@@ -296,6 +296,8 @@ class PurchaseRequestController extends Controller
             'comparaciones' => $comparaciones,
             'invoiceReferences' => auth()->user()->isAdmin()
                 ? app(\App\Services\DtePurchases\PurchaseReferences::class)->forRequest($purchaseRequest) : [],
+            'unbilledItems' => auth()->user()->isAdmin()
+                ? app(\App\Services\DtePurchases\PurchaseReferences::class)->unbilled($purchaseRequest) : [],
             // Sólo tiene sentido con dos o más: devuelve null si no.
             'cuadricula' => \App\Services\PurchaseRequests\Quotes\QuoteMatrix::de($comparaciones),
             // Para que el botón de Odoo diga lo que va a hacer y no más.

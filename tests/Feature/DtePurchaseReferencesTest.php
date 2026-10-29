@@ -522,3 +522,59 @@ it('brings the remaining suggestions with the report so the tab searches once', 
     $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
         ->assertJsonCount(0, 'references')->assertJsonCount(2, 'candidates')->assertJsonPath('candidates.1.item_id', $item->id);
 });
+
+it('never links by itself a tube of another thickness, even one the supplier quoted', function () {
+    $item = referenceItem(values: ['product_service' => 'TUB CUAD NEG 40 X 3.0 MM', 'quantity' => 4]);
+    [$id] = referenceInvoice([], ['descripcion' => 'TUB CUAD NEG 40 X 2.0 MM']);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonCount(0, 'references')
+        ->assertJsonPath('candidates.0.item_id', $item->id)
+        ->assertJsonPath('candidates.0.measures', ['invoice' => ['2.0'], 'request' => ['3.0']]);
+});
+
+it('tells two tubes of the same invoice apart by their measures', function () {
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-22']);
+    $thick = referenceItem(null, ['product_service' => 'TUB CUAD NEG 50 X 3.0 MM', 'quantity' => 6], $request);
+    $thin = referenceItem(null, ['product_service' => 'TUB CUAD NEG 40 X 3.0 MM', 'quantity' => 80], $request);
+    [$id, $line] = referenceInvoice([], ['descripcion' => 'TUB CUAD NEG  50 X 3.0 MM', 'cantidad' => 6]);
+    $second = DB::connection('fuelcontrol')->table('gmail_dte_document_lines')->insertGetId([
+        'document_id' => $id, 'nro_linea' => 2, 'descripcion' => 'TUB CUAD NEG  40 X 3.0 MM', 'cantidad' => 80,
+        'unidad' => 'u', 'precio_unitario' => 100, 'monto_item' => 8000, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('classification', 'linked')->assertJsonCount(2, 'references');
+    expect(DtePurchaseReference::where('document_line_id', $line)->value('purchase_request_item_id'))->toBe($thick->id)
+        ->and(DtePurchaseReference::where('document_line_id', $second)->value('purchase_request_item_id'))->toBe($thin->id);
+});
+
+it('compares what the invoice charges with the net price of the request', function () {
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-22', 'prices_include_tax' => false]);
+    $item = referenceItem(null, ['product_service' => 'TUB CUAD NEG 40 X 3.0 MM', 'quantity' => 80, 'unit_price' => 9252], $request);
+    [$id] = referenceInvoice([], ['descripcion' => 'TUB CUAD NEG 40 X 3.0 MM', 'cantidad' => 80, 'precio_unitario' => 16830, 'monto_item' => 1346400]);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('references.0.price.invoiced_unit', 16830)
+        ->assertJsonPath('references.0.price.requested_unit', 9252)
+        ->assertJsonPath('references.0.price.change', 81.9)
+        ->assertJsonPath('prices.difference', 606240)
+        ->assertJsonPath('prices.without_price', 0);
+
+    $request->update(['prices_include_tax' => true]);
+    $item->update(['unit_price' => 20027.7]);
+    $this->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('references.0.price.requested_unit', 16830)->assertJsonPath('references.0.price.change', 0);
+});
+
+it('lists what the request asked for and has not been invoiced yet', function () {
+    $request = PurchaseRequest::factory()->approved()->create(['request_date' => '2026-10-22']);
+    $billed = referenceItem(null, ['quantity' => 4], $request);
+    referenceItem(null, ['product_service' => 'SERVICIO DE FLETE', 'quantity' => 1], $request);
+    [$id] = referenceInvoice();
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.purchase_references.show', $id))
+        ->assertJsonPath('references.0.price', null)
+        ->assertJsonPath("unbilled.{$request->id}.0.product", 'SERVICIO DE FLETE')
+        ->assertJsonCount(1, "unbilled.{$request->id}");
+    expect(app(PurchaseReferences::class)->unbilled($request->fresh()))->toHaveCount(1);
+    $this->get(route('purchase_requests.show', $request))->assertOk()
+        ->assertSee('Por facturar · 1 partida')->assertSee('SERVICIO DE FLETE');
+    expect($billed->id)->toBeInt();
+});

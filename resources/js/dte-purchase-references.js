@@ -70,7 +70,8 @@ export default (urls) => ({
         const groups = [];
         for (const reference of this.report?.references || []) {
             let group = groups.find(g => g.folio === reference.folio);
-            if (!group) groups.push(group = { folio: reference.folio, url: reference.request_url, rows: [] });
+            if (!group) groups.push(group = { folio: reference.folio, url: reference.request_url, rows: [],
+                unbilled: (this.report.unbilled || {})[reference.request_id] || [] });
             group.rows.push(reference);
         }
         return groups;
@@ -79,6 +80,18 @@ export default (urls) => ({
         const plain = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
         return plain(a) === plain(b);
     },
+    money(value) { return (value < 0 ? '-$' : '$') + Math.abs(Math.round(value)).toLocaleString('es-CL'); },
+    percent(value) { return (value > 0 ? '+' : '') + String(value).replace('.', ',') + ' %'; },
+    // Beyond the tolerance a price is news: dearer in red, cheaper in green.
+    priceClass(change) {
+        if (change === null || Math.abs(change) <= (this.report?.price_tolerance ?? 5)) return 'text-gray-400';
+        return change > 0 ? 'font-semibold text-rose-600 dark:text-rose-400' : 'font-semibold text-emerald-600 dark:text-emerald-400';
+    },
+    get priceAlert() {
+        const prices = this.report?.prices;
+        return prices && prices.change !== null && Math.abs(prices.change) > (this.report.price_tolerance ?? 5);
+    },
+    measuresText(measures) { return 'Medidas distintas: factura ' + measures.invoice.join(', ') + ' · solicitud ' + measures.request.join(', '); },
     lineDescription(id) { return this.report?.lines.find(line => line.id === id)?.description || ''; },
     sourceLabel(reference) {
         return { auto: 'Automática', odoo: 'Verificada en Odoo' }[reference.source] || 'Manual · ' + reference.actor;
