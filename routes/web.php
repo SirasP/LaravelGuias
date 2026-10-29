@@ -17,6 +17,7 @@ use App\Http\Controllers\GmailDteDocumentController;
 use App\Http\Controllers\Guias\ComfrutGuiaController;
 use App\Http\Controllers\Inventario\DashboardController as InventarioDashboard;
 use App\Http\Controllers\Inventario\DtesController;
+use App\Http\Controllers\OdooPurchaseOrderController;
 use App\Http\Controllers\PdfImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseCatalogController;
@@ -77,6 +78,14 @@ Route::middleware('auth')
         Route::post('/leer-todo', [PurchaseNotificationController::class, 'readAll'])->name('read_all');
         Route::post('/{notification}', [PurchaseNotificationController::class, 'read'])->name('read');
     });
+
+/*
+| Órdenes hechas directo en Odoo, sin solicitud. Antes del grupo de
+| solicitudes por la misma razón que los catálogos.
+*/
+Route::middleware('auth')
+    ->get('solicitudes-compra/odoo', [OdooPurchaseOrderController::class, 'index'])
+    ->name('purchase_requests.odoo');
 
 /*
 |--------------------------------------------------------------------------
