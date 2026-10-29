@@ -29,7 +29,7 @@ class OdooSyncPurchaseOrders extends Command
     protected $description = 'Copia las órdenes de compra de Odoo que no salieron de una solicitud';
 
     private const ORDER_FIELDS = [
-        'id', 'name', 'state', 'partner_id', 'partner_ref', 'origin', 'currency_id', 'amount_untaxed', 'amount_total',
+        'id', 'name', 'state', 'partner_id', 'partner_ref', 'origin', 'purchase_group_id', 'currency_id', 'amount_untaxed', 'amount_total',
         'create_uid', 'user_id', 'date_order', 'invoice_status', 'receipt_status', 'notes', 'create_date', 'write_date',
     ];
 
@@ -95,6 +95,7 @@ class OdooSyncPurchaseOrders extends Command
                     'partner_odoo_id' => $this->id($order['partner_id']), 'partner_name' => $this->name($order['partner_id']),
                     'partner_vat' => $vats[$this->id($order['partner_id'])] ?? null,
                     'partner_ref' => $order['partner_ref'] ?: null, 'origin' => $order['origin'] ?: null,
+                    'purchase_group_id' => $this->id($order['purchase_group_id'] ?? false),
                     'currency' => $this->name($order['currency_id']),
                     'amount_untaxed' => (float) $order['amount_untaxed'], 'amount_total' => (float) $order['amount_total'],
                     'created_by_name' => $this->name($order['create_uid']), 'buyer_name' => $this->name($order['user_id']),

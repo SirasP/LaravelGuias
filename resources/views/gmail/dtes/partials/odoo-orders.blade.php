@@ -78,9 +78,11 @@
         </template>
 
         {{-- Sugerencias y búsqueda --}}
-        <div x-show="report.eligible" class="space-y-3">
+        <button type="button" x-show="report.eligible && report.links.length && !searching" @click="searching = true"
+                class="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300">¿Paga también otra orden? Buscar</button>
+        <div x-show="report.eligible && (!report.links.length || searching)" class="space-y-3">
             <div class="flex items-end justify-between gap-3 flex-wrap">
-                <p class="text-xs text-gray-500" x-text="report.links.length ? '¿Paga también otra orden?' : 'Órdenes del mismo proveedor en fechas cercanas.'"></p>
+                <p class="text-xs text-gray-500" x-text="report.links.length ? 'Busca la otra orden por su número o proveedor.' : 'Órdenes del mismo proveedor que calzan con esta factura.'"></p>
                 <form @submit.prevent="search()" class="flex gap-2 w-full sm:w-auto">
                     <label class="sr-only" for="dte-odoo-search">Buscar orden por número o proveedor</label>
                     <input id="dte-odoo-search" type="search" x-model="query" maxlength="100" placeholder="Buscar P00… o proveedor"

@@ -1,7 +1,7 @@
 // La orden de Odoo que pagó la factura: vínculos, sugerencias y búsqueda.
 export default (urls) => ({
     report: null, candidates: [], query: '', loading: false, busy: false, error: '', message: '',
-    revoking: null, revokeNote: '', searched: false,
+    revoking: null, revokeNote: '', searched: false, searching: false,
 
     async request(url, options = {}) {
         const response = await fetch(url, {
@@ -21,6 +21,8 @@ export default (urls) => ({
         try {
             this.report = await this.request(urls.report);
             this.candidates = this.report.candidates;
+            // The request block hides itself when the purchase went through an Odoo order.
+            window.dispatchEvent(new CustomEvent('dte-odoo-orders', { detail: this.report.links.map(link => link.name) }));
             this.searched = false;
         } catch (error) { this.error = error.message; }
         finally { this.loading = false; }
@@ -37,7 +39,7 @@ export default (urls) => ({
         this.busy = true; this.error = ''; this.message = '';
         try {
             this.message = (await this.request(url, { method, body: JSON.stringify(body) })).message;
-            this.revoking = null; this.query = '';
+            this.revoking = null; this.query = ''; this.searching = false;
             await this.load();
         } catch (error) { this.error = error.message; }
         finally { this.busy = false; }

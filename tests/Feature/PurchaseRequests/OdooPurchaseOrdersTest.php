@@ -126,3 +126,19 @@ it('keeps the RUT of each supplier, taking the company RUT for a contact without
 
     expect(OdooPurchaseOrder::sole()->partner_vat)->toBe('CL96547510-K');
 });
+
+it('keeps together the quotations of one purchase sent to several suppliers', function () {
+    odooWithOrders([
+        odooOrder(352, ['state' => 'purchase', 'purchase_group_id' => [32, 'purchase.order.group,32'], 'partner_id' => [7, 'MARTINEZ Y VALDIVIESO S.A']]),
+        odooOrder(355, ['state' => 'cancel', 'purchase_group_id' => [32, 'purchase.order.group,32'], 'partner_id' => [8, 'Coagra S.A.']]),
+        odooOrder(338, ['state' => 'purchase', 'partner_id' => [9, 'Transportes Oliva Spa']]),
+    ], [], [['id' => 7, 'vat' => '1-9', 'commercial_partner_id' => [7, 'x']], ['id' => 8, 'vat' => '2-7', 'commercial_partner_id' => [8, 'y']], ['id' => 9, 'vat' => '3-5', 'commercial_partner_id' => [9, 'z']]]);
+    $this->artisan('odoo:sync-purchase-orders')->assertSuccessful();
+    expect(OdooPurchaseOrder::where('odoo_id', 355)->value('purchase_group_id'))->toBe(32);
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertOk()
+        // The cancelled one is not "confirmed", but it travels with its group.
+        ->assertSeeInOrder(['Cotizada a 2 proveedores', 'MARTINEZ Y VALDIVIESO S.A', 'Coagra S.A.'])
+        ->assertSee('Transportes Oliva Spa');
+});

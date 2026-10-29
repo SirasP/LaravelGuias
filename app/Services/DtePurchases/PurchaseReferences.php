@@ -226,6 +226,7 @@ class PurchaseReferences
                 'without_price' => $rows->filter(fn (array $row): bool => ! $row['stale'] && $row['price'] === null)->count(),
             ],
             'price_tolerance' => self::PRICE_TOLERANCE,
+            'odoo_orders' => \App\Models\DteOdooOrderLink::active()->where('document_id', $id)->orderBy('id')->pluck('order_name')->all(),
             'credit_notes' => array_map(fn (array $note): array => ['folio' => $note['folio'], 'annuls' => $note['annuls'],
                 'net' => $note['net'], 'reason' => $note['reason']], $notes),
             'unbilled' => $references->pluck('purchaseRequest')->filter()->unique('id')

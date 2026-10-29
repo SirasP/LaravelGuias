@@ -6,7 +6,8 @@
         'store' => route('gmail.dtes.purchase_references.store', $document->id),
         'classify' => route('gmail.dtes.purchase_references.classify', $document->id),
      ]))"
-     x-init="$watch('tab', value => { if (value === 'cruzadas' && !report && !loading) load() }); if (tab === 'cruzadas') load()">
+     x-init="$watch('tab', value => { if (value === 'cruzadas' && !report && !loading) load() }); if (tab === 'cruzadas') load()"
+     @dte-odoo-orders.window="if (report) report.odoo_orders = $event.detail">
 
     {{-- Encabezado: estado y avance --}}
     <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -15,10 +16,17 @@
             <p class="text-xs text-gray-500 mt-0.5">Qué partidas de esta factura se pidieron en una solicitud. Una factura puede cubrir varias.</p>
         </div>
         <span x-show="report" x-cloak class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
-              :class="statusClass" x-text="labels[report?.classification]"></span>
+              :class="viaOdoo ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300' : statusClass"
+              x-text="viaOdoo ? 'Compra hecha en Odoo' : labels[report?.classification]"></span>
     </div>
 
-    <div x-show="report && report.lines.length" x-cloak>
+    {{-- Comprada con una orden hecha directo en Odoo: no lleva solicitud, y el resto sobra. --}}
+    <div x-show="viaOdoo" x-cloak class="flex items-center justify-between gap-3 flex-wrap rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+        <span x-text="'Se compró con la orden ' + (report?.odoo_orders || []).join(', ') + ', hecha directo en Odoo: no lleva solicitud.'"></span>
+        <button type="button" x-show="!showRequests" @click="showRequests = true" class="text-xs font-semibold underline">¿Tiene también solicitud? Buscar</button>
+    </div>
+
+    <div x-show="report && report.lines.length && (!viaOdoo || showRequests)" x-cloak>
         <div class="flex items-center justify-between text-xs mb-1.5">
             <span class="font-semibold text-gray-600 dark:text-gray-300" x-text="linkedLines + ' de ' + report?.lines.length + ' líneas vinculadas'"></span>
             <span class="text-gray-400" x-text="report?.references.length + (report?.references.length === 1 ? ' vínculo' : ' vínculos')"></span>
@@ -132,7 +140,7 @@
         </template>
 
         {{-- Lo que aún no tiene solicitud --}}
-        <div x-show="report.eligible && report.classification !== 'without_request' && hasRemaining" class="space-y-4">
+        <div x-show="report.eligible && report.classification !== 'without_request' && hasRemaining && (!viaOdoo || showRequests)" class="space-y-4">
             <div x-show="pendingLines.length && report.references.length" class="rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
                 <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Sin solicitud todavía</p>
                 <ul class="mt-2 space-y-1">
@@ -228,7 +236,7 @@
         </div>
 
         {{-- Compra directa --}}
-        <details x-show="report.eligible && !report.references.length" :open="report.classification === 'without_request'"
+        <details x-show="report.eligible && !report.references.length && !viaOdoo" :open="report.classification === 'without_request'"
                  class="group rounded-2xl border border-gray-200 dark:border-gray-700">
             <summary class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
                 <span x-text="report.classification === 'without_request' ? 'Compra directa, sin solicitud' : '¿Se compró sin solicitud?'"></span>

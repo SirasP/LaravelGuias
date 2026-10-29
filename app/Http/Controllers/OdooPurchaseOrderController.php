@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OdooPurchaseOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Las órdenes que se hicieron directo en Odoo, sin pasar por una solicitud.
@@ -36,17 +37,35 @@ class OdooPurchaseOrderController extends Controller
             'todas' => (clone $base)->count(),
         ];
 
-        $orders = (clone $base)
+        // Una compra cotizada a varios proveedores va junta: el grupo aparece una
+        // vez, con todas sus órdenes, si alguna calza con el filtro.
+        $matching = (clone $base)
             ->when($filter === 'cotizaciones', fn ($query) => $query->quotations())
             ->when($filter === 'confirmadas', fn ($query) => $query->confirmed())
             ->when($filter === 'canceladas', fn ($query) => $query->where('state', 'cancel'))
-            ->with('lines')
             ->orderByDesc('odoo_created_at')->orderByDesc('odoo_id')
-            ->paginate(25)->withQueryString();
+            ->get(['odoo_id', 'purchase_group_id']);
+        $units = $matching->map(fn (OdooPurchaseOrder $order): string => $order->purchase_group_id ? 'g'.$order->purchase_group_id : 'o'.$order->odoo_id)
+            ->unique()->values();
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $pages = new LengthAwarePaginator($units->forPage($page, 25)->values(), $units->count(), 25, $page,
+            ['path' => $request->url(), 'query' => $request->query()]);
+        $groups = $pages->getCollection()->filter(fn ($unit) => $unit[0] === 'g')->map(fn ($unit) => (int) substr($unit, 1))->values();
+        $singles = $pages->getCollection()->filter(fn ($unit) => $unit[0] === 'o')->map(fn ($unit) => (int) substr($unit, 1))->values();
+        $loaded = OdooPurchaseOrder::with('lines')
+            ->where(fn ($query) => $query->whereIn('odoo_id', $singles)->orWhereIn('purchase_group_id', $groups))->get();
+        $rank = fn (OdooPurchaseOrder $order): int => in_array($order->state, OdooPurchaseOrder::CONFIRMED_STATES, true) ? 0 : ($order->state === 'cancel' ? 2 : 1);
+        $items = $pages->getCollection()->map(fn (string $unit): array => [
+            'group' => $unit[0] === 'g' ? (int) substr($unit, 1) : null,
+            'orders' => ($unit[0] === 'g'
+                ? $loaded->where('purchase_group_id', (int) substr($unit, 1))
+                : $loaded->where('odoo_id', (int) substr($unit, 1)))
+                ->sortBy(fn (OdooPurchaseOrder $order): array => [$rank($order), $order->name])->values(),
+        ])->filter(fn (array $item): bool => $item['orders']->isNotEmpty())->values();
 
         return response()->view('purchase_requests.odoo', [
-            'orders' => $orders, 'counts' => $counts,
-            'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($orders->pluck('odoo_id')->all()), 'filter' => $filter, 'search' => $search, 'creator' => $creator,
+            'items' => $items, 'pages' => $pages, 'counts' => $counts,
+            'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($loaded->pluck('odoo_id')->all()), 'filter' => $filter, 'search' => $search, 'creator' => $creator,
             'creators' => OdooPurchaseOrder::whereNotNull('created_by_name')->distinct()->orderBy('created_by_name')->pluck('created_by_name'),
             'syncedAt' => OdooPurchaseOrder::max('synced_at'),
         ]);

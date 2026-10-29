@@ -138,3 +138,12 @@ it('lists the invoices of an order in dollars without comparing them with pesos'
         ->assertJsonPath('links.0.order.currency', 'USD')->assertJsonPath('links.0.source', 'reference');
     $this->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertSee('Con 1 factura')->assertDontSee('Facturada');
 });
+
+it('tells the request block that the purchase went through an Odoo order', function () {
+    odooTabOrder(262, [['FLETE', 1, 124400]], ['partner_vat' => '76999888-1']);
+    $id = odooTabInvoice([['FLETE', 1, 124400]], ['proveedor_rut' => '76999888-1',
+        'xml_raw' => '<DTE><Referencia><TpoDocRef>801</TpoDocRef><FolioRef>P00262</FolioRef></Referencia></DTE>']);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.odoo_orders.show', $id))->assertJsonPath('links.0.name', 'P00262');
+
+    $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonPath('odoo_orders', ['P00262']);
+});

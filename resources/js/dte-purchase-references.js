@@ -1,6 +1,6 @@
 export default (urls) => ({
     report: null, candidates: [], query: '', selected: null, loading: false, busy: false,
-    error: '', message: '', searched: false, searchVersion: 0, classificationNote: '', revoking: null, revokeNote: '',
+    error: '', message: '', searched: false, searchVersion: 0, classificationNote: '', revoking: null, revokeNote: '', showRequests: false,
     form: { lineId: '', invoiceQuantity: '', requestQuantity: '', acknowledge: false, note: '', operationKey: '' },
     labels: { unidentified: 'Sin vínculo identificado', partial: 'Vinculación parcial', linked: 'Solicitud vinculada', without_request: 'Compra sin solicitud' },
 
@@ -64,6 +64,8 @@ export default (urls) => ({
             without_request: 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300',
         }[this.report?.classification] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
     },
+    // Bought with an order made straight in Odoo and with no request linked: the request part is noise.
+    get viaOdoo() { return Boolean(this.report?.odoo_orders?.length) && !this.report?.references.length; },
     get linkedLines() { return this.report?.lines.filter(line => this.scaled(line.remaining) === 0n).length || 0; },
     get pendingLines() { return this.report?.lines.filter(line => this.scaled(line.remaining) > 0n) || []; },
     get groups() {
