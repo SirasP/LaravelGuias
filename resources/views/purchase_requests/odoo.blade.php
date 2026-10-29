@@ -111,7 +111,7 @@
                                 </div>
                                 @php
                                     $orderInvoices = $invoices[$order->odoo_id] ?? [];
-                                    $invoicedNet = array_sum(array_column($orderInvoices, 'amount'));
+                                    $invoicedNet = array_sum(array_column($orderInvoices, 'net'));
                                 @endphp
                                 <div class="shrink-0 text-right">
                                     <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ $money($order->amount_total, $order->currency) }}</p>
@@ -176,6 +176,11 @@
                                             <a href="{{ route('gmail.dtes.show', $invoice['id']) }}#referencias-cruzadas" class="ml-2 font-semibold text-blue-600 hover:underline dark:text-blue-400">
                                                 N° {{ $invoice['folio'] }}</a>
                                             <span class="text-slate-400">{{ $invoice['date'] ? \Illuminate\Support\Carbon::parse($invoice['date'])->format('d-m-Y') : '' }} · {{ $money($invoice['amount'], 'CLP') }}</span>
+                                            @foreach($invoice['credit_notes'] as $note)
+                                                <span class="font-semibold {{ $note['annuls'] ? 'text-rose-600 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400' }}">
+                                                    {{ $note['annuls'] ? '(anulada por la NC '.$note['folio'].')' : '(NC '.$note['folio'].': −'.$money($note['net'], 'CLP').')' }}
+                                                </span>
+                                            @endforeach
                                         @endforeach
                                     </div>
                                 @endif

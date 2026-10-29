@@ -28,6 +28,14 @@
         </div>
     </div>
 
+    {{-- Notas de crédito que corrigen esta factura --}}
+    <template x-for="note in (report?.credit_notes || [])" :key="note.folio">
+        <p class="rounded-xl px-4 py-3 text-sm" :class="note.annuls ? 'bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:text-rose-200' : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'">
+            <span class="font-semibold" x-text="note.annuls ? 'Anulada por la nota de crédito N° ' + note.folio : 'Nota de crédito N° ' + note.folio + ': ' + money(-note.net)"></span>
+            <span class="text-xs opacity-80" x-text="note.reason ? ' · ' + note.reason : ''"></span>
+        </p>
+    </template>
+
     {{-- Lo que cobra la factura frente a lo que se pidió --}}
     <div x-show="report?.prices" x-cloak class="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
          :class="priceAlert ? (report?.prices?.difference > 0 ? 'bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:text-rose-200' : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200') : 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-300'">
@@ -75,6 +83,8 @@
                                         <span class="text-gray-400">En la solicitud:</span> <span x-text="reference.request_product"></span>
                                     </p>
                                     <p x-show="reference.measures" class="mt-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400" x-text="reference.measures && measuresText(reference.measures)"></p>
+                                    <p x-show="reference.returned" class="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                                       x-text="'La nota de crédito devolvió ' + number(reference.returned) + ' ' + shortUnit(reference.request_unit) + ': vuelven a quedar pendientes en la solicitud'"></p>
                                     <p x-show="reference.price" class="mt-0.5 text-xs tabular-nums" :class="priceClass(reference.price?.change)">
                                         <span x-text="reference.price && (money(reference.price.invoiced_unit) + ' c/u · solicitado ' + money(reference.price.requested_unit))"></span>
                                         <span x-show="reference.price && reference.price.change !== 0" x-text="reference.price && ('(' + percent(reference.price.change) + ')')"></span>

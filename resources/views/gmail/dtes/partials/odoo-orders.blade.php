@@ -38,6 +38,10 @@
                             <span x-show="link.order" class="text-xs text-gray-400" x-text="link.order?.state"></span>
                         </div>
                         <p class="mt-0.5 truncate text-sm text-gray-700 dark:text-gray-200" x-text="link.order?.partner || 'La orden ya no está en la pestaña Odoo'"></p>
+                        <template x-for="note in link.credit_notes" :key="note.folio">
+                            <p class="mt-0.5 text-xs font-semibold" :class="note.annuls ? 'text-rose-600 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400'"
+                               x-text="note.annuls ? 'Anulada por la nota de crédito N° ' + note.folio + ': no cuenta como facturado' : 'Nota de crédito N° ' + note.folio + ': ' + money(-note.net) + ' descontados de lo facturado'"></p>
+                        </template>
                         <p x-show="link.order" class="mt-0.5 text-xs text-gray-500"
                            x-text="(link.order?.date || '') + ' · creada por ' + (link.order?.created_by || '—')"></p>
                         <p x-show="link.order && link.order.currency !== 'CLP'" class="mt-1 text-xs text-gray-500"
@@ -84,8 +88,8 @@
                     <button class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800" :disabled="busy">Buscar</button>
                 </form>
             </div>
-            <p x-show="!candidates.length" class="rounded-xl bg-gray-50 p-3 text-sm text-gray-500 dark:bg-gray-800/50"
-               x-text="searched ? 'Ninguna orden calza con esa búsqueda.' : 'No hay órdenes de este proveedor hechas en Odoo cerca de esta fecha.'"></p>
+            <p x-show="!candidates.length && (searched || !report.links.length)" class="rounded-xl bg-gray-50 p-3 text-sm text-gray-500 dark:bg-gray-800/50"
+               x-text="searched ? 'Ninguna orden calza con esa búsqueda.' : 'Ninguna orden de este proveedor hecha en Odoo calza con esta factura. Búscala por su número si la conoces.'"></p>
             <div x-show="candidates.length" class="rounded-2xl border border-gray-200 divide-y divide-gray-100 dark:border-gray-700 dark:divide-gray-800">
                 <template x-for="candidate in candidates" :key="candidate.odoo_id">
                     <div class="flex items-start gap-3 px-4 py-3">
@@ -96,10 +100,14 @@
                             </div>
                             <p class="mt-0.5 truncate text-sm text-gray-800 dark:text-gray-100" x-text="candidate.partner"></p>
                             <p class="mt-0.5 text-xs" :class="candidate.referenced || (candidate.coverage >= 0.999 && candidate.same_amount) ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-gray-500'" x-text="reason(candidate)"></p>
-                            <p class="mt-0.5 text-xs text-gray-400" x-text="'Pendiente ' + money(candidate.remaining, candidate.currency) + ' de ' + money(candidate.amount, candidate.currency) + ' · creada por ' + (candidate.created_by || '—')"></p>
+                            <p class="mt-0.5 text-xs text-gray-400" x-text="(candidate.remaining !== null
+                                ? 'Pendiente ' + money(candidate.remaining, candidate.currency) + ' de ' + money(candidate.amount, candidate.currency)
+                                : 'Orden en ' + candidate.currency + ' por ' + money(candidate.amount, candidate.currency) + (candidate.invoices ? ' · ya tiene ' + candidate.invoices + (candidate.invoices === 1 ? ' factura' : ' facturas') : ''))
+                                + ' · creada por ' + (candidate.created_by || '—')"></p>
                         </div>
                         <button type="button" @click="link(candidate)" class="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700" :disabled="busy"
-                                x-text="'Vincular ' + money(candidate.quick_amount)"></button>
+                                :title="'Se vinculan ' + money(candidate.quick_amount) + ' de esta factura'"
+                                x-text="candidate.partial ? 'Vincular ' + money(candidate.quick_amount) : 'Vincular'"></button>
                     </div>
                 </template>
             </div>

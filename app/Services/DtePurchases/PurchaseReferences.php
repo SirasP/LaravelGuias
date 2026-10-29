@@ -89,8 +89,73 @@ class PurchaseReferences
 
     public function usedOnItem(int $itemId): string
     {
-        // Stale references still reserve their quantities until somebody reviews them.
-        return (string) Quantity::of($this->active()->where('purchase_request_item_id', $itemId)->sum('request_quantity'));
+        // Stale references still reserve their quantities until somebody reviews them;
+        // what a credit note gave back is pending again.
+        return (string) Quantity::of($this->active()->where('purchase_request_item_id', $itemId)->sum('request_quantity'))
+            ->minus(Quantity::of($this->returnedByItem([$itemId])[$itemId] ?? 0));
+    }
+
+    /**
+     * What credit notes gave back of each item, in request units: Implementos
+     * invoiced 17 sprays in 7100520 and took 2 back with NC 361827.
+     *
+     * @return array<int, string> item id → quantity
+     */
+    public function returnedByItem(array $itemIds): array
+    {
+        $returned = [];
+        $references = $this->active()->whereIn('purchase_request_item_id', $itemIds)->get();
+        foreach ($this->returnedByReference($references) as $id => $quantity) {
+            $itemId = $references->firstWhere('id', $id)->purchase_request_item_id;
+            $returned[$itemId] = (string) Quantity::of($returned[$itemId] ?? 0)->plus($quantity);
+        }
+
+        return $returned;
+    }
+
+    /**
+     * The same per reference. When several references share an invoice line,
+     * the units go back in the order they were linked.
+     *
+     * @return array<int, \Brick\Math\BigDecimal> reference id → request units
+     */
+    public function returnedByReference(Collection $references): array
+    {
+        $references = $references->filter(fn ($ref): bool => (bool) $ref->document_line_id);
+        if ($references->isEmpty()) {
+            return [];
+        }
+        $fuel = DB::connection('fuelcontrol');
+        $documents = $fuel->table('gmail_dte_documents')->whereIn('id', $references->pluck('document_id')->unique())
+            ->get(['id', 'folio', 'tipo_dte', 'proveedor_rut']);
+        $notes = app(CreditNotes::class)->forDocuments($documents);
+        if ($notes === []) {
+            return [];
+        }
+        // Every line of each invoice: a note's line goes to the one it resembles most.
+        $invoiceLines = $fuel->table('gmail_dte_document_lines')->whereIn('document_id', array_keys($notes))->get();
+        $lines = $invoiceLines->keyBy('id');
+        $byDocument = $invoiceLines->groupBy('document_id');
+        $returned = [];
+        foreach ($references->sortBy('id')->groupBy('document_line_id') as $lineId => $group) {
+            $line = $lines->get($lineId);
+            if (! $line || ! isset($notes[$line->document_id])) {
+                continue;
+            }
+            $left = Quantity::of(number_format(app(CreditNotes::class)->returned($notes[$line->document_id], $line, $byDocument->get($line->document_id)), 6, '.', ''));
+            foreach ($group as $ref) {
+                $invoiced = Quantity::of($ref->invoice_quantity);
+                if (! $left->isGreaterThan(0) || $invoiced->isZero()) {
+                    break;
+                }
+                $take = $left->isLessThan($invoiced) ? $left : $invoiced;
+                $returned[$ref->id] = $take->multipliedBy(Quantity::of($ref->request_quantity))
+                    ->dividedBy($invoiced, 6, \Brick\Math\RoundingMode::HALF_UP);
+                $left = $left->minus($take);
+            }
+        }
+
+        return $returned;
     }
 
     public function report(int $id): array
@@ -99,7 +164,9 @@ class PurchaseReferences
         $lines = $this->lines($id)->keyBy('id');
         $references = $this->active()->with(['requestItem', 'purchaseRequest'])->where('document_id', $id)->get();
         $net = $this->netFactor($document, $lines);
-        $rows = $references->map(function (DtePurchaseReference $ref) use ($document, $lines, $net): array {
+        $returned = $this->returnedByReference($references);
+        $notes = app(CreditNotes::class)->forDocuments([$document])[$id] ?? [];
+        $rows = $references->map(function (DtePurchaseReference $ref) use ($document, $lines, $net, $returned): array {
             $line = $lines->get($ref->document_line_id);
             $stale = ! $line || ! $ref->requestItem || ! $ref->purchaseRequest
                 || ! $this->eligible($document)
@@ -128,6 +195,7 @@ class PurchaseReferences
                 'actor' => $ref->actor_name ?: self::SYSTEM[$ref->source] ?? 'Sistema', 'date' => $ref->created_at->toIso8601String(),
                 'note' => $ref->note,
                 'price' => $this->price($line, $ref, $net),
+                'returned' => isset($returned[$ref->id]) ? (string) $returned[$ref->id] : null,
                 'measures' => $this->measureWarning((string) $ref->snapshot['invoice_product'], (string) $ref->snapshot['request_product']),
             ];
         })->values();
@@ -158,6 +226,8 @@ class PurchaseReferences
                 'without_price' => $rows->filter(fn (array $row): bool => ! $row['stale'] && $row['price'] === null)->count(),
             ],
             'price_tolerance' => self::PRICE_TOLERANCE,
+            'credit_notes' => array_map(fn (array $note): array => ['folio' => $note['folio'], 'annuls' => $note['annuls'],
+                'net' => $note['net'], 'reason' => $note['reason']], $notes),
             'unbilled' => $references->pluck('purchaseRequest')->filter()->unique('id')
                 ->mapWithKeys(fn (PurchaseRequest $request): array => [$request->id => $this->unbilled($request, $billedItems)]),
             'history' => DB::table('dte_purchase_events')->where('document_id', $id)->orderByDesc('id')->limit(15)
@@ -325,12 +395,14 @@ class PurchaseReferences
         $used = $this->active()->whereIn('purchase_request_item_id', $request->items->pluck('id'))
             ->groupBy('purchase_request_item_id')->selectRaw('purchase_request_item_id, sum(request_quantity) as total')
             ->pluck('total', 'purchase_request_item_id');
+        $returned = $this->returnedByItem($request->items->pluck('id')->all());
 
         return $request->items->reject(fn (PurchaseRequestItem $item): bool => in_array($item->id, $except, true))
             ->map(fn (PurchaseRequestItem $item): array => [
                 'product' => $item->product_service, 'specification' => $item->specification,
                 'quantity' => (string) Quantity::of($item->quantity), 'unit' => $item->unit,
-                'remaining' => (string) Quantity::of($item->quantity)->minus(Quantity::of($used[$item->id] ?? 0)),
+                'remaining' => (string) Quantity::of($item->quantity)->minus(Quantity::of($used[$item->id] ?? 0))
+                    ->plus(Quantity::of($returned[$item->id] ?? 0)),
             ])
             ->filter(fn (array $item): bool => Quantity::of($item['remaining'])->isGreaterThan(0))->values()->all();
     }

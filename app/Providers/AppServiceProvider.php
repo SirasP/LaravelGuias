@@ -14,6 +14,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Las notas de crédito se leen una vez por petición, no una por factura.
+        $this->app->scoped(\App\Services\DtePurchases\CreditNotes::class);
+
         // Con la integración apagada —lo normal, y lo que ocurre en la suite—
         // se usa el adaptador simulado, que no abre ninguna conexión. El real
         // sólo aparece cuando alguien lo enciende a conciencia en el .env.

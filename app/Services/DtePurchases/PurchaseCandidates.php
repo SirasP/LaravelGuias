@@ -155,6 +155,10 @@ class PurchaseCandidates
         $used = $references->active()->whereIn('purchase_request_item_id', $requests->pluck('items')->flatten()->pluck('id'))
             ->groupBy('purchase_request_item_id')->selectRaw('purchase_request_item_id, sum(request_quantity) as total')
             ->pluck('total', 'purchase_request_item_id');
+        // What a credit note gave back is pending again.
+        foreach ($references->returnedByItem($used->keys()->all()) as $itemId => $quantity) {
+            $used[$itemId] = (string) Quantity::of($used[$itemId])->minus(Quantity::of($quantity));
+        }
         $quotedRequests = $rut ? PurchaseRequestIngestion::whereIn('compared_request_id', $requests->pluck('id'))
             ->where('company_code', PurchaseRequest::COMPANY_CODE)->get(['compared_request_id', 'supplier_tax_id'])
             ->filter(fn ($quote): bool => Rut::normalize($quote->supplier_tax_id) === $rut)

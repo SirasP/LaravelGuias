@@ -27,7 +27,7 @@ class OdooOrderLinks
     /** Hay órdenes que el jefe crea después de recibir la factura. */
     private const DAYS_AFTER = 15;
 
-    public function __construct(private ProductSimilarity $similarity) {}
+    public function __construct(private ProductSimilarity $similarity, private CreditNotes $creditNotes) {}
 
     /** Las órdenes que el XML nombra como referencia (tipo 801, «orden de compra»). */
     public function referencedOrders(object $document): array
@@ -79,25 +79,36 @@ class OdooOrderLinks
         $lines = $this->lines($documentId);
         $net = $this->net($document);
         $invoiced = $this->invoicedByOrder($orders->pluck('odoo_id')->all());
+        $invoiceCount = DteOdooOrderLink::active()->whereIn('odoo_order_id', $orders->pluck('odoo_id'))
+            ->groupBy('odoo_order_id')->selectRaw('odoo_order_id, count(*) as total')->pluck('total', 'odoo_order_id');
 
-        return $orders->map(function (OdooPurchaseOrder $order) use ($referenced, $lines, $net, $invoiced, $document): array {
-            $remaining = max(0.0, $order->amount_untaxed - ($invoiced[$order->odoo_id] ?? 0.0));
+        $candidates = $orders->map(function (OdooPurchaseOrder $order) use ($referenced, $lines, $net, $invoiced, $invoiceCount, $document): array {
+            // Lo facturado está en pesos: sólo se resta de una orden en pesos.
             $clp = in_array($order->currency, [null, 'CLP'], true);
-            $coverage = $this->coverage($lines, $order);
+            $remaining = $clp ? max(0.0, $order->amount_untaxed - ($invoiced[$order->odoo_id] ?? 0.0)) : null;
+            $quick = $clp && $remaining > 0 ? min($net, $remaining) : $net;
 
             return [
                 'odoo_id' => $order->odoo_id, 'name' => $order->name, 'partner' => $order->partner_name,
                 'state' => $order->stateLabel(), 'date' => $order->date_order?->toDateString(),
                 'created_by' => $order->created_by_name, 'currency' => $order->currency ?: 'CLP',
-                'amount' => $order->amount_untaxed, 'remaining' => $remaining,
+                'amount' => $order->amount_untaxed, 'remaining' => $remaining, 'invoices' => (int) ($invoiceCount[$order->odoo_id] ?? 0),
                 'referenced' => in_array($order->name, $referenced, true),
                 'same_supplier' => $this->plainRut($order->partner_vat) === $this->plainRut($document->proveedor_rut),
-                'coverage' => round($coverage, 3),
-                'same_amount' => $clp && $net > 0 && abs($net - $remaining) <= max(2.0, $remaining * 0.01),
-                'quick_amount' => $clp ? min($net, $remaining ?: $net) : $net,
+                'coverage' => round($this->coverage($lines, $order), 3),
+                'same_amount' => $clp && $net > 0 && $remaining > 0 && abs($net - $remaining) <= max(2.0, $remaining * 0.01),
+                'quick_amount' => $quick, 'partial' => $quick < $net - 1,
                 'url' => $order->odooUrl(),
             ];
-        })->sortByDesc(fn (array $c): array => [$c['referenced'], $c['same_amount'] && $c['coverage'] >= 0.999, $c['coverage'], $c['same_amount']])
+        });
+        if (trim($search) === '') {
+            // Solas, sólo las que tienen algo a favor; «mismo proveedor y fechas
+            // cercanas» no basta. Una orden en pesos ya facturada entera, tampoco.
+            $candidates = $candidates->filter(fn (array $c): bool => $c['referenced']
+                || (($c['coverage'] > 0 || $c['same_amount']) && ($c['remaining'] === null || $c['remaining'] > 0)));
+        }
+
+        return $candidates->sortByDesc(fn (array $c): array => [$c['referenced'], $c['same_amount'] && $c['coverage'] >= 0.999, $c['coverage'], $c['same_amount']])
             ->values()->all();
     }
 
@@ -112,6 +123,10 @@ class OdooOrderLinks
     {
         $document = $this->document($documentId);
         if (! $this->eligible($document) || DteOdooOrderLink::active()->where('document_id', $documentId)->exists()) {
+            return 0;
+        }
+        // Una factura anulada por su nota de crédito no pagó nada.
+        if (collect($this->creditNotes->forDocuments([$document])[$documentId] ?? [])->contains('annuls', true)) {
             return 0;
         }
         $candidates = collect($this->candidates($documentId));
@@ -175,6 +190,7 @@ class OdooOrderLinks
         $links = DteOdooOrderLink::active()->where('document_id', $documentId)->orderBy('id')->get();
         $orders = OdooPurchaseOrder::whereIn('odoo_id', $links->pluck('odoo_order_id'))->get()->keyBy('odoo_id');
         $invoiced = $this->invoicedByOrder($links->pluck('odoo_order_id')->all());
+        [$credits, $notes] = $this->credits($links);
 
         return [
             'eligible' => $this->eligible($document), 'net' => $this->net($document),
@@ -182,13 +198,15 @@ class OdooOrderLinks
                 'id' => $link->id, 'odoo_id' => $link->odoo_order_id, 'name' => $link->order_name, 'amount' => $link->amount,
                 'source' => $link->source, 'source_label' => DteOdooOrderLink::SOURCES[$link->source] ?? $link->source,
                 'actor' => $link->actor_name, 'note' => $link->note,
+                'credited' => $credits[$link->id] ?? 0.0, 'credit_notes' => $this->noteSummary($notes[$link->document_id] ?? []),
                 'order' => ($order = $orders->get($link->odoo_order_id)) ? [
                     'partner' => $order->partner_name, 'state' => $order->stateLabel(), 'date' => $order->date_order?->toDateString(),
                     'created_by' => $order->created_by_name, 'currency' => $order->currency ?: 'CLP',
                     'amount' => $order->amount_untaxed, 'invoiced' => $invoiced[$order->odoo_id] ?? 0.0, 'url' => $order->odooUrl(),
                 ] : null,
             ])->values()->all(),
-            'candidates' => $this->eligible($document) ? array_slice($this->candidates($documentId), 0, 8) : [],
+            // Con su orden ya vinculada, sugerir otras sólo distrae: queda la búsqueda.
+            'candidates' => $this->eligible($document) && $links->isEmpty() ? array_slice($this->candidates($documentId), 0, 8) : [],
         ];
     }
 
@@ -202,10 +220,13 @@ class OdooOrderLinks
         $links = DteOdooOrderLink::active()->whereIn('odoo_order_id', $odooOrderIds)->orderBy('id')->get();
         $documents = DB::connection('fuelcontrol')->table('gmail_dte_documents')->whereIn('id', $links->pluck('document_id')->unique())
             ->get(['id', 'folio', 'fecha_factura'])->keyBy('id');
+        [$credits, $notes] = $this->credits($links);
 
         return $links->groupBy('odoo_order_id')->map(fn (Collection $group): array => $group->map(fn (DteOdooOrderLink $link): array => [
             'id' => $link->document_id, 'folio' => (string) ($documents->get($link->document_id)?->folio ?? '¿?'),
             'date' => $documents->get($link->document_id)?->fecha_factura, 'amount' => $link->amount, 'source' => $link->source,
+            'credited' => $credits[$link->id] ?? 0.0, 'net' => $link->amount - ($credits[$link->id] ?? 0.0),
+            'credit_notes' => $this->noteSummary($notes[$link->document_id] ?? []),
         ])->values()->all())->all();
     }
 
@@ -254,11 +275,57 @@ class OdooOrderLinks
         return $matched / $total;
     }
 
-    /** @return array<int, float> */
+    /**
+     * Lo facturado de cada orden, ya descontadas las notas de crédito.
+     *
+     * @return array<int, float>
+     */
     private function invoicedByOrder(array $odooOrderIds): array
     {
-        return DteOdooOrderLink::active()->whereIn('odoo_order_id', $odooOrderIds)->groupBy('odoo_order_id')
-            ->selectRaw('odoo_order_id, sum(amount) as total')->pluck('total', 'odoo_order_id')->map(fn ($total) => (float) $total)->all();
+        $links = DteOdooOrderLink::active()->whereIn('odoo_order_id', $odooOrderIds)->get();
+        [$credits] = $this->credits($links);
+        $invoiced = [];
+        foreach ($links as $link) {
+            $invoiced[$link->odoo_order_id] = ($invoiced[$link->odoo_order_id] ?? 0.0) + $link->amount - ($credits[$link->id] ?? 0.0);
+        }
+
+        return $invoiced;
+    }
+
+    /**
+     * Cuánto le quitan las notas de crédito a cada vínculo. Si una factura paga
+     * varias órdenes, la nota se descuenta en el orden en que se vincularon.
+     *
+     * @return array{0: array<int, float>, 1: array<int, list<array>>} [id de vínculo → crédito, id de factura → notas]
+     */
+    private function credits(Collection $links): array
+    {
+        if ($links->isEmpty()) {
+            return [[], []];
+        }
+        $documents = DB::connection('fuelcontrol')->table('gmail_dte_documents')->whereIn('id', $links->pluck('document_id')->unique())
+            ->get(['id', 'folio', 'tipo_dte', 'proveedor_rut', 'monto_neto', 'monto_total', 'monto_iva'])->keyBy('id');
+        $notes = $this->creditNotes->forDocuments($documents);
+        $credits = [];
+        foreach ($links->sortBy('id')->groupBy('document_id') as $documentId => $group) {
+            if (! isset($notes[$documentId]) || ! $documents->has($documentId)) {
+                continue;
+            }
+            $left = $this->creditNotes->credited($notes[$documentId], $this->net($documents->get($documentId)));
+            foreach ($group as $link) {
+                $credits[$link->id] = min($link->amount, $left);
+                $left -= $credits[$link->id];
+            }
+        }
+
+        return [$credits, $notes];
+    }
+
+    /** Lo que la pantalla dice de cada nota. */
+    private function noteSummary(array $notes): array
+    {
+        return array_map(fn (array $note): array => ['folio' => $note['folio'], 'annuls' => $note['annuls'], 'net' => $note['net'],
+            'reason' => $note['reason'], 'shared' => $note['shared']], $notes);
     }
 
     /** El neto de la factura; en una exenta, su total menos impuestos. */

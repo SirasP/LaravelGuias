@@ -71,6 +71,11 @@
                                         @if($price['change'] != 0) ({{ $price['change'] > 0 ? '+' : '' }}{{ str_replace('.', ',', (string) $price['change']) }} %) @endif
                                     </p>
                                 @endif
+                                @if($reference['returned'] ?? null)
+                                    <p class="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        Nota de crédito: devolvieron {{ $cantidad($reference['returned']) }} {{ $unidad($reference['request_unit']) }}, vuelven a quedar pendientes
+                                    </p>
+                                @endif
                                 @if($reference['stale'])
                                     <p class="mt-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">Requiere revisión</p>
                                 @endif

@@ -48,7 +48,7 @@ export default (urls) => ({
         const amount = Number(value || 0);
         return currency && currency !== 'CLP'
             ? currency + ' ' + amount.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            : '$' + Math.round(amount).toLocaleString('es-CL');
+            : (amount < 0 ? '−$' : '$') + Math.abs(Math.round(amount)).toLocaleString('es-CL');
     },
     percent(part, whole) { return whole > 0 ? Math.round(part * 100 / whole) + ' %' : ''; },
     reason(candidate) {

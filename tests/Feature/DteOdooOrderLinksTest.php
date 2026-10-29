@@ -69,7 +69,23 @@ it('links by itself the only order with the same products and amount, and leaves
 
     $this->actingAs($this->admin)->getJson(route('gmail.dtes.odoo_orders.show', $id))
         ->assertJsonCount(1, 'links')->assertJsonPath('links.0.odoo_id', $right->odoo_id)->assertJsonPath('links.0.source', 'auto')
-        ->assertJsonPath('candidates.0.name', 'P00341');
+        // Linked to its order, it suggests nothing else; the search is still there.
+        ->assertJsonCount(0, 'candidates');
+    $this->getJson(route('gmail.dtes.odoo_orders.candidates', [$id, 'q' => 'P00341']))->assertJsonPath('candidates.0.name', 'P00341');
+});
+
+it('suggests only orders with something in their favour, still pending, without mixing currencies', function () {
+    odooTabOrder(319, [['ALAMBRE GALVANIZADO 14', 10, 1125]], ['currency' => 'USD', 'partner_vat' => '76222333-4']);
+    odooTabOrder(320, [['UREA GRANULADA SACO 25KG', 20, 560]], ['currency' => 'USD', 'partner_vat' => '76222333-4']);
+    odooTabOrder(330, [['SULFATO DE POTASIO', 10, 500000]], ['partner_vat' => '76222333-4']);
+    $paid = odooTabInvoice([['SULFATO DE POTASIO', 10, 500000]], ['proveedor_rut' => '76222333-4']);
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.odoo_orders.show', $paid))->assertJsonPath('links.0.name', 'P00330');
+
+    $id = odooTabInvoice([['UREA GRANULADA SACO 25KG', 20, 552737]], ['proveedor_rut' => '76222333-4']);
+    $this->getJson(route('gmail.dtes.odoo_orders.show', $id))
+        // P00319 is only the same supplier; P00330 is already fully invoiced.
+        ->assertJsonCount(1, 'candidates')->assertJsonPath('candidates.0.name', 'P00320')
+        ->assertJsonPath('candidates.0.remaining', null)->assertJsonPath('candidates.0.partial', false);
 });
 
 it('does not link by itself when two orders fit equally, a measure differs, or only part matches', function () {
