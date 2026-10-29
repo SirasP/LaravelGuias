@@ -101,7 +101,25 @@
                     ? ['Facturada'.($percent > 101 ? ' '.$percent.' %' : ''), $percent > 101 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400']
                     : ['En parte · '.$percent.' %', 'text-sky-700 dark:text-sky-300'];
             };
-            $rowsCount = $items->sum(fn ($item) => $item['orders']->count());
+            // El título de un grupo: qué se compró y cómo terminó, sin el código de Odoo delante.
+            $groupTitle = function (\Illuminate\Support\Collection $orders): array {
+                $product = (string) $orders->flatMap->lines->reject->isNote()->first()?->name;
+                $product = trim(preg_replace('/^\[[^\]]*\]\s*/', '', $product)) ?: 'Misma compra';
+                $states = $orders->countBy(fn ($o) => in_array($o->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true) ? 'c' : ($o->state === 'cancel' ? 'x' : 'q'));
+                $suppliers = $orders->pluck('partner_odoo_id')->unique()->count();
+                $parts = ['se cotizó a '.$suppliers.' '.($suppliers === 1 ? 'proveedor' : 'proveedores')];
+                if ($states['c'] ?? 0) {
+                    $parts[0] .= ' y se compró a '.$states['c'];
+                }
+                if ($states['q'] ?? 0) {
+                    $parts[] = $states['q'].' sin confirmar';
+                }
+                if ($states['x'] ?? 0) {
+                    $parts[] = $states['x'].' '.($states['x'] === 1 ? 'cancelada' : 'canceladas');
+                }
+
+                return [$product, implode(' · ', $parts), (int) ($states['c'] ?? 0)];
+            };
         @endphp
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -125,33 +143,29 @@
                         </thead>
                         @foreach($items as $item)
                             @php $grouped = $item['orders']->count() > 1; @endphp
-                            <tbody class="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                            {{-- Un grupo es un bloque: fondo, barra a la izquierda y aire antes y después,
+                                 para que no se confunda con las órdenes sueltas de abajo. --}}
+                            <tbody class="{{ $grouped ? 'border-y-[10px] border-white bg-indigo-50/50 dark:border-slate-900 dark:bg-indigo-950/20' : 'border-b border-slate-100 last:border-0 dark:border-slate-800' }}">
                                 @if($grouped)
-                                    @php
-                                        $states = $item['orders']->countBy(fn ($o) => in_array($o->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true) ? 'c' : ($o->state === 'cancel' ? 'x' : 'q'));
-                                        $product = $item['orders']->flatMap->lines->reject->isNote()->first()?->name;
-                                    @endphp
-                                    <tr class="bg-slate-50/80 dark:bg-slate-950/40">
-                                        <td colspan="6" class="px-5 py-2.5">
+                                    @php [$product, $summary] = $groupTitle($item['orders']); @endphp
+                                    <tr>
+                                        <td colspan="6" class="border-l-4 border-indigo-500 px-5 pb-1.5 pt-3">
                                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <p class="min-w-0 text-xs text-slate-600 dark:text-slate-300">
-                                                    <span class="font-bold text-slate-800 dark:text-slate-100">{{ \Illuminate\Support\Str::limit($product ?: 'Misma compra', 70) }}</span>
-                                                    · cotizada a {{ $item['orders']->pluck('partner_odoo_id')->unique()->count() }} proveedores
-                                                    @if($states['c'] ?? 0)<span class="ml-1 font-semibold text-emerald-700 dark:text-emerald-400">· {{ $states['c'] }} {{ $states['c'] === 1 ? 'confirmada' : 'confirmadas' }}</span>@endif
-                                                    @if($states['q'] ?? 0)<span class="ml-1 font-semibold text-amber-700 dark:text-amber-400">· {{ $states['q'] }} sin confirmar</span>@endif
-                                                    @if($states['x'] ?? 0)<span class="ml-1 text-slate-400">· {{ $states['x'] }} {{ $states['x'] === 1 ? 'cancelada' : 'canceladas' }}</span>@endif
+                                                <p class="min-w-0 text-sm text-slate-600 dark:text-slate-300">
+                                                    <span class="font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 70) }}</span>
+                                                    <span class="text-xs"> · {{ $summary }}</span>
                                                 </p>
                                                 <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion"
-                                                   class="shrink-0 text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">Comparar precios →</a>
+                                                   class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-slate-900 dark:text-indigo-300 dark:ring-indigo-800">Comparar precios →</a>
                                             </div>
                                         </td>
                                     </tr>
                                 @endif
                                 @foreach($item['orders'] as $order)
                                     @php [$billLabel, $billClass] = $billing($order); @endphp
-                                    <tr class="cursor-pointer transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/40 {{ $order->state === 'cancel' ? 'text-slate-400 dark:text-slate-500' : '' }}"
+                                    <tr class="cursor-pointer transition-colors {{ $grouped ? 'hover:bg-indigo-100/50 dark:hover:bg-indigo-900/20' : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40' }} {{ $order->state === 'cancel' ? 'text-slate-400 dark:text-slate-500' : '' }}"
                                         data-row-href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}">
-                                        <td class="whitespace-nowrap py-3 pr-5 {{ $grouped ? 'pl-9' : 'pl-5' }}">
+                                        <td class="whitespace-nowrap py-3 pr-5 {{ $grouped ? 'border-l-4 border-indigo-500 pl-8' : 'pl-5' }}">
                                             <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}" class="font-mono text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">{{ $order->name }}</a>
                                             @if($order->isRecent() && $order->state !== 'cancel')
                                                 <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Nueva</span>
@@ -182,18 +196,20 @@
                 <div class="divide-y divide-slate-100 lg:hidden dark:divide-slate-800">
                     @foreach($items as $item)
                         @if($item['orders']->count() > 1)
-                            <div class="flex items-center justify-between gap-2 bg-slate-50/80 px-4 py-2 dark:bg-slate-950/40">
-                                <p class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">
-                                    {{ \Illuminate\Support\Str::limit($item['orders']->flatMap->lines->reject->isNote()->first()?->name ?: 'Misma compra', 40) }}
-                                    · {{ $item['orders']->pluck('partner_odoo_id')->unique()->count() }} proveedores
+                            @php [$product, $summary] = $groupTitle($item['orders']); @endphp
+                            <div class="m-2 overflow-hidden rounded-xl border-l-4 border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-100 dark:bg-indigo-950/20 dark:ring-indigo-900">
+                            <div class="flex items-start justify-between gap-2 px-3 py-2">
+                                <p class="min-w-0 text-xs text-slate-600 dark:text-slate-300">
+                                    <span class="block truncate font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 40) }}</span>
+                                    {{ $summary }}
                                 </p>
-                                <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion" class="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400">Comparar →</a>
+                                <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion" class="shrink-0 text-xs font-bold text-indigo-700 dark:text-indigo-300">Comparar →</a>
                             </div>
                         @endif
                         @foreach($item['orders'] as $order)
                             @php [$billLabel, $billClass] = $billing($order); @endphp
                             <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}"
-                               class="flex items-start justify-between gap-3 px-4 py-3 {{ $item['orders']->count() > 1 ? 'pl-7' : '' }} {{ $order->state === 'cancel' ? 'opacity-60' : '' }}">
+                               class="flex items-start justify-between gap-3 px-4 py-3 {{ $item['orders']->count() > 1 ? 'border-t border-indigo-100 px-3 dark:border-indigo-900' : '' }} {{ $order->state === 'cancel' ? 'opacity-60' : '' }}">
                                 <div class="min-w-0">
                                     <p class="flex items-center gap-1.5">
                                         <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ $order->name }}</span>
@@ -208,6 +224,9 @@
                                 </div>
                             </a>
                         @endforeach
+                        @if($item['orders']->count() > 1)
+                            </div>
+                        @endif
                     @endforeach
                 </div>
             @endif

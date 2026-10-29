@@ -139,7 +139,7 @@ it('keeps together the quotations of one purchase sent to several suppliers', fu
     $this->actingAs(User::factory()->admin()->create())
         ->get(route('purchase_requests.odoo', ['estado' => 'confirmadas']))->assertOk()
         // The cancelled one is not "confirmed", but it travels with its group.
-        ->assertSeeInOrder(['cotizada a 2 proveedores', 'MARTINEZ Y VALDIVIESO S.A', 'Coagra S.A.'])
+        ->assertSeeInOrder(['se cotizó a 2 proveedores y se compró a 1', '1 cancelada', 'MARTINEZ Y VALDIVIESO S.A', 'Coagra S.A.'])
         ->assertSee('Transportes Oliva Spa');
 });
 
