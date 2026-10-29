@@ -64,6 +64,13 @@
                     @endif
                 </div>
             </div>
+            @if($boughtWith->isNotEmpty())
+                <p class="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-900 ring-1 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-200 dark:ring-orange-900">
+                    <span class="font-semibold">Esta cotización quedó abierta.</span>
+                    La compra ya se hizo con {{ $boughtWith->map(fn ($o) => $o->name.' ('.\Illuminate\Support\Str::before((string) $o->partner_name, ',').')')->join(', ', ' y ') }}.
+                    Conviene cancelarla en Odoo para que no quede pendiente.
+                </p>
+            @endif
             @if($order->notes)
                 <p class="mt-3 whitespace-pre-line rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">{{ $order->notes }}</p>
             @endif

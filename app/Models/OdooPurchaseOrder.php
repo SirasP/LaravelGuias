@@ -57,6 +57,30 @@ class OdooPurchaseOrder extends Model
         return $query->whereIn('state', self::CONFIRMED_STATES);
     }
 
+    /** Cotizaciones que siguen pendientes: ni su grupo ya se compró a otro proveedor. */
+    public function scopePendingQuotations(Builder $query): Builder
+    {
+        return $query->quotations()->where(fn (Builder $q) => $q->whereNull('purchase_group_id')
+            ->orWhereNotIn('purchase_group_id', self::boughtGroups()));
+    }
+
+    /**
+     * Cotizaciones que quedaron abiertas en Odoo aunque la compra ya se hizo:
+     * BIOLIFE FOLIAR se compró a Florin y las de Copeval y la Cooperativa
+     * siguen «enviadas». Conviene cancelarlas allá.
+     */
+    public function scopeLeftOpen(Builder $query): Builder
+    {
+        return $query->quotations()->whereIn('purchase_group_id', self::boughtGroups());
+    }
+
+    /** Los grupos donde alguna orden ya se confirmó. */
+    public static function boughtGroups(): \Illuminate\Database\Query\Builder
+    {
+        return \Illuminate\Support\Facades\DB::table('odoo_purchase_orders')->whereIn('state', self::CONFIRMED_STATES)
+            ->whereNotNull('purchase_group_id')->select('purchase_group_id');
+    }
+
     public function stateLabel(): string
     {
         return self::STATE_LABELS[$this->state] ?? $this->state;

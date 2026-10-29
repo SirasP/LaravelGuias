@@ -27,6 +27,7 @@
         };
         $tabs = [
             'cotizaciones' => ['Cotizaciones', 'aún sin confirmar'],
+            'abiertas' => ['Quedaron abiertas', 'el grupo ya se compró'],
             'confirmadas' => ['Confirmadas', 'orden de compra'],
             'canceladas' => ['Canceladas', ''],
             'todas' => ['Todas', ''],
@@ -53,7 +54,7 @@
                 </p>
             </div>
 
-            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 @foreach($tabs as $key => [$label, $hint])
                     <a href="{{ route('purchase_requests.odoo', array_filter(['estado' => $key, 'q' => $search, 'creada_por' => $creator])) }}"
                        @if($filter === $key) aria-current="page" @endif
@@ -101,6 +102,11 @@
                     ? ['Facturada'.($percent > 101 ? ' '.$percent.' %' : ''), $percent > 101 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400']
                     : ['En parte · '.$percent.' %', 'text-sky-700 dark:text-sky-300'];
             };
+            // Una cotización cuyo grupo ya se compró a otro quedó abierta en Odoo sin razón.
+            $badge = fn (\App\Models\OdooPurchaseOrder $order): array => $order->isQuotation() && isset($bought[$order->purchase_group_id])
+                ? ['Quedó abierta', 'bg-orange-100 text-orange-800 ring-1 ring-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:ring-orange-900']
+                : [$order->stateLabel(), $stateClasses($order->state)];
+
             // El título de un grupo: qué se compró y cómo terminó, sin el código de Odoo delante.
             $groupTitle = function (\Illuminate\Support\Collection $orders): array {
                 $product = (string) $orders->flatMap->lines->reject->isNote()->first()?->name;
@@ -112,7 +118,8 @@
                     $parts[0] .= ' y se compró a '.$states['c'];
                 }
                 if ($states['q'] ?? 0) {
-                    $parts[] = $states['q'].' sin confirmar';
+                    // Con la compra ya hecha, lo que no se confirmó quedó abierto en Odoo.
+                    $parts[] = $states['q'].' '.(($states['c'] ?? 0) ? ($states['q'] === 1 ? 'quedó abierta' : 'quedaron abiertas') : 'sin confirmar');
                 }
                 if ($states['x'] ?? 0) {
                     $parts[] = $states['x'].' '.($states['x'] === 1 ? 'cancelada' : 'canceladas');
@@ -179,7 +186,8 @@
                                             <span class="block text-slate-400">{{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 22) }}</span>
                                         </td>
                                         <td class="whitespace-nowrap px-5 py-3">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $stateClasses($order->state) }}">{{ $order->stateLabel() }}</span>
+                                            @php [$badgeLabel, $badgeClass] = $badge($order); @endphp
+                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $badgeClass }}" @if($badgeLabel === 'Quedó abierta') title="El grupo ya se compró: conviene cancelarla en Odoo" @endif>{{ $badgeLabel }}</span>
                                         </td>
                                         <td class="whitespace-nowrap px-5 py-3 text-right font-semibold tabular-nums {{ $order->state === 'cancel' ? '' : 'text-slate-900 dark:text-white' }}">
                                             {{ $money($order->amount_untaxed, $order->currency) }}
@@ -213,7 +221,8 @@
                                 <div class="min-w-0">
                                     <p class="flex items-center gap-1.5">
                                         <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ $order->name }}</span>
-                                        <span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $stateClasses($order->state) }}">{{ $order->stateLabel() }}</span>
+                                        @php [$badgeLabel, $badgeClass] = $badge($order); @endphp
+                                        <span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                                     </p>
                                     <p class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
                                     <p class="text-xs text-slate-500">{{ $order->date_order?->format('d-m-Y') }} · {{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 20) }}</p>

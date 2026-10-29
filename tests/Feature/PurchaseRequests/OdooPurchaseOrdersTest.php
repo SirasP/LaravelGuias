@@ -157,3 +157,20 @@ it('opens each order on its own page, with the prices of its group side by side'
     expect($page->getContent())->toMatch('/bg-emerald-100[^"]*">USD 50,11</');
     $this->get(route('purchase_requests.odoo.show', 999))->assertNotFound();
 });
+
+it('marks the quotations left open in a group that was already bought', function () {
+    $base = ['purchase_group_id' => 29, 'currency' => 'USD', 'synced_at' => now(), 'amount_untaxed' => 4000];
+    OdooPurchaseOrder::create($base + ['odoo_id' => 302, 'name' => 'P00302', 'state' => 'purchase', 'partner_odoo_id' => 1, 'partner_name' => 'Florin Y Cia. S.A., Francisca Alvarez']);
+    OdooPurchaseOrder::create($base + ['odoo_id' => 300, 'name' => 'P00300', 'state' => 'sent', 'partner_odoo_id' => 2, 'partner_name' => 'COPEVAL S.A.']);
+    OdooPurchaseOrder::create($base + ['odoo_id' => 303, 'name' => 'P00303', 'state' => 'sent', 'partner_odoo_id' => 3, 'partner_name' => 'Cooperativa Agricola']);
+    // A quotation still waiting for a decision, in a group with nothing bought.
+    OdooPurchaseOrder::create(['odoo_id' => 323, 'name' => 'P00323', 'state' => 'draft', 'partner_name' => 'PLASTIGEN SPA', 'purchase_group_id' => 40, 'synced_at' => now()]);
+    $admin = User::factory()->admin()->create();
+
+    expect(OdooPurchaseOrder::pendingQuotations()->pluck('name')->all())->toBe(['P00323'])
+        ->and(OdooPurchaseOrder::leftOpen()->orderBy('name')->pluck('name')->all())->toBe(['P00300', 'P00303']);
+    $this->actingAs($admin)->get(route('purchase_requests.odoo', ['estado' => 'abiertas']))->assertOk()
+        ->assertSee('se cotizó a 3 proveedores y se compró a 1 · 2 quedaron abiertas')->assertSee('Quedó abierta')->assertDontSee('PLASTIGEN');
+    $this->get(route('purchase_requests.odoo.show', 300))->assertSee('Esta cotización quedó abierta.')->assertSee('P00302 (Florin Y Cia. S.A.)');
+    $this->get(route('purchase_requests.odoo.show', 323))->assertDontSee('quedó abierta');
+});

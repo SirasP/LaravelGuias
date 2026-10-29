@@ -13,7 +13,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class OdooPurchaseOrderController extends Controller
 {
-    private const FILTERS = ['cotizaciones', 'confirmadas', 'canceladas', 'todas'];
+    private const FILTERS = ['cotizaciones', 'abiertas', 'confirmadas', 'canceladas', 'todas'];
 
     public function index(Request $request): Response
     {
@@ -31,7 +31,8 @@ class OdooPurchaseOrderController extends Controller
 
         // Los contadores respetan la búsqueda, para que cada pestaña diga cuánto hay en ella.
         $counts = [
-            'cotizaciones' => (clone $base)->quotations()->count(),
+            'cotizaciones' => (clone $base)->pendingQuotations()->count(),
+            'abiertas' => (clone $base)->leftOpen()->count(),
             'confirmadas' => (clone $base)->confirmed()->count(),
             'canceladas' => (clone $base)->where('state', 'cancel')->count(),
             'todas' => (clone $base)->count(),
@@ -40,7 +41,8 @@ class OdooPurchaseOrderController extends Controller
         // Una compra cotizada a varios proveedores va junta: el grupo aparece una
         // vez, con todas sus órdenes, si alguna calza con el filtro.
         $matching = (clone $base)
-            ->when($filter === 'cotizaciones', fn ($query) => $query->quotations())
+            ->when($filter === 'cotizaciones', fn ($query) => $query->pendingQuotations())
+            ->when($filter === 'abiertas', fn ($query) => $query->leftOpen())
             ->when($filter === 'confirmadas', fn ($query) => $query->confirmed())
             ->when($filter === 'canceladas', fn ($query) => $query->where('state', 'cancel'))
             ->orderByDesc('odoo_created_at')->orderByDesc('odoo_id')
@@ -65,6 +67,7 @@ class OdooPurchaseOrderController extends Controller
 
         return response()->view('purchase_requests.odoo', [
             'items' => $items, 'pages' => $pages, 'counts' => $counts,
+            'bought' => OdooPurchaseOrder::boughtGroups()->distinct()->pluck('purchase_group_id')->map(fn ($id) => (int) $id)->flip()->all(),
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($loaded->pluck('odoo_id')->all()), 'filter' => $filter, 'search' => $search, 'creator' => $creator,
             'creators' => OdooPurchaseOrder::whereNotNull('created_by_name')->distinct()->orderBy('created_by_name')->pluck('created_by_name'),
             'syncedAt' => OdooPurchaseOrder::max('synced_at'),
@@ -112,8 +115,10 @@ class OdooPurchaseOrderController extends Controller
         }
         unset($product);
 
+        $boughtWith = $order->isQuotation() ? $group->filter(fn (OdooPurchaseOrder $o): bool => in_array($o->state, OdooPurchaseOrder::CONFIRMED_STATES, true)) : collect();
+
         return response()->view('purchase_requests.odoo_show', [
-            'order' => $order, 'group' => $group, 'products' => $products,
+            'order' => $order, 'group' => $group, 'products' => $products, 'boughtWith' => $boughtWith,
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($group->pluck('odoo_id')->all()),
         ]);
     }
