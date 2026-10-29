@@ -669,6 +669,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('gmail/dtes')->name('gmail.dte
     Route::post('/{id}/purchase-references', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'store'])->whereNumber('id')->name('purchase_references.store');
     Route::post('/{id}/purchase-references/classification', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'classify'])->whereNumber('id')->name('purchase_references.classify');
     Route::delete('/{id}/purchase-references/{reference}', [\App\Http\Controllers\DtePurchaseReferenceController::class, 'destroy'])->whereNumber('id')->whereNumber('reference')->name('purchase_references.destroy');
+    Route::get('/{id}/odoo-orders', [\App\Http\Controllers\DteOdooOrderController::class, 'show'])->whereNumber('id')->name('odoo_orders.show');
+    Route::get('/{id}/odoo-orders/candidates', [\App\Http\Controllers\DteOdooOrderController::class, 'candidates'])->whereNumber('id')->name('odoo_orders.candidates');
+    Route::post('/{id}/odoo-orders', [\App\Http\Controllers\DteOdooOrderController::class, 'store'])->whereNumber('id')->name('odoo_orders.store');
+    Route::delete('/{id}/odoo-orders/{link}', [\App\Http\Controllers\DteOdooOrderController::class, 'destroy'])->whereNumber('id')->whereNumber('link')->name('odoo_orders.destroy');
 });
 
 Route::middleware(['auth', 'role:admin,bodeguero'])->prefix('gmail')->name('gmail.')->group(function () {

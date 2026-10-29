@@ -1279,6 +1279,7 @@
                         {{-- Tab: Referencias cruzadas --}}
                         <div x-show="tab === 'cruzadas'" x-cloak>
                             @include('gmail.dtes.partials.purchase-references')
+                            @include('gmail.dtes.partials.odoo-orders')
                         </div>
                     </div>
 

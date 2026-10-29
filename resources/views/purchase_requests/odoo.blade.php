@@ -109,9 +109,26 @@
                                         @if($order->origin) · origen {{ $order->origin }} @endif
                                     </p>
                                 </div>
+                                @php
+                                    $orderInvoices = $invoices[$order->odoo_id] ?? [];
+                                    $invoicedNet = array_sum(array_column($orderInvoices, 'amount'));
+                                @endphp
                                 <div class="shrink-0 text-right">
                                     <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ $money($order->amount_total, $order->currency) }}</p>
                                     <p class="text-xs tabular-nums text-slate-400">neto {{ $money($order->amount_untaxed, $order->currency) }}</p>
+                                    @if($orderInvoices && $order->currency && $order->currency !== 'CLP')
+                                        {{-- Facturas en pesos contra una orden en dólares: no hay porcentaje honesto. --}}
+                                        <p class="mt-1 inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                                            Con {{ count($orderInvoices) }} {{ count($orderInvoices) === 1 ? 'factura' : 'facturas' }}
+                                        </p>
+                                    @elseif($orderInvoices)
+                                        <p class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold {{ $invoicedNet >= $order->amount_untaxed * 0.99 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300' }}">
+                                            {{ $invoicedNet >= $order->amount_untaxed * 0.99 ? 'Facturada' : 'Facturada en parte' }}
+                                            @if($order->amount_untaxed > 0) · {{ round($invoicedNet * 100 / $order->amount_untaxed) }} % @endif
+                                        </p>
+                                    @elseif(in_array($order->state, \App\Models\OdooPurchaseOrder::CONFIRMED_STATES, true))
+                                        <p class="mt-1 text-[11px] font-semibold text-slate-400">Sin factura vinculada</p>
+                                    @endif
                                 </div>
                             </summary>
 
@@ -150,6 +167,16 @@
                                                 @endforeach
                                             </tbody>
                                         </table>
+                                    </div>
+                                @endif
+                                @if($orderInvoices)
+                                    <div class="text-xs text-slate-600 dark:text-slate-300">
+                                        <span class="font-bold uppercase tracking-wider text-slate-400">Facturas</span>
+                                        @foreach($orderInvoices as $invoice)
+                                            <a href="{{ route('gmail.dtes.show', $invoice['id']) }}#referencias-cruzadas" class="ml-2 font-semibold text-blue-600 hover:underline dark:text-blue-400">
+                                                N° {{ $invoice['folio'] }}</a>
+                                            <span class="text-slate-400">{{ $invoice['date'] ? \Illuminate\Support\Carbon::parse($invoice['date'])->format('d-m-Y') : '' }} · {{ $money($invoice['amount'], 'CLP') }}</span>
+                                        @endforeach
                                     </div>
                                 @endif
                                 @if($order->notes)

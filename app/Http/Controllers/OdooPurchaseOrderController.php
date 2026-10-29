@@ -45,7 +45,8 @@ class OdooPurchaseOrderController extends Controller
             ->paginate(25)->withQueryString();
 
         return response()->view('purchase_requests.odoo', [
-            'orders' => $orders, 'counts' => $counts, 'filter' => $filter, 'search' => $search, 'creator' => $creator,
+            'orders' => $orders, 'counts' => $counts,
+            'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($orders->pluck('odoo_id')->all()), 'filter' => $filter, 'search' => $search, 'creator' => $creator,
             'creators' => OdooPurchaseOrder::whereNotNull('created_by_name')->distinct()->orderBy('created_by_name')->pluck('created_by_name'),
             'syncedAt' => OdooPurchaseOrder::max('synced_at'),
         ]);

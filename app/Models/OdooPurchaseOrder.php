@@ -25,7 +25,7 @@ class OdooPurchaseOrder extends Model
     ];
 
     protected $fillable = [
-        'odoo_id', 'name', 'state', 'partner_odoo_id', 'partner_name', 'partner_ref', 'origin', 'currency',
+        'odoo_id', 'name', 'state', 'partner_odoo_id', 'partner_name', 'partner_vat', 'partner_ref', 'origin', 'currency',
         'amount_untaxed', 'amount_total', 'created_by_name', 'buyer_name', 'date_order',
         'invoice_status', 'receipt_status', 'notes', 'odoo_created_at', 'odoo_updated_at', 'synced_at',
     ];

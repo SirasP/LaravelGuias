@@ -37,20 +37,27 @@ function odooRuns(array ...$runs): void
         'purchase_requests.odoo.user' => 'quien@ejemplo.cl', 'purchase_requests.odoo.password' => 'secreta',
     ]);
     $responses = [];
-    foreach ($runs as [$orders, $lines]) {
+    foreach ($runs as $run) {
+        [$orders, $lines] = $run;
+        // Each supplier's RUT, and the companies of contacts that have none.
+        $partners = $run[2] ?? [['id' => 7, 'vat' => '78924030-2', 'commercial_partner_id' => [7, 'Acenor']]];
         $responses[] = Http::response(['jsonrpc' => '2.0', 'result' => 8]);
         $responses[] = Http::response(['jsonrpc' => '2.0', 'result' => $orders]);
         if ($orders !== []) {
             $responses[] = Http::response(['jsonrpc' => '2.0', 'result' => $lines]);
+            $responses[] = Http::response(['jsonrpc' => '2.0', 'result' => $partners]);
+            if (isset($run[3])) {
+                $responses[] = Http::response(['jsonrpc' => '2.0', 'result' => $run[3]]);
+            }
         }
     }
     Http::preventStrayRequests();
     Http::fake(['*/jsonrpc' => Http::sequence($responses)]);
 }
 
-function odooWithOrders(array $orders, array $lines = []): void
+function odooWithOrders(array $orders, array $lines = [], ?array $partners = null, ?array $companies = null): void
 {
-    odooRuns([$orders, $lines]);
+    odooRuns(array_values(array_filter([$orders, $lines, $partners, $companies], fn ($value) => $value !== null)));
 }
 
 it('copies only the orders that did not come from a request, without writing to Odoo', function () {
@@ -108,4 +115,14 @@ it('shows administration the quotations made in Odoo, and hides the tab from eve
 
     $other = User::factory()->create();
     $this->actingAs($other)->get(route('purchase_requests.odoo'))->assertForbidden();
+});
+
+it('keeps the RUT of each supplier, taking the company RUT for a contact without one', function () {
+    odooWithOrders([odooOrder(355, ['partner_id' => [40, 'Coagra S.A., Catalina Zuñiga']])], [],
+        [['id' => 40, 'vat' => false, 'commercial_partner_id' => [41, 'Coagra S.A.']]],
+        [['id' => 41, 'vat' => 'CL96547510-K']]);
+
+    $this->artisan('odoo:sync-purchase-orders')->assertSuccessful();
+
+    expect(OdooPurchaseOrder::sole()->partner_vat)->toBe('CL96547510-K');
 });

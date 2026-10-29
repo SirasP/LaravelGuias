@@ -63,6 +63,7 @@ class OdooSyncPurchaseOrders extends Command
             $orders = $this->read($client, 'purchase.order', [], self::ORDER_FIELDS);
             $orders = array_values(array_filter($orders, fn (array $order): bool => ! $this->fromLaravel($order)));
             $lines = $this->linesOf($client, array_column($orders, 'id'));
+            $vats = $this->vatsOf($client, array_filter(array_map(fn (array $order): ?int => $this->id($order['partner_id']), $orders)));
         } catch (Throwable $e) {
             $this->error('Odoo devolvió un error: '.$e->getMessage());
 
@@ -85,13 +86,14 @@ class OdooSyncPurchaseOrders extends Command
             return self::SUCCESS;
         }
 
-        DB::transaction(function () use ($orders, $lines): void {
+        DB::transaction(function () use ($orders, $lines, $vats): void {
             $now = now();
             $ids = [];
             foreach ($orders as $order) {
                 $local = OdooPurchaseOrder::updateOrCreate(['odoo_id' => $order['id']], [
                     'name' => $order['name'], 'state' => $order['state'],
                     'partner_odoo_id' => $this->id($order['partner_id']), 'partner_name' => $this->name($order['partner_id']),
+                    'partner_vat' => $vats[$this->id($order['partner_id'])] ?? null,
                     'partner_ref' => $order['partner_ref'] ?: null, 'origin' => $order['origin'] ?: null,
                     'currency' => $this->name($order['currency_id']),
                     'amount_untaxed' => (float) $order['amount_untaxed'], 'amount_total' => (float) $order['amount_total'],
@@ -130,6 +132,9 @@ class OdooSyncPurchaseOrders extends Command
         });
 
         $this->info(sprintf('✓ %d órdenes y %d líneas al día.', OdooPurchaseOrder::count(), OdooPurchaseOrderLine::count()));
+        // Con las órdenes al día, las facturas recientes que sin duda son de una de ellas.
+        $linked = app(\App\Services\DtePurchases\OdooOrderLinks::class)->linkRecent();
+        $this->info("✓ {$linked} facturas vinculadas con su orden.");
 
         return self::SUCCESS;
     }
@@ -159,6 +164,34 @@ class OdooSyncPurchaseOrders extends Command
                 return $records;
             }
         }
+    }
+
+    /**
+     * El RUT de cada proveedor. Un contacto («Coagra S.A., Catalina Zuñiga»)
+     * no suele tener RUT propio: vale el de su empresa.
+     *
+     * @return array<int, string>
+     */
+    private function vatsOf(OdooClient $client, array $partnerIds): array
+    {
+        $partnerIds = array_values(array_unique($partnerIds));
+        if ($partnerIds === []) {
+            return [];
+        }
+        $partners = $client->execute('res.partner', 'read', [$partnerIds], ['fields' => ['vat', 'commercial_partner_id']]);
+        $companies = array_values(array_unique(array_filter(array_map(
+            fn (array $partner): ?int => $partner['vat'] ? null : $this->id($partner['commercial_partner_id']), $partners))));
+        $companyVats = $companies === [] ? [] : array_column(
+            $client->execute('res.partner', 'read', [$companies], ['fields' => ['vat']]), 'vat', 'id');
+        $vats = [];
+        foreach ($partners as $partner) {
+            $vat = $partner['vat'] ?: ($companyVats[$this->id($partner['commercial_partner_id'])] ?? null);
+            if ($vat) {
+                $vats[(int) $partner['id']] = (string) $vat;
+            }
+        }
+
+        return $vats;
     }
 
     /** @return list<array<string, mixed>> */
