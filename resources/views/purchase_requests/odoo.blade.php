@@ -135,69 +135,63 @@
                     {{ $syncedAt ? 'No hay órdenes en esta pestaña.' : 'Aún no se han traído las órdenes de Odoo.' }}
                 </p>
             @else
-                {{-- Escritorio: una fila por orden, sin nada que se despliegue. El detalle va en su propia página. --}}
-                <div class="hidden overflow-x-auto lg:block">
-                    <table class="min-w-full text-sm">
-                        <thead class="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                            <tr>
-                                <th class="whitespace-nowrap px-5 py-3">Orden</th>
-                                <th class="px-5 py-3">Proveedor</th>
-                                <th class="whitespace-nowrap px-5 py-3">Creada</th>
-                                <th class="whitespace-nowrap px-5 py-3">Estado</th>
-                                <th class="whitespace-nowrap px-5 py-3 text-right">Neto</th>
-                                <th class="whitespace-nowrap px-5 py-3">Facturación</th>
-                            </tr>
-                        </thead>
-                        @foreach($items as $item)
-                            @php $grouped = $item['orders']->count() > 1; @endphp
-                            {{-- Un grupo es un bloque: fondo, barra a la izquierda y aire antes y después,
-                                 para que no se confunda con las órdenes sueltas de abajo. --}}
-                            <tbody class="{{ $grouped ? 'border-y-[10px] border-white bg-indigo-50/50 dark:border-slate-900 dark:bg-indigo-950/20' : 'border-b border-slate-100 last:border-0 dark:border-slate-800' }}">
-                                @if($grouped)
-                                    @php [$product, $summary] = $groupTitle($item['orders']); @endphp
-                                    <tr>
-                                        <td colspan="6" class="border-l-4 border-indigo-500 px-5 pb-1.5 pt-3">
-                                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <p class="min-w-0 text-sm text-slate-600 dark:text-slate-300">
-                                                    <span class="font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 70) }}</span>
-                                                    <span class="text-xs"> · {{ $summary }}</span>
-                                                </p>
-                                                <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion"
-                                                   class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-slate-900 dark:text-indigo-300 dark:ring-indigo-800">Comparar precios →</a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endif
-                                @foreach($item['orders'] as $order)
-                                    @php [$billLabel, $billClass] = $billing($order); @endphp
-                                    <tr class="cursor-pointer transition-colors {{ $grouped ? 'hover:bg-indigo-100/50 dark:hover:bg-indigo-900/20' : 'hover:bg-blue-50/40 dark:hover:bg-slate-800/40' }} {{ $order->state === 'cancel' ? 'text-slate-400 dark:text-slate-500' : '' }}"
-                                        data-row-href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}">
-                                        <td class="whitespace-nowrap py-3 pr-5 {{ $grouped ? 'border-l-4 border-indigo-500 pl-8' : 'pl-5' }}">
-                                            <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}" class="font-mono text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">{{ $order->name }}</a>
-                                            @if($order->isRecent() && $order->state !== 'cancel')
-                                                <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Nueva</span>
-                                            @endif
-                                        </td>
-                                        <td class="max-w-xs px-5 py-3">
-                                            <p class="truncate font-semibold {{ $order->state === 'cancel' ? '' : 'text-slate-900 dark:text-white' }}" title="{{ $order->partner_name }}">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                            {{ $order->date_order?->format('d-m-Y') ?? '—' }}
-                                            <span class="block text-slate-400">{{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 22) }}</span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3">
-                                            @php [$badgeLabel, $badgeClass] = $badge($order); @endphp
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $badgeClass }}" @if($badgeLabel === 'Quedó abierta') title="El grupo ya se compró: conviene cancelarla en Odoo" @endif>{{ $badgeLabel }}</span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3 text-right font-semibold tabular-nums {{ $order->state === 'cancel' ? '' : 'text-slate-900 dark:text-white' }}">
-                                            {{ $money($order->amount_untaxed, $order->currency) }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold {{ $billClass }}">{{ $billLabel }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
+                {{-- Escritorio: una fila por orden, sin nada que se despliegue. Sin <table>: así cada
+                     grupo puede ir en su propio recuadro redondeado, con las columnas alineadas. --}}
+                @php $cols = 'grid grid-cols-[8.5rem_minmax(0,1fr)_10rem_9.5rem_9rem_8.5rem] items-center gap-x-4'; @endphp
+                <div class="hidden lg:block">
+                    {{-- Todas las filas llevan el mismo margen y el mismo borde (transparente fuera de un
+                         grupo): así las columnas calzan dentro y fuera de los recuadros. --}}
+                    <div class="border-b border-slate-200 bg-slate-50 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                        <div class="{{ $cols }} mx-3 border-l-4 border-transparent px-4">
+                            <span>Orden</span><span>Proveedor</span><span>Creada</span><span>Estado</span><span class="text-right">Neto</span><span>Facturación</span>
+                        </div>
+                    </div>
+                    @foreach($items as $item)
+                        @php $grouped = $item['orders']->count() > 1; @endphp
+                        @if($grouped)
+                            @php [$product, $summary] = $groupTitle($item['orders']); @endphp
+                            <div class="mx-3 my-3 overflow-hidden rounded-xl border-l-4 border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-100 dark:bg-indigo-950/20 dark:ring-indigo-900">
+                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-4 py-2.5 dark:border-indigo-900">
+                                    <p class="min-w-0 text-sm text-slate-600 dark:text-slate-300">
+                                        <span class="font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 70) }}</span>
+                                        <span class="text-xs"> · {{ $summary }}</span>
+                                    </p>
+                                    <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion"
+                                       class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-slate-900 dark:text-indigo-300 dark:ring-indigo-800">Comparar precios →</a>
+                                </div>
+                                <div class="divide-y divide-indigo-100/70 dark:divide-indigo-900/60">
+                        @endif
+                        @foreach($item['orders'] as $order)
+                            @php
+                                [$billLabel, $billClass] = $billing($order);
+                                [$badgeLabel, $badgeClass] = $badge($order);
+                                $cancelled = $order->state === 'cancel';
+                            @endphp
+                            <a href="{{ route('purchase_requests.odoo.show', $order->odoo_id) }}"
+                               class="{{ $cols }} text-sm transition-colors {{ $grouped ? 'px-4 py-2.5 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/20' : 'mx-3 rounded-lg border-l-4 border-transparent px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-slate-800/40' }} {{ $cancelled ? 'text-slate-400 dark:text-slate-500' : '' }}">
+                                <span class="whitespace-nowrap">
+                                    <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ $order->name }}</span>
+                                    @if($order->isRecent() && ! $cancelled)
+                                        <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Nueva</span>
+                                    @endif
+                                </span>
+                                <span class="truncate font-semibold {{ $cancelled ? '' : 'text-slate-900 dark:text-white' }}" title="{{ $order->partner_name }}">{{ $order->partner_name ?: 'Sin proveedor' }}</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">
+                                    {{ $order->date_order?->format('d-m-Y') ?? '—' }}
+                                    <span class="block truncate text-slate-400">{{ $order->created_by_name ?: '—' }}</span>
+                                </span>
+                                <span>
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $badgeClass }}" @if($badgeLabel === 'Quedó abierta') title="El grupo ya se compró: conviene cancelarla en Odoo" @endif>{{ $badgeLabel }}</span>
+                                </span>
+                                <span class="whitespace-nowrap text-right font-semibold tabular-nums {{ $cancelled ? '' : 'text-slate-900 dark:text-white' }}">{{ $money($order->amount_untaxed, $order->currency) }}</span>
+                                <span class="whitespace-nowrap text-xs font-semibold {{ $billClass }}">{{ $billLabel }}</span>
+                            </a>
                         @endforeach
-                    </table>
+                        @if($grouped)
+                                </div>
+                            </div>
+                        @endif
+                    @endforeach
                 </div>
 
                 {{-- Teléfono: tarjetas simples, cada una lleva a su orden. --}}
@@ -246,10 +240,4 @@
         </section>
     </div>
 
-    <script>
-        document.addEventListener('click', (event) => {
-            const row = event.target.closest('tr[data-row-href]');
-            if (row && !event.target.closest('a, button')) window.location = row.dataset.rowHref;
-        });
-    </script>
 </x-app-layout>
