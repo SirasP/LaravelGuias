@@ -45,6 +45,24 @@ final class QuoteMeasures
     }
 
     /**
+     * Las dos llevan al menos dos medidas y las del más corto están todas en el
+     * otro: «100/100/5/6.000» y «100x100x5MM». Eso dice más que las palabras.
+     */
+    public static function calzan(?string $pedido, ?string $cotizado): bool
+    {
+        $a = self::de($pedido);
+        $b = self::de($cotizado);
+
+        if (count($a) < 2 || count($b) < 2) {
+            return false;
+        }
+
+        [$sobranA, $sobranB] = self::cruzar($a, $b);
+
+        return $sobranA === 0 || $sobranB === 0;
+    }
+
+    /**
      * Las medidas de un nombre. Cada una con sus equivalentes: la que va en
      * pulgadas vale también en milímetros.
      *

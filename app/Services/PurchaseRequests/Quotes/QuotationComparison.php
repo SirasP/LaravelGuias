@@ -234,7 +234,20 @@ class QuotationComparison
             ? 0.0
             : $this->similitud->score($item->product_service.' '.$codigoPedido, $nombre);
 
-        return max($directo, $conEspecificacion);
+        $parecido = max($directo, $conEspecificacion);
+
+        // Varias medidas que calzan todas dicen más que las palabras, que en
+        // ferretería se escriben de mil maneras: «perfil cuadrado 100/100/5» se
+        // parecía tanto a «PERFIL 50x50x3MM» como a «PERFIL 100x100x5MM», y los
+        // dos perfiles de Cooprinsem se propusieron cruzados.
+        //
+        // Sólo suma. Restar cuando los números no calzan castigaba parejas
+        // buenas: «Bloqueador solar 1000 ml» es «BLOQUEADOR SOLAR 1 KG FPS 50».
+        if (QuoteMeasures::calzan(trim($item->product_service.' '.$item->specification), $nombre)) {
+            $parecido = min(0.95, $parecido + 0.2);
+        }
+
+        return $parecido;
     }
 
     /**

@@ -118,9 +118,18 @@ class PurchaseProductLink extends Model
      * Misma idea que `normalizeForSimilarity` del módulo de facturas: sin
      * tildes, sin mayúsculas, sin puntuación y sin espacios de más. Deliberada
      * copia y no préstamo: aquel módulo escribe en fuelcontrol y no se toca.
+     *
+     * Las fracciones de un carácter se escriben antes con números: `ascii()`
+     * las convierte en un espacio, y «pernos anclaje ⅜/3"» y «pernos anclaje
+     * ½"/3"» quedaban los dos en «pernos anclaje 3», el mismo perno para lo
+     * aprendido.
      */
     public static function normalizar(string $texto): string
     {
+        $texto = strtr($texto, [
+            '¼' => ' 1/4 ', '½' => ' 1/2 ', '¾' => ' 3/4 ', '⅛' => ' 1/8 ',
+            '⅜' => ' 3/8 ', '⅝' => ' 5/8 ', '⅞' => ' 7/8 ', '⅓' => ' 1/3 ', '⅔' => ' 2/3 ',
+        ]);
         $limpio = \Illuminate\Support\Str::of($texto)->ascii()->lower()->value();
         $limpio = preg_replace('/[^a-z0-9]+/', ' ', $limpio) ?? '';
 

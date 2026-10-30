@@ -280,7 +280,10 @@ it('confirms every proposal, even when the supplier prints the same name four ti
         $solicitud, $lineas, null, $lectura->fresh()->parejasConfirmadas(),
     );
 
-    expect($despues->porConfirmar())->toBe(0)
+    // Quedan cuatro: el respirador 6200 cotizado como S900, el filtro 6003
+    // como F600, los fonos como H510A y el bloqueador de 1000 ml como FPS50.
+    // Con los números en contra se confirman una por una, mirándolas.
+    expect($despues->porConfirmar())->toBe(4)
         ->and($despues->cruzadas())->toBe(18)
         // Y cada talla conserva la suya: no se mezclaron entre ellas.
         ->and((string) $despues->filas[13]->cotizada['quantity'])->toBe('10')
@@ -309,8 +312,8 @@ it('refuses to learn a general alias from a name the supplier repeats', function
     // cotizaciones futuras de ese proveedor.
     expect(PurchaseProductLink::para('OVEROL PILOTO MS POP C/C, NA', null))->toBeNull()
         // El que sí identifica algo sí se aprende.
-        ->and(PurchaseProductLink::para('PROTECTOR SOLAR FPS50 B.BOAT', null)?->canonical_text)
-        ->toBe(PurchaseProductLink::normalizar('Bloqueador solar 1000 ml'));
+        ->and(PurchaseProductLink::para('JOCKEY LEGIONARIO MS, BEIGE', null)?->canonical_text)
+        ->toBe(PurchaseProductLink::normalizar('Gorro Legionario'));
 });
 
 it('reads a quantity written with the Chilean decimal comma', function () {

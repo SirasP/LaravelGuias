@@ -16,6 +16,7 @@ use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\QuoteToOdoo;
 use App\Services\PurchaseRequests\Quotes\QuotationComparison;
+use App\Services\PurchaseRequests\Quotes\QuoteMeasures;
 use App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
 use App\Support\Rut;
@@ -273,6 +274,7 @@ class PurchaseQuoteComparisonController extends Controller
         );
 
         $aprendidas = 0;
+        $aMirar = 0;
 
         foreach ($comparacion->filas as $fila) {
             $texto = trim((string) ($fila->cotizada['product_service'] ?? ''));
@@ -281,20 +283,37 @@ class PurchaseQuoteComparisonController extends Controller
                 continue;
             }
 
+            // Lo que se confirma aquí se aprende para todas las cotizaciones
+            // futuras del proveedor. Con Cooprinsem se confirmaron de una vez
+            // el perfil de 100 con el de 50 y el perno de ⅜ con el de ½: la
+            // pareja con medidas cruzadas se confirma una por una, mirándola.
+            if (QuoteMeasures::chocan(trim($fila->pedida->product_service.' '.$fila->pedida->specification), $texto)) {
+                $aMirar++;
+
+                continue;
+            }
+
             $this->anotarPareja($ingestion, $fila->renglon, $fila->pedida);
             $this->aprender($request, $ingestion, $texto, $fila->pedida, $partnerId);
             $aprendidas++;
         }
 
+        $mirar = $aMirar === 0 ? '' : sprintf(
+            ' %s: %s una por una.',
+            $aMirar === 1 ? 'Una tiene las medidas cruzadas' : $aMirar.' tienen las medidas cruzadas',
+            $aMirar === 1 ? 'revísala y confírmala' : 'revísalas y confírmalas',
+        );
+
         return to_route('purchase_requests.show', $purchaseRequest)->with(
             $aprendidas > 0 ? 'success' : 'info',
             $aprendidas > 0
                 ? sprintf(
-                    'Confirmadas %d %s. La próxima cotización de este proveedor cruza sola.',
+                    'Confirmadas %d %s. La próxima cotización de este proveedor cruza sola.%s',
                     $aprendidas,
                     Str::plural('pareja', $aprendidas),
+                    $mirar,
                 )
-                : 'No había ninguna propuesta pendiente de confirmar.',
+                : ($aMirar > 0 ? 'No se confirmó nada.'.$mirar : 'No había ninguna propuesta pendiente de confirmar.'),
         );
     }
 
