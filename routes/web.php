@@ -198,6 +198,8 @@ Route::middleware('auth')
             // Llevar a Odoo los precios que cotizó el proveedor.
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/precios', [PurchaseQuoteComparisonController::class, 'prices'])
                 ->name('quotes.prices');
+            Route::get('/{purchaseRequest}/cotizacion-recibida/{ingestion}/llevar-a-odoo', [PurchaseQuoteComparisonController::class, 'preview'])
+                ->name('quotes.prices.preview');
 
             // Precios de una aprobada: sólo el número, sin reabrirla entera.
             Route::post('/{purchaseRequest}/precios', [PurchaseRequestController::class, 'updatePrices'])

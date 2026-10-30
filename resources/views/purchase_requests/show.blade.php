@@ -1814,8 +1814,7 @@
 
                                     @can('exportToOdoo', $purchaseRequest)
                                         @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
-                                            <form method="POST" action="{{ route('purchase_requests.quotes.prices', [$purchaseRequest, $lectura]) }}" class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                                                @csrf
+                                            <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
                                                 {{-- El aviso importa más que el botón: una vez que la
                                                      orden se confirma en Odoo, el nombre genérico con
                                                      que nació queda ahí para siempre. Este programa
@@ -1826,14 +1825,14 @@
                                                         Llévalo <span class="font-black">antes de confirmar la orden en Odoo</span>: después ya no se puede cambiar.
                                                     </p>
                                                 @endif
-                                                <button type="submit"
-                                                    class="min-h-10 w-full rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
-                                                    Llevar precios y nombres a {{ $purchaseRequest->odoo_reference }}
-                                                </button>
+                                                <a href="{{ route('purchase_requests.quotes.prices.preview', [$purchaseRequest, $lectura]) }}"
+                                                    class="flex min-h-10 w-full items-center justify-center rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
+                                                    Revisar y llevar a Odoo
+                                                </a>
                                                 <p class="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                                                    El precio y el nombre real del proveedor, en las partidas que cruzaron. No toca el catálogo de Odoo ni las cantidades.
+                                                    A la orden de este proveedor: precio, nombre real y cantidad, línea por línea. Primero ves qué cambia y eliges.
                                                 </p>
-                                            </form>
+                                            </div>
                                         @endif
 
                                         {{-- Comprarle a éste. Existe también en la pestaña

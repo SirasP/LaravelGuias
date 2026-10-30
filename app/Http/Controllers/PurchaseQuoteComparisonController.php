@@ -14,6 +14,7 @@ use App\Services\PurchaseRequests\Drafting\PurchaseRequestDrafter;
 use App\Services\PurchaseRequests\Odoo\ConfirmOdooSupplier;
 use App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
 use App\Services\PurchaseRequests\Odoo\PurchaseRequestExporter;
+use App\Services\PurchaseRequests\Odoo\QuoteToOdoo;
 use App\Services\PurchaseRequests\Quotes\QuotationComparison;
 use App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind;
 use App\Services\PurchaseRequests\Reading\QuotationReader;
@@ -23,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use RuntimeException;
 use Throwable;
 
@@ -855,10 +857,46 @@ class PurchaseQuoteComparisonController extends Controller
     }
 
     /**
-     * Lleva a Odoo los precios que cotizó el proveedor.
+     * Lo que se escribiría en Odoo con esta cotización, para mirarlo antes.
      *
-     * Se toman de la comparación ya cruzada: sólo de las partidas que tienen
-     * pareja, y sólo si esa pareja trae precio. Lo que no cruzó no se adivina.
+     * Una pareja cruzada aquí no se queda en pantalla: termina con el precio
+     * de la empaquetadura de 75 mm escrito en la de 125. Por eso nada viaja
+     * sin pasar por esta página.
+     */
+    public function preview(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchaseRequestIngestion $ingestion,
+        PurchaseRequestExporter $exporter,
+    ): View|RedirectResponse {
+        Gate::authorize('exportToOdoo', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        if (! $exporter instanceof OdooPurchaseRequestExporter) {
+            return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
+        }
+
+        try {
+            $plan = app(QuoteToOdoo::class, ['exporter' => $exporter])
+                ->plan($purchaseRequest, $ingestion, $this->partnerDeOdoo($ingestion));
+        } catch (Throwable $e) {
+            return back()->with('error', 'Odoo no respondió: '.$e->getMessage());
+        }
+
+        return view('purchase_requests.quote_to_odoo', [
+            'purchaseRequest' => $purchaseRequest,
+            'lectura' => $ingestion,
+            'plan' => $plan,
+        ]);
+    }
+
+    /**
+     * Lleva a Odoo lo que cotizó el proveedor, en la orden de ese proveedor.
+     *
+     * Desde la vista previa llega qué filas sí, cuáles van con la cantidad
+     * cotizada tal cual y qué renglones sobrantes se agregan. Sin vista previa
+     * —el botón viejo— van todas las filas que se pueden, con la unidad de la
+     * orden y sin agregar nada.
      */
     public function prices(
         Request $request,
@@ -873,131 +911,46 @@ class PurchaseQuoteComparisonController extends Controller
             return back()->with('error', 'La integración con Odoo está apagada en este entorno.');
         }
 
-        $partnerId = $this->partnerDeOdoo($ingestion);
-        $lineas = $ingestion->extracted['items'] ?? [];
+        $enteros = fn (string $campo): array => array_values(array_map('intval', (array) $request->input($campo, [])));
 
-        $comparacion = app(QuotationComparison::class)->comparar(
+        $hecho = app(QuoteToOdoo::class, ['exporter' => $exporter])->aplicar(
             $purchaseRequest,
-            is_array($lineas) ? array_values($lineas) : [],
-            $partnerId,
-            $ingestion->parejasConfirmadas(),
-            $ingestion->parejasRechazadas(),
+            $ingestion,
+            $this->partnerDeOdoo($ingestion),
+            $request->boolean('vista_previa') ? $enteros('filas') : null,
+            $enteros('sin_convertir'),
+            $enteros('agregar'),
         );
 
-        $cambios = [];
-        $repetidos = [];
-
-        foreach ($comparacion->filas as $fila) {
-            // Con la coma decimal chilena: «12.500,50» no es is_numeric.
-            $precio = is_string($fila->cotizada['unit_price'] ?? null)
-                ? \App\Support\ChileanMoney::parse($fila->cotizada['unit_price'])
-                : ($fila->cotizada['unit_price'] ?? null);
-
-            if ($fila->pedida === null || $fila->cotizada === null) {
-                continue;
-            }
-
-            // Una pareja que nadie confirmó no escribe nada en Odoo. Es el
-            // punto exacto donde una corazonada del programa se volvería un
-            // número —o un nombre— en una orden de compra.
-            if ($fila->esPropuesta()) {
-                continue;
-            }
-
-            $nombre = trim((string) ($fila->cotizada['product_service'] ?? '')) ?: null;
-
-            // Tres formas de reconocer la línea en Odoo, porque a lo largo de
-            // su vida se llama de tres maneras: como la escribiste tú, como
-            // viajó —con la especificación pegada, «TUB CUAD NEG. · ECU202»— y
-            // como quedó cuando le pusimos el nombre real del proveedor.
-            // Faltando cualquiera de las tres, la orden se vuelve inalcanzable.
-            $textos = array_values(array_unique(array_filter([
-                PurchaseProductLink::normalizar((string) $fila->pedida->product_service),
-                PurchaseProductLink::normalizar($exporter->descripcionDe($fila->pedida)),
-                $nombre === null ? '' : PurchaseProductLink::normalizar($nombre),
-            ])));
-
-            // Un texto repetido entre partidas no identifica ninguna línea.
-            foreach ($textos as $t) {
-                $repetidos[$t] = ($repetidos[$t] ?? 0) + 1;
-            }
-
-            $cambios[] = [
-                // La partida y la línea de Odoo se encuentran por el mismo
-                // producto, resuelto igual que cuando se creó la orden.
-                'producto' => $exporter->productoDe($fila->pedida, $partnerId),
-                'textos' => $textos,
-                'precio' => is_numeric($precio) ? (float) $precio : null,
-                // La cantidad que va a Odoo es la COTIZADA, no la pedida: la
-                // orden de compra dice lo que se compra, y eso es lo que se va
-                // a recibir y lo que van a facturar. La solicitud guarda lo que
-                // se quería, y la pantalla muestra la diferencia —«pediste 10 y
-                // cotizaron 5»— para que se mire antes de llevarla.
-                'cantidad' => is_string($fila->cotizada['quantity'] ?? null)
-                    ? \App\Support\ChileanMoney::parse($fila->cotizada['quantity'])
-                    : (is_numeric($fila->cotizada['quantity'] ?? null) ? (float) $fila->cotizada['quantity'] : null),
-                // El nombre de verdad, el que trae la cotización oficial.
-                'nombre' => $nombre,
-                // Y en qué orden vive esta partida: desde que una solicitud
-                // puede repartirse entre dos proveedores, ya no hay una sola.
-                'orden' => $fila->pedida->odoo_order_id,
-            ];
+        if ($hecho['motivo'] !== null) {
+            return to_route('purchase_requests.show', $purchaseRequest)->with('error', $hecho['motivo']);
         }
 
-        $cambios = array_values(array_map(
-            fn (array $c): array => [...$c, 'textos' => array_values(array_filter(
-                $c['textos'],
-                fn (string $t): bool => ($repetidos[$t] ?? 0) === 1,
-            ))],
-            array_filter($cambios, fn (array $c): bool => $c['precio'] !== null || $c['nombre'] !== null),
-        ));
+        $partes = [];
 
-        // Un lote por orden. Corregir los precios de la segunda orden
-        // escribiéndolos en la primera sería mover la compra de otro.
-        $porOrden = collect($cambios)->groupBy(
-            fn (array $c) => (int) ($c['orden'] ?? $purchaseRequest->odoo_order_id),
-        );
-
-        $actualizadas = 0;
-        $creados = 0;
-        $motivo = null;
-
-        foreach ($porOrden as $orden => $lote) {
-            if ((int) $orden === 0) {
-                continue;
-            }
-
-            [$n, $porQue, $nuevos] = $exporter->actualizarLineas(
-                $purchaseRequest, $lote->values()->all(), $partnerId, (int) $orden,
-            );
-
-            $actualizadas += $n;
-            $creados += $nuevos;
-            $motivo ??= $porQue;
+        if ($hecho['actualizadas'] > 0) {
+            $partes[] = sprintf('se actualizaron %d %s', $hecho['actualizadas'], Str::plural('línea', $hecho['actualizadas']));
         }
 
-        if ($motivo !== null && $actualizadas === 0) {
-            return back()->with('error', $motivo);
+        if ($hecho['agregadas'] > 0) {
+            $partes[] = sprintf('se %s %d %s', $hecho['agregadas'] === 1 ? 'agregó' : 'agregaron', $hecho['agregadas'], Str::plural('línea', $hecho['agregadas']).' nueva'.($hecho['agregadas'] === 1 ? '' : 's'));
         }
 
-        return back()->with('success', $actualizadas > 0
-            ? sprintf(
-                'Se actualizaron %d %s en %s con el precio, el nombre y el producto del proveedor.%s',
-                $actualizadas,
-                Str::plural('línea', $actualizadas),
-                $purchaseRequest->odoo_reference,
+        return to_route('purchase_requests.show', $purchaseRequest)->with('success', $partes === []
+            ? sprintf('%s ya decía lo mismo que la cotización: no había nada que cambiar.', $hecho['orden'])
+            : sprintf(
+                'En %s %s con lo que cotizó %s.%s',
+                $hecho['orden'],
+                implode(' y ', $partes),
+                $ingestion->supplier_name ?: 'el proveedor',
                 // Crear en Odoo es lo único de aquí que deja algo permanente
                 // allá: se dice siempre, aunque nadie lo haya preguntado.
-                $creados > 0
-                    ? sprintf(
-                        ' Se %s %d %s nuevos en Odoo, porque no existían.',
-                        $creados === 1 ? 'dio de alta' : 'dieron de alta',
-                        $creados,
-                        Str::plural('producto', $creados),
-                    )
+                $hecho['productos'] > 0
+                    ? sprintf(' Se %s en Odoo, porque no %s.',
+                        $hecho['productos'] === 1 ? 'dio de alta 1 producto nuevo' : 'dieron de alta '.$hecho['productos'].' productos nuevos',
+                        $hecho['productos'] === 1 ? 'existía' : 'existían')
                     : '',
-            )
-            : 'Odoo ya decía lo mismo que la cotización: no había nada que cambiar.');
+            ));
     }
 
     /** ¿Ese nombre se repite en el documento, y por tanto no identifica nada? */

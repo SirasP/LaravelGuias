@@ -37,6 +37,12 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
         private readonly ProductMatcher $emparejador = new ProductMatcher(new ProductSimilarity),
     ) {}
 
+    /** El cliente con que habla, para quien arma cambios fuera de este exportador. */
+    public function client(): OdooClient
+    {
+        return $this->client;
+    }
+
     public function isEnabled(): bool
     {
         return (bool) config('purchase_requests.odoo.enabled')
@@ -811,7 +817,9 @@ class OdooPurchaseRequestExporter implements PurchaseRequestExporter
             $cabecera = $this->client->execute('purchase.order', 'read', [[$orden]], ['fields' => ['state', 'order_line']]);
             $estado = (string) ($cabecera[0]['state'] ?? '');
 
-            if ($estado !== 'draft') {
+            // «Cotización enviada» sigue siendo cotización: sin recepciones ni
+            // facturas detrás. Es justo cuando llega la respuesta del proveedor.
+            if (! in_array($estado, ['draft', 'sent'], true)) {
                 return [0, $purchaseRequest->odoo_reference.' ya no está en borrador en Odoo, así que se quedó '
                     .'con los nombres y precios que tenía. Cambiar una orden que allá ya se dio por cerrada '
                     .'movería algo con recepciones o facturas detrás.', 0];
