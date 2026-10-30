@@ -148,3 +148,15 @@ it('tells the request block that the purchase went through an Odoo order', funct
 
     $this->getJson(route('gmail.dtes.purchase_references.show', $id))->assertJsonPath('odoo_orders', ['P00262']);
 });
+
+it('compares fuel against the order by its total, because the specific tax can be negative', function () {
+    odooTabOrder(274, [['PETROLEO DIESEL 2-D-COMBUSTIBLES(K)-DIESEL', 5000, 6990000]], ['partner_vat' => '96686870-8', 'partner_name' => 'Coagra S.A.']);
+    $id = odooTabInvoice([['PETROLEO DIESEL', 5000, 7210755]], ['proveedor_rut' => '96686870-8',
+        'monto_neto' => 7210755, 'monto_iva' => 1370043, 'monto_total' => 6990565,
+        'xml_raw' => '<DTE><Totales><ImptoReten><TipoImp>28</TipoImp><MontoImp>1</MontoImp></ImptoReten></Totales><Referencia><TpoDocRef>801</TpoDocRef><FolioRef>P00274</FolioRef></Referencia></DTE>']);
+    DB::connection('fuelcontrol')->table('gmail_dte_document_lines')->where('document_id', $id)->update(['impuesto_codigo' => '28']);
+
+    $this->actingAs($this->admin)->getJson(route('gmail.dtes.odoo_orders.show', $id))
+        ->assertJsonPath('links.0.amount', 6990565)->assertJsonPath('links.0.order.invoiced', 6990565);
+    $this->get(route('purchase_requests.odoo.show', 274))->assertSee('100 %')->assertDontSee('103 %');
+});

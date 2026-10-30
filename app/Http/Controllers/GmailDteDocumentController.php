@@ -987,13 +987,13 @@ class GmailDteDocumentController extends Controller
         $resolveImpAdicLabel = function (?string $code, ?string $fallback = null): string {
             $code = trim((string) $code);
             if ($code === '28') {
-                return 'IEC Diesel';
+                return 'Impuesto específico diésel';
             }
             if ($code === '35') {
-                return 'IEC Gasolina 93';
+                return 'Impuesto específico gasolina 93';
             }
             if ($code === '52') {
-                return 'IEC Gasolina 97';
+                return 'Impuesto específico gasolina 97';
             }
 
             if ($fallback && trim($fallback) !== '') {
@@ -1081,6 +1081,24 @@ class GmailDteDocumentController extends Controller
                             $tipo = trim((string) ($ret->TipoImp ?? ''));
                             $tasa = trim((string) ($ret->TasaImp ?? ''));
                             $monto = is_numeric((string) ($ret->MontoImp ?? null)) ? (float) $ret->MontoImp : null;
+
+                            // El impuesto específico del diésel y las gasolinas no es una
+                            // retención, y puede ser negativo: cuando el componente
+                            // variable supera la base, baja el total por debajo del neto.
+                            // Coagra pone un 1 en el XML y el monto real sólo va en el
+                            // texto de la línea (factura 2306359: −$1.590.233), así que
+                            // si los totales no cuadran manda lo que sí cuadra.
+                            if (in_array($tipo, ['28', '35', '52'], true)) {
+                                $cuadra = (float) ($tot->MntTotal ?? 0) - (float) ($tot->MntNeto ?? 0)
+                                    - (float) ($tot->IVA ?? 0) - (float) ($tot->MntExe ?? 0);
+                                if ($tot->ImptoReten->count() === 1 && ($monto === null || abs($monto - $cuadra) > 2)) {
+                                    $monto = $cuadra;
+                                }
+                                $label = $resolveImpAdicLabel($tipo);
+                                $add('IMP_ADIC|'.$label, $label, $monto, ! is_null($monto));
+
+                                continue;
+                            }
 
                             $label = 'Impuesto retenido';
                             if ($tipo !== '') {

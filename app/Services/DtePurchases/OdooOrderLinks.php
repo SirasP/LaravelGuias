@@ -328,10 +328,31 @@ class OdooOrderLinks
             'reason' => $note['reason'], 'shared' => $note['shared']], $notes);
     }
 
-    /** El neto de la factura; en una exenta, su total menos impuestos. */
+    /**
+     * Lo que la factura le cobra a la orden: su neto; en una exenta, el total
+     * menos impuestos. El combustible va por el total: las órdenes se hacen con
+     * el precio por litro con todo incluido, y el impuesto específico puede ser
+     * negativo. Coagra 2306359: neto $7.210.755, total $6.990.565, y la P00274
+     * por $6.990.000; contra el neto salía facturada al 103 %.
+     */
     private function net(object $document): float
     {
+        if ($this->isFuel($document)) {
+            return (float) $document->monto_total;
+        }
+
         return (float) $document->monto_neto > 0 ? (float) $document->monto_neto : (float) $document->monto_total - (float) $document->monto_iva;
+    }
+
+    /** @var array<int, bool> */
+    private array $fuel = [];
+
+    /** Lleva el impuesto específico del diésel (28) o de las gasolinas (35, 52). */
+    private function isFuel(object $document): bool
+    {
+        return $this->fuel[(int) $document->id] ??= DB::connection('fuelcontrol')->table('gmail_dte_document_lines')
+            ->where('document_id', $document->id)->whereIn('impuesto_codigo', ['28', '35', '52'])->exists()
+            || (bool) preg_match('/<TipoImp>\s*(28|35|52)\s*<\/TipoImp>/', (string) ($document->xml_raw ?? ''));
     }
 
     private function document(int $id): object
