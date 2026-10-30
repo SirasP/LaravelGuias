@@ -47,7 +47,7 @@
                 </div>
                 <p class="text-xs text-slate-400">
                     @if($syncedAt)
-                        Actualizado {{ \Illuminate\Support\Carbon::parse($syncedAt)->format('d-m-Y H:i') }} · cada noche a las 02:10
+                        Actualizado {{ \Illuminate\Support\Carbon::parse($syncedAt)->format('d-m-Y H:i') }} · se actualiza cada 5 minutos
                     @else
                         Todavía no se ha sincronizado
                     @endif

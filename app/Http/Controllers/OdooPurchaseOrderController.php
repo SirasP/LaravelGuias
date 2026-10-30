@@ -9,7 +9,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Las órdenes que se hicieron directo en Odoo, sin pasar por una solicitud.
- * Sólo consulta: la copia la hace `odoo:sync-purchase-orders` cada noche.
+ * Sólo consulta: la copia la hace `odoo:sync-purchase-orders` cada 5 minutos.
  */
 class OdooPurchaseOrderController extends Controller
 {

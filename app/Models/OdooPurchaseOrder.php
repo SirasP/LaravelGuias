@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Una orden de compra que alguien hizo directo en Odoo, sin solicitud.
  *
- * La copia `odoo:sync-purchase-orders` cada noche. Sólo lectura: lo que se
+ * La copia `odoo:sync-purchase-orders` cada 5 minutos. Sólo lectura: lo que se
  * corrija, se corrige en Odoo y llega en la sincronización siguiente.
  */
 class OdooPurchaseOrder extends Model
