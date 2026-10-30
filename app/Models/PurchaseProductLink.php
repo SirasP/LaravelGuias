@@ -19,6 +19,9 @@ class PurchaseProductLink extends Model
     /** Heredado del diccionario del módulo de facturas. Sin proveedor. */
     public const HEREDADO = 'inherited';
 
+    /** El texto es una pieza de la partida, no la partida: el canastillo de la válvula de pie. */
+    public const PIEZA = 'pieza';
+
     protected $fillable = [
         'company_code', 'odoo_partner_id', 'partner_name',
         'source_text', 'normalized_text',
@@ -95,11 +98,39 @@ class PurchaseProductLink extends Model
         }
     }
 
+    /**
+     * La partida de la que este texto es una pieza, según lo que alguien enseñó.
+     *
+     * Cooprinsem cotiza la válvula de pie en dos renglones; el canastillo no es
+     * otra partida ni un sobrante, es parte de ésa. Se guarda aparte de los
+     * alias normales porque no dice «es lo mismo»: dice «va dentro de».
+     *
+     * @return string|null el texto normalizado de la partida
+     */
+    public static function piezaDe(string $texto, ?int $odooPartnerId): ?string
+    {
+        $normalizado = self::normalizar($texto);
+
+        if ($normalizado === '') {
+            return null;
+        }
+
+        $base = static::query()->where('company_code', 'EHE')->where('normalized_text', $normalizado)->where('source', self::PIEZA);
+
+        if ($odooPartnerId !== null && ($delProveedor = (clone $base)->where('odoo_partner_id', $odooPartnerId)->value('canonical_text')) !== null) {
+            return $delProveedor;
+        }
+
+        return (clone $base)->whereNull('odoo_partner_id')->value('canonical_text');
+    }
+
     private static function buscar(string $normalizado, ?int $odooPartnerId): ?self
     {
+        // Una pieza no es un sinónimo: el canastillo no es la válvula de pie.
         $base = static::query()
             ->where('company_code', 'EHE')
-            ->where('normalized_text', $normalizado);
+            ->where('normalized_text', $normalizado)
+            ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', self::PIEZA));
 
         if ($odooPartnerId !== null) {
             $delProveedor = (clone $base)->where('odoo_partner_id', $odooPartnerId)->first();

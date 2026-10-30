@@ -31,8 +31,11 @@ class DtePurchaseReferenceController extends Controller
         $data = $request->validate([
             'document_line_id' => ['required', 'integer'],
             'purchase_request_item_id' => ['required', 'integer'],
-            'invoice_quantity' => ['required', 'numeric', 'decimal:0,6', 'gt:0'],
-            'request_quantity' => ['required', 'numeric', 'decimal:0,6', 'gt:0'],
+            // Zero on one side only for a piece (no request quantity) or a kit item
+            // (no invoice quantity); the service checks which.
+            'invoice_quantity' => ['required', 'numeric', 'decimal:0,6', 'gte:0'],
+            'request_quantity' => ['required', 'numeric', 'decimal:0,6', 'gte:0'],
+            'kind' => ['nullable', 'in:part,kit'],
             'version' => ['required', 'string', 'size:64'],
             'line_version' => ['required', 'string', 'size:64'],
             'item_version' => ['required', 'string', 'size:64'],

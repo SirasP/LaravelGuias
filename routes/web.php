@@ -190,6 +190,10 @@ Route::middleware('auth')
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/enviar-a-odoo', [PurchaseQuoteComparisonController::class, 'split'])
                 ->name('quotes.split');
             // «Ese emparejado estaba mal»: borra lo aprendido.
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/pieza', [PurchaseQuoteComparisonController::class, 'piece'])
+                ->name('quotes.piece');
+            Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/quitar-pieza', [PurchaseQuoteComparisonController::class, 'unpiece'])
+                ->name('quotes.unpiece');
             Route::post('/{purchaseRequest}/cotizacion-recibida/{ingestion}/desemparejar', [PurchaseQuoteComparisonController::class, 'unlink'])
                 ->name('quotes.unlink');
             // «Sí, todas esas parejas son correctas»: de una vez.

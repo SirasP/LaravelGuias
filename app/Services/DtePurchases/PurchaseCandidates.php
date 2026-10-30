@@ -29,6 +29,9 @@ class PurchaseCandidates
 
     private array $quotedByQuote = [];
 
+    /** @var array<int, array<int, list<string>>> quote id => item id => names quoted as a piece of it */
+    private array $piecesByQuote = [];
+
     /** What the last automatic pass saw, so opening the tab does not search twice. */
     private ?array $suggestions = null;
 
@@ -63,6 +66,26 @@ class PurchaseCandidates
     }
 
     /**
+     * Lo que este proveedor cotizó como pieza de la partida: el canastillo que
+     * Cooprinsem separó de la válvula de pie. En la factura llega igual, en su
+     * propia línea, y es parte de la partida, no otra.
+     *
+     * @return list<string>
+     */
+    public function quotedPieces(PurchaseRequestItem $item, string $rut): array
+    {
+        $this->quotedNames($item, $rut);
+        $names = [];
+        foreach ($this->quotesByRequest[$item->purchase_request_id] ?? [] as $quote) {
+            if (Rut::normalize($quote->supplier_tax_id) === $rut) {
+                array_push($names, ...($this->piecesByQuote[$quote->id][$item->id] ?? []));
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
      * The same pairing the quotation screen shows, so it survives a request whose
      * items were edited and recreated after somebody confirmed the pairs.
      *
@@ -75,10 +98,15 @@ class PurchaseCandidates
         if ($quote->comparedRequest && $lines !== []) {
             $partner = PurchaseSupplier::query()->forCompany()->where('tax_id', Rut::normalize($quote->supplier_tax_id))->value('odoo_partner_id');
             $result = $this->comparison->comparar($quote->comparedRequest, $lines, $partner === null ? null : (int) $partner,
-                $quote->parejasConfirmadas(), $quote->parejasRechazadas());
+                $quote->parejasConfirmadas(), $quote->parejasRechazadas(), $quote->piezasConfirmadas());
             foreach ($result->filas as $row) {
                 if ($row->cruzo() && ! $row->esPropuesta() && filled($row->cotizada['product_service'] ?? null)) {
                     $names[$row->pedida->id][] = (string) $row->cotizada['product_service'];
+                }
+            }
+            foreach ($result->piezas as $piece) {
+                if (filled($piece['linea']['product_service'] ?? null)) {
+                    $this->piecesByQuote[$quote->id][(int) $piece['partida']->getKey()][] = (string) $piece['linea']['product_service'];
                 }
             }
         }
@@ -167,7 +195,22 @@ class PurchaseCandidates
         foreach ($requests as $request) {
             foreach ($request->items as $item) {
                 $remaining = Quantity::of($item->quantity)->minus(Quantity::of($used[$item->id] ?? 0));
+                // A piece the supplier quoted apart is part of the item, billed or
+                // not: it never competes for being the item itself.
+                $pieceLines = [];
+                $pieces = $quotedRequests->has($request->id) ? $this->quotedPieces($item, $rut) : [];
+                foreach ($pieces === [] ? [] : $lines as $line) {
+                    if ($this->fit($line, $pieces) >= self::STRONG) {
+                        $pieceLines[$line->id] = true;
+                        $result[] = $this->pieceCandidate($references, $request, $item, $line, $lineRemaining[$line->id], $remaining);
+                    }
+                }
                 if (! $remaining->isGreaterThan(0)) {
+                    // Billed in full: a person looking for it by hand may still hang a piece on it.
+                    if ($explicit && $pieceLines === []) {
+                        $result[] = $this->pieceCandidate($references, $request, $item, null, null, $remaining);
+                    }
+
                     continue;
                 }
                 $quoted = $quotedRequests->has($request->id) ? $this->quotedNames($item, $rut) : [];
@@ -176,6 +219,9 @@ class PurchaseCandidates
                 $score = 0.0;
                 $strong = 0;
                 foreach ($lines as $line) {
+                    if (isset($pieceLines[$line->id])) {
+                        continue;
+                    }
                     $value = $this->fit($line, [$item->product_service, ...$quoted]);
                     $strong += $value >= self::STRONG ? 1 : 0;
                     if ($value > $score) {
@@ -224,6 +270,26 @@ class PurchaseCandidates
         usort($result, fn ($a, $b): int => [$b['supplier_known'], $b['score']] <=> [$a['supplier_known'], $a['score']]);
 
         return array_slice($result, 0, 100);
+    }
+
+    /** An invoice line the supplier quoted as a piece of the item: it adds cost, not quantity. */
+    private function pieceCandidate(PurchaseReferences $references, PurchaseRequest $request, PurchaseRequestItem $item, ?object $line, $lineRemaining, $remaining): array
+    {
+        return [
+            'item_id' => $item->id, 'item_version' => $references->itemFingerprint($item), 'kind' => 'part',
+            'folio' => $request->folio, 'reason' => $request->reason,
+            'request_url' => route('purchase_requests.show', $request),
+            'status' => $request->status->label(), 'date' => $request->request_date->toDateString(),
+            'product' => $item->product_service, 'specification' => $item->specification,
+            'unit' => $item->unit, 'quantity' => (string) Quantity::of($item->quantity),
+            'remaining' => (string) ($remaining->isGreaterThan(0) ? $remaining : Quantity::of(0)), 'supplier_known' => true,
+            'packaged' => false, 'line_id' => $line?->id, 'score' => $line ? 1.0 : 0.0,
+            'line_version' => $line ? $references->lineFingerprint($line) : null,
+            'quick_quantity' => $line ? (string) $lineRemaining : null, 'strong_lines' => $line ? 1 : 0,
+            'measures' => null, 'line_measures' => [],
+            'explanation' => $line ? 'Este proveedor la cotizó como parte de esta partida: suma su precio, no su cantidad.'
+                : 'Ya está facturada entera: sólo admite piezas.',
+        ];
     }
 
     /**
@@ -306,14 +372,17 @@ class PurchaseCandidates
                 // Includes revoked ones: a person's correction is never undone.
                 continue;
             }
+            $piece = ($candidate['kind'] ?? null) === 'part';
             try {
                 $references->link($documentId, [
                     'document_line_id' => $line->id, 'purchase_request_item_id' => $candidate['item_id'],
-                    'invoice_quantity' => $candidate['quick_quantity'], 'request_quantity' => $candidate['quick_quantity'],
+                    'invoice_quantity' => $candidate['quick_quantity'], 'request_quantity' => $piece ? '0' : $candidate['quick_quantity'],
+                    'kind' => $piece ? 'part' : null,
                     'version' => $references->fingerprint($document), 'line_version' => $candidate['line_version'],
                     'item_version' => $candidate['item_version'],
-                    'note' => $candidate['supplier_known'] ? 'Vinculada automáticamente: el proveedor cotizó esta partida y producto, unidad y cantidad coinciden.'
-                        : 'Vinculada automáticamente: mismo nombre, unidad y cantidad que la partida solicitada.',
+                    'note' => $piece ? 'Vinculada automáticamente como pieza: el proveedor la cotizó como parte de esta partida.'
+                        : ($candidate['supplier_known'] ? 'Vinculada automáticamente: el proveedor cotizó esta partida y producto, unidad y cantidad coinciden.'
+                        : 'Vinculada automáticamente: mismo nombre, unidad y cantidad que la partida solicitada.'),
                 ], null, 'auto', ['source_key' => $key, 'score' => round($candidate['score'], 3)]);
                 $created++;
             } catch (\Illuminate\Validation\ValidationException) {

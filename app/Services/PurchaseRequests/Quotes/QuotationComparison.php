@@ -31,6 +31,7 @@ class QuotationComparison
      * @param  list<array<string, mixed>>  $lineasDelDocumento
      * @param  array<int, int>  $parejasConfirmadas  Renglón del documento => id de la partida.
      * @param  list<array{0: int, 1: int}>  $parejasRechazadas  Lo que alguien dijo que NO era.
+     * @param  array<int, int>  $piezas  Renglón del documento => id de la partida de la que es parte.
      */
     public function comparar(
         PurchaseRequest $solicitud,
@@ -38,9 +39,10 @@ class QuotationComparison
         ?int $odooPartnerId = null,
         array $parejasConfirmadas = [],
         array $parejasRechazadas = [],
+        array $piezas = [],
     ): QuotationComparisonResult {
         return PurchaseProductLink::conMemoria(fn (): QuotationComparisonResult => $this->compararConMemoria(
-            $solicitud, $lineasDelDocumento, $odooPartnerId, $parejasConfirmadas, $parejasRechazadas,
+            $solicitud, $lineasDelDocumento, $odooPartnerId, $parejasConfirmadas, $parejasRechazadas, $piezas,
         ));
     }
 
@@ -50,12 +52,23 @@ class QuotationComparison
         ?int $odooPartnerId,
         array $parejasConfirmadas,
         array $parejasRechazadas,
+        array $piezas,
     ): QuotationComparisonResult {
         $pedidas = $solicitud->items()->orderBy('sort_order')->get()->all();
         $this->partnerId = $odooPartnerId;
 
         $dichas = $this->porPosicion($pedidas, $lineasDelDocumento, $parejasConfirmadas);
         $vetadas = $this->vetosPorPosicion($pedidas, $parejasRechazadas);
+
+        // Las piezas no compiten por ser la partida: el canastillo no es la
+        // válvula de pie, va dentro de ella. Se vetan para todas.
+        $piezas = $this->piezasDe($pedidas, $lineasDelDocumento, $parejasConfirmadas, $piezas);
+
+        foreach (array_keys($piezas) as $renglon) {
+            foreach (array_keys($pedidas) as $i) {
+                $vetadas[$i.':'.$renglon] = true;
+            }
+        }
 
         $emparejado = $this->emparejador
             ->conCantidades($pedidas, $lineasDelDocumento)
@@ -103,10 +116,72 @@ class QuotationComparison
         $sobrantes = [];
 
         foreach ($emparejado->lineasLibres(count($lineasDelDocumento)) as $j) {
-            $sobrantes[] = QuotationComparisonRow::noPedida($lineasDelDocumento[$j], $j);
+            if (! isset($piezas[$j])) {
+                $sobrantes[] = QuotationComparisonRow::noPedida($lineasDelDocumento[$j], $j);
+            }
         }
 
-        return new QuotationComparisonResult($filas, $sobrantes);
+        $porId = [];
+
+        foreach ($pedidas as $item) {
+            $porId[(int) $item->getKey()] = $item;
+        }
+
+        $comoPiezas = [];
+
+        foreach ($piezas as $renglon => [$idPartida, $aprendida]) {
+            $comoPiezas[] = [
+                'renglon' => $renglon,
+                'partida' => $porId[$idPartida],
+                'linea' => $lineasDelDocumento[$renglon],
+                'aprendida' => $aprendida,
+            ];
+        }
+
+        return new QuotationComparisonResult($filas, $sobrantes, $comoPiezas);
+    }
+
+    /**
+     * Las piezas de esta cotización: las que dijo una persona en ella y las que
+     * se aprendieron de otra del mismo proveedor.
+     *
+     * @param  list<mixed>  $pedidas
+     * @param  list<array<string, mixed>>  $lineas
+     * @param  array<int, int>  $confirmadas
+     * @param  array<int, int>  $dichas
+     * @return array<int, array{0: int, 1: bool}> renglón => [id de la partida, si salió de lo aprendido]
+     */
+    private function piezasDe(array $pedidas, array $lineas, array $confirmadas, array $dichas): array
+    {
+        $porTexto = [];
+
+        foreach ($pedidas as $item) {
+            $porTexto[PurchaseProductLink::normalizar((string) $item->product_service)][] = (int) $item->getKey();
+        }
+
+        $existen = array_flip(array_merge(...array_values($porTexto ?: [[]])));
+        $piezas = [];
+
+        foreach ($dichas as $renglon => $idPartida) {
+            if (isset($lineas[$renglon], $existen[$idPartida]) && ! isset($confirmadas[$renglon])) {
+                $piezas[(int) $renglon] = [(int) $idPartida, false];
+            }
+        }
+
+        foreach ($lineas as $renglon => $linea) {
+            if (isset($piezas[$renglon]) || isset($confirmadas[$renglon])) {
+                continue;
+            }
+
+            $partida = PurchaseProductLink::piezaDe((string) ($linea['product_service'] ?? ''), $this->partnerId);
+
+            // Sólo si apunta a una sola partida: con dos iguales no se sabe de cuál.
+            if ($partida !== null && count($porTexto[$partida] ?? []) === 1) {
+                $piezas[(int) $renglon] = [$porTexto[$partida][0], true];
+            }
+        }
+
+        return $piezas;
     }
 
     /**

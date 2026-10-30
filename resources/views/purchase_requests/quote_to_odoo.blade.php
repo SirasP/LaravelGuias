@@ -135,6 +135,33 @@
                     @endforeach
                 </section>
 
+                @if(count($plan['piezas'] ?? []) > 0)
+                    <section class="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 shadow-sm dark:border-violet-900/60 dark:bg-violet-950/20">
+                        <h2 class="text-sm font-black text-violet-900 dark:text-violet-200">Piezas de una partida</h2>
+                        <p class="mt-0.5 text-xs text-violet-800 dark:text-violet-300">
+                            El proveedor cotizó aparte algo que va dentro de una partida. Entra a {{ $orden['name'] }} en su propia línea, que es como lo va a facturar.
+                        </p>
+                        <div class="mt-3 space-y-2">
+                            @foreach($plan['piezas'] as $pz)
+                                <label class="flex items-start gap-2 rounded-xl bg-white p-2.5 text-sm dark:bg-slate-900">
+                                    <input type="checkbox" name="piezas[]" value="{{ $pz['renglon'] }}" @checked($pz['cambia']) @disabled(! $pz['cambia'])
+                                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600 dark:border-slate-600 dark:bg-slate-800">
+                                    <span class="min-w-0">
+                                        <span class="font-semibold text-slate-900 dark:text-white">{{ $pz['nombre'] }}</span>
+                                        <span class="block text-xs text-slate-500 dark:text-slate-400">
+                                            {{ $cant($pz['propuesto']['cantidad']) }} {{ $pz['unidad'] }} a {{ $dinero($pz['propuesto']['precio']) }}
+                                            · parte de <span class="font-semibold">{{ $pz['orden_partida'] }}. {{ $pz['pedida'] }}</span>
+                                        </span>
+                                        <span class="block text-[11px] font-semibold {{ $pz['cambia'] ? 'text-violet-700 dark:text-violet-300' : 'text-emerald-700 dark:text-emerald-400' }}">
+                                            {{ ! $pz['cambia'] ? 'Odoo ya la tiene así.' : ($pz['linea'] ? 'Se actualiza su línea en '.$orden['name'].'.' : 'Entra como línea nueva; si Odoo no tiene el producto, se da de alta.') }}
+                                        </span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
                 @if(count($plan['sobrantes']) > 0)
                     <section class="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/20">
                         <h2 class="text-sm font-black text-sky-900 dark:text-sky-200">Cotizado aparte, sin partida propia</h2>

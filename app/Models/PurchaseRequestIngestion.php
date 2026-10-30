@@ -118,16 +118,49 @@ class PurchaseRequestIngestion extends Model
     }
 
     /**
-     * Guarda las dos decisiones juntas, que es como se toman.
+     * Los renglones que son una pieza de una partida, no la partida entera.
+     *
+     * Pediste «válvula de pie con canastillo 10"» y Cooprinsem la cotizó en dos
+     * renglones: la válvula de retención y el canastillo. La válvula contesta a
+     * la partida; el canastillo es parte de ella, y su precio también.
+     *
+     * @return array<int, int> índice de renglón => id de la partida
+     */
+    public function piezasConfirmadas(): array
+    {
+        $guardadas = is_array($this->confirmed_pairings['piezas'] ?? null) ? $this->confirmed_pairings['piezas'] : [];
+        $piezas = [];
+
+        foreach ($guardadas as $renglon => $partida) {
+            if (is_numeric($renglon) && is_numeric($partida)) {
+                $piezas[(int) $renglon] = (int) $partida;
+            }
+        }
+
+        return $piezas;
+    }
+
+    /**
+     * Guarda las decisiones juntas, que es como se toman.
+     *
+     * Lo que no se pasa se conserva: anotar una pareja borraba los rechazos y
+     * no tiene por qué borrar las piezas.
      *
      * @param  array<int, int>  $parejas
-     * @param  list<array{0: int, 1: int}>  $rechazos
+     * @param  list<array{0: int, 1: int}>|null  $rechazos
+     * @param  array<int, int>|null  $piezas
      */
-    public function guardarDecisiones(array $parejas, array $rechazos): void
+    public function guardarDecisiones(array $parejas, ?array $rechazos = null, ?array $piezas = null): void
     {
-        $this->forceFill(['confirmed_pairings' => $parejas === [] && $rechazos === []
+        $rechazos ??= $this->parejasRechazadas();
+        $piezas ??= $this->piezasConfirmadas();
+
+        // Un renglón es la partida o una pieza de ella, no las dos cosas.
+        $piezas = array_diff_key($piezas, $parejas);
+
+        $this->forceFill(['confirmed_pairings' => $parejas === [] && $rechazos === [] && $piezas === []
             ? null
-            : ['pares' => $parejas, 'rechazos' => array_values($rechazos)],
+            : array_filter(['pares' => $parejas, 'rechazos' => array_values($rechazos), 'piezas' => $piezas], fn ($v, $k) => $k === 'pares' || $v !== [], ARRAY_FILTER_USE_BOTH),
         ])->save();
     }
 

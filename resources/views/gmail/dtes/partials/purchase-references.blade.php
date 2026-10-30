@@ -90,6 +90,9 @@
                                     <p x-show="!sameName(reference.invoice_product, reference.request_product)" class="mt-0.5 text-xs text-gray-500 truncate" :title="reference.request_product">
                                         <span class="text-gray-400">En la solicitud:</span> <span x-text="reference.request_product"></span>
                                     </p>
+                                    <p x-show="reference.kind" class="mt-0.5 text-xs font-semibold text-violet-700 dark:text-violet-300" x-text="kindLabel(reference)"></p>
+                                    <p x-show="reference.parts?.length" class="mt-0.5 text-xs text-violet-700 dark:text-violet-300" x-text="'Con sus piezas: ' + (reference.parts || []).join(', ')"></p>
+                                    <p x-show="reference.kit?.length" class="mt-0.5 text-xs text-violet-700 dark:text-violet-300" x-text="'Esta línea también trae: ' + (reference.kit || []).join(', ')"></p>
                                     <p x-show="reference.measures" class="mt-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400" x-text="reference.measures && measuresText(reference.measures)"></p>
                                     <p x-show="reference.returned" class="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400"
                                        x-text="'La nota de crédito devolvió ' + number(reference.returned) + ' ' + shortUnit(reference.request_unit) + ': vuelven a quedar pendientes en la solicitud'"></p>
@@ -169,13 +172,14 @@
             <p x-show="searched && !candidates.length" class="rounded-xl bg-gray-50 p-4 text-sm text-gray-500 dark:bg-gray-800/50">No hay solicitudes que calcen. Busca una por su folio, o marca la compra como directa más abajo.</p>
 
             <div x-show="candidates.length" class="rounded-2xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800 max-h-[28rem] overflow-y-auto">
-                <template x-for="candidate in candidates" :key="candidate.item_id">
+                <template x-for="candidate in candidates" :key="candidate.item_id + (candidate.kind || '') + ':' + (candidate.line_id || '')">
                     <div class="flex items-start gap-3 px-4 py-3">
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <a :href="candidate.request_url" class="text-xs font-bold text-indigo-600 dark:text-indigo-300" x-text="candidate.folio"></a>
                                 <span class="text-xs text-gray-400" x-text="candidate.date + ' · ' + candidate.status"></span>
                                 <span x-show="candidate.supplier_known" class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Cotizó este proveedor</span>
+                                <span x-show="candidate.kind === 'part'" class="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">Pieza de esta partida</span>
                             </div>
                             <p class="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100" x-text="candidate.product"></p>
                             <p x-show="candidate.line_id" class="mt-0.5 text-xs text-gray-500 truncate">
@@ -187,7 +191,7 @@
                         <div class="shrink-0 flex flex-col items-end gap-1.5">
                             <button type="button" x-show="candidate.quick_quantity && !candidate.measures" @click="quickLink(candidate)"
                                     class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700" :disabled="busy"
-                                    x-text="'Vincular ' + number(candidate.quick_quantity)"></button>
+                                    x-text="(candidate.kind === 'part' ? 'Vincular como pieza ' : 'Vincular ') + number(candidate.quick_quantity)"></button>
                             <button type="button" @click="choose(candidate); $nextTick(() => $refs.linkForm.scrollIntoView({behavior: 'smooth', block: 'center'}))"
                                     class="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300" :disabled="busy"
                                     x-text="candidate.quick_quantity && !candidate.measures ? 'Otra cantidad' : 'Revisar'"></button>
@@ -203,20 +207,37 @@
                     <p x-show="selected?.line_measures?.[form.lineId]" class="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
                        x-text="selected?.line_measures?.[form.lineId] && (measuresText(selected.line_measures[form.lineId]) + '. Vincúlala sólo si es lo que se pidió.')"></p>
                 </div>
+                {{-- La válvula de pie llega en dos líneas: la válvula es la partida y el
+                     canastillo una pieza. Y al revés, un kit trae varias partidas en una. --}}
+                <fieldset class="space-y-1.5">
+                    <legend class="text-xs font-semibold text-gray-700 dark:text-gray-300">Qué es esta línea para la partida</legend>
+                    <label class="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                        <input type="radio" value="" x-model="form.kind" @change="form.lineId = ''; changeLine()" :disabled="selected && scaled(selected.remaining) === 0n" class="mt-0.5">
+                        <span><span class="font-semibold">La partida</span> · lo que se pidió</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                        <input type="radio" value="part" x-model="form.kind" @change="form.lineId = ''; changeLine()" class="mt-0.5">
+                        <span><span class="font-semibold">Una pieza de ella</span> · el proveedor la factura aparte; suma precio, no cantidad</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                        <input type="radio" value="kit" x-model="form.kind" @change="form.lineId = ''; changeLine()" :disabled="selected && scaled(selected.remaining) === 0n" class="mt-0.5">
+                        <span><span class="font-semibold">Viene dentro de un kit</span> · otra partida ya tiene esta línea; ésta va incluida en su precio</span>
+                    </label>
+                </fieldset>
                 <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Línea de esta factura
                     <select x-model="form.lineId" @change="changeLine()" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">
                         <option value="">Selecciona una línea…</option>
-                        <template x-for="line in report.lines.filter(l => Number(l.remaining) > 0)" :key="line.id">
+                        <template x-for="line in formLines" :key="line.id">
                             <option :value="String(line.id)" x-text="line.description + ' · ' + number(line.remaining) + ' ' + (line.unit || '')"></option>
                         </template>
                     </select>
                 </label>
                 <div class="grid grid-cols-2 gap-3">
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">En la factura <span class="font-normal text-gray-400" x-text="shortUnit(currentLine?.unit)"></span>
-                        <input type="number" x-model="form.invoiceQuantity" min="0.000001" step="0.000001" :max="currentLine?.remaining" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">
+                        <input type="number" x-model="form.invoiceQuantity" :min="form.kind === 'kit' ? 0 : 0.000001" step="0.000001" :max="currentLine?.remaining" :readonly="form.kind === 'kit'" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">
                     </label>
                     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Equivale en la solicitud <span class="font-normal text-gray-400" x-text="shortUnit(selected?.unit)"></span>
-                        <input type="number" x-model="form.requestQuantity" min="0.000001" step="0.000001" :max="selected?.remaining" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">
+                        <input type="number" x-model="form.requestQuantity" :min="form.kind === 'part' ? 0 : 0.000001" step="0.000001" :max="selected?.remaining" :readonly="form.kind === 'part'" required class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:bg-gray-900 dark:border-gray-700">
                     </label>
                 </div>
                 <div x-show="needsReview" class="space-y-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/30">

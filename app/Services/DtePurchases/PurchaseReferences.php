@@ -194,11 +194,13 @@ class PurchaseReferences
                 'remaining_request' => $ref->requestItem ? (string) Quantity::of($ref->requestItem->quantity)->minus($this->usedOnItem($ref->requestItem->id)) : null,
                 'actor' => $ref->actor_name ?: self::SYSTEM[$ref->source] ?? 'Sistema', 'date' => $ref->created_at->toIso8601String(),
                 'note' => $ref->note,
-                'price' => $this->price($line, $ref, $net),
+                'kind' => $ref->snapshot['kind'] ?? null, 'item_id' => $ref->purchase_request_item_id, 'line_id' => $ref->document_line_id,
+                'amounts' => $stale ? null : $this->amounts($line, $ref, $net), 'parts' => [], 'kit' => [],
                 'returned' => isset($returned[$ref->id]) ? (string) $returned[$ref->id] : null,
                 'measures' => $this->measureWarning((string) $ref->snapshot['invoice_product'], (string) $ref->snapshot['request_product']),
             ];
         })->values();
+        $rows = collect($this->combine($rows->all()));
         $priced = $rows->filter(fn (array $row): bool => ! $row['stale'] && $row['price'] !== null);
         $requested = $priced->sum(fn (array $row): float => $row['price']['requested']);
         $invoiced = $priced->sum(fn (array $row): float => $row['price']['invoiced']);
@@ -269,6 +271,10 @@ class PurchaseReferences
             $this->require(! $duplicate, 'La misma factura ya está vinculada desde otro registro DTE. Revisa el duplicado antes de continuar.');
             $invoiceQty = Quantity::of($data['invoice_quantity']);
             $requestQty = Quantity::of($data['request_quantity']);
+            // A piece of the item —the strainer Cooprinsem quoted apart from the foot
+            // valve— adds cost, not quantity. A kit line that also brings this item
+            // adds quantity, not invoice: its line is already counted by its main item.
+            $kind = in_array($data['kind'] ?? null, ['part', 'kit'], true) ? $data['kind'] : null;
             if ($source === 'manual' && filled($data['operation_key'] ?? null)) {
                 $previous = DtePurchaseReference::where('operation_key', $data['operation_key'])->first();
                 if ($previous) {
@@ -281,7 +287,18 @@ class PurchaseReferences
                     return $previous;
                 }
             }
-            $this->require($invoiceQty->isGreaterThan(0) && $requestQty->isGreaterThan(0), 'Las cantidades deben ser mayores que cero.');
+            $this->require(match ($kind) {
+                'part' => $invoiceQty->isGreaterThan(0) && $requestQty->isZero(),
+                'kit' => $invoiceQty->isZero() && $requestQty->isGreaterThan(0),
+                default => $invoiceQty->isGreaterThan(0) && $requestQty->isGreaterThan(0),
+            }, match ($kind) {
+                'part' => 'Una pieza lleva cantidad en la factura y cero en la solicitud.',
+                'kit' => 'Una partida dentro de un kit lleva cero en la factura y su cantidad en la solicitud.',
+                default => 'Las cantidades deben ser mayores que cero.',
+            });
+            $this->require($kind !== 'kit' || $this->active()->where('document_line_id', $line->id)
+                ->where('purchase_request_item_id', '!=', $item->id)->whereNull('snapshot->kind')->exists(),
+                'Primero vincula la línea del kit con su partida principal; después, las demás que trae.');
             $this->require($invoiceQty->isLessThanOrEqualTo('999999999999.999999') && $requestQty->isLessThanOrEqualTo('999999999999.999999'), 'La cantidad excede el límite permitido.');
             $this->require(($data['line_version'] ?? '') === $this->lineFingerprint($line)
                 && ($data['item_version'] ?? '') === $this->itemFingerprint($item), 'Una partida cambió. Vuelve a buscarla antes de confirmar.');
@@ -296,9 +313,9 @@ class PurchaseReferences
 
             $this->require($invoiceQty->plus($this->usedOnLine($line->id))->isLessThanOrEqualTo(Quantity::of($line->cantidad)), 'Esa cantidad de la factura ya está vinculada o supera lo facturado.');
             $this->require($requestQty->plus($this->usedOnItem($item->id))->isLessThanOrEqualTo(Quantity::of($item->quantity)), 'La cantidad supera lo pendiente de vincular en la solicitud.');
-            $conversion = ! Quantity::sameUnit($line->unidad, $item->unit)
+            $conversion = $kind === null && (! Quantity::sameUnit($line->unidad, $item->unit)
                 || Quantity::packaged($line->descripcion ?? '') || Quantity::packaged($item->product_service)
-                || ! $invoiceQty->isEqualTo($requestQty);
+                || ! $invoiceQty->isEqualTo($requestQty));
             // The click confirms the supplier; only an equivalence between different
             // presentations needs to be explained.
             if ($source === 'manual' && $conversion) {
@@ -320,9 +337,10 @@ class PurchaseReferences
                     'invoice_product' => $line->descripcion, 'invoice_unit' => $line->unidad,
                     'request_product' => $item->product_service, 'request_unit' => $item->unit,
                     'requested_quantity' => (string) Quantity::of($item->quantity),
+                    ...($kind ? ['kind' => $kind] : []),
                 ],
             ]);
-            $this->event($documentId, 'linked', $actor, ['reference_id' => $ref->id, 'folio' => $request->folio, 'source' => $source, 'note' => $ref->note]);
+            $this->event($documentId, 'linked', $actor, ['reference_id' => $ref->id, 'folio' => $request->folio, 'source' => $source, 'note' => $ref->note, 'kind' => $kind]);
 
             return $ref;
         }, 3);
@@ -409,27 +427,90 @@ class PurchaseReferences
     }
 
     /**
-     * What the invoice charges for this link against what the request expected,
-     * both net and in request units, so a box of 12 compares with 12 sprays.
+     * What the invoice charges for this link and what the request expected, both
+     * net. Requested is null when the request has no price to compare with.
+     *
+     * @return array{invoiced: float, requested: ?float, request_quantity: float, unit: ?float}|null
      */
-    private function price(?object $line, DtePurchaseReference $ref, float $net): ?array
+    private function amounts(?object $line, DtePurchaseReference $ref, float $net): ?array
     {
         $item = $ref->requestItem;
         $request = $ref->purchaseRequest;
-        if (! $line || ! $item || ! $request || (float) $item->unit_price <= 0 || (float) $line->cantidad <= 0
-            || (float) $ref->request_quantity <= 0 || strtoupper($request->currency ?: 'CLP') !== 'CLP') {
+        if (! $line || ! $item || ! $request || (float) $line->cantidad <= 0 || strtoupper($request->currency ?: 'CLP') !== 'CLP') {
             return null;
         }
         $lineNet = ((float) $line->monto_item > 0 ? (float) $line->monto_item : (float) $line->precio_unitario * (float) $line->cantidad) * $net;
-        $invoiced = $lineNet / (float) $line->cantidad * (float) $ref->invoice_quantity;
-        $unit = (float) $item->unit_price;
-        if ($request->prices_include_tax && empty($line->es_exento)) {
+        $unit = (float) $item->unit_price > 0 ? (float) $item->unit_price : null;
+        if ($unit !== null && $request->prices_include_tax && empty($line->es_exento)) {
             $unit /= 1 + ((float) ($line->impuesto_tasa ?? 0) ?: 19.0) / 100;
         }
-        $requested = $unit * (float) $ref->request_quantity;
 
         return [
-            'requested_unit' => round($unit, 2), 'invoiced_unit' => round($invoiced / (float) $ref->request_quantity, 2),
+            'invoiced' => $lineNet / (float) $line->cantidad * (float) $ref->invoice_quantity,
+            'requested' => $unit === null ? null : $unit * (float) $ref->request_quantity,
+            'request_quantity' => (float) $ref->request_quantity, 'unit' => $unit,
+        ];
+    }
+
+    /**
+     * Pieces and kits priced with the item they belong to. The foot valve came as
+     * valve plus strainer: the request's price is for both, so the valve alone
+     * would look 37 % cheaper and the strainer like a surprise. A kit line is the
+     * other way round: one price for several items.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function combine(array $rows): array
+    {
+        foreach ($rows as $row) {
+            if ($row['kind'] === null || $row['stale']) {
+                continue;
+            }
+            // A piece goes with its item; a kit item, with its line.
+            $key = $row['kind'] === 'part' ? 'item_id' : 'line_id';
+            $main = null;
+            foreach ($rows as $k => $other) {
+                if ($other['kind'] === null && ! $other['stale'] && $other[$key] === $row[$key]) {
+                    $main = $k;
+                    break;
+                }
+            }
+            if ($main === null) {
+                continue;
+            }
+            if ($row['kind'] === 'part') {
+                $rows[$main]['parts'][] = $row['invoice_product'];
+                if ($rows[$main]['amounts'] && $row['amounts']) {
+                    $rows[$main]['amounts']['invoiced'] += $row['amounts']['invoiced'];
+                }
+            } else {
+                $rows[$main]['kit'][] = $row['request_product'];
+                if ($rows[$main]['amounts'] && $row['amounts']) {
+                    $rows[$main]['amounts']['requested'] = $rows[$main]['amounts']['requested'] === null || $row['amounts']['requested'] === null
+                        ? null : $rows[$main]['amounts']['requested'] + $row['amounts']['requested'];
+                }
+            }
+        }
+
+        return array_map(function (array $row): array {
+            $row['price'] = $row['kind'] === null && $row['amounts'] ? $this->priceOf($row['amounts']) : null;
+            unset($row['amounts']);
+
+            return $row;
+        }, $rows);
+    }
+
+    /** Both net and in request units, so a box of 12 compares with 12 sprays. */
+    private function priceOf(array $amounts): ?array
+    {
+        ['invoiced' => $invoiced, 'requested' => $requested, 'request_quantity' => $quantity, 'unit' => $unit] = $amounts;
+        if ($unit === null || $requested === null || $requested <= 0 || $quantity <= 0) {
+            return null;
+        }
+
+        return [
+            'requested_unit' => round($requested / $quantity, 2), 'invoiced_unit' => round($invoiced / $quantity, 2),
             'requested' => round($requested), 'invoiced' => round($invoiced), 'difference' => round($invoiced) - round($requested),
             'change' => round(($invoiced - $requested) * 100 / $requested, 1),
         ];

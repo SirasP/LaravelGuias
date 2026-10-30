@@ -336,6 +336,7 @@ class PurchaseRequestController extends Controller
                     $this->partnerDeOdoo($cotizacion),
                     $cotizacion->parejasConfirmadas(),
                     $cotizacion->parejasRechazadas(),
+                    $cotizacion->piezasConfirmadas(),
                 ),
             ];
         }

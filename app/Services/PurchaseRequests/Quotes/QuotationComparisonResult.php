@@ -8,11 +8,23 @@ class QuotationComparisonResult
     /**
      * @param  list<QuotationComparisonRow>  $filas
      * @param  list<QuotationComparisonRow>  $sobrantes
+     * @param  list<array{renglon: int, partida: \App\Models\PurchaseRequestItem, linea: array<string, mixed>, aprendida: bool}>  $piezas
      */
     public function __construct(
         public readonly array $filas,
         public readonly array $sobrantes = [],
+        public readonly array $piezas = [],
     ) {}
+
+    /**
+     * Las piezas de una partida: lo que el proveedor cotizó aparte y va dentro.
+     *
+     * @return list<array{renglon: int, partida: \App\Models\PurchaseRequestItem, linea: array<string, mixed>, aprendida: bool}>
+     */
+    public function piezasDe(int $idPartida): array
+    {
+        return array_values(array_filter($this->piezas, fn (array $p): bool => (int) $p['partida']->getKey() === $idPartida));
+    }
 
     /** @return list<QuotationComparisonRow> */
     public function todas(): array

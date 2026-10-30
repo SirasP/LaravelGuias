@@ -251,6 +251,91 @@ class PurchaseQuoteComparisonController extends Controller
     }
 
     /**
+     * Ese renglón es una pieza de la partida, no la partida.
+     *
+     * Cooprinsem cotizó la «válvula de pie con canastillo 10"» en dos renglones:
+     * la válvula de retención y el canastillo. Decir «es la misma» del
+     * canastillo habría sacado a la válvula; dejarlo como sobrante lo perdía.
+     * Como pieza, su precio se suma a la partida, viaja a Odoo con ella y la
+     * factura lo reconoce. Y se aprende para las próximas de ese proveedor.
+     */
+    public function piece(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'quote_line' => ['required', 'string', 'max:500'],
+            'item_id' => ['required', 'integer'],
+            'line_index' => ['required', 'integer', 'min:0'],
+        ], [], ['quote_line' => 'la línea de la cotización', 'item_id' => 'la partida']);
+
+        $partida = $purchaseRequest->items()->whereKey($datos['item_id'])->first();
+
+        abort_if($partida === null, 404);
+
+        $renglon = (int) $datos['line_index'];
+        $parejas = $ingestion->parejasConfirmadas();
+        unset($parejas[$renglon]);
+        $piezas = $ingestion->piezasConfirmadas();
+        $piezas[$renglon] = (int) $partida->getKey();
+        $ingestion->guardarDecisiones($parejas, null, $piezas);
+
+        if (! $this->apareceVariasVeces($ingestion, $datos['quote_line'])) {
+            PurchaseProductLink::query()->updateOrCreate(
+                [
+                    'company_code' => 'EHE',
+                    'odoo_partner_id' => $this->partnerDeOdoo($ingestion),
+                    'normalized_text' => PurchaseProductLink::normalizar($datos['quote_line']),
+                ],
+                [
+                    'source_text' => $datos['quote_line'],
+                    'partner_name' => $ingestion->supplier_name,
+                    'odoo_product_id' => null,
+                    'odoo_product_name' => null,
+                    'canonical_text' => PurchaseProductLink::normalizar((string) $partida->product_service),
+                    'source' => PurchaseProductLink::PIEZA,
+                    'confirmed_by' => $request->user()->getKey(),
+                    'confirmed_by_name' => $request->user()->name,
+                    'confirmed_at' => now(),
+                ],
+            );
+        }
+
+        return to_route('purchase_requests.show', $purchaseRequest)->with(
+            'success',
+            'Anotado: «'.Str::limit($datos['quote_line'], 34).'» es parte de «'
+                .Str::limit((string) $partida->product_service, 34).'». Su precio va con esa partida, también a Odoo y en la factura.',
+        );
+    }
+
+    /** Deshace una pieza: el renglón vuelve a ser algo que el proveedor agregó. */
+    public function unpiece(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestIngestion $ingestion): RedirectResponse
+    {
+        Gate::authorize('view', $purchaseRequest);
+        abort_unless($ingestion->compared_request_id === $purchaseRequest->getKey(), 404);
+
+        $datos = $request->validate([
+            'quote_line' => ['required', 'string', 'max:500'],
+            'line_index' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $piezas = $ingestion->piezasConfirmadas();
+        unset($piezas[(int) $datos['line_index']]);
+        $ingestion->guardarDecisiones($ingestion->parejasConfirmadas(), null, $piezas);
+
+        PurchaseProductLink::query()
+            ->where('company_code', 'EHE')
+            ->where('source', PurchaseProductLink::PIEZA)
+            ->where('normalized_text', PurchaseProductLink::normalizar($datos['quote_line']))
+            ->where(fn ($q) => $q->where('odoo_partner_id', $this->partnerDeOdoo($ingestion))->orWhereNull('odoo_partner_id'))
+            ->delete();
+
+        return to_route('purchase_requests.show', $purchaseRequest)
+            ->with('success', 'Listo: «'.Str::limit($datos['quote_line'], 34).'» ya no es parte de ninguna partida.');
+    }
+
+    /**
      * Confirma de una vez todas las parejas que el programa propuso.
      *
      * Las propuestas no se leen del formulario sino que se vuelven a calcular
@@ -271,6 +356,7 @@ class PurchaseQuoteComparisonController extends Controller
             $partnerId,
             $ingestion->parejasConfirmadas(),
             $ingestion->parejasRechazadas(),
+            $ingestion->piezasConfirmadas(),
         );
 
         $aprendidas = 0;
@@ -704,6 +790,7 @@ class PurchaseQuoteComparisonController extends Controller
             $partnerId,
             $ingestion->parejasConfirmadas(),
             $ingestion->parejasRechazadas(),
+            $ingestion->piezasConfirmadas(),
         );
 
         $numero = fn (mixed $v): ?float => is_string($v)
@@ -744,6 +831,7 @@ class PurchaseQuoteComparisonController extends Controller
             $partnerId,
             $ingestion->parejasConfirmadas(),
             $ingestion->parejasRechazadas(),
+            $ingestion->piezasConfirmadas(),
         );
 
         return collect($comparacion->filas)
@@ -812,7 +900,7 @@ class PurchaseQuoteComparisonController extends Controller
         $parejas = array_filter($parejas, fn (int $id): bool => $id !== (int) $partida->getKey());
         $parejas[$renglon] = (int) $partida->getKey();
 
-        $ingestion->forceFill(['confirmed_pairings' => $parejas])->save();
+        $ingestion->guardarDecisiones($parejas);
     }
 
     /** Olvida la confirmación de un renglón. Devuelve si había alguna. */
@@ -825,7 +913,7 @@ class PurchaseQuoteComparisonController extends Controller
         }
 
         unset($parejas[$renglon]);
-        $ingestion->forceFill(['confirmed_pairings' => $parejas === [] ? null : $parejas])->save();
+        $ingestion->guardarDecisiones($parejas);
 
         return true;
     }
@@ -939,6 +1027,7 @@ class PurchaseQuoteComparisonController extends Controller
             $request->boolean('vista_previa') ? $enteros('filas') : null,
             $enteros('sin_convertir'),
             $enteros('agregar'),
+            $request->boolean('vista_previa') ? $enteros('piezas') : null,
         );
 
         if ($hecho['motivo'] !== null) {

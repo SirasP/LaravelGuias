@@ -1,7 +1,7 @@
 export default (urls) => ({
     report: null, candidates: [], query: '', selected: null, loading: false, busy: false,
     error: '', message: '', searched: false, searchVersion: 0, classificationNote: '', revoking: null, revokeNote: '', showRequests: false,
-    form: { lineId: '', invoiceQuantity: '', requestQuantity: '', acknowledge: false, note: '', operationKey: '' },
+    form: { lineId: '', invoiceQuantity: '', requestQuantity: '', acknowledge: false, note: '', operationKey: '', kind: '' },
     labels: { unidentified: 'Sin vínculo identificado', partial: 'Vinculación parcial', linked: 'Solicitud vinculada', without_request: 'Compra sin solicitud' },
 
     async request(url, options = {}) {
@@ -43,8 +43,10 @@ export default (urls) => ({
     choose(candidate) {
         this.selected = candidate;
         this.message = '';
+        // A billed item only takes pieces: the strainer of a foot valve already invoiced.
+        const kind = candidate.kind || (this.scaled(candidate.remaining) === 0n ? 'part' : '');
         this.form = { lineId: candidate.line_id ? String(candidate.line_id) : '', invoiceQuantity: '', requestQuantity: '',
-            acknowledge: false, note: '', operationKey: this.newOperationKey() };
+            acknowledge: false, note: '', operationKey: this.newOperationKey(), kind };
         this.changeLine();
     },
     newOperationKey() {
@@ -95,6 +97,9 @@ export default (urls) => ({
     },
     measuresText(measures) { return 'Medidas distintas: factura ' + measures.invoice.join(', ') + ' · solicitud ' + measures.request.join(', '); },
     lineDescription(id) { return this.report?.lines.find(line => line.id === id)?.description || ''; },
+    kindLabel(reference) {
+        return { part: 'Pieza de la partida: suma precio, no cantidad', kit: 'Viene dentro del kit de otra línea' }[reference.kind] || '';
+    },
     sourceLabel(reference) {
         return { auto: 'Automática', odoo: 'Verificada en Odoo' }[reference.source] || 'Manual · ' + reference.actor;
     },
@@ -114,7 +119,7 @@ export default (urls) => ({
         return u;
     },
     get needsReview() {
-        return this.selected && (this.selected.packaged
+        return this.selected && !this.form.kind && (this.selected.packaged
             || /\b(cajas?|packs?|paquetes?|docenas?|bidones?|rollos?)\b/i.test(this.currentLine?.description || '')
             || !this.unit(this.currentLine?.unit) || this.unit(this.currentLine?.unit) !== this.unit(this.selected.unit)
             || this.scaled(this.form.invoiceQuantity) === null || this.scaled(this.form.invoiceQuantity) !== this.scaled(this.form.requestQuantity));
@@ -126,8 +131,14 @@ export default (urls) => ({
         const magnitude = BigInt(match[1].replace('-', '')) * 1000000n + BigInt((match[2] || '').padEnd(6, '0'));
         return negative ? -magnitude : magnitude;
     },
+    // Lines a link can use: a kit item rides on a line already linked to its main item.
+    get formLines() {
+        return (this.report?.lines || []).filter(line => this.form.kind === 'kit' ? this.scaled(line.remaining) < this.scaled(line.quantity) : this.scaled(line.remaining) > 0n);
+    },
     changeLine() {
         const line = this.currentLine;
+        if (this.form.kind === 'part') { this.form.invoiceQuantity = line ? line.remaining : ''; this.form.requestQuantity = '0'; return; }
+        if (this.form.kind === 'kit') { this.form.invoiceQuantity = '0'; this.form.requestQuantity = this.selected?.remaining || ''; return; }
         const canCopy = line && !this.selected.packaged && !/\b(cajas?|packs?|paquetes?|docenas?|bidones?|rollos?)\b/i.test(line.description || '')
             && this.unit(line.unit) && this.unit(line.unit) === this.unit(this.selected.unit);
         this.form.invoiceQuantity = line ? (canCopy && this.scaled(this.selected.remaining) < this.scaled(line.remaining) ? this.selected.remaining : line.remaining) : '';
@@ -158,12 +169,14 @@ export default (urls) => ({
             invoice_quantity: String(this.form.invoiceQuantity), request_quantity: String(this.form.requestQuantity),
             version: this.report.version, line_version: this.currentLine.version, item_version: this.selected.item_version,
             operation_key: this.form.operationKey, acknowledge: this.form.acknowledge, note: this.form.note,
+            kind: this.form.kind || null,
         });
     },
     async quickLink(candidate) {
         await this.mutate(urls.store, 'POST', {
             document_line_id: candidate.line_id, purchase_request_item_id: candidate.item_id,
-            invoice_quantity: candidate.quick_quantity, request_quantity: candidate.quick_quantity,
+            invoice_quantity: candidate.quick_quantity, request_quantity: candidate.kind === 'part' ? '0' : candidate.quick_quantity,
+            kind: candidate.kind || null,
             version: this.report.version, line_version: candidate.line_version, item_version: candidate.item_version,
             operation_key: this.newOperationKey(),
         });

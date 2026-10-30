@@ -548,3 +548,58 @@ it('shows the order, what changes and what stays in the preview', function () {
 
     nadaSeEscribio();
 });
+
+it('sends a piece of an item to the order as its own line', function () {
+    // El canastillo es parte de la válvula de pie: entra a la orden en su
+    // propia línea, que es como Cooprinsem lo va a facturar.
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura, $items] = cotizacion($revisor,
+        [['product_service' => 'válvula de pie con canastillo 10"', 'quantity' => 1]],
+        [
+            ['product_service' => 'VALVULA RET. HDPE 10"', 'quantity' => '1', 'unit_price' => '464750'],
+            ['product_service' => 'CANASTILLO SUCCION HDPE 10"', 'quantity' => '1', 'unit_price' => '279625'],
+        ],
+        [0 => 1],
+    );
+    $items[1]->forceFill(['odoo_order_id' => 240, 'odoo_line_id' => 2384])->save();
+    $lectura->guardarDecisiones($lectura->parejasConfirmadas(), null, [1 => $items[1]->getKey()]);
+
+    odooConOrdenes([orden(240, 'sent', [2384])], [['id' => 2384, 'order_id' => [240, 'P00240'], 'product_id' => [8936, 'Válvula de pie']]],
+        [['id' => 8990, 'name' => 'CANASTILLO SUCCION HDPE 10"', 'uom_id' => [1, 'Units']]]);
+
+    $this->actingAs($revisor)
+        ->get(route('purchase_requests.quotes.prices.preview', [$solicitud, $lectura]))
+        ->assertOk()->assertSee('Piezas de una partida');
+
+    $this->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'agregó 1 línea nueva'));
+
+    Http::assertSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create'
+        && ($r['params']['args'][3] ?? null) === 'purchase.order.line'
+        && ($r['params']['args'][5][0]['product_id'] ?? null) === 8990
+        && ($r['params']['args'][5][0]['price_unit'] ?? null) === 279625.0);
+});
+
+it('updates the piece line already in the order instead of adding it twice', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura, $items] = cotizacion($revisor,
+        [['product_service' => 'válvula de pie con canastillo 10"', 'quantity' => 1]],
+        [
+            ['product_service' => 'VALVULA RET. HDPE 10"', 'quantity' => '1', 'unit_price' => '464750'],
+            ['product_service' => 'CANASTILLO SUCCION HDPE 10"', 'quantity' => '1', 'unit_price' => '279625'],
+        ],
+        [0 => 1],
+    );
+    $items[1]->forceFill(['odoo_order_id' => 240, 'odoo_line_id' => 2384])->save();
+    $lectura->guardarDecisiones($lectura->parejasConfirmadas(), null, [1 => $items[1]->getKey()]);
+
+    odooConOrdenes([orden(240, 'sent', [2384, 9934])], [
+        ['id' => 2384, 'order_id' => [240, 'P00240'], 'product_id' => [8936, 'Válvula de pie']],
+        ['id' => 9934, 'order_id' => [240, 'P00240'], 'product_id' => [8990, 'Canastillo'], 'name' => 'CANASTILLO SUCCION HDPE 10"', 'price_unit' => 250000],
+    ]);
+
+    $this->actingAs($revisor)->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))->assertSessionHas('success');
+
+    expect(seEscribio(9934, fn ($v) => ($v['price_unit'] ?? null) === 279625.0))->toBeTrue();
+    Http::assertNotSent(fn ($r) => ($r['params']['args'][4] ?? null) === 'create');
+});

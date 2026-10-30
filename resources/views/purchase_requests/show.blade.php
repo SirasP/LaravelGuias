@@ -1421,6 +1421,23 @@
                                                                 <span>{{ $fila->cotizada['product_service'] ?? '—' }}</span>
                                                             </span>
                                                         @endif
+                                                        @foreach ($fila->pedida ? $resultado->piezasDe((int) $fila->pedida->getKey()) : [] as $pieza)
+                                                            <span class="mt-1 flex flex-wrap items-start gap-1.5 text-xs text-sky-800 dark:text-sky-300">
+                                                                <span class="mt-px shrink-0">+</span>
+                                                                <span>{{ $pieza['linea']['product_service'] ?? '—' }}</span>
+                                                                <span class="font-mono tabular-nums text-slate-500 dark:text-slate-400">
+                                                                    {{ $pieza['linea']['quantity'] ?? '' }} {{ $pieza['linea']['unit'] ?? '' }}
+                                                                    @if(filled($pieza['linea']['unit_price'] ?? null)) · $ {{ number_format((float) $pieza['linea']['unit_price'], 0, ',', '.') }} @endif
+                                                                </span>
+                                                                <span class="rounded-full bg-sky-100 px-1.5 text-[10px] font-bold text-sky-800 dark:bg-sky-950/60 dark:text-sky-200">{{ $pieza['aprendida'] ? 'pieza · aprendida' : 'pieza' }}</span>
+                                                                <form method="POST" action="{{ route('purchase_requests.quotes.unpiece', [$purchaseRequest, $lectura]) }}" class="inline">
+                                                                    @csrf
+                                                                    <input type="hidden" name="quote_line" value="{{ $pieza['linea']['product_service'] ?? '' }}">
+                                                                    <input type="hidden" name="line_index" value="{{ $pieza['renglon'] }}">
+                                                                    <button type="submit" class="text-[11px] font-bold text-slate-400 underline decoration-dotted underline-offset-2 hover:text-rose-600">quitar</button>
+                                                                </form>
+                                                            </span>
+                                                        @endforeach
                                                         @foreach ($fila->diferencias as $diferencia)
                                                             <span class="mt-1 block text-xs font-semibold text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
                                                         @endforeach
@@ -1551,6 +1568,13 @@
                                                                     <button type="submit"
                                                                         class="min-h-9 rounded-xl border border-slate-300 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
                                                                         Es la misma
+                                                                    </button>
+                                                                    {{-- La válvula de pie llegó en dos renglones: la
+                                                                         válvula es la partida y el canastillo, parte de
+                                                                         ella. Su precio se suma a la partida. --}}
+                                                                    <button type="submit" formaction="{{ route('purchase_requests.quotes.piece', [$purchaseRequest, $lectura]) }}"
+                                                                        class="min-h-9 rounded-xl border border-sky-300 px-3 text-xs font-bold text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950/40">
+                                                                        Es parte de ella
                                                                     </button>
                                                                 </form>
                                                             @endif

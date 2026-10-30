@@ -57,12 +57,13 @@ class QuoteToOdoo
      *     orden: ?array{id: int, name: string, state: string, editable: bool},
      *     motivo: ?string,
      *     filas: list<array<string, mixed>>,
+     *     piezas: list<array<string, mixed>>,
      *     sobrantes: list<array<string, mixed>>,
      * }
      */
     public function plan(PurchaseRequest $solicitud, PurchaseRequestIngestion $lectura, ?int $partnerId): array
     {
-        $vacio = ['orden' => null, 'motivo' => null, 'filas' => [], 'sobrantes' => []];
+        $vacio = ['orden' => null, 'motivo' => null, 'filas' => [], 'piezas' => [], 'sobrantes' => []];
 
         if ($partnerId === null) {
             return [...$vacio, 'motivo' => 'Todavía no se sabe quién es este proveedor en Odoo. Búscalo en la tarjeta de la cotización y elígelo primero.'];
@@ -88,6 +89,7 @@ class QuoteToOdoo
             $partnerId,
             $lectura->parejasConfirmadas(),
             $lectura->parejasRechazadas(),
+            $lectura->piezasConfirmadas(),
         );
 
         $usadas = [];
@@ -106,6 +108,38 @@ class QuoteToOdoo
             }
 
             $filas[] = $this->fila($item, $fila->cotizada, $linea, $como, $fila->esPropuesta());
+        }
+
+        // Las piezas van a la misma orden, cada una en su línea: así las factura
+        // el proveedor. Si ya está —se llevó antes—, se actualiza esa.
+        $piezas = [];
+
+        foreach ($resultado->piezas as $pieza) {
+            $nombre = trim((string) ($pieza['linea']['product_service'] ?? ''));
+            $texto = PurchaseProductLink::normalizar($nombre);
+            $ya = array_filter($enLaOrden, fn (array $l): bool => ! isset($usadas[(int) $l['id']])
+                && $texto !== '' && str_starts_with(PurchaseProductLink::normalizar((string) ($l['name'] ?? '')), $texto));
+            $linea = count($ya) === 1 ? reset($ya) : null;
+
+            if ($linea !== null) {
+                $usadas[(int) $linea['id']] = true;
+            }
+
+            $nueva = ['nombre' => $nombre, 'cantidad' => $this->numero($pieza['linea']['quantity'] ?? null), 'precio' => $this->numero($pieza['linea']['unit_price'] ?? null)];
+            $actual = $linea === null ? null : ['id' => (int) $linea['id'], 'nombre' => (string) ($linea['name'] ?? ''),
+                'precio' => (float) ($linea['price_unit'] ?? 0), 'cantidad' => (float) ($linea['product_qty'] ?? 0)];
+
+            $piezas[] = [
+                'renglon' => (int) $pieza['renglon'],
+                'item_id' => (int) $pieza['partida']->getKey(),
+                'orden_partida' => (int) $pieza['partida']->sort_order,
+                'pedida' => (string) $pieza['partida']->product_service,
+                'nombre' => $nombre,
+                'unidad' => (string) ($pieza['linea']['unit'] ?? ''),
+                'propuesto' => $nueva,
+                'linea' => $actual,
+                'cambia' => $actual === null || $this->diferencias($actual, $nueva) !== [],
+            ];
         }
 
         $sobrantes = [];
@@ -127,6 +161,7 @@ class QuoteToOdoo
                 $orden['name'],
             ),
             'filas' => $filas,
+            'piezas' => $piezas,
             'sobrantes' => $sobrantes,
         ];
     }
@@ -141,6 +176,7 @@ class QuoteToOdoo
      * @param  list<int>|null  $filas  ids de partida; null = todas las que se pueden
      * @param  list<int>  $sinConvertir  ids de partida que van con la cantidad cotizada tal cual
      * @param  list<int>  $agregar  renglones del documento que entran como líneas nuevas
+     * @param  list<int>|null  $piezas  renglones de las piezas que van; null = todas
      * @return array{actualizadas: int, agregadas: int, productos: int, motivo: ?string, orden: ?string}
      */
     public function aplicar(
@@ -150,6 +186,7 @@ class QuoteToOdoo
         ?array $filas = null,
         array $sinConvertir = [],
         array $agregar = [],
+        ?array $piezas = null,
     ): array {
         $plan = $this->plan($solicitud, $lectura, $partnerId);
         $nada = ['actualizadas' => 0, 'agregadas' => 0, 'productos' => 0, 'motivo' => $plan['motivo'], 'orden' => $plan['orden']['name'] ?? null];
@@ -206,7 +243,22 @@ class QuoteToOdoo
                 $actualizadas++;
             }
 
-            [$agregadas, $nuevos] = $this->agregarSobrantes($ordenId, $plan, $agregar, $partnerId);
+            $lasPiezas = array_filter($plan['piezas'], fn (array $p): bool => $p['cambia']
+                && ($piezas === null || in_array($p['renglon'], $piezas, true)));
+
+            foreach ($lasPiezas as $p) {
+                if ($p['linea'] !== null && ($escribir = $this->diferencias($p['linea'], $p['propuesto'])) !== []) {
+                    $this->client->execute('purchase.order.line', 'write', [[$p['linea']['id']], $escribir]);
+                    $actualizadas++;
+                }
+            }
+
+            $nuevas = [
+                ...array_values(array_map(fn (array $p): array => $p['propuesto'], array_filter($lasPiezas, fn (array $p): bool => $p['linea'] === null))),
+                ...array_values(array_filter($plan['sobrantes'], fn (array $s): bool => $s['renglon'] !== null && in_array((int) $s['renglon'], $agregar, true))),
+            ];
+
+            [$agregadas, $nuevos] = $this->agregarLineas($ordenId, $nuevas, $partnerId);
 
             return [
                 'actualizadas' => $actualizadas,
@@ -451,18 +503,16 @@ class QuoteToOdoo
     }
 
     /**
-     * Agrega a la orden lo que el proveedor cotizó y nadie pidió así: el
-     * canastillo que Cooprinsem separó de la válvula de pie. Sólo los
-     * renglones que la persona marcó.
+     * Agrega a la orden líneas nuevas: las piezas que el proveedor cotizó
+     * aparte —el canastillo de la válvula de pie— y lo que agregó por su
+     * cuenta y la persona marcó.
      *
-     * @param  array<string, mixed>  $plan
-     * @param  list<int>  $renglones
+     * @param  list<array{nombre: string, cantidad: ?float, precio: ?float}>  $nuevas
      * @return array{0: int, 1: int} líneas agregadas y productos creados
      */
-    private function agregarSobrantes(int $orden, array $plan, array $renglones, int $partnerId): array
+    private function agregarLineas(int $orden, array $nuevas, int $partnerId): array
     {
-        $elegidos = array_values(array_filter($plan['sobrantes'], fn (array $s): bool => $s['renglon'] !== null
-            && in_array((int) $s['renglon'], $renglones, true) && $s['nombre'] !== ''));
+        $elegidos = array_values(array_filter($nuevas, fn (array $s): bool => $s['nombre'] !== ''));
 
         if ($elegidos === []) {
             return [0, 0];
