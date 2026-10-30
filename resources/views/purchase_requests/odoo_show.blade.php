@@ -48,7 +48,11 @@
                     <p class="mt-1 text-base font-bold text-slate-800 dark:text-slate-100">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
                     <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                         {{ $order->date_order?->format('d-m-Y') ?? '—' }} · creada por {{ $order->created_by_name ?: '—' }}
-                        @if($order->origin) · origen {{ $order->origin }} @endif
+                        @if(($folio = $order->requestFolio()) && isset($requestLinks[$folio]))
+                            · de la <a href="{{ $requestLinks[$folio] }}" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">{{ $folio }}</a>
+                        @elseif($order->origin)
+                            · origen {{ $order->origin }}
+                        @endif
                         @if($order->partner_ref) · ref. proveedor {{ $order->partner_ref }} @endif
                     </p>
                 </div>

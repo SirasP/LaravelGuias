@@ -71,6 +71,9 @@ class OdooPurchaseOrderController extends Controller
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($loaded->pluck('odoo_id')->all()), 'filter' => $filter, 'search' => $search, 'creator' => $creator,
             'creators' => OdooPurchaseOrder::whereNotNull('created_by_name')->distinct()->orderBy('created_by_name')->pluck('created_by_name'),
             'syncedAt' => OdooPurchaseOrder::max('synced_at'),
+            // Las cotizaciones que el jefe hace en Odoo a partir de una solicitud
+            // llevan su folio en el origen: el enlace lleva a esa solicitud.
+            'requestLinks' => $this->requestLinks($loaded),
         ]);
     }
 
@@ -117,9 +120,27 @@ class OdooPurchaseOrderController extends Controller
 
         $boughtWith = $order->isQuotation() ? $group->filter(fn (OdooPurchaseOrder $o): bool => in_array($o->state, OdooPurchaseOrder::CONFIRMED_STATES, true)) : collect();
 
+        $requestLinks = $this->requestLinks($group);
+
         return response()->view('purchase_requests.odoo_show', [
+            'requestLinks' => $requestLinks,
             'order' => $order, 'group' => $group, 'products' => $products, 'boughtWith' => $boughtWith,
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($group->pluck('odoo_id')->all()),
         ]);
+    }
+
+    /**
+     * Folio de solicitud => su página, para las órdenes que lo llevan en el origen.
+     *
+     * @return array<string, string>
+     */
+    private function requestLinks(\Illuminate\Support\Collection $orders): array
+    {
+        $folios = $orders->map(fn (OdooPurchaseOrder $order): ?string => $order->requestFolio())->filter()->unique()->values();
+
+        return \App\Models\PurchaseRequest::query()->where('company_code', \App\Models\PurchaseRequest::COMPANY_CODE)
+            ->whereIn('folio', $folios)->get()
+            ->mapWithKeys(fn (\App\Models\PurchaseRequest $request): array => [$request->folio => route('purchase_requests.show', $request)])
+            ->all();
     }
 }

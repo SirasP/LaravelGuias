@@ -97,6 +97,12 @@ class OdooPurchaseOrder extends Model
         return $this->odoo_created_at?->gt(now()->subWeek()) ?? false;
     }
 
+    /** El folio de la solicitud de la que salió, si su origen lo dice. */
+    public function requestFolio(): ?string
+    {
+        return preg_match('/SC-\d{4}-\d{6}/', (string) $this->origin, $match) ? $match[0] : null;
+    }
+
     public function odooUrl(): ?string
     {
         $url = rtrim((string) config('purchase_requests.odoo.url'), '/');

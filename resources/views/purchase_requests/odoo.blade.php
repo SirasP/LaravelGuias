@@ -42,7 +42,7 @@
                 <div>
                     <h2 class="font-extrabold text-slate-900 dark:text-white">Hechas en Odoo, sin solicitud</h2>
                     <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                        Cotizaciones y órdenes que alguien creó directo en Odoo. Las que salen de una solicitud no aparecen aquí.
+                        Cotizaciones y órdenes que alguien creó directo en Odoo, también las que se cotizan allá a partir de una solicitud. Las que envía Laravel no se repiten aquí.
                     </p>
                 </div>
                 <p class="text-xs text-slate-400">
@@ -155,6 +155,9 @@
                                     <p class="min-w-0 text-sm text-slate-600 dark:text-slate-300">
                                         <span class="font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 70) }}</span>
                                         <span class="text-xs"> · {{ $summary }}</span>
+                                        @if(($folio = $item['orders']->map->requestFolio()->filter()->first()) && isset($requestLinks[$folio]))
+                                            <a href="{{ $requestLinks[$folio] }}" class="ml-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-300 dark:ring-blue-800">de la {{ $folio }}</a>
+                                        @endif
                                     </p>
                                     <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion"
                                        class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-slate-900 dark:text-indigo-300 dark:ring-indigo-800">Comparar precios →</a>
@@ -173,6 +176,9 @@
                                     <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ $order->name }}</span>
                                     @if($order->isRecent() && ! $cancelled)
                                         <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Nueva</span>
+                                    @endif
+                                    @if(! $grouped && $order->requestFolio())
+                                        <span class="block text-[10px] font-semibold text-slate-400">de la {{ $order->requestFolio() }}</span>
                                     @endif
                                 </span>
                                 <span class="truncate font-semibold {{ $cancelled ? '' : 'text-slate-900 dark:text-white' }}" title="{{ $order->partner_name }}">{{ $order->partner_name ?: 'Sin proveedor' }}</span>
@@ -204,6 +210,9 @@
                                 <p class="min-w-0 text-xs text-slate-600 dark:text-slate-300">
                                     <span class="block truncate font-bold text-slate-900 dark:text-white">{{ \Illuminate\Support\Str::limit($product, 40) }}</span>
                                     {{ $summary }}
+                                    @if(($folio = $item['orders']->map->requestFolio()->filter()->first()) && isset($requestLinks[$folio]))
+                                        · <a href="{{ $requestLinks[$folio] }}" class="font-bold text-blue-700 dark:text-blue-300">de la {{ $folio }}</a>
+                                    @endif
                                 </p>
                                 <a href="{{ route('purchase_requests.odoo.show', $item['orders']->first()->odoo_id) }}#comparacion" class="shrink-0 text-xs font-bold text-indigo-700 dark:text-indigo-300">Comparar →</a>
                             </div>
@@ -219,7 +228,7 @@
                                         <span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                                     </p>
                                     <p class="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $order->partner_name ?: 'Sin proveedor' }}</p>
-                                    <p class="text-xs text-slate-500">{{ $order->date_order?->format('d-m-Y') }} · {{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 20) }}</p>
+                                    <p class="text-xs text-slate-500">{{ $order->date_order?->format('d-m-Y') }} · {{ \Illuminate\Support\Str::limit($order->created_by_name ?: '—', 20) }}@if($item['orders']->count() === 1 && $order->requestFolio()) · de la {{ $order->requestFolio() }}@endif</p>
                                 </div>
                                 <div class="shrink-0 text-right">
                                     <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ $money($order->amount_untaxed, $order->currency) }}</p>

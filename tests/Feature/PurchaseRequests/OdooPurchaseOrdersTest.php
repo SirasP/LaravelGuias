@@ -60,11 +60,15 @@ function odooWithOrders(array $orders, array $lines = [], ?array $partners = nul
     odooRuns(array_values(array_filter([$orders, $lines, $partners, $companies], fn ($value) => $value !== null)));
 }
 
-it('copies only the orders that did not come from a request, without writing to Odoo', function () {
+it('copies every order Laravel did not send, including the quotes made in Odoo from a request', function () {
     PurchaseRequest::factory()->approved()->create(['odoo_order_id' => 337]);
     $alternative = PurchaseRequest::factory()->approved()->create();
+    // Laravel sent this one from a line item of a request split between suppliers.
+    $alternative->items()->create(['sort_order' => 1, 'product_service' => 'Tubo', 'quantity' => 1, 'unit' => 'Unidades', 'odoo_order_id' => 340]);
     odooWithOrders([
         odooOrder(337),
+        odooOrder(340, ['origin' => $alternative->folio]),
+        // The boss quoted the same request to another supplier straight in Odoo.
         odooOrder(362, ['origin' => $alternative->folio, 'state' => 'sent']),
         odooOrder(350, ['state' => 'purchase', 'receipt_status' => 'pending']),
         odooOrder(351, ['origin' => 'SC-2026-999999']),
@@ -72,7 +76,8 @@ it('copies only the orders that did not come from a request, without writing to 
 
     $this->artisan('odoo:sync-purchase-orders')->assertSuccessful();
 
-    expect(OdooPurchaseOrder::orderBy('odoo_id')->pluck('odoo_id')->all())->toBe([350, 351]);
+    expect(OdooPurchaseOrder::orderBy('odoo_id')->pluck('odoo_id')->all())->toBe([350, 351, 362])
+        ->and(OdooPurchaseOrder::where('odoo_id', 362)->sole()->requestFolio())->toBe($alternative->folio);
     $order = OdooPurchaseOrder::where('odoo_id', 350)->sole();
     expect($order->partner_name)->toBe('Acenor Aceros Del Norte S.A.')
         ->and($order->created_by_name)->toBe('Luis Silva Menzel')
@@ -173,4 +178,15 @@ it('marks the quotations left open in a group that was already bought', function
         ->assertSee('se cotizó a 3 proveedores y se compró a 1 · 2 quedaron abiertas')->assertSee('Quedó abierta')->assertDontSee('PLASTIGEN');
     $this->get(route('purchase_requests.odoo.show', 300))->assertSee('Esta cotización quedó abierta.')->assertSee('P00302 (Florin Y Cia. S.A.)');
     $this->get(route('purchase_requests.odoo.show', 323))->assertDontSee('quedó abierta');
+});
+
+it('shows which request a quote made in Odoo came from', function () {
+    $request = PurchaseRequest::factory()->approved()->create();
+    $base = ['purchase_group_id' => 34, 'origin' => $request->folio, 'state' => 'sent', 'synced_at' => now()];
+    OdooPurchaseOrder::create($base + ['odoo_id' => 371, 'name' => 'P00371', 'partner_odoo_id' => 1, 'partner_name' => 'AUSTRAL RIEGO SPA']);
+    OdooPurchaseOrder::create($base + ['odoo_id' => 373, 'name' => 'P00373', 'partner_odoo_id' => 2, 'partner_name' => 'COMERCIAL CLIMENT SPA']);
+
+    $this->actingAs(User::factory()->admin()->create())->get(route('purchase_requests.odoo'))->assertOk()
+        ->assertSee('de la '.$request->folio)->assertSee(route('purchase_requests.show', $request));
+    $this->get(route('purchase_requests.odoo.show', 371))->assertSee(route('purchase_requests.show', $request));
 });

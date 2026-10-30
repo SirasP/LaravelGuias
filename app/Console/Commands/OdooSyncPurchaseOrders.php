@@ -14,10 +14,11 @@ use Throwable;
 /**
  * Trae las órdenes de compra que se hicieron directo en Odoo, sin solicitud.
  *
- * Una orden es «de Laravel» si una solicitud la exportó (`odoo_order_id`) o si
- * lleva el folio de una solicitud en su origen, como las alternativas que se
- * crean al repartir una compra entre proveedores. Todas las demás se copian:
- * son las que alguien hizo en Odoo sin avisar.
+ * Una orden es «de Laravel» sólo si Laravel la creó: la solicitud o una de sus
+ * partidas guarda su id (`odoo_order_id`). Las demás se copian, aunque lleven
+ * el folio de una solicitud en su origen: las cotizaciones que el jefe manda a
+ * otros proveedores desde Odoo a partir de la SC-2026-000106 (P00371 a P00374)
+ * no estaban en ninguna parte de Laravel, y la pestaña no las mostraba.
  *
  * Lee. No escribe nada en Odoo, nunca.
  */
@@ -40,11 +41,9 @@ class OdooSyncPurchaseOrders extends Command
 
     private ?\Illuminate\Support\Collection $exported = null;
 
-    private ?\Illuminate\Support\Collection $folios = null;
-
     public function handle(): int
     {
-        $this->exported = $this->folios = null;
+        $this->exported = null;
         // La misma instancia a la que exportan las solicitudes: los ids que
         // separan lo de Laravel de lo de Odoo sólo valen dentro de ella.
         $url = (string) config('purchase_requests.odoo.url');
@@ -140,17 +139,14 @@ class OdooSyncPurchaseOrders extends Command
         return self::SUCCESS;
     }
 
-    /** Exportada por una solicitud, o con el folio de una en su origen. */
+    /** La creó Laravel: la solicitud o una de sus partidas apunta a ella. */
     private function fromLaravel(array $order): bool
     {
-        $this->exported ??= PurchaseRequest::whereNotNull('odoo_order_id')->pluck('odoo_order_id')->map(fn ($id) => (int) $id)->flip();
-        $this->folios ??= PurchaseRequest::where('company_code', PurchaseRequest::COMPANY_CODE)->whereNotNull('folio')->pluck('folio')->flip();
-        if ($this->exported->has((int) $order['id'])) {
-            return true;
-        }
-        preg_match_all('/SC-\d{4}-\d{6}/', (string) $order['origin'], $matches);
+        $this->exported ??= PurchaseRequest::whereNotNull('odoo_order_id')->pluck('odoo_order_id')
+            ->merge(\App\Models\PurchaseRequestItem::whereNotNull('odoo_order_id')->pluck('odoo_order_id'))
+            ->map(fn ($id) => (int) $id)->unique()->flip();
 
-        return collect($matches[0])->contains(fn (string $folio): bool => $this->folios->has($folio));
+        return $this->exported->has((int) $order['id']);
     }
 
     /** @return list<array<string, mixed>> */
