@@ -160,3 +160,13 @@ it('compares fuel against the order by its total, because the specific tax can b
         ->assertJsonPath('links.0.amount', 6990565)->assertJsonPath('links.0.order.invoiced', 6990565);
     $this->get(route('purchase_requests.odoo.show', 274))->assertSee('100 %')->assertDontSee('103 %');
 });
+
+it('also recognises fuel keyed straight into Odoo, where the specific tax is its own line', function () {
+    odooTabOrder(390, [['DIESEL B', 1, 59700]], ['partner_vat' => '77111222-3']);
+    // Soc. de Transportes 2357031: no XML; Odoo writes the tax as an «IEC Diesel» line.
+    $id = odooTabInvoice([['DIESEL B', 1, 41517], ['IEC Diesel', 1, 10295]], ['proveedor_rut' => '77111222-3',
+        'monto_neto' => 51812, 'monto_iva' => 0, 'monto_total' => 59700]);
+
+    $this->actingAs($this->admin)->postJson(route('gmail.dtes.odoo_orders.store', $id), ['odoo_order_id' => 390])->assertCreated();
+    $this->getJson(route('gmail.dtes.odoo_orders.show', $id))->assertJsonPath('links.0.amount', 59700);
+});

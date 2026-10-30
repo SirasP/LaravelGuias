@@ -347,12 +347,17 @@ class OdooOrderLinks
     /** @var array<int, bool> */
     private array $fuel = [];
 
-    /** Lleva el impuesto específico del diésel (28) o de las gasolinas (35, 52). */
+    /**
+     * Lleva el impuesto específico del diésel (28) o de las gasolinas (35, 52).
+     * En el XML viene como código; en las facturas digitadas en Odoo, como una
+     * línea propia «IEC Diesel» (Soc. de Transportes 2357031, sin XML).
+     */
     private function isFuel(object $document): bool
     {
-        return $this->fuel[(int) $document->id] ??= DB::connection('fuelcontrol')->table('gmail_dte_document_lines')
-            ->where('document_id', $document->id)->whereIn('impuesto_codigo', ['28', '35', '52'])->exists()
-            || (bool) preg_match('/<TipoImp>\s*(28|35|52)\s*<\/TipoImp>/', (string) ($document->xml_raw ?? ''));
+        return $this->fuel[(int) $document->id] ??= (bool) preg_match('/<TipoImp>\s*(28|35|52)\s*<\/TipoImp>/', (string) ($document->xml_raw ?? ''))
+            || DB::connection('fuelcontrol')->table('gmail_dte_document_lines')->where('document_id', $document->id)
+                ->where(fn ($q) => $q->whereIn('impuesto_codigo', ['28', '35', '52'])->orWhere('descripcion', 'like', 'IEC %'))
+                ->exists();
     }
 
     private function document(int $id): object
