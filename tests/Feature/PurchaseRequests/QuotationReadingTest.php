@@ -837,3 +837,30 @@ it('accepts a quantity written in words, and still rejects one nobody wrote', fu
     [$items] = $pedir('dosis de cloro', '2');
     expect($items[0]['quantity'])->toBeNull();
 });
+
+it('lets the admin confirm and re-read a reading someone else uploaded', function () {
+    lectorFalso(QuotationReading::of([
+        ['product_service' => 'Curva PVC 250mm 90° cementar', 'specification' => null, 'quantity' => '3', 'unit' => 'Unidades'],
+    ]));
+
+    $boss = User::factory()->admin()->create(['name' => 'Luis Silva Menzel']);
+    $admin = User::factory()->admin()->create(['name' => 'SEBASTIAN ANDRES LOPEZ EPPLE']);
+
+    $this->actingAs($boss)->post(route('purchase_requests.ingestions.store'), [
+        'document' => UploadedFile::fake()->create('Solicitud Compra Red Higraulica P6.pdf', 90, 'application/pdf'),
+    ]);
+    $ingestion = PurchaseRequestIngestion::query()->firstOrFail()->fresh();
+
+    $this->actingAs($admin)->post(route('purchase_requests.ingestions.reread', $ingestion))->assertRedirect();
+    $this->actingAs($admin)
+        ->post(route('purchase_requests.ingestions.confirm', $ingestion->fresh()), [
+            'reason' => 'RED. HIDRAULICA P6/ Materiales red 250/ Solicitado Por Vanessa Schmidt',
+            'items' => [['product_service' => 'Curva PVC 250mm 90° cementar', 'quantity' => '3', 'unit' => 'Unidades']],
+        ])
+        ->assertRedirect();
+
+    $request = PurchaseRequest::query()->sole();
+    expect($request->user_id)->toBe($admin->id)
+        ->and($request->reason)->toContain('Vanessa Schmidt')
+        ->and($ingestion->fresh()->purchase_request_id)->toBe($request->id);
+});

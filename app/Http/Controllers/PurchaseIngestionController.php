@@ -171,7 +171,7 @@ class PurchaseIngestionController extends Controller
         PurchaseRequestIngestion $ingestion,
         DraftFromIngestionService $servicio,
     ): RedirectResponse {
-        abort_unless($ingestion->user_id === $request->user()->getKey(), 403);
+        abort_unless($this->puedeConfirmar($request, $ingestion), 403);
         abort_unless($request->user()->canCreatePurchaseRequests(), 403);
 
         if ($ingestion->purchase_request_id !== null) {
@@ -220,7 +220,7 @@ class PurchaseIngestionController extends Controller
     /** Vuelve a leer el mismo documento, por si la primera vez salió mal. */
     public function reread(Request $request, PurchaseRequestIngestion $ingestion, QuotationReader $reader): RedirectResponse
     {
-        abort_unless($ingestion->user_id === $request->user()->getKey(), 403);
+        abort_unless($this->puedeConfirmar($request, $ingestion), 403);
 
         if (! $reader->isEnabled()) {
             return back()->with('error', 'El asistente no está habilitado en este entorno.');
@@ -242,6 +242,19 @@ class PurchaseIngestionController extends Controller
 
         return to_route('purchase_requests.ingestions.show', $ingestion)
             ->with('success', 'Estamos leyendo el documento otra vez. Te avisamos al terminar.');
+    }
+
+    /**
+     * Quién convierte una lectura en solicitud, o la manda a leer de nuevo:
+     * quien subió el documento y el administrador. Al administrador se le avisa
+     * cuando otro sube una cotización precisamente para que se haga cargo; sin
+     * esto veía la lectura y el botón, y al apretarlo recibía un 403 (la de
+     * Vanessa que subió Luis, 30-10-2026). La solicitud queda a nombre de quien
+     * confirma.
+     */
+    private function puedeConfirmar(Request $request, PurchaseRequestIngestion $ingestion): bool
+    {
+        return $ingestion->user_id === $request->user()->getKey() || $request->user()->isPurchaseReviewer();
     }
 
     private function puedeVer(Request $request, PurchaseRequestIngestion $ingestion): bool
