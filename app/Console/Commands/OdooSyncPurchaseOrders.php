@@ -20,6 +20,11 @@ use Throwable;
  * otros proveedores desde Odoo a partir de la SC-2026-000106 (P00371 a P00374)
  * no estaban en ninguna parte de Laravel, y la pestaña no las mostraba.
  *
+ * Y una de Laravel también se copia en cuanto tiene alternativas: es una
+ * cotización más del grupo. La P00357 de Cooprinsem, la orden de la
+ * SC-2026-000103, faltaba junto a sus alternativas P00362 a P00364, y sin ella
+ * «Comparar precios» no tenía contra qué comparar.
+ *
  * Lee. No escribe nada en Odoo, nunca.
  */
 class OdooSyncPurchaseOrders extends Command
@@ -139,9 +144,13 @@ class OdooSyncPurchaseOrders extends Command
         return self::SUCCESS;
     }
 
-    /** La creó Laravel: la solicitud o una de sus partidas apunta a ella. */
+    /** La creó Laravel —la solicitud o una de sus partidas apunta a ella— y no tiene alternativas. */
     private function fromLaravel(array $order): bool
     {
+        if ($this->id($order['purchase_group_id'] ?? false)) {
+            return false;
+        }
+
         $this->exported ??= PurchaseRequest::whereNotNull('odoo_order_id')->pluck('odoo_order_id')
             ->merge(\App\Models\PurchaseRequestItem::whereNotNull('odoo_order_id')->pluck('odoo_order_id'))
             ->map(fn ($id) => (int) $id)->unique()->flip();

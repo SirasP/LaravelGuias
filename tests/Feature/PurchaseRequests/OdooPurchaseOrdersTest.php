@@ -90,6 +90,25 @@ it('copies every order Laravel did not send, including the quotes made in Odoo f
     Http::assertSent(fn ($request) => ! in_array($request['params']['args'][4] ?? null, ['create', 'write', 'unlink'], true));
 });
 
+it('copies the order Laravel sent once it has alternatives, so the group compares all its quotes', function () {
+    PurchaseRequest::factory()->approved()->create(['odoo_order_id' => 357]);
+    PurchaseRequest::factory()->approved()->create(['odoo_order_id' => 358]);
+    $group = ['purchase_group_id' => [33, 'purchase.order.group,33'], 'state' => 'sent'];
+    odooWithOrders([
+        // The request went to Cooprinsem, and then to three more suppliers from Odoo.
+        odooOrder(357, $group + ['partner_id' => [7, 'COOPERATIVA AGRICOLA Y DE SERVICIOS LTDA'], 'amount_untaxed' => 4288700]),
+        odooOrder(362, $group + ['partner_id' => [8, 'COMERCIAL CLIMENT SPA'], 'amount_untaxed' => 0]),
+        // Sent by Laravel with no alternatives: it already lives in its request.
+        odooOrder(358, ['purchase_group_id' => false]),
+    ], [], [['id' => 7, 'vat' => '82392600-6', 'commercial_partner_id' => [7, 'Cooprinsem']], ['id' => 8, 'vat' => '76000000-1', 'commercial_partner_id' => [8, 'Climent']]]);
+
+    $this->artisan('odoo:sync-purchase-orders')->assertSuccessful();
+
+    expect(OdooPurchaseOrder::orderBy('odoo_id')->pluck('odoo_id')->all())->toBe([357, 362])
+        ->and(OdooPurchaseOrder::where('purchase_group_id', 33)->pluck('partner_name')->sort()->values()->all())
+        ->toBe(['COMERCIAL CLIMENT SPA', 'COOPERATIVA AGRICOLA Y DE SERVICIOS LTDA']);
+});
+
 it('forgets an order deleted in Odoo, but not after an empty read', function () {
     OdooPurchaseOrder::create(['odoo_id' => 10, 'name' => 'P00010', 'state' => 'draft']);
     odooRuns([[odooOrder(11)], []], [[], []]);
