@@ -57,13 +57,14 @@ class QuoteToOdoo
      *     orden: ?array{id: int, name: string, state: string, editable: bool},
      *     motivo: ?string,
      *     filas: list<array<string, mixed>>,
+     *     no_cotizadas: list<array<string, mixed>>,
      *     piezas: list<array<string, mixed>>,
      *     sobrantes: list<array<string, mixed>>,
      * }
      */
     public function plan(PurchaseRequest $solicitud, PurchaseRequestIngestion $lectura, ?int $partnerId): array
     {
-        $vacio = ['orden' => null, 'motivo' => null, 'filas' => [], 'piezas' => [], 'sobrantes' => []];
+        $vacio = ['orden' => null, 'motivo' => null, 'filas' => [], 'no_cotizadas' => [], 'piezas' => [], 'sobrantes' => []];
 
         if ($partnerId === null) {
             return [...$vacio, 'motivo' => 'Todavía no se sabe quién es este proveedor en Odoo. Búscalo en la tarjeta de la cotización y elígelo primero.'];
@@ -108,6 +109,38 @@ class QuoteToOdoo
             }
 
             $filas[] = $this->fila($item, $fila->cotizada, $linea, $como, $fila->esPropuesta());
+        }
+
+        // Lo que no cotizó también se muestra, vacío: Entre Riegos cotizó 20 de
+        // las 34 partidas de la SC-2026-000103 y la vista previa parecía una
+        // orden de 20. Su línea no se toca; sólo se dice cómo queda.
+        $noCotizadas = [];
+
+        foreach ($resultado->filas as $fila) {
+            if ($fila->pedida === null || $fila->cotizada !== null) {
+                continue;
+            }
+
+            $item = $fila->pedida;
+            [$linea] = $this->lineaDe($item, [], $enLaOrden, $lineas, $usadas, $orden['id'], $partnerId);
+
+            if ($linea !== null) {
+                $usadas[(int) $linea['id']] = true;
+            }
+
+            $noCotizadas[] = [
+                'item_id' => (int) $item->getKey(),
+                'orden_partida' => (int) $item->sort_order,
+                'pedida' => (string) $item->product_service,
+                'cantidad_pedida' => (float) $item->quantity,
+                'unidad_pedida' => (string) $item->unit,
+                'linea' => $linea === null ? null : [
+                    'nombre' => (string) ($linea['name'] ?? ''),
+                    'cantidad' => (float) ($linea['product_qty'] ?? 0),
+                    'unidad' => is_array($linea['product_uom'] ?? null) ? (string) $linea['product_uom'][1] : '',
+                    'precio' => (float) ($linea['price_unit'] ?? 0),
+                ],
+            ];
         }
 
         // Las piezas van a la misma orden, cada una en su línea: así las factura
@@ -161,6 +194,7 @@ class QuoteToOdoo
                 $orden['name'],
             ),
             'filas' => $filas,
+            'no_cotizadas' => $noCotizadas,
             'piezas' => $piezas,
             'sobrantes' => $sobrantes,
         ];

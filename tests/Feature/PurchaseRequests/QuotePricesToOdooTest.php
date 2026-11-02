@@ -549,6 +549,33 @@ it('shows the order, what changes and what stays in the preview', function () {
     nadaSeEscribio();
 });
 
+it('shows every item in the preview, leaving empty what the supplier did not quote', function () {
+    $revisor = User::factory()->admin()->create();
+    // Entre Riegos cotizó lo de riego y no el fierro.
+    [$solicitud, $lectura] = cotizacion($revisor,
+        [['product_service' => 'curva de 200 mm x 90', 'quantity' => 2], ['product_service' => 'perfil cuadrado 50/50/3/6.000', 'quantity' => 4]],
+        [['product_service' => 'CURVA PVC HIDRAUL. 200x90 CEMENTAR', 'quantity' => '2', 'unit_price' => '65174']],
+        [0 => 1],
+    );
+    odooConOrdenes([orden(240, 'sent', [811, 812])], [
+        ['id' => 811, 'order_id' => [240, 'P00240'], 'name' => 'curva de 200 mm x 90', 'product_qty' => 2],
+        ['id' => 812, 'order_id' => [240, 'P00240'], 'name' => 'perfil cuadrado 50/50/3/6.000', 'product_qty' => 4],
+    ]);
+
+    $this->actingAs($revisor)
+        ->get(route('purchase_requests.quotes.prices.preview', [$solicitud, $lectura]))
+        ->assertOk()
+        ->assertSeeInOrder(['1.', 'curva de 200 mm x 90', '2.', 'perfil cuadrado 50/50/3/6.000', 'No la cotizó', 'Queda como está.'])
+        ->assertSee('1 de 2 no la cotizó')
+        ->assertSee('1 partida que no cotizó sigue en P00240 en $0.')
+        ->assertDontSee('name="filas[]" value="'.$solicitud->items[1]->getKey().'"', false);
+
+    $this->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]), ['vista_previa' => 1, 'filas' => [$solicitud->items[0]->getKey()]]);
+
+    expect(seEscribio(811, fn ($v) => ($v['price_unit'] ?? null) === 65174.0))->toBeTrue()
+        ->and(seEscribio(812, fn () => true))->toBeFalse();
+});
+
 it('sends a piece of an item to the order as its own line', function () {
     // El canastillo es parte de la válvula de pie: entra a la orden en su
     // propia línea, que es como Cooprinsem lo va a facturar.

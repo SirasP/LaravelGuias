@@ -23,6 +23,10 @@
         $marcadas = $escribibles->filter(fn ($f) => $f['cambia'] && ! $f['medidas_chocan']);
         $aRevisar = $filas->where('medidas_chocan', true)->count();
         $sinLinea = $filas->whereNull('linea')->count();
+        // Todas las partidas en el orden de la solicitud; las que no cotizó van vacías.
+        $noCotizadas = collect($plan['no_cotizadas'] ?? []);
+        $todas = $filas->concat($noCotizadas->map(fn ($f) => $f + ['no_cotizada' => true]))->sortBy('orden_partida')->values();
+        $enCero = $noCotizadas->filter(fn ($f) => $f['linea'] !== null && $f['linea']['precio'] <= 0)->count();
     @endphp
 
     <div class="mx-auto max-w-8xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -45,6 +49,12 @@
                 @if($plan['motivo'])
                     <p class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">{{ $plan['motivo'] }}</p>
                 @endif
+                @if($enCero > 0 && $orden['editable'])
+                    <p class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                        <span class="font-bold">{{ $enCero }} {{ $enCero === 1 ? 'partida que no cotizó sigue' : 'partidas que no cotizó siguen' }} en {{ $orden['name'] }} en $0.</span>
+                        Si confirmas la orden así, también se le {{ $enCero === 1 ? 'pide' : 'piden' }} a {{ $lectura->supplier_name ?: 'este proveedor' }}. Bórralas en Odoo antes de confirmarla.
+                    </p>
+                @endif
                 <div class="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                     <span class="rounded-full bg-violet-100 px-2.5 py-1 text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">{{ $marcadas->count() }} {{ $marcadas->count() === 1 ? 'línea cambia' : 'líneas cambian' }}</span>
                     @if($aRevisar > 0)
@@ -52,6 +62,9 @@
                     @endif
                     @if($sinLinea > 0)
                         <span class="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">{{ $sinLinea }} sin línea en la orden</span>
+                    @endif
+                    @if($noCotizadas->isNotEmpty())
+                        <span class="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ $noCotizadas->count() }} de {{ $todas->count() }} {{ $noCotizadas->count() === 1 ? 'no la cotizó' : 'no las cotizó' }} · quedan como están</span>
                     @endif
                     @if(count($plan['sobrantes']) > 0)
                         <span class="rounded-full bg-sky-100 px-2.5 py-1 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200">{{ count($plan['sobrantes']) }} que nadie pidió así</span>
@@ -70,7 +83,31 @@
                         <span></span><span>Pediste</span><span>Cotizó</span><span>En Odoo hoy → quedaría</span>
                     </div>
 
-                    @foreach($filas as $f)
+                    @foreach($todas as $f)
+                        @if($f['no_cotizada'] ?? false)
+                            <div class="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3 last:border-0 dark:border-slate-800 dark:bg-slate-950/30 md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.3fr)]">
+                                <div class="row-span-3 md:row-span-1"></div>
+
+                                <div class="min-w-0 text-sm">
+                                    <p class="font-bold text-slate-500 dark:text-slate-400"><span class="text-slate-400">{{ $f['orden_partida'] }}.</span> {{ $f['pedida'] }}</p>
+                                    <p class="text-xs text-slate-400">{{ $cant($f['cantidad_pedida']) }} {{ $f['unidad_pedida'] }}</p>
+                                </div>
+
+                                <div class="col-start-2 min-w-0 text-sm md:col-start-auto">
+                                    <p class="text-xs italic text-slate-400 dark:text-slate-500">No la cotizó</p>
+                                </div>
+
+                                <div class="col-start-2 min-w-0 text-xs text-slate-400 md:col-start-auto">
+                                    @if($f['linea'] === null)
+                                        No tiene línea en {{ $orden['name'] }}.
+                                    @else
+                                        <p class="truncate" title="{{ $f['linea']['nombre'] }}">{{ $f['linea']['nombre'] }} · {{ $cant($f['linea']['cantidad']) }} {{ $f['linea']['unidad'] }} a {{ $dinero($f['linea']['precio']) }}</p>
+                                        <p>Queda como está.</p>
+                                    @endif
+                                </div>
+                            </div>
+                            @continue
+                        @endif
                         @php
                             $marcada = $f['escribible'] && $f['cambia'] && ! $f['medidas_chocan'];
                             $p = $f['propuesto'];
