@@ -215,7 +215,14 @@ it('creates the draft in Odoo like the bills already there, with the document at
     expect($factura->refresh())
         ->status->toBe(SupplierInvoiceUpload::SENT)
         ->odoo_move_id->toBe(14900)
-        ->odoo_move_name->toBe('FAC 003748');
+        ->odoo_move_name->toBe('FAC 003748')
+        ->and($factura->dato('odoo_url'))->toBe('https://agricolaehe-prueba.ejemplo.cl');
+
+    // Si después la pantalla apunta a otro Odoo, el enlace sigue llevando al suyo.
+    config(['supplier_invoices.odoo.url' => 'https://agricolaehe.ejemplo.cl']);
+    $this->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('https://agricolaehe-prueba.ejemplo.cl/web#id=14900', false)
+        ->assertSee('En Odoo de agricolaehe-prueba.ejemplo.cl como borrador');
 });
 
 it('does not create an invoice that is already in Odoo', function () {

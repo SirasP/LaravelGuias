@@ -20,7 +20,8 @@
         $editable = $factura->isEditable();
         $peso = fn ($v) => '$'.number_format((float) $v, 0, ',', '.');
         $lineas = $factura->lineas() ?: [['detalle' => '', 'cantidad' => null, 'precio' => null]];
-        $odooUrl = rtrim((string) config('supplier_invoices.odoo.url'), '/');
+        $odooUrl = $factura->dato('odoo_url') ?: rtrim((string) config('supplier_invoices.odoo.url'), '/');
+        $otroOdoo = $factura->isSent() && $odooUrl !== rtrim((string) config('supplier_invoices.odoo.url'), '/');
     @endphp
 
     <div class="mx-auto max-w-full space-y-4 px-4 py-6 sm:px-6 lg:px-8">
@@ -34,7 +35,7 @@
         @if($factura->isSent())
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <p class="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                    En Odoo como borrador: {{ $factura->odoo_move_name }} · {{ $peso($factura->odoo_amount_total) }}
+                    En Odoo{{ $otroOdoo ? ' de '.parse_url($odooUrl, PHP_URL_HOST) : '' }} como borrador: {{ $factura->odoo_move_name }} · {{ $peso($factura->odoo_amount_total) }}
                     <span class="font-medium">— la creó {{ $factura->sent_by_name }} el {{ $factura->sent_at?->format('d-m-Y H:i') }}. Se confirma allá.</span>
                 </p>
                 <a href="{{ $odooUrl }}/web#id={{ $factura->odoo_move_id }}&model=account.move&view_type=form" target="_blank" rel="noopener"

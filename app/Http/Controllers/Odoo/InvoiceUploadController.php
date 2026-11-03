@@ -145,6 +145,9 @@ class InvoiceUploadController extends Controller
             'odoo_move_id' => $creada['id'],
             'odoo_move_name' => $creada['name'],
             'odoo_amount_total' => $creada['total'],
+            // En qué Odoo quedó: el enlace no puede depender de a dónde apunte
+            // la configuración hoy. Las primeras se crearon en el de pruebas.
+            'data' => [...$factura->data, 'odoo_url' => rtrim((string) config('supplier_invoices.odoo.url'), '/')],
             'sent_by_name' => $request->user()->name,
             'sent_at' => now(),
         ])->save();
