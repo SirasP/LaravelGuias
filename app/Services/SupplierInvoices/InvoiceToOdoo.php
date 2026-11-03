@@ -441,7 +441,11 @@ class InvoiceToOdoo
                 $r[] = ['ok' => false, 'bloquea' => false, 'texto' => sprintf('El neto %s y el IVA %s no suman el total %s: revísalos (a Odoo va el total).', $peso($netoBoleta), $peso($ivaBoleta), $peso($total))];
             }
         } elseif (abs($neto + $exento + $iva - $total) > 2) {
-            $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Neto %s + exento %s + IVA %s no da el total %s.', $peso($neto), $peso($exento), $peso($iva), $peso($total))];
+            // Si un solo monto lo arregla todo, decir cuál: casi siempre es un dígito mal leído.
+            $sugerencia = ! $exenta && ($arreglo = LocalInvoiceReader::montoMalLeido(compact('neto', 'exento', 'iva', 'total'))) !== null
+                ? sprintf(' ¿No será el %s %s? Con eso cuadran el total y el IVA.', $arreglo[0] === 'iva' ? 'IVA' : $arreglo[0], $peso($arreglo[1]))
+                : '';
+            $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Neto %s + exento %s + IVA %s no da el total %s.', $peso($neto), $peso($exento), $peso($iva), $peso($total)).$sugerencia];
         } else {
             $r[] = ['ok' => true, 'bloquea' => false, 'texto' => 'Neto, IVA y total cuadran.'];
         }

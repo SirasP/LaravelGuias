@@ -97,6 +97,7 @@ class LocalInvoiceReader
             default => 'el PDF',
         };
         $data['origen'] = $this->origenes($data, $fuente);
+        unset($data['inferidos']);
 
         return [
             'ok' => true, 'unreachable' => false, 'error' => null,
@@ -179,11 +180,31 @@ class LocalInvoiceReader
             $montos['exento'] = null;
         }
 
+        // Un dígito mal leído en la foto: si cambiar un solo monto hace que
+        // todo cuadre, era ése. La 105113 de Loebel dice neto $52.269 y la IA
+        // leyó $52.289; con IVA $9.931 y total $62.200 sólo calza $52.269.
+        $inferidos = [];
+        $peso = fn (float $v): string => '$'.number_format($v, 0, ',', '.');
+
+        if (! $exenta && ! $boleta && ($arreglo = self::montoMalLeido($montos)) !== null) {
+            [$campo, $valor] = $arreglo;
+            $nombre = $campo === 'iva' ? 'IVA' : $campo;
+            $avisos[] = sprintf('El %s se leyó %s, pero así no cuadra con los otros montos: se corrigió a %s. Revísalo con el documento.', $nombre, $peso((float) $montos[$campo]), $peso($valor));
+            $inferidos[$campo] = sprintf('calculado con los otros montos (la IA leyó %s)', $peso((float) $montos[$campo]));
+            $montos[$campo] = $valor;
+        }
+
         $lineas = [];
 
-        foreach ((array) ($crudo['lineas'] ?? []) as $linea) {
+        foreach (array_values((array) ($crudo['lineas'] ?? [])) as $i => $linea) {
             $detalle = trim((string) ($linea['detalle'] ?? ''));
             $codigo = trim((string) ($linea['codigo'] ?? ''));
+
+            // El número de ítem no es código: en la 105113 de Loebel la línea 2
+            // vino con código «2» y el de verdad, 14850, quedó fuera.
+            if ($codigo === (string) ($i + 1)) {
+                $codigo = '';
+            }
 
             if ($detalle === '') {
                 continue;
@@ -224,6 +245,7 @@ class LocalInvoiceReader
             'vencimiento' => $this->fecha((string) ($crudo['vencimiento'] ?? '')),
             ...$montos,
             'lineas' => $lineas,
+            'inferidos' => $inferidos,
             // Lo que identifica al emisor aunque no se lea su RUT: con esto se
             // busca quién es entre los proveedores y facturas que ya existen.
             'pistas' => array_filter([
@@ -248,12 +270,43 @@ class LocalInvoiceReader
         $origen = [];
 
         foreach (['rut', 'razon_social', 'folio', 'fecha', 'vencimiento', 'neto', 'exento', 'iva', 'total', 'lineas'] as $campo) {
-            if (filled($data[$campo] ?? null)) {
+            if (isset($data['inferidos'][$campo])) {
+                $origen[$campo] = ['tipo' => 'inferido', 'fuente' => $data['inferidos'][$campo]];
+            } elseif (filled($data[$campo] ?? null)) {
                 $origen[$campo] = ['tipo' => 'leido', 'fuente' => 'leído de '.$fuente];
             }
         }
 
         return $origen;
+    }
+
+    /**
+     * El único monto que, cambiado, hace cuadrar neto + exento + IVA = total
+     * con un IVA que es el 19% del neto. Si ninguno o más de uno sirve, null:
+     * no se adivina.
+     *
+     * @param  array{neto?: ?float, exento?: ?float, iva?: ?float, total?: ?float}  $m
+     * @return array{0: 'neto'|'iva'|'total', 1: float}|null
+     */
+    public static function montoMalLeido(array $m): ?array
+    {
+        $neto = (float) ($m['neto'] ?? 0);
+        $exento = (float) ($m['exento'] ?? 0);
+        $iva = (float) ($m['iva'] ?? 0);
+        $total = (float) ($m['total'] ?? 0);
+
+        if ($neto <= 0 || $iva <= 0 || $total <= 0 || abs($neto + $exento + $iva - $total) <= 2) {
+            return null;
+        }
+
+        $calza = fn (float $n, float $i, float $t): bool => $n > 0 && $i > 0 && abs($n + $exento + $i - $t) <= 2 && abs(round($n * 0.19) - $i) <= 1;
+        $candidatos = array_filter([
+            'neto' => $calza($total - $exento - $iva, $iva, $total) ? $total - $exento - $iva : null,
+            'iva' => $calza($neto, $total - $exento - $neto, $total) ? $total - $exento - $neto : null,
+            'total' => $calza($neto, $iva, $neto + $exento + $iva) ? $neto + $exento + $iva : null,
+        ], fn (?float $v): bool => $v !== null);
+
+        return count($candidatos) === 1 ? [array_key_first($candidatos), (float) reset($candidatos)] : null;
     }
 
     /**

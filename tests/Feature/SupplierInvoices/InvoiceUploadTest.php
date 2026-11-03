@@ -633,3 +633,34 @@ it('says it is a receipt when the receipt is already in Odoo', function () {
         ->assertSee('Esta boleta ya está en Odoo')
         ->assertDontSee('Esta factura ya está en Odoo');
 });
+
+it('fixes the one amount misread in a photo, marks it inferred and says so', function () {
+    // La 105113 de Loebel dice neto $52.269; la IA leyó $52.289.
+    [$data, $avisos] = (new LocalInvoiceReader)->verificar(
+        ['tipo' => 'FACTURA ELECTRÓNICA', 'rut' => '6.416.553-4', 'folio' => '105113', 'fecha' => '2026-10-15', 'neto' => '52289', 'exento' => '0', 'iva' => '9931', 'total' => '62200',
+            'lineas' => [['codigo' => '1', 'detalle' => 'CONFEC 01 MANG AIRE 3/8', 'cantidad' => '1', 'precio' => '54700'], ['codigo' => '2', 'detalle' => 'ACOP. RAP. AIRE 1/4 NPT HE MACHO LUDECKE', 'cantidad' => '3', 'precio' => '2500']]],
+        '',
+    );
+
+    // El «1» y el «2» son números de ítem, no códigos.
+    expect(array_column($data['lineas'], 'detalle'))->toBe(['CONFEC 01 MANG AIRE 3/8', 'ACOP. RAP. AIRE 1/4 NPT HE MACHO LUDECKE']);
+
+    expect($data)->toMatchArray(['neto' => 52269.0, 'iva' => 9931.0, 'total' => 62200.0])
+        ->and($data['inferidos'])->toBe(['neto' => 'calculado con los otros montos (la IA leyó $52.289)'])
+        ->and($avisos)->toContain('El neto se leyó $52.289, pero así no cuadra con los otros montos: se corrigió a $52.269. Revísalo con el documento.');
+
+    // Si más de un monto podría ser el malo, no se adivina.
+    expect(LocalInvoiceReader::montoMalLeido(['neto' => 52269.0, 'iva' => 9931.0, 'total' => 62200.0]))->toBeNull()
+        ->and(LocalInvoiceReader::montoMalLeido(['neto' => 52269.0, 'iva' => 5000.0, 'total' => 70000.0]))->toBeNull();
+});
+
+it('suggests the right amount when one was misread before', function () {
+    odooDeFacturas();
+    // Como quedó la subida #5, leída antes del arreglo.
+    $factura = subida(electrosol(['neto' => 52289.0, 'exento' => 0.0, 'iva' => 9931.0, 'total' => 62200.0,
+        'lineas' => [['detalle' => 'CONFEC 01 MANG AIRE 3/8', 'cantidad' => 1.0, 'precio' => 54700.0], ['detalle' => 'ACOP. RAP. AIRE 1/4', 'cantidad' => 3.0, 'precio' => 2500.0]]]));
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Neto $52.289 + exento $0 + IVA $9.931 no da el total $62.200. ¿No será el neto $52.269? Con eso cuadran el total y el IVA.');
+});
