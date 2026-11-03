@@ -1,6 +1,7 @@
 <x-app-layout>
     @php
         $editable = $factura->isEditable();
+        $doc = $factura->dato('tipo') === '39' ? 'boleta' : 'factura';
         $peso = fn ($v) => '$'.number_format((float) $v, 0, ',', '.');
         $lineas = $factura->lineas() ?: [['detalle' => '', 'cantidad' => 1, 'precio' => null]];
         $configurado = rtrim((string) config('supplier_invoices.odoo.url'), '/');
@@ -70,7 +71,7 @@
             <div class="flex flex-col gap-4 rounded-2xl border-2 border-rose-300 bg-rose-50 p-5 sm:flex-row sm:items-center dark:border-rose-800 dark:bg-rose-950/40">
                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-2xl font-black text-white" aria-hidden="true">!</div>
                 <div class="min-w-0 flex-1">
-                    <p class="text-lg font-black text-rose-900 dark:text-rose-100">Esta factura ya está en Odoo</p>
+                    <p class="text-lg font-black text-rose-900 dark:text-rose-100">Esta {{ $doc }} ya está en Odoo</p>
                     <p class="mt-0.5 text-sm text-rose-800 dark:text-rose-200">
                         Es la <span class="font-extrabold">{{ $yaEsta['name'] }}</span>, {{ $estados[$yaEsta['state']] ?? $yaEsta['state'] }}: mismo proveedor y mismo folio. No hace falta crearla otra vez.
                     </p>
@@ -253,7 +254,7 @@
                         @endif
 
                         <div class="space-y-3 p-5">
-                            <p class="text-sm font-extrabold text-slate-900 dark:text-white">Datos de la {{ $factura->dato('tipo') === '39' ? 'boleta' : 'factura' }}</p>
+                            <p class="text-sm font-extrabold text-slate-900 dark:text-white">Datos de la {{ $doc }}</p>
                             <div class="grid grid-cols-2 gap-3 sm:grid-cols-6">
                                 <label class="col-span-2 sm:col-span-4"><span class="{{ $etiqueta }}">Proveedor{!! $origen('razon_social') !!}</span>
                                     <input name="razon_social" value="{{ old('razon_social', $factura->dato('razon_social')) }}" class="{{ $campo }}"></label>
@@ -277,7 +278,7 @@
                         <div class="p-5">
                             <div class="flex items-baseline justify-between gap-2">
                                 <p class="text-sm font-extrabold text-slate-900 dark:text-white">Detalle{!! $origen('lineas') !!}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">precio unitario tal como viene en la factura</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">precio unitario tal como viene en la {{ $doc }}</p>
                             </div>
                             <div class="mt-2 hidden grid-cols-[minmax(0,1fr)_5rem_7.5rem_6.5rem_2rem] gap-2 px-1 sm:grid">
                                 <span class="{{ $etiqueta }}">Descripción</span>
@@ -311,7 +312,7 @@
                         <div class="grid gap-5 p-5 sm:grid-cols-2">
                             <div class="space-y-2 text-sm">
                                 <p class="font-extrabold text-slate-900 dark:text-white">Las líneas suman <span class="tabular-nums" x-text="peso(suma())"></span></p>
-                                <p x-show="cuadra()" class="font-semibold text-emerald-700 dark:text-emerald-400">✓ Cuadra con la factura.</p>
+                                <p x-show="cuadra()" class="font-semibold text-emerald-700 dark:text-emerald-400">✓ Cuadra con la {{ $doc }}.</p>
                                 <p x-show="!cuadra()" class="font-semibold text-amber-700 dark:text-amber-400">No cuadra con el neto ni con el total: falta, sobra o está mal leída una línea.</p>
                                 @if($revision['cuenta'] ?? null)
                                     <p class="text-xs text-slate-500 dark:text-slate-400">En Odoo: cuenta <span class="font-bold">{{ $revision['cuenta']['account'] ?? 'por defecto' }}</span>{{ $revision['cuenta']['analytic'] ? ' y su analítica' : '' }}, como en su última factura confirmada ({{ $revision['cuenta']['desde'] }}).</p>

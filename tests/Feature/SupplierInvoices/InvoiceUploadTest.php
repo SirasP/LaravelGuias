@@ -589,22 +589,23 @@ it('creates a BEL like Accounting does: no tax, for the total, with the receipt 
         ]]]);
 });
 
-it('takes a receipt line printed without IVA up to the total', function () {
-    // La 12772 de Distribuidora Mundial: neto $420, IVA $80, total $500; la línea vino en $420.
+it('keeps a receipt line as printed, without IVA, and its net and IVA', function () {
+    // La 12772 de Distribuidora Mundial: neto $420, IVA $80, total $500. La línea
+    // se ve en $420, como en el papel; al crearla en Odoo se lleva al total.
     [$data, $avisos] = (new LocalInvoiceReader)->verificar(
         ['tipo' => 'BOLETA ELECTRÓNICA', 'proveedor' => 'DISTRIBUIDORA Y COMERCIALIZADORA MUNDIAL SPA', 'rut' => '77094022-2', 'folio' => '12772',
             'fecha' => '2026-10-21', 'neto' => '420', 'iva' => '80', 'total' => '500', 'lineas' => [['detalle' => 'Compra', 'cantidad' => '', 'precio' => '420']]],
         '',
     );
 
-    expect($data['lineas'])->toBe([['precio' => 500.0, 'detalle' => 'Compra', 'cantidad' => null]])
-        ->and($avisos)->toContain('Las líneas de la boleta venían sin IVA (sumaban $420): se llevaron al total.');
+    expect($data)->toMatchArray(['tipo' => '39', 'neto' => 420.0, 'iva' => 80.0, 'total' => 500.0])
+        ->and($data['lineas'])->toBe([['detalle' => 'Compra', 'cantidad' => null, 'precio' => 420.0]])
+        ->and($avisos)->toBe([]);
 });
 
 it('creates a receipt already read without IVA for its total', function () {
     odooDeFacturas();
-    // Como quedó la subida #4, leída antes del arreglo.
-    $bel = electrosol(['tipo' => '39', 'folio' => '12772', 'neto' => 500.0, 'iva' => null, 'total' => 500.0,
+    $bel = electrosol(['tipo' => '39', 'folio' => '12772', 'neto' => 420.0, 'iva' => 80.0, 'total' => 500.0,
         'lineas' => [['detalle' => 'Compra', 'cantidad' => null, 'precio' => 420.0]]]);
     $factura = subida($bel);
 
@@ -613,6 +614,7 @@ it('creates a receipt already read without IVA for its total', function () {
         ->assertSee('Las líneas vienen sin IVA (suman $420): en una boleta van con IVA, así que se llevan al total $500.')
         ->assertSee('<option value="39" selected>', false)
         ->assertDontSee('<option value="33" selected>', false)
+        ->assertSee('Cuadra con la boleta.')
         ->assertDontSee('falta o sobra algo');
 
     $this->put(route('odoo.invoice_uploads.update', $factura), [...$bel, 'accion' => 'crear'])->assertSessionHas('success');
@@ -620,4 +622,14 @@ it('creates a receipt already read without IVA for its total', function () {
     expect(mandado('account.move', 'create')[0]['invoice_line_ids'])->toBe([[0, 0, [
         'name' => 'Compra (Boleta N° 12772)', 'quantity' => 1.0, 'price_unit' => 500.0, 'tax_ids' => [[6, 0, []]],
     ]]]);
+});
+
+it('says it is a receipt when the receipt is already in Odoo', function () {
+    odooDeFacturas(yaEsta: true);
+    $factura = subida(electrosol(['tipo' => '39', 'neto' => 420.0, 'iva' => 80.0, 'total' => 500.0, 'lineas' => [['detalle' => 'Compra', 'cantidad' => 1.0, 'precio' => 420.0]]]));
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Esta boleta ya está en Odoo')
+        ->assertDontSee('Esta factura ya está en Odoo');
 });

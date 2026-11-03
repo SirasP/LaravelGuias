@@ -175,8 +175,6 @@ class LocalInvoiceReader
 
         // El neto y el IVA de la boleta se guardan como vienen impresos, para
         // verlos; a Odoo va sólo el total, sin impuesto.
-        $netoImpreso = (float) ($montos['neto'] ?? 0);
-
         if ($boleta) {
             $montos['exento'] = null;
         }
@@ -197,17 +195,6 @@ class LocalInvoiceReader
                 'cantidad' => $this->cantidad((string) ($linea['cantidad'] ?? '')),
                 'precio' => $this->precio((string) ($linea['precio'] ?? '')),
             ];
-        }
-
-        // La boleta que imprime el neto deja las líneas sin IVA: la 12772 de
-        // Distribuidora Mundial dice neto $420, IVA $80, total $500, y la
-        // línea vino en $420. Se llevan al total, que es lo que va a Odoo.
-        $sumaDeLineas = array_sum(array_map(fn (array $l): float => ($l['cantidad'] ?? 1) * (float) $l['precio'], $lineas));
-        $total = (float) ($montos['total'] ?? 0);
-
-        if ($boleta && $netoImpreso > 0 && $total > 0 && abs($sumaDeLineas - $netoImpreso) <= 5 && abs($sumaDeLineas - $total) > 5) {
-            $lineas = array_map(fn (array $l): array => ['precio' => round((float) $l['precio'] * $total / $sumaDeLineas, 6)] + $l, $lineas);
-            $avisos[] = sprintf('Las líneas de la boleta venían sin IVA (sumaban $%s): se llevaron al total.', number_format($sumaDeLineas, 0, ',', '.'));
         }
 
         // Un peaje o un estacionamiento no trae detalle: una línea por el total,
