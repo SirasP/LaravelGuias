@@ -230,6 +230,29 @@ it('does not create an invoice that is already in Odoo', function () {
         ->and($factura->refresh()->status)->toBe(SupplierInvoiceUpload::READ);
 });
 
+it('takes the IVA out of prices that come with it, as Accounting does', function () {
+    odooDeFacturas();
+    // La 11660 de N.D.F Rodamientos: 3 correas a $7.450 con IVA, neto $18.782.
+    $ndf = electrosol(['folio' => '11660', 'neto' => 18782.0, 'iva' => 3568.0, 'total' => 22350.0,
+        'lineas' => [['detalle' => 'CORREA · CORR', 'cantidad' => 3.0, 'precio' => 7450.0]]]);
+    $factura = subida($ndf);
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Los precios de las líneas traen el IVA incluido (suman $22.350, el total)')
+        ->assertDontSee('falta o sobra algo');
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->put(route('odoo.invoice_uploads.update', $factura), [...$ndf, 'accion' => 'crear'])
+        ->assertSessionHas('success');
+
+    $lineas = mandado('account.move', 'create')[0]['invoice_line_ids'];
+
+    // 7.450 / 1,19, sin línea de ajuste: Odoo redondea el IVA de la línea y da $22.350.
+    expect($lineas)->toHaveCount(1)
+        ->and($lineas[0][2]['price_unit'])->toBe(6260.504202);
+});
+
 it('does not round away a difference that is a missing line', function () {
     odooDeFacturas();
     $sinLaUltima = electrosol();

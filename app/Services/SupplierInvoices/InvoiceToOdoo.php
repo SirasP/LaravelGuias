@@ -109,7 +109,7 @@ class InvoiceToOdoo
         $lineas = array_map(fn (array $l): array => [0, 0, array_filter([
             'name' => (string) $l['detalle'],
             'quantity' => (float) ($l['cantidad'] ?? 1),
-            'price_unit' => (float) ($l['precio'] ?? 0),
+            'price_unit' => $this->precioNeto($factura, $l),
             'tax_ids' => [[6, 0, $iva === null ? [] : [$iva]]],
             'account_id' => $cuenta['account_id'] ?? null,
             'analytic_distribution' => $cuenta['analytic'] ?? null,
@@ -206,6 +206,7 @@ class InvoiceToOdoo
             $ajuste = $this->ajusteDeRedondeo($factura);
 
             $r[] = match (true) {
+                $this->preciosConIva($factura) => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Los precios de las líneas traen el IVA incluido (suman %s, el total): van a Odoo divididos por 1,19, y dan el neto %s.', $peso($this->sumaDeLineas($factura, false)), $peso($base))],
                 abs($suma - $base) < 0.5 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s, el neto.', count($lineas), $peso($suma))],
                 $ajuste !== 0.0 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s y el neto es %s: va una línea de ajuste de redondeo de %s.', count($lineas), $peso($suma), $peso($base), ($ajuste < 0 ? '−' : '').$peso(abs($ajuste)))],
                 default => ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Las líneas suman %s y el neto es %s: falta o sobra algo (un descuento, una línea).', $peso($suma), $peso($base))],
@@ -215,9 +216,43 @@ class InvoiceToOdoo
         return $r;
     }
 
-    private function sumaDeLineas(SupplierInvoiceUpload $factura): float
+    /** Lo que suman las líneas, ya sin IVA salvo que se pida tal como vienen. */
+    private function sumaDeLineas(SupplierInvoiceUpload $factura, bool $neto = true): float
     {
-        return array_sum(array_map(fn (array $l): float => (float) ($l['cantidad'] ?? 1) * (float) ($l['precio'] ?? 0), $factura->lineas()));
+        return array_sum(array_map(
+            fn (array $l): float => (float) ($l['cantidad'] ?? 1) * ($neto ? $this->precioNeto($factura, $l) : (float) ($l['precio'] ?? 0)),
+            $factura->lineas(),
+        ));
+    }
+
+    /**
+     * ¿La factura escribe el precio unitario con IVA? Pasa en repuestos y
+     * ferretería: la 11660 de N.D.F Rodamientos dice 3 correas a $7.450, que
+     * suman $22.350, el total, con un neto de $18.782.
+     */
+    private function preciosConIva(SupplierInvoiceUpload $factura): bool
+    {
+        $total = (float) $factura->dato('total');
+        $tolerancia = max((int) config('supplier_invoices.tolerancia', 5), count($factura->lineas()));
+        $tal = $this->sumaDeLineas($factura, false);
+
+        return $factura->dato('tipo') === '33' && (float) $factura->dato('iva') > 0
+            && abs($tal - $total) <= $tolerancia && abs($tal - $this->base($factura)) > $tolerancia;
+    }
+
+    /**
+     * El precio que va a Odoo, siempre sin IVA. Con IVA incluido se divide
+     * por 1,19 sin redondear, como lo hace Contabilidad (el remache a 33,613):
+     * Odoo calcula el IVA de cada línea sobre ese precio y el total da el del
+     * papel, sin ajuste.
+     *
+     * @param  array<string, mixed>  $linea
+     */
+    private function precioNeto(SupplierInvoiceUpload $factura, array $linea): float
+    {
+        $precio = (float) ($linea['precio'] ?? 0);
+
+        return $this->preciosConIva($factura) ? round($precio / 1.19, 6) : $precio;
     }
 
     /** Lo que Odoo debe sumar en las líneas: el neto más lo exento, sin IVA. */
