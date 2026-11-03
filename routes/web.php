@@ -818,4 +818,13 @@ Route::middleware(['auth', 'role:admin'])
             ->name('analytics.account.store');
         Route::post('/analitica/plan', [\App\Http\Controllers\Odoo\AnalyticController::class, 'storePlan'])
             ->name('analytics.plan.store');
+
+        // Facturas que no llegaron por el SII: se suben, las lee la IA local y se crean en Odoo como borrador.
+        Route::get('/facturas-subidas', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'index'])->name('invoice_uploads.index');
+        Route::post('/facturas-subidas', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'store'])->name('invoice_uploads.store');
+        Route::get('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'show'])->name('invoice_uploads.show');
+        Route::put('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'update'])->name('invoice_uploads.update');
+        Route::post('/facturas-subidas/{factura}/leer', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'reread'])->name('invoice_uploads.reread');
+        Route::get('/facturas-subidas/{factura}/archivo', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'file'])->name('invoice_uploads.file');
+        Route::delete('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'destroy'])->name('invoice_uploads.destroy');
     });

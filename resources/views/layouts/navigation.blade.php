@@ -169,6 +169,9 @@
                 <x-nav-sublink href="{{ route('gmail.dtes.boletas.list') }}" :active="request()->routeIs('gmail.dtes.boletas.list')" color="cyan">Boletas</x-nav-sublink>
                 <x-nav-sublink href="{{ route('gmail.dtes.guias.list') }}" :active="request()->routeIs('gmail.dtes.guias.list')" color="cyan">Guías</x-nav-sublink>
                 <x-nav-sublink href="{{ route('odoo.analytics.index') }}" :active="request()->routeIs('odoo.analytics.*')" color="cyan">Cuentas Analíticas</x-nav-sublink>
+                @if(auth()->user()->role === 'admin')
+                    <x-nav-sublink href="{{ route('odoo.invoice_uploads.index') }}" :active="request()->routeIs('odoo.invoice_uploads.*')" color="cyan">Subir factura</x-nav-sublink>
+                @endif
             </x-nav-item>
         @endif
 
