@@ -434,7 +434,12 @@ class InvoiceToOdoo
             $r[] = ['ok' => false, 'bloquea' => true, 'texto' => 'Falta el total.'];
         } elseif ($boleta) {
             // Las 41 BEL que ya tiene Odoo van así: la boleta no da crédito de IVA.
-            $r[] = ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Boleta: va a Odoo sin IVA, por el total %s, como las otras BEL (no da crédito fiscal).', $peso($total))];
+            [$netoBoleta, $ivaBoleta] = $factura->netoEIvaDeBoleta();
+            $r[] = ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Boleta: neto %s + IVA %s = %s. Va a Odoo sin impuesto, por el total, como las otras BEL (no da crédito fiscal).', $peso($netoBoleta), $peso($ivaBoleta), $peso($total))];
+
+            if (abs($netoBoleta + $ivaBoleta - $total) > 2) {
+                $r[] = ['ok' => false, 'bloquea' => false, 'texto' => sprintf('El neto %s y el IVA %s no suman el total %s: revísalos (a Odoo va el total).', $peso($netoBoleta), $peso($ivaBoleta), $peso($total))];
+            }
         } elseif (abs($neto + $exento + $iva - $total) > 2) {
             $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Neto %s + exento %s + IVA %s no da el total %s.', $peso($neto), $peso($exento), $peso($iva), $peso($total))];
         } else {

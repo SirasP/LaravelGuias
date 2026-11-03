@@ -211,6 +211,28 @@ class SupplierInvoiceUpload extends Model
         $this->forceFill(['data' => $data])->save();
     }
 
+    /**
+     * El neto y el IVA de una boleta, para mostrarlos: los impresos («Compra
+     * $420 · IVA 19% $80 · Total $500») o, si no vienen, sacados del total.
+     * A Odoo no van: la BEL se registra sin impuesto, por el total.
+     *
+     * @return array{0: float, 1: float}
+     */
+    public function netoEIvaDeBoleta(): array
+    {
+        $total = (float) $this->dato('total');
+        $neto = (float) $this->dato('neto');
+        $iva = (float) $this->dato('iva');
+
+        if ($neto > 0 && $iva > 0) {
+            return [$neto, $iva];
+        }
+
+        $neto = round($total / 1.19);
+
+        return [$neto, $total - $neto];
+    }
+
     public function isImage(): bool
     {
         return str_starts_with($this->mime_type, 'image/');

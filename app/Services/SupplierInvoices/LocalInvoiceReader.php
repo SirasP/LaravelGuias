@@ -173,12 +173,12 @@ class LocalInvoiceReader
         $boleta = (Str::contains(Str::lower((string) ($crudo['tipo'] ?? '')), 'boleta') && ! Str::contains(Str::lower((string) ($crudo['tipo'] ?? '')), 'honorario'))
             || ($texto !== '' && preg_match('/BOLETA\s+ELECTR[OÓ]NICA/iu', $texto) && ! preg_match('/FACTURA\s+ELECTR[OÓ]NICA|HONORARIOS/iu', $texto));
 
-        // En Odoo la boleta va sin IVA, por el total: el «IVA incluido» que
-        // imprime no se recupera.
+        // El neto y el IVA de la boleta se guardan como vienen impresos, para
+        // verlos; a Odoo va sólo el total, sin impuesto.
         $netoImpreso = (float) ($montos['neto'] ?? 0);
 
         if ($boleta) {
-            $montos = ['neto' => $montos['total'], 'exento' => null, 'iva' => null, 'total' => $montos['total']];
+            $montos['exento'] = null;
         }
 
         $lineas = [];

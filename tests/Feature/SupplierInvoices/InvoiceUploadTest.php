@@ -561,7 +561,7 @@ it('reads a toll receipt as a BEL without IVA, with one line for the total', fun
         "SOCIEDAD CONCESIONARIA TEMUCO - RIO BUENO S.A. RUT 96.871.700-6\nBOLETA ELECTRÓNICA N° 126499854491392175\nNeto 3.025 IVA 575 Total 3.600",
     );
 
-    expect($data)->toMatchArray(['tipo' => '39', 'rut' => '96871700-6', 'folio' => '126499854491392175', 'neto' => 3600.0, 'iva' => null, 'total' => 3600.0])
+    expect($data)->toMatchArray(['tipo' => '39', 'rut' => '96871700-6', 'folio' => '126499854491392175', 'neto' => 3025.0, 'iva' => 575.0, 'total' => 3600.0])
         ->and($data['lineas'])->toBe([['detalle' => 'SOCIEDAD CONCESIONARIA TEMUCO - RIO BUENO S.A.', 'cantidad' => 1.0, 'precio' => 3600.0]])
         ->and($avisos)->not->toContain('No se reconoció ninguna línea de detalle.');
 });
@@ -574,9 +574,10 @@ it('creates a BEL like Accounting does: no tax, for the total, with the receipt 
 
     $this->actingAs(User::factory()->admin()->create())
         ->get(route('odoo.invoice_uploads.show', $factura))
-        ->assertSee('Boleta: va a Odoo sin IVA, por el total $3.600')
+        // Sin neto ni IVA impresos, se muestran sacados del total.
+        ->assertSee('Boleta: neto $3.025 + IVA $575 = $3.600. Va a Odoo sin impuesto, por el total')
         ->assertSee('Las 1 líneas suman $3.600, el total.')
-        ->assertDontSee('IVA 19%');
+        ->assertSee('IVA 19%');
 
     $this->put(route('odoo.invoice_uploads.update', $factura), [...$bel, 'accion' => 'crear'])->assertSessionHas('success');
 

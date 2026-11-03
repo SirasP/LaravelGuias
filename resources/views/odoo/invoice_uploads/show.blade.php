@@ -200,7 +200,9 @@
                     <p class="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Total</p>
                     <p class="mt-1 text-2xl font-black tabular-nums text-cyan-900 dark:text-cyan-100">{{ $peso($factura->dato('total')) }}</p>
                     @if($factura->dato('tipo') === '39')
-                        <p class="text-xs text-cyan-800 dark:text-cyan-300">boleta: va sin IVA, no da crédito</p>
+                        @php [$netoBoleta, $ivaBoleta] = $factura->netoEIvaDeBoleta(); @endphp
+                        <p class="text-xs tabular-nums text-cyan-800 dark:text-cyan-300">neto {{ $peso($netoBoleta) }} · IVA {{ $peso($ivaBoleta) }}</p>
+                        <p class="text-[11px] text-cyan-700/80 dark:text-cyan-400/80">a Odoo va el total, sin impuesto</p>
                     @else
                         <p class="text-xs tabular-nums text-cyan-800 dark:text-cyan-300">neto {{ $peso($factura->dato('neto')) }} · IVA {{ $peso($factura->dato('iva')) }}</p>
                     @endif
@@ -231,7 +233,7 @@
                 <form method="POST" action="{{ route('odoo.invoice_uploads.update', $factura) }}"
                     x-data="{
                         lineas: @js($lineas), accion: 'guardar', enviando: false,
-                        neto: @js($factura->dato('neto')), exento: @js($factura->dato('exento')), total: @js($factura->dato('total')),
+                        neto: @js($factura->dato('tipo') === '39' ? $factura->netoEIvaDeBoleta()[0] : $factura->dato('neto')), exento: @js($factura->dato('exento')), total: @js($factura->dato('total')),
                         num(v) { return parseFloat(v) || 0 },
                         {{-- Sin cantidad es 1, como la toma Odoo. --}}
                         cant(l) { return l.cantidad === null || l.cantidad === '' ? 1 : this.num(l.cantidad) },
@@ -318,15 +320,19 @@
                                 @endif
                             </div>
                             <div class="space-y-2">
-                                {{-- La boleta va por el total: neto e IVA no se usan. --}}
-                                @foreach($factura->dato('tipo') === '39' ? ['total' => 'Total'] : ['neto' => 'Neto', 'exento' => 'Exento', 'iva' => 'IVA 19%', 'total' => 'Total'] as $clave => $nombre)
+                                {{-- La boleta muestra su neto e IVA, pero a Odoo va sólo el total. --}}
+                                @php $boleta = $factura->dato('tipo') === '39'; [$netoBoleta, $ivaBoleta] = $boleta ? $factura->netoEIvaDeBoleta() : [null, null]; @endphp
+                                @foreach($boleta ? ['neto' => 'Neto', 'iva' => 'IVA 19%', 'total' => 'Total'] : ['neto' => 'Neto', 'exento' => 'Exento', 'iva' => 'IVA 19%', 'total' => 'Total'] as $clave => $nombre)
                                     <label class="flex items-center justify-between gap-3 {{ $clave === 'total' ? 'border-t border-slate-200 pt-2 dark:border-slate-700' : '' }}">
                                         <span class="whitespace-nowrap text-sm {{ $clave === 'total' ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300' }}">{{ $nombre }}{!! $origen($clave) !!}</span>
-                                        <input type="number" step="any" min="0" name="{{ $clave }}" value="{{ old($clave, $factura->dato($clave)) }}"
+                                        <input type="number" step="any" min="0" name="{{ $clave }}" value="{{ old($clave, $boleta && $clave !== 'total' ? ($clave === 'neto' ? $netoBoleta : $ivaBoleta) : $factura->dato($clave)) }}"
                                             @if($clave !== 'iva') x-model="{{ $clave }}" @endif
                                             class="{{ $campo }} !mt-0 !w-36 shrink-0 text-right tabular-nums {{ $clave === 'total' ? 'font-black' : '' }}">
                                     </label>
                                 @endforeach
+                                @if($boleta)
+                                    <p class="text-right text-[11px] text-slate-500 dark:text-slate-400">A Odoo va el total, sin impuesto, como las otras BEL.</p>
+                                @endif
                             </div>
                         </div>
                     </fieldset>
