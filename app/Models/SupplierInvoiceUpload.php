@@ -115,6 +115,30 @@ class SupplierInvoiceUpload extends Model
         return array_values((array) ($this->data['lineas'] ?? []));
     }
 
+    /**
+     * La que ya estaba en Odoo, si estaba: `{id, name, state, url}`.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function yaEnOdoo(): ?array
+    {
+        return $this->isSent() ? null : ($this->data['ya_en_odoo'] ?? null);
+    }
+
+    /** Anota (o borra) que esta factura ya estaba en Odoo. */
+    public function marcarDuplicada(?array $duplicada, string $odooUrl): void
+    {
+        $data = $this->data ?? [];
+        $nuevo = $duplicada === null ? null : [...$duplicada, 'url' => $odooUrl];
+
+        if (($data['ya_en_odoo'] ?? null) === $nuevo) {
+            return;
+        }
+
+        $data['ya_en_odoo'] = $nuevo;
+        $this->forceFill(['data' => array_filter($data, fn ($v, $k) => $k !== 'ya_en_odoo' || $v !== null, ARRAY_FILTER_USE_BOTH)])->save();
+    }
+
     public function isImage(): bool
     {
         return str_starts_with($this->mime_type, 'image/');

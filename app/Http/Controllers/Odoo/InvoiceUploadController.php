@@ -69,10 +69,17 @@ class InvoiceUploadController extends Controller
     public function show(SupplierInvoiceUpload $factura, InvoiceToOdoo $odoo): View
     {
         $factura->refresh();
+        $revision = $factura->isEditable() && $factura->data !== null ? $odoo->revisar($factura) : null;
+
+        // Lo que se ve al abrirla manda: si alguien la ingresó a mano en Odoo
+        // mientras tanto, o la borró, el listado se entera aquí.
+        if ($revision !== null && $revision['error'] === null) {
+            $factura->marcarDuplicada($revision['duplicada'], $odoo->url());
+        }
 
         return view('odoo.invoice_uploads.show', [
             'factura' => $factura,
-            'revision' => $factura->isEditable() && $factura->data !== null ? $odoo->revisar($factura) : null,
+            'revision' => $revision,
             'destino' => $odoo->destino(),
         ]);
     }

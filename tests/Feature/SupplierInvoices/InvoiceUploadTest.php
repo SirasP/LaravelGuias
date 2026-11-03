@@ -3,6 +3,7 @@
 use App\Jobs\ReadSupplierInvoice;
 use App\Models\SupplierInvoiceUpload;
 use App\Models\User;
+use App\Services\SupplierInvoices\InvoiceToOdoo;
 use App\Services\SupplierInvoices\LocalInvoiceReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -154,7 +155,8 @@ it('keeps the upload for whoever can create invoices in Odoo', function () {
 });
 
 it('leaves the invoice ready to review once the AI reads it', function () {
-    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1']);
+    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1', 'supplier_invoices.odoo.enabled' => false]);
+    Http::preventStrayRequests();
     Http::fake(['ia.local/*' => Http::response(['choices' => [['message' => ['content' => json_encode([
         'tipo' => 'FACTURA ELECTRONICA', 'proveedor' => 'ELECTROSOL ENCENDIDOS SPA', 'rut' => '77.118.278-K', 'folio' => '3748',
         'fecha' => '2026-09-22', 'neto' => '138822', 'exento' => '', 'iva' => '26375', 'total' => '165197',
@@ -164,7 +166,7 @@ it('leaves the invoice ready to review once the AI reads it', function () {
     $factura = subida([], SupplierInvoiceUpload::QUEUED);
     $factura->forceFill(['mime_type' => 'image/png'])->save();
 
-    (new ReadSupplierInvoice($factura))->handle(new LocalInvoiceReader);
+    (new ReadSupplierInvoice($factura))->handle(new LocalInvoiceReader, new InvoiceToOdoo);
 
     $factura->refresh();
     expect($factura->status)->toBe(SupplierInvoiceUpload::READ)
@@ -174,7 +176,8 @@ it('leaves the invoice ready to review once the AI reads it', function () {
 });
 
 it('waits for the AI when the Mac is asleep instead of failing the invoice', function () {
-    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1']);
+    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1', 'supplier_invoices.odoo.enabled' => false]);
+    Http::preventStrayRequests();
     Http::fake(['ia.local/*' => fn () => throw new ConnectionException('Connection refused')]);
 
     $factura = subida([], SupplierInvoiceUpload::QUEUED);
@@ -182,10 +185,35 @@ it('waits for the AI when the Mac is asleep instead of failing the invoice', fun
 
     $job = new ReadSupplierInvoice($factura);
     $job->withFakeQueueInteractions();
-    $job->handle(new LocalInvoiceReader);
+    $job->handle(new LocalInvoiceReader, new InvoiceToOdoo);
 
     expect($factura->refresh()->status)->toBe(SupplierInvoiceUpload::WAITING);
     $job->assertReleased();
+});
+
+it('says right after reading that the invoice is already in Odoo', function () {
+    odooDeFacturas(yaEsta: true);
+    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1']);
+    Http::fake(['ia.local/*' => Http::response(['choices' => [['message' => ['content' => json_encode([
+        'tipo' => 'FACTURA ELECTRONICA', 'proveedor' => 'ELECTROSOL ENCENDIDOS SPA', 'rut' => '77.118.278-K', 'folio' => '3748',
+        'fecha' => '2026-09-22', 'neto' => '138822', 'iva' => '26375', 'total' => '165197',
+        'lineas' => [['detalle' => 'PINES ESPECIALES', 'cantidad' => '12', 'precio' => '504']],
+    ])]]]])]);
+
+    $factura = subida([], SupplierInvoiceUpload::QUEUED);
+    $factura->forceFill(['mime_type' => 'image/png'])->save();
+    (new ReadSupplierInvoice($factura))->handle(new LocalInvoiceReader, new InvoiceToOdoo);
+
+    expect($factura->refresh()->yaEnOdoo())->toMatchArray(['id' => 14805, 'name' => 'FAC 003748', 'state' => 'draft']);
+
+    $admin = User::factory()->admin()->create();
+
+    // En el listado, y en grande al abrirla, con el enlace a la que ya está y sin botón para crearla otra vez.
+    $this->actingAs($admin)->get(route('odoo.invoice_uploads.index'))->assertSee('Ya está en Odoo · FAC 003748');
+    $this->actingAs($admin)->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Esta factura ya está en Odoo')
+        ->assertSee('https://agricolaehe-prueba.ejemplo.cl/web#id=14805', false)
+        ->assertDontSee('Guardar y crear borrador en Odoo');
 });
 
 it('creates the draft in Odoo like the bills already there, with the document attached', function () {

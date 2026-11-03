@@ -30,6 +30,11 @@ class InvoiceToOdoo
             && filled(config('supplier_invoices.odoo.url')) && filled(config('supplier_invoices.odoo.db'));
     }
 
+    public function url(): string
+    {
+        return rtrim((string) config('supplier_invoices.odoo.url'), '/');
+    }
+
     /** A qué Odoo va: lo dice la pantalla, para que nadie cree en producción creyendo que prueba. */
     public function destino(): string
     {
@@ -84,6 +89,25 @@ class InvoiceToOdoo
                 && ! collect($revisiones)->contains(fn (array $r): bool => ! $r['ok'] && $r['bloquea']),
             'error' => $error,
         ];
+    }
+
+    /**
+     * La misma factura, si ya está en Odoo. Se pregunta apenas la IA termina
+     * de leer, para decirlo en grande antes de que alguien la revise entera.
+     *
+     * @return array{id: int, name: string, state: string}|null
+     */
+    public function duplicada(SupplierInvoiceUpload $factura): ?array
+    {
+        $rut = Rut::normalize((string) $factura->dato('rut'));
+
+        if (! $this->isEnabled() || $rut === null || blank($factura->dato('folio'))) {
+            return null;
+        }
+
+        $proveedor = $this->proveedor($rut);
+
+        return $proveedor === null ? null : $this->yaEsta($proveedor['id'], (string) $factura->dato('folio'), (string) $factura->dato('tipo'));
     }
 
     /**

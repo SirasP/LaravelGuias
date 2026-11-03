@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\SupplierInvoiceUpload;
+use App\Services\SupplierInvoices\InvoiceToOdoo;
 use App\Services\SupplierInvoices\LocalInvoiceReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,7 +33,7 @@ class ReadSupplierInvoice implements ShouldQueue
 
     public function __construct(public readonly SupplierInvoiceUpload $upload) {}
 
-    public function handle(LocalInvoiceReader $reader): void
+    public function handle(LocalInvoiceReader $reader, InvoiceToOdoo $odoo): void
     {
         $factura = $this->upload->fresh();
 
@@ -67,5 +68,14 @@ class ReadSupplierInvoice implements ShouldQueue
             'source_kind' => $lectura['source_kind'] ?? null,
             'finished_at' => now(),
         ])->save();
+
+        // ¿Ya está en Odoo? Se dice apenas termina de leer, no al final de la
+        // revisión. Si Odoo no contesta, se sabrá al abrirla.
+        if ($factura->status === SupplierInvoiceUpload::READ) {
+            try {
+                $factura->marcarDuplicada($odoo->duplicada($factura), $odoo->url());
+            } catch (Throwable) {
+            }
+        }
     }
 }
