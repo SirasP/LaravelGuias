@@ -179,6 +179,23 @@ it('counts the cancelled ones in their own card, linked to their filter', functi
         ->assertDontSee($viva->folio);
 });
 
+it('leaves the cancelled ones out of the active list and its count', function () {
+    $admin = User::factory()->admin()->create();
+    $anulada = PurchaseRequest::factory()->forUser($admin)->create(['status' => PurchaseRequestStatus::CANCELLED]);
+    $viva = PurchaseRequest::factory()->forUser($admin)->approved()->create();
+
+    // Una anulada ya no pide nada a nadie: como las terminadas, tiene su casilla.
+    $pantalla = $this->actingAs($admin)->get(route('purchase_requests.index'))->assertOk();
+
+    expect($pantalla->viewData('counts')['activas'])->toBe(1);
+    $pantalla->assertSee($viva->folio)->assertDontSee($anulada->folio);
+
+    // Y en «todas» sigue estando.
+    $this->actingAs($admin)->get(route('purchase_requests.index', ['status' => PurchaseRequestStatus::GROUP_ALL]))
+        ->assertOk()
+        ->assertSee($anulada->folio);
+});
+
 it('lists both submitted and resubmitted under the pending-review filter', function () {
     $admin = User::factory()->admin()->create();
     $enviada = User::factory()->create();

@@ -57,8 +57,8 @@ class PurchaseRequestController extends Controller
         // `por_revisar` no es un estado: agrupa lo enviado y lo reenviado, que
         // son las dos formas de estar esperando una decisión.
         $awaitingReview = $rawStatus === PurchaseRequestStatus::GROUP_AWAITING_REVIEW;
-        // Sin filtro se ve el trabajo vivo. Una compra cerrada ya no pide nada
-        // a nadie y sólo estorba para ver qué queda pendiente; sigue estando,
+        // Sin filtro se ve el trabajo vivo. Una compra cerrada o anulada ya no
+        // pide nada a nadie y sólo estorba para ver qué queda pendiente; sigue estando,
         // pero hay que pedirla con «todas» o con su propio filtro.
         $todas = $rawStatus === PurchaseRequestStatus::GROUP_ALL;
         $status = $awaitingReview || $todas ? null : PurchaseRequestStatus::tryFrom($rawStatus);
@@ -81,8 +81,11 @@ class PurchaseRequestController extends Controller
                 ->all(),
         );
         $counts['total'] = array_sum($counts);
-        // Lo que la lista muestra por defecto: todo menos lo cerrado.
-        $counts['activas'] = $counts['total'] - ($counts[PurchaseRequestStatus::COMPLETED->value] ?? 0);
+        // Lo que la lista muestra por defecto: todo menos lo terminado y lo anulado.
+        $counts['activas'] = $counts['total'] - array_sum(array_map(
+            fn (string $value): int => $counts[$value] ?? 0,
+            [PurchaseRequestStatus::COMPLETED->value, PurchaseRequestStatus::CANCELLED->value],
+        ));
         // Contador del grupo: lo enviado más lo corregido que volvió.
         $counts[PurchaseRequestStatus::GROUP_AWAITING_REVIEW] = array_sum(array_map(
             fn (string $value): int => $counts[$value] ?? 0,
@@ -96,7 +99,7 @@ class PurchaseRequestController extends Controller
         } elseif ($status !== null) {
             $query->where('status', $status->value);
         } elseif (! $todas) {
-            $query->where('status', '!=', PurchaseRequestStatus::COMPLETED->value);
+            $query->whereNotIn('status', [PurchaseRequestStatus::COMPLETED->value, PurchaseRequestStatus::CANCELLED->value]);
         }
 
         /** @var LengthAwarePaginator<int, PurchaseRequest> $requests */

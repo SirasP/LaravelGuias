@@ -84,7 +84,7 @@
                 <p class="mt-2 text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $countFor('activas') }}</p>
                 {{-- Cuenta lo que la lista muestra: si dijera el total y la
                      lista no lo mostrara, el número estaría mintiendo. --}}
-                <p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">sin las terminadas</p>
+                <p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">sin terminadas ni anuladas</p>
             </a>
             <a href="{{ route('purchase_requests.index', ['status' => 'draft']) }}"
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
@@ -141,7 +141,7 @@
                         @if($currentStatus === \App\Enums\PurchaseRequestStatus::COMPLETED->value)
                             Cerradas y fuera de lo pendiente. Se puede volver a abrir cualquiera desde su ficha.
                         @elseif(blank($currentStatus))
-                            El trabajo vivo: lo terminado tiene su propia pestaña.
+                            El trabajo vivo: lo terminado y lo anulado tienen su propia casilla.
                         @else
                             Los filtros se aplican sobre todos los registros.
                         @endif
@@ -233,7 +233,7 @@
                                 <label for="status-filter" class="block text-xs font-bold text-slate-600 dark:text-slate-300">Estado</label>
                                 <select id="status-filter" name="status" form="filtros-solicitudes"
                                     class="mt-1 min-h-11 w-full rounded-xl border-slate-300 bg-white py-2 pl-3 pr-9 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                    <option value="" @selected(blank($currentStatus))>Activas (sin las terminadas)</option>
+                                    <option value="" @selected(blank($currentStatus))>Activas (sin terminadas ni anuladas)</option>
                                     <option value="{{ \App\Enums\PurchaseRequestStatus::GROUP_ALL }}" @selected($currentStatus === \App\Enums\PurchaseRequestStatus::GROUP_ALL)>
                                         Todas, incluidas las terminadas
                                     </option>

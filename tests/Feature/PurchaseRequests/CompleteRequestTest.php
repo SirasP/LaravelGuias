@@ -122,7 +122,7 @@ it('counts what the list actually shows', function () {
     $this->actingAs($compras)->get(route('purchase_requests.index'))
         ->assertOk()
         ->assertSee('Activas')
-        ->assertSee('sin las terminadas');
+        ->assertSee('sin terminadas ni anuladas');
 });
 
 it('gives the closed ones their own tab', function () {
