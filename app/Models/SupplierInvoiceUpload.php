@@ -44,6 +44,7 @@ class SupplierInvoiceUpload extends Model
     public const TIPOS = [
         '33' => 'Factura electrónica',
         '34' => 'Factura exenta',
+        '39' => 'Boleta electrónica',
     ];
 
     protected $fillable = [

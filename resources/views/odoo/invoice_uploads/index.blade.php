@@ -7,7 +7,7 @@
                 </svg>
             </div>
             <div class="min-w-0">
-                <h1 class="truncate text-sm font-extrabold text-slate-900 dark:text-white">Subir factura</h1>
+                <h1 class="truncate text-sm font-extrabold text-slate-900 dark:text-white">Subir factura o boleta</h1>
                 <p class="truncate text-xs text-slate-500 dark:text-slate-400">Las que no llegaron a Odoo: la IA local la lee y tú la revisas</p>
             </div>
         </div>
@@ -50,7 +50,7 @@
                     <svg class="mx-auto h-11 w-11 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p class="mt-2 text-base font-extrabold text-slate-900 dark:text-white">Arrastra aquí el PDF o la foto de la factura</p>
+                    <p class="mt-2 text-base font-extrabold text-slate-900 dark:text-white">Arrastra aquí el PDF o la foto de la factura o boleta</p>
                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">PDF, JPG o PNG, hasta 15 MB. Se sube y la IA la empieza a leer al tiro.</p>
                     <div class="mt-4 flex flex-wrap justify-center gap-2">
                         <button type="button" @click="$refs.camara.click()"

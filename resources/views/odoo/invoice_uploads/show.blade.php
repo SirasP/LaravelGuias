@@ -199,7 +199,11 @@
                 <div class="col-span-2 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm lg:col-span-1 dark:border-cyan-900/60 dark:bg-cyan-950/30">
                     <p class="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Total</p>
                     <p class="mt-1 text-2xl font-black tabular-nums text-cyan-900 dark:text-cyan-100">{{ $peso($factura->dato('total')) }}</p>
-                    <p class="text-xs tabular-nums text-cyan-800 dark:text-cyan-300">neto {{ $peso($factura->dato('neto')) }} · IVA {{ $peso($factura->dato('iva')) }}</p>
+                    @if($factura->dato('tipo') === '39')
+                        <p class="text-xs text-cyan-800 dark:text-cyan-300">boleta: va sin IVA, no da crédito</p>
+                    @else
+                        <p class="text-xs tabular-nums text-cyan-800 dark:text-cyan-300">neto {{ $peso($factura->dato('neto')) }} · IVA {{ $peso($factura->dato('iva')) }}</p>
+                    @endif
                 </div>
             </div>
         @endif
@@ -311,7 +315,8 @@
                                 @endif
                             </div>
                             <div class="space-y-2">
-                                @foreach(['neto' => 'Neto', 'exento' => 'Exento', 'iva' => 'IVA 19%', 'total' => 'Total'] as $clave => $nombre)
+                                {{-- La boleta va por el total: neto e IVA no se usan. --}}
+                                @foreach($factura->dato('tipo') === '39' ? ['total' => 'Total'] : ['neto' => 'Neto', 'exento' => 'Exento', 'iva' => 'IVA 19%', 'total' => 'Total'] as $clave => $nombre)
                                     <label class="flex items-center justify-between gap-3 {{ $clave === 'total' ? 'border-t border-slate-200 pt-2 dark:border-slate-700' : '' }}">
                                         <span class="whitespace-nowrap text-sm {{ $clave === 'total' ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300' }}">{{ $nombre }}{!! $origen($clave) !!}</span>
                                         <input type="number" step="any" min="0" name="{{ $clave }}" value="{{ old($clave, $factura->dato($clave)) }}"

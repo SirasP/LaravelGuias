@@ -93,7 +93,7 @@ class InvoiceUploadController extends Controller
             'tipo' => ['required', 'in:'.implode(',', array_keys(SupplierInvoiceUpload::TIPOS))],
             'rut' => ['nullable', 'string', 'max:20'],
             'razon_social' => ['nullable', 'string', 'max:200'],
-            'folio' => ['nullable', 'regex:/^\d{1,10}$/'],
+            'folio' => ['nullable', 'regex:/^\d{1,20}$/'],
             'fecha' => ['nullable', 'date_format:Y-m-d'],
             'vencimiento' => ['nullable', 'date_format:Y-m-d'],
             'neto' => ['nullable', 'numeric', 'min:0'],

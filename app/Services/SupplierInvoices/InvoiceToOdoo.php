@@ -346,12 +346,13 @@ class InvoiceToOdoo
                 ?? 'La factura no está lista para Odoo.');
         }
 
-        $exenta = $factura->dato('tipo') === '34';
-        $iva = $exenta ? null : $this->ivaDeCompra();
+        $boleta = $factura->dato('tipo') === '39';
+        $iva = $this->sinIva($factura) ? null : $this->ivaDeCompra();
         $cuenta = $revision['cuenta'];
 
         $lineas = array_map(fn (array $l): array => [0, 0, array_filter([
-            'name' => (string) $l['detalle'],
+            // Como Contabilidad escribe las BEL: «Peaje … (Boleta N° 126499854491392175)».
+            'name' => (string) $l['detalle'].($boleta ? ' (Boleta N° '.$factura->dato('folio').')' : ''),
             'quantity' => (float) ($l['cantidad'] ?? 1),
             'price_unit' => $this->precioNeto($factura, $l),
             'tax_ids' => [[6, 0, $iva === null ? [] : [$iva]]],
@@ -364,7 +365,7 @@ class InvoiceToOdoo
         // Sin ella, Odoo suma las líneas y el total queda un peso corrido.
         if (($ajuste = $this->ajusteDeRedondeo($factura)) !== 0.0) {
             $lineas[] = [0, 0, array_filter([
-                'name' => sprintf('Ajuste redondeo: neto factura $%s', number_format($this->base($factura), 0, ',', '.')),
+                'name' => sprintf('Ajuste redondeo: %s $%s', $boleta ? 'total boleta' : 'neto factura', number_format($this->base($factura), 0, ',', '.')),
                 'quantity' => 1.0,
                 'price_unit' => $ajuste,
                 'tax_ids' => [[6, 0, $iva === null ? [] : [$iva]]],
@@ -427,16 +428,20 @@ class InvoiceToOdoo
         $iva = (float) $factura->dato('iva');
         $total = (float) $factura->dato('total');
         $exenta = $factura->dato('tipo') === '34';
+        $boleta = $factura->dato('tipo') === '39';
 
         if ($total <= 0) {
             $r[] = ['ok' => false, 'bloquea' => true, 'texto' => 'Falta el total.'];
+        } elseif ($boleta) {
+            // Las 41 BEL que ya tiene Odoo van así: la boleta no da crédito de IVA.
+            $r[] = ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Boleta: va a Odoo sin IVA, por el total %s, como las otras BEL (no da crédito fiscal).', $peso($total))];
         } elseif (abs($neto + $exento + $iva - $total) > 2) {
             $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Neto %s + exento %s + IVA %s no da el total %s.', $peso($neto), $peso($exento), $peso($iva), $peso($total))];
         } else {
             $r[] = ['ok' => true, 'bloquea' => false, 'texto' => 'Neto, IVA y total cuadran.'];
         }
 
-        if (! $exenta && $neto > 0 && abs(round($neto * 0.19) - $iva) > 2) {
+        if (! $exenta && ! $boleta && $neto > 0 && abs(round($neto * 0.19) - $iva) > 2) {
             $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('El IVA %s no es el 19%% del neto (%s).', $peso($iva), $peso(round($neto * 0.19)))];
         }
 
@@ -452,12 +457,13 @@ class InvoiceToOdoo
             $suma = $this->sumaDeLineas($factura);
             $base = $this->base($factura);
             $ajuste = $this->ajusteDeRedondeo($factura);
+            $cual = $this->sinIva($factura) ? 'el total' : 'el neto';
 
             $r[] = match (true) {
                 $this->preciosConIva($factura) => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Los precios de las líneas traen el IVA incluido (suman %s, el total): van a Odoo divididos por 1,19, y dan el neto %s.', $peso($this->sumaDeLineas($factura, false)), $peso($base))],
-                abs($suma - $base) < 0.5 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s, el neto.', count($lineas), $peso($suma))],
-                $ajuste !== 0.0 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s y el neto es %s: va una línea de ajuste de redondeo de %s.', count($lineas), $peso($suma), $peso($base), ($ajuste < 0 ? '−' : '').$peso(abs($ajuste)))],
-                default => ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Las líneas suman %s y el neto es %s: falta o sobra algo (un descuento, una línea).', $peso($suma), $peso($base))],
+                abs($suma - $base) < 0.5 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s, %s.', count($lineas), $peso($suma), $cual)],
+                $ajuste !== 0.0 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s y %s es %s: va una línea de ajuste de redondeo de %s.', count($lineas), $peso($suma), $cual, $peso($base), ($ajuste < 0 ? '−' : '').$peso(abs($ajuste)))],
+                default => ['ok' => false, 'bloquea' => true, 'texto' => sprintf('Las líneas suman %s y %s es %s: falta o sobra algo (un descuento, una línea).', $peso($suma), $cual, $peso($base))],
             };
         }
 
@@ -503,10 +509,16 @@ class InvoiceToOdoo
         return $this->preciosConIva($factura) ? round($precio / 1.19, 6) : $precio;
     }
 
+    /** Exenta o boleta: va a Odoo sin impuesto, por el total. */
+    private function sinIva(SupplierInvoiceUpload $factura): bool
+    {
+        return in_array($factura->dato('tipo'), ['34', '39'], true);
+    }
+
     /** Lo que Odoo debe sumar en las líneas: el neto más lo exento, sin IVA. */
     private function base(SupplierInvoiceUpload $factura): float
     {
-        return $factura->dato('tipo') === '34'
+        return $this->sinIva($factura)
             ? (float) $factura->dato('total')
             : (float) $factura->dato('neto') + (float) $factura->dato('exento');
     }

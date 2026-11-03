@@ -169,6 +169,15 @@ class LocalInvoiceReader
 
         $exenta = Str::contains(Str::lower((string) ($crudo['tipo'] ?? '')), 'exent')
             || ($texto !== '' && preg_match('/FACTURA\s+(?:NO\s+AFECTA\s+O\s+)?EXENTA/iu', $texto));
+        // La boleta electrónica (BEL): ni la de honorarios ni una factura que la nombre.
+        $boleta = (Str::contains(Str::lower((string) ($crudo['tipo'] ?? '')), 'boleta') && ! Str::contains(Str::lower((string) ($crudo['tipo'] ?? '')), 'honorario'))
+            || ($texto !== '' && preg_match('/BOLETA\s+ELECTR[OÓ]NICA/iu', $texto) && ! preg_match('/FACTURA\s+ELECTR[OÓ]NICA|HONORARIOS/iu', $texto));
+
+        // En Odoo la boleta va sin IVA, por el total: el «IVA incluido» que
+        // imprime no se recupera.
+        if ($boleta) {
+            $montos = ['neto' => $montos['total'], 'exento' => null, 'iva' => null, 'total' => $montos['total']];
+        }
 
         $lineas = [];
 
@@ -188,7 +197,11 @@ class LocalInvoiceReader
             ];
         }
 
-        if ($lineas === []) {
+        // Un peaje o un estacionamiento no trae detalle: una línea por el total,
+        // como las BEL que ya están en Odoo.
+        if ($lineas === [] && $boleta && ($montos['total'] ?? 0) > 0) {
+            $lineas[] = ['detalle' => trim((string) ($crudo['proveedor'] ?? '')) ?: 'Boleta', 'cantidad' => 1.0, 'precio' => (float) $montos['total']];
+        } elseif ($lineas === []) {
             $avisos[] = 'No se reconoció ninguna línea de detalle.';
         }
 
@@ -203,7 +216,7 @@ class LocalInvoiceReader
         }
 
         return [[
-            'tipo' => $exenta ? '34' : '33',
+            'tipo' => $boleta ? '39' : ($exenta ? '34' : '33'),
             'rut' => $rut,
             'razon_social' => trim((string) ($crudo['proveedor'] ?? '')) ?: null,
             'folio' => $folio,
@@ -415,7 +428,7 @@ class LocalInvoiceReader
     private function preguntarAlModelo(string $modelo, ?string $texto, ?string $imagen): array
     {
         $sistema = <<<'TXT'
-        Lees facturas de proveedores chilenos recibidas por una empresa agrícola y extraes sus datos.
+        Lees facturas y boletas de proveedores chilenos recibidas por una empresa agrícola y extraes sus datos.
 
         REGLAS:
         - Extrae SOLO lo que aparece en el documento. Lo que no esté, va como cadena vacía.
@@ -424,19 +437,19 @@ class LocalInvoiceReader
           líneas y los totales sirven aunque falte el encabezado.
         - "proveedor" y "rut" son los de quien EMITE la factura (el encabezado), nunca los del
           cliente que la recibe (el bloque «Señor(es)», «Cliente» o «Razón social»).
-        - "folio" es el número de la factura: «FACTURA ELECTRÓNICA N° 3748» → "3748".
+        - "folio" es el número del documento: «FACTURA ELECTRÓNICA N° 3748» → "3748", «BOLETA ELECTRÓNICA N° 12562» → "12562".
         - "fecha" es la fecha de emisión, como AAAA-MM-DD: «3 de Noviembre de 2026» → "2026-11-03".
         - "vencimiento" es la fecha de vencimiento, igual que la fecha. Si no aparece, vacía.
         - "telefono", "correo" y "direccion" son los del EMISOR (no los del cliente), tal como
           se lean, aunque estén incompletos.
         - "codigos" son los códigos de producto que se lean, aunque la línea esté incompleta.
-        - "tipo" es el nombre del documento tal como aparece: «FACTURA ELECTRÓNICA», «FACTURA EXENTA»…
+        - "tipo" es el nombre del documento tal como aparece: «FACTURA ELECTRÓNICA», «FACTURA EXENTA», «BOLETA ELECTRÓNICA»…
         - Montos sin puntos de miles ni signo peso: «$ 3.338.500» → "3338500".
           "neto" es el monto neto o afecto, "exento" el monto exento, "iva" el IVA 19%, "total" el total.
           Si el documento no declara uno, déjalo vacío. NO los calcules.
         - Cada línea de detalle: "detalle" es la descripción, "codigo" el código del producto si
           tiene columna propia, "cantidad" tal cual (coma decimal chilena), "precio" el precio
-          UNITARIO neto. No sumes ni juntes líneas repetidas.
+          UNITARIO neto (en una boleta, el precio tal como aparece). No sumes ni juntes líneas repetidas.
         - Las pulgadas llevan comillas: escápalas como \" dentro del JSON.
 
         Responde SOLO este objeto JSON, sin texto alrededor y sin ```:
@@ -445,7 +458,7 @@ class LocalInvoiceReader
          "lineas":[{"detalle":"","codigo":"","cantidad":"","precio":""}]}
         TXT;
 
-        $pedido = 'Extrae los datos de esta factura.';
+        $pedido = 'Extrae los datos de este documento (factura o boleta).';
         $usuario = $imagen !== null
             ? [['type' => 'text', 'text' => $pedido], ['type' => 'image_url', 'image_url' => ['url' => 'data:image/png;base64,'.$imagen]]]
             : $pedido."\n\n---\n".mb_substr((string) $texto, 0, 12000);

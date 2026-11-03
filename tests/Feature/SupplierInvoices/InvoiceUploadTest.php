@@ -552,3 +552,38 @@ it('puts back the decimal comma the AI lost when the lines then add up to the ne
     expect($data['lineas'][0]['precio'])->toBe(33.61333)
         ->and($avisos)->toContain('El precio de «REMACHE ALA ANCHA 4.8X20» venía como 3.361.333 y se corrigió a 33,61333: la IA perdió la coma decimal. Revísalo.');
 });
+
+it('reads a toll receipt as a BEL without IVA, with one line for the total', function () {
+    // Como la BEL 126499854491392175 de la concesionaria Temuco - Río Bueno.
+    [$data, $avisos] = (new LocalInvoiceReader)->verificar(
+        ['tipo' => 'BOLETA ELECTRÓNICA', 'proveedor' => 'SOCIEDAD CONCESIONARIA TEMUCO - RIO BUENO S.A.', 'rut' => '', 'folio' => '126499854491392175',
+            'fecha' => '2026-10-02', 'neto' => '3025', 'iva' => '575', 'total' => '3600', 'lineas' => []],
+        "SOCIEDAD CONCESIONARIA TEMUCO - RIO BUENO S.A. RUT 96.871.700-6\nBOLETA ELECTRÓNICA N° 126499854491392175\nNeto 3.025 IVA 575 Total 3.600",
+    );
+
+    expect($data)->toMatchArray(['tipo' => '39', 'rut' => '96871700-6', 'folio' => '126499854491392175', 'neto' => 3600.0, 'iva' => null, 'total' => 3600.0])
+        ->and($data['lineas'])->toBe([['detalle' => 'SOCIEDAD CONCESIONARIA TEMUCO - RIO BUENO S.A.', 'cantidad' => 1.0, 'precio' => 3600.0]])
+        ->and($avisos)->not->toContain('No se reconoció ninguna línea de detalle.');
+});
+
+it('creates a BEL like Accounting does: no tax, for the total, with the receipt number', function () {
+    odooDeFacturas();
+    $bel = electrosol(['tipo' => '39', 'folio' => '126499854491392175', 'neto' => null, 'iva' => null, 'total' => 3600.0,
+        'lineas' => [['detalle' => 'Peaje plaza La Unión', 'cantidad' => 1.0, 'precio' => 3600.0]]]);
+    $factura = subida($bel);
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Boleta: va a Odoo sin IVA, por el total $3.600')
+        ->assertSee('Las 1 líneas suman $3.600, el total.')
+        ->assertDontSee('IVA 19%');
+
+    $this->put(route('odoo.invoice_uploads.update', $factura), [...$bel, 'accion' => 'crear'])->assertSessionHas('success');
+
+    expect(mandado('l10n_latam.document.type', 'search')[0][0])->toBe(['code', '=', '39'])
+        ->and(mandado('account.tax', 'search'))->toBeNull()
+        ->and(mandado('account.move', 'create')[0])->toMatchArray(['l10n_latam_document_number' => '126499854491392175'])
+        ->and(mandado('account.move', 'create')[0]['invoice_line_ids'])->toBe([[0, 0, [
+            'name' => 'Peaje plaza La Unión (Boleta N° 126499854491392175)', 'quantity' => 1.0, 'price_unit' => 3600.0, 'tax_ids' => [[6, 0, []]],
+        ]]]);
+});
