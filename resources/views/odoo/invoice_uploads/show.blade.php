@@ -10,6 +10,9 @@
         $yaEsta = ($revision['duplicada'] ?? null)
             ? [...$revision['duplicada'], 'url' => $configurado]
             : ($revision === null ? $factura->yaEnOdoo() : null);
+        $posibles = $yaEsta ? [] : ($revision !== null
+            ? array_map(fn ($p) => [...$p, 'url' => $configurado], $revision['posibles'] ?? [])
+            : $factura->posiblesEnOdoo());
         $bloqueos = collect($revision['revisiones'] ?? [])->filter(fn ($r) => ! $r['ok'] && $r['bloquea'])
             ->reject(fn ($r) => $yaEsta && str_starts_with($r['texto'], 'Ya está en Odoo'));
         $bienes = collect($revision['revisiones'] ?? [])->filter(fn ($r) => $r['ok']);
@@ -62,6 +65,30 @@
                         @csrf @method('DELETE')
                         <button class="inline-flex min-h-10 items-center rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-800 hover:bg-rose-100 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-200">Quitar esta subida</button>
                     </form>
+                </div>
+            </div>
+        @elseif($posibles)
+            {{-- Sin RUT o sin folio no hay certeza, pero el total y la fecha ya dicen mucho. --}}
+            <div class="rounded-2xl border-2 border-orange-300 bg-orange-50 p-5 dark:border-orange-800 dark:bg-orange-950/30">
+                <div class="flex gap-4">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-black text-white" aria-hidden="true">?</div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-lg font-black text-orange-900 dark:text-orange-100">¿Ya estará en Odoo?</p>
+                        <p class="mt-0.5 text-sm text-orange-900 dark:text-orange-200">
+                            No se pudo leer {{ blank($factura->dato('rut')) ? 'el RUT' : '' }}{{ blank($factura->dato('rut')) && blank($factura->dato('folio')) ? ' ni ' : '' }}{{ blank($factura->dato('folio')) ? 'el folio' : '' }}, pero en Odoo {{ count($posibles) === 1 ? 'hay una factura' : 'hay '.count($posibles).' facturas' }} con el mismo total ({{ $peso($factura->dato('total')) }}){{ $factura->dato('fecha') ? ' y fecha cercana' : '' }}:
+                        </p>
+                        <ul class="mt-2 space-y-1.5">
+                            @foreach($posibles as $p)
+                                <li class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-white/70 px-3 py-2 text-sm dark:bg-slate-900/60">
+                                    <span class="font-extrabold text-slate-900 dark:text-white">{{ $p['name'] }}</span>
+                                    <span class="text-slate-700 dark:text-slate-300">{{ $p['partner'] }}</span>
+                                    <span class="tabular-nums text-slate-500">{{ $fecha($p['fecha'] ?? null) }} · {{ $estados[$p['state']] ?? $p['state'] }}</span>
+                                    <a href="{{ $p['url'] }}/web#id={{ $p['id'] }}&model=account.move&view_type=form" target="_blank" rel="noopener" class="ml-auto text-xs font-extrabold text-orange-700 hover:text-orange-900 dark:text-orange-300">Ver en Odoo ↗</a>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <p class="mt-2 text-xs text-orange-900 dark:text-orange-200">Si es la misma, quita esta subida. Si no, escribe el RUT y el folio abajo y guarda: con eso se revisa de verdad.</p>
+                    </div>
                 </div>
             </div>
         @elseif($factura->isSent())

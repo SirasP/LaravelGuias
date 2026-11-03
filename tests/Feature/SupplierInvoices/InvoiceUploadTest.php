@@ -216,6 +216,45 @@ it('says right after reading that the invoice is already in Odoo', function () {
         ->assertDontSee('Guardar y crear borrador en Odoo');
 });
 
+it('asks whether it is already in Odoo when the RUT and folio could not be read', function () {
+    odooDeFacturas(yaEsta: true);
+    // La 286429 de Carlos Rodríguez Soto: el comprobante de Transbank tapaba el encabezado.
+    $factura = subida(electrosol(['rut' => null, 'folio' => null, 'razon_social' => null]));
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('¿Ya estará en Odoo?')
+        ->assertSee('No se pudo leer el RUT ni el folio')
+        ->assertSee('https://agricolaehe-prueba.ejemplo.cl/web#id=14805', false);
+
+    $consulta = collect(Http::recorded())->map(fn ($par) => $par[0]['params']['args'] ?? [])
+        ->first(fn ($a) => ($a[3] ?? null) === 'account.move' && ($a[4] ?? null) === 'search_read');
+    expect($consulta[5][0])->toContain(['amount_total', '>=', 165196.0], ['invoice_date', '>=', '2026-09-15'], ['invoice_date', '>=', now()->subMonths(4)->toDateString()])
+        ->and($factura->refresh()->posiblesEnOdoo()[0]['name'])->toBe('FAC 003701');
+});
+
+it('reads a hard photo in two steps when the first answer comes back empty', function () {
+    config(['purchase_requests.reader.enabled' => true, 'purchase_requests.reader.base_url' => 'http://ia.local/v1', 'supplier_invoices.odoo.enabled' => false]);
+    Http::preventStrayRequests();
+    $respuesta = fn (string $contenido) => Http::response(['choices' => [['message' => ['content' => $contenido]]]]);
+    Http::fake(['ia.local/*' => Http::sequence()
+        ->pushResponse($respuesta(json_encode(['rut' => '', 'folio' => '', 'total' => '', 'lineas' => [['detalle' => '']]])))
+        ->pushResponse($respuesta("Fecha: 26-10-2026\n3000 REMACHE ALA ANCHA 4.8X20 21RT 33,613 100.840\nTOTAL NETO 100.840\nIVA (19%) 19.160\nTOTAL A PAGAR 120.000"))
+        ->pushResponse($respuesta(json_encode(['fecha' => '2026-10-26', 'neto' => '100840', 'iva' => '19160', 'total' => '120000',
+            'lineas' => [['detalle' => 'REMACHE ALA ANCHA 4.8X20', 'codigo' => '21RT', 'cantidad' => '3000', 'precio' => '33,613']]])))]);
+
+    $factura = subida([], SupplierInvoiceUpload::QUEUED);
+    $factura->forceFill(['mime_type' => 'image/jpeg'])->save();
+    (new ReadSupplierInvoice($factura))->handle(new LocalInvoiceReader, new InvoiceToOdoo);
+
+    $factura->refresh();
+    expect($factura->status)->toBe(SupplierInvoiceUpload::READ)
+        ->and($factura->dato('total'))->toBe(120000)
+        ->and($factura->lineas()[0])->toMatchArray(['detalle' => 'REMACHE ALA ANCHA 4.8X20 · 21RT', 'cantidad' => 3000, 'precio' => 33.613])
+        ->and($factura->warnings[0])->toStartWith('La foto se leyó en dos pasos y es poco confiable')
+        ->and($factura->raw_response)->toHaveKey('transcripcion');
+});
+
 it('creates the draft in Odoo like the bills already there, with the document attached', function () {
     odooDeFacturas(ultimaLinea: [['account_id' => [263, '332003 MANTENCION MAQUINARIAS'], 'analytic_distribution' => ['65,148' => 100], 'move_id' => [14700, 'FAC 003701']]]);
     $factura = subida(electrosol());

@@ -74,7 +74,7 @@ class InvoiceUploadController extends Controller
         // Lo que se ve al abrirla manda: si alguien la ingresó a mano en Odoo
         // mientras tanto, o la borró, el listado se entera aquí.
         if ($revision !== null && $revision['error'] === null) {
-            $factura->marcarDuplicada($revision['duplicada'], $odoo->url());
+            $factura->marcarEnOdoo($revision['duplicada'], $revision['posibles'], $odoo->url());
         }
 
         return view('odoo.invoice_uploads.show', [

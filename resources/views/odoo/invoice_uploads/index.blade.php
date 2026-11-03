@@ -93,6 +93,7 @@
                     $ya = $f->yaEnOdoo();
                     [$chip, $color] = match (true) {
                         $ya !== null => ['Ya está en Odoo · '.$ya['name'], 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200'],
+                        $f->posiblesEnOdoo() !== [] => ['¿Ya en Odoo? · '.$f->posiblesEnOdoo()[0]['name'], 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200'],
                         $f->isSent() => ['Creada · '.$f->odoo_move_name, 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'],
                         $f->status === 'read' => ['Por revisar', 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'],
                         $f->status === 'failed' => ['No se pudo leer', 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200'],

@@ -68,6 +68,29 @@ class LocalInvoiceReader
 
         [$data, $avisos] = $this->verificar($crudo, $texto);
 
+        // Una foto difícil —un comprobante de Transbank tapando el encabezado,
+        // papel térmico desteñido— hace que el modelo devuelva la plantilla
+        // vacía, aunque la misma foto sí la sabe transcribir. Segundo intento:
+        // primero el texto, después la factura a partir de ese texto.
+        if ($imagen !== null && $this->vacia($data)) {
+            try {
+                $transcripcion = $this->transcribir($modelo, $imagen);
+                $segundo = $this->preguntarAlModelo($modelo, $transcripcion, null);
+                [$data2, $avisos2] = $this->verificar($segundo, $transcripcion);
+
+                if (! $this->vacia($data2)) {
+                    [$data, $avisos] = [$data2, [
+                        // En la 286429 de Carlos Rodríguez Soto tomó el teléfono como folio y el giro como proveedor.
+                        'La foto se leyó en dos pasos y es poco confiable: el proveedor, el RUT, el folio y la fecha pueden estar mal (puede tomar el teléfono por folio). Confírmalos con la foto.',
+                        ...$avisos2,
+                    ]];
+                    $crudo = ['directo' => $crudo, 'transcripcion' => $transcripcion, 'desde_la_transcripcion' => $segundo];
+                }
+            } catch (Throwable) {
+                // Queda la primera lectura, vacía: se llena a mano.
+            }
+        }
+
         return [
             'ok' => true, 'unreachable' => false, 'error' => null,
             'data' => $data, 'warnings' => $avisos, 'raw' => $crudo,
@@ -163,6 +186,34 @@ class LocalInvoiceReader
             ...$montos,
             'lineas' => $lineas,
         ], $avisos];
+    }
+
+    /** Sin RUT, sin total y sin líneas: el modelo no sacó nada útil. */
+    private function vacia(array $data): bool
+    {
+        return $data['rut'] === null && ($data['total'] ?? null) === null && $data['lineas'] === [];
+    }
+
+    /** El texto de la foto, tal cual, sin pedirle todavía que lo entienda. */
+    private function transcribir(string $modelo, string $imagen): string
+    {
+        // Con tope: el comprobante de Transbank, impreso al revés, lo dejaba
+        // transcribiendo basura hasta agotar los 300 s.
+        $respuesta = Http::withToken((string) config('purchase_requests.reader.api_key'))
+            ->timeout(min(120, (int) config('purchase_requests.reader.timeout')))
+            ->acceptJson()
+            ->post(config('purchase_requests.reader.base_url').'/chat/completions', [
+                'model' => $modelo,
+                'temperature' => 0,
+                'max_tokens' => 1500,
+                'messages' => [['role' => 'user', 'content' => [
+                    ['type' => 'text', 'text' => 'Transcribe el texto que veas en esta imagen de una factura: emisor, RUT, número, fecha, líneas de detalle y totales. Lo que no se lea, omítelo.'],
+                    ['type' => 'image_url', 'image_url' => ['url' => 'data:image/png;base64,'.$imagen]],
+                ]]],
+            ])
+            ->throw();
+
+        return (string) data_get($respuesta->json(), 'choices.0.message.content');
     }
 
     /** @return array<string, mixed> */
@@ -279,6 +330,9 @@ class LocalInvoiceReader
 
         REGLAS:
         - Extrae SOLO lo que aparece en el documento. Lo que no esté, va como cadena vacía.
+        - Si una parte está tapada, cortada o borrosa (un comprobante encima, una foto torcida),
+          deja vacío SOLO ese dato y extrae igual todo lo demás que sí se lea: la fecha, las
+          líneas y los totales sirven aunque falte el encabezado.
         - "proveedor" y "rut" son los de quien EMITE la factura (el encabezado), nunca los del
           cliente que la recibe (el bloque «Señor(es)», «Cliente» o «Razón social»).
         - "folio" es el número de la factura: «FACTURA ELECTRÓNICA N° 3748» → "3748".

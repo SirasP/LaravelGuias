@@ -125,18 +125,40 @@ class SupplierInvoiceUpload extends Model
         return $this->isSent() ? null : ($this->data['ya_en_odoo'] ?? null);
     }
 
-    /** Anota (o borra) que esta factura ya estaba en Odoo. */
-    public function marcarDuplicada(?array $duplicada, string $odooUrl): void
+    /**
+     * Las de Odoo con su mismo total y fecha, cuando faltó el RUT o el folio
+     * para saberlo con certeza.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function posiblesEnOdoo(): array
+    {
+        return $this->isSent() || $this->yaEnOdoo() !== null ? [] : array_values((array) ($this->data['posibles_en_odoo'] ?? []));
+    }
+
+    /**
+     * Anota lo que dijo Odoo de esta factura: si ya estaba, y si no se supo,
+     * cuáles podrían ser. Lo que ya no aplica se borra.
+     *
+     * @param  array<string, mixed>|null  $duplicada
+     * @param  list<array<string, mixed>>  $posibles
+     */
+    public function marcarEnOdoo(?array $duplicada, array $posibles, string $odooUrl): void
     {
         $data = $this->data ?? [];
-        $nuevo = $duplicada === null ? null : [...$duplicada, 'url' => $odooUrl];
+        $antes = [$data['ya_en_odoo'] ?? null, $data['posibles_en_odoo'] ?? []];
+        $ahora = [
+            $duplicada === null ? null : [...$duplicada, 'url' => $odooUrl],
+            array_map(fn (array $p): array => [...$p, 'url' => $odooUrl], $posibles),
+        ];
 
-        if (($data['ya_en_odoo'] ?? null) === $nuevo) {
+        if ($antes === $ahora) {
             return;
         }
 
-        $data['ya_en_odoo'] = $nuevo;
-        $this->forceFill(['data' => array_filter($data, fn ($v, $k) => $k !== 'ya_en_odoo' || $v !== null, ARRAY_FILTER_USE_BOTH)])->save();
+        unset($data['ya_en_odoo'], $data['posibles_en_odoo']);
+        $data += array_filter(['ya_en_odoo' => $ahora[0], 'posibles_en_odoo' => $ahora[1]]);
+        $this->forceFill(['data' => $data])->save();
     }
 
     public function isImage(): bool

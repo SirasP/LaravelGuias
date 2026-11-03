@@ -73,7 +73,11 @@ class ReadSupplierInvoice implements ShouldQueue
         // revisión. Si Odoo no contesta, se sabrá al abrirla.
         if ($factura->status === SupplierInvoiceUpload::READ) {
             try {
-                $factura->marcarDuplicada($odoo->duplicada($factura), $odoo->url());
+                $revision = $odoo->revisar($factura);
+
+                if ($revision['error'] === null) {
+                    $factura->marcarEnOdoo($revision['duplicada'], $revision['posibles'], $odoo->url());
+                }
             } catch (Throwable) {
             }
         }

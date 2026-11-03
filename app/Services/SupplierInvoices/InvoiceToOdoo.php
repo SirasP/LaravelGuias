@@ -80,10 +80,22 @@ class InvoiceToOdoo
             }
         }
 
+        // Sin RUT o sin folio no se puede saber si es la misma; sí se puede
+        // mostrar las que tienen su total y su fecha.
+        $posibles = [];
+
+        if ($error === null && $this->isEnabled() && $duplicada === null && (Rut::normalize((string) $factura->dato('rut')) === null || blank($factura->dato('folio')))) {
+            try {
+                $posibles = $this->posibles($factura);
+            } catch (\Throwable) {
+            }
+        }
+
         return [
             'revisiones' => $revisiones,
             'proveedor' => $proveedor,
             'duplicada' => $duplicada,
+            'posibles' => $posibles,
             'cuenta' => $cuenta,
             'se_puede' => $error === null && $proveedor !== null && $duplicada === null
                 && ! collect($revisiones)->contains(fn (array $r): bool => ! $r['ok'] && $r['bloquea']),
@@ -92,22 +104,46 @@ class InvoiceToOdoo
     }
 
     /**
-     * La misma factura, si ya está en Odoo. Se pregunta apenas la IA termina
-     * de leer, para decirlo en grande antes de que alguien la revise entera.
+     * Las facturas de Odoo con el mismo total y una fecha cercana.
      *
-     * @return array{id: int, name: string, state: string}|null
+     * Para cuando no se pudo leer el RUT o el folio: la 286429 de Carlos
+     * Rodríguez Soto llegó en una foto con el comprobante de Transbank tapando
+     * el encabezado, y sólo se leían la fecha, el remache y los $120.000. Con
+     * eso basta para preguntar «¿no será ésta?».
+     *
+     * @return list<array{id: int, name: string, state: string, partner: string, fecha: ?string}>
      */
-    public function duplicada(SupplierInvoiceUpload $factura): ?array
+    public function posibles(SupplierInvoiceUpload $factura): array
     {
-        $rut = Rut::normalize((string) $factura->dato('rut'));
+        $total = (float) $factura->dato('total');
 
-        if (! $this->isEnabled() || $rut === null || blank($factura->dato('folio'))) {
-            return null;
+        if (! $this->isEnabled() || $total <= 0) {
+            return [];
         }
 
-        $proveedor = $this->proveedor($rut);
+        // Con fecha, las cercanas a ella o las de los últimos cuatro meses: en
+        // esa misma foto el papel cortaba el año y la IA leyó 2021.
+        $fecha = filled($factura->dato('fecha')) ? \Illuminate\Support\Carbon::parse($factura->dato('fecha')) : null;
+        $recientes = [['invoice_date', '>=', now()->subMonths(4)->toDateString()]];
+        $cuando = $fecha === null ? $recientes : ['|', '&',
+            ['invoice_date', '>=', $fecha->copy()->subDays(7)->toDateString()],
+            ['invoice_date', '<=', $fecha->copy()->addDays(7)->toDateString()],
+            ...$recientes,
+        ];
 
-        return $proveedor === null ? null : $this->yaEsta($proveedor['id'], (string) $factura->dato('folio'), (string) $factura->dato('tipo'));
+        return array_map(fn (array $m): array => [
+            'id' => (int) $m['id'],
+            'name' => (string) ($m['name'] ?: 'borrador #'.$m['id']),
+            'state' => (string) $m['state'],
+            'partner' => is_array($m['partner_id'] ?? null) ? (string) $m['partner_id'][1] : '',
+            'fecha' => ($m['invoice_date'] ?? null) ?: null,
+        ], $this->client()->execute('account.move', 'search_read', [[
+            ['move_type', '=', 'in_invoice'],
+            ['state', '!=', 'cancel'],
+            ['amount_total', '>=', $total - 1],
+            ['amount_total', '<=', $total + 1],
+            ...$cuando,
+        ]], ['fields' => ['id', 'name', 'state', 'partner_id', 'invoice_date'], 'limit' => 5, 'order' => 'invoice_date desc']));
     }
 
     /**
