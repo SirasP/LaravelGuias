@@ -351,6 +351,10 @@ class QuoteToOdoo
     /**
      * La orden del proveedor de la cotización.
      *
+     * También es suya la que está a nombre de uno de sus contactos: la P00372
+     * de la SC-2026-000106 se le mandó a «fbecerra@cooprinsem.cl», no a la
+     * Cooperativa, y por eso parecía que Cooprinsem no tenía orden.
+     *
      * Si tiene varias, gana la que todavía es cotización, y entre ésas la que
      * ya lleva las partidas de esta solicitud.
      *
@@ -360,9 +364,10 @@ class QuoteToOdoo
     private function ordenDelProveedor(PurchaseRequest $solicitud, array $ordenes, int $partnerId): ?array
     {
         $dondeViven = array_map('intval', $solicitud->items()->whereNotNull('odoo_order_id')->pluck('odoo_order_id')->all());
+        $empresas = $this->empresasDe($ordenes, $partnerId);
 
         $suyas = array_filter($ordenes, fn (array $o): bool => is_array($o['partner_id'] ?? null)
-            && (int) $o['partner_id'][0] === $partnerId
+            && ($empresas[(int) $o['partner_id'][0]] ?? null) === $partnerId
             && ($o['state'] ?? '') !== 'cancel');
 
         if ($suyas === []) {
@@ -378,6 +383,33 @@ class QuoteToOdoo
         $orden = reset($suyas);
 
         return ['id' => (int) $orden['id'], 'name' => (string) $orden['name'], 'state' => (string) $orden['state']];
+    }
+
+    /**
+     * La empresa de cada proveedor de esas órdenes. El que ya es la empresa
+     * buscada no se pregunta; los demás, en una sola lectura.
+     *
+     * @param  array<int, array<string, mixed>>  $ordenes
+     * @return array<int, int> partner => su empresa
+     */
+    private function empresasDe(array $ordenes, int $partnerId): array
+    {
+        $otros = array_values(array_unique(array_filter(array_map(
+            fn (array $o): int => is_array($o['partner_id'] ?? null) ? (int) $o['partner_id'][0] : 0,
+            $ordenes,
+        ), fn (int $id): bool => $id !== 0 && $id !== $partnerId)));
+
+        $empresas = [$partnerId => $partnerId];
+
+        if ($otros === []) {
+            return $empresas;
+        }
+
+        foreach ($this->client->execute('res.partner', 'read', [$otros], ['fields' => ['commercial_partner_id']]) as $p) {
+            $empresas[(int) $p['id']] = is_array($p['commercial_partner_id'] ?? null) ? (int) $p['commercial_partner_id'][0] : (int) $p['id'];
+        }
+
+        return $empresas;
     }
 
     /**

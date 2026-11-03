@@ -24,8 +24,9 @@ const PROVEEDOR = 1833;
  * @param  list<array<string, mixed>>  $ordenes
  * @param  list<array<string, mixed>>  $lineas
  * @param  list<array<string, mixed>>  $productos  lo que Odoo tiene en el catálogo
+ * @param  array<int, int>  $contactos  contacto => su empresa; los demás son su propia empresa
  */
-function odooConOrdenes(array $ordenes, array $lineas, array $productos = []): void
+function odooConOrdenes(array $ordenes, array $lineas, array $productos = [], array $contactos = []): void
 {
     config([
         'purchase_requests.odoo.enabled' => true,
@@ -41,7 +42,7 @@ function odooConOrdenes(array $ordenes, array $lineas, array $productos = []): v
     $productos = $porId($productos);
 
     Http::preventStrayRequests();
-    Http::fake(['*/jsonrpc' => function ($request) use ($ordenes, $lineas, &$productos) {
+    Http::fake(['*/jsonrpc' => function ($request) use ($ordenes, $lineas, &$productos, $contactos) {
         $p = $request['params'];
         $r = fn ($result) => Http::response(['jsonrpc' => '2.0', 'result' => $result]);
 
@@ -59,6 +60,7 @@ function odooConOrdenes(array $ordenes, array $lineas, array $productos = []): v
             'purchase.order.line.write' => true,
             'purchase.order.line.create' => 5000,
             'product.product.search_read' => array_values($productos),
+            'res.partner.read' => array_map(fn (int $id): array => ['id' => $id, 'commercial_partner_id' => [$contactos[$id] ?? $id, '']], $args[0]),
             'product.product.create' => 9001,
             'product.product.read' => [['id' => 9001, 'name' => $args[0][0] === 9001 ? 'creado' : '', 'default_code' => false,
                 'barcode' => false, 'uom_id' => [1, 'Units'], 'type' => 'consu', 'is_storable' => true,
@@ -279,6 +281,31 @@ it('writes in the order of the quoting supplier, not in the one Laravel created'
 
     expect(seEscribio(2433, fn ($v) => ($v['price_unit'] ?? null) === 150000.0))->toBeTrue()
         ->and(seEscribio(2395, fn ($v) => true))->toBeFalse();
+});
+
+it('writes in the order sent to one of the supplier contacts', function () {
+    $revisor = User::factory()->admin()->create();
+    [$solicitud, $lectura] = curva($revisor);
+
+    // La P00372: Luis se la mandó a «fbecerra@cooprinsem.cl», contacto de la Cooperativa.
+    $grupo = ['purchase_group_id' => [34, 'grupo']];
+    odooConOrdenes(
+        [orden(240, 'draft', [811], 1, $grupo), orden(372, 'sent', [2500], 3824, $grupo), orden(373, 'sent', [2501], 2118, $grupo)],
+        [
+            ['id' => 811, 'order_id' => [240, 'P00240'], 'product_id' => [8723, 'CURVA PVC']],
+            ['id' => 2500, 'order_id' => [372, 'P00372'], 'product_id' => [8723, 'CURVA PVC']],
+            ['id' => 2501, 'order_id' => [373, 'P00373'], 'product_id' => [8723, 'CURVA PVC']],
+        ],
+        contactos: [3824 => PROVEEDOR],
+    );
+
+    $this->actingAs($revisor)
+        ->post(route('purchase_requests.quotes.prices', [$solicitud, $lectura]))
+        ->assertSessionHas('success', fn (string $m) => str_contains($m, 'P00372'));
+
+    expect(seEscribio(2500, fn ($v) => true))->toBeTrue()
+        ->and(seEscribio(811, fn ($v) => true))->toBeFalse()
+        ->and(seEscribio(2501, fn ($v) => true))->toBeFalse();
 });
 
 it('writes nothing when the quoting supplier has no order of its own', function () {
