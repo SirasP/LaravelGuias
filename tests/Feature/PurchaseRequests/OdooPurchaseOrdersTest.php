@@ -176,7 +176,7 @@ it('opens each order on its own page, with the prices of its group side by side'
     $dear->lines()->create(['odoo_id' => 2, 'name' => 'UREA GRANULADA SACO 25KG', 'product_odoo_id' => 77, 'product_qty' => 400, 'price_unit' => 50.1075, 'price_subtotal' => 20043]);
 
     $page = $this->actingAs(User::factory()->admin()->create())->get(route('purchase_requests.odoo.show', 353))->assertOk()
-        ->assertSee('Cotizada a 3 proveedores')->assertSeeInOrder(['MARTINEZ', 'COPEVAL', 'Coagra']);
+        ->assertSeeInOrder(['Cotizada a 3 proveedores', 'Canceladas:', 'Coagra', 'COPEVAL', 'MARTINEZ']);
     // Per unit, Martínez is the cheapest even though its order is the largest.
     expect($page->getContent())->toMatch('/bg-emerald-100[^"]*">USD 50,11</');
     $this->get(route('purchase_requests.odoo.show', 999))->assertNotFound();
