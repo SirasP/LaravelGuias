@@ -587,3 +587,36 @@ it('creates a BEL like Accounting does: no tax, for the total, with the receipt 
             'name' => 'Peaje plaza La Unión (Boleta N° 126499854491392175)', 'quantity' => 1.0, 'price_unit' => 3600.0, 'tax_ids' => [[6, 0, []]],
         ]]]);
 });
+
+it('takes a receipt line printed without IVA up to the total', function () {
+    // La 12772 de Distribuidora Mundial: neto $420, IVA $80, total $500; la línea vino en $420.
+    [$data, $avisos] = (new LocalInvoiceReader)->verificar(
+        ['tipo' => 'BOLETA ELECTRÓNICA', 'proveedor' => 'DISTRIBUIDORA Y COMERCIALIZADORA MUNDIAL SPA', 'rut' => '77094022-2', 'folio' => '12772',
+            'fecha' => '2026-10-21', 'neto' => '420', 'iva' => '80', 'total' => '500', 'lineas' => [['detalle' => 'Compra', 'cantidad' => '', 'precio' => '420']]],
+        '',
+    );
+
+    expect($data['lineas'])->toBe([['precio' => 500.0, 'detalle' => 'Compra', 'cantidad' => null]])
+        ->and($avisos)->toContain('Las líneas de la boleta venían sin IVA (sumaban $420): se llevaron al total.');
+});
+
+it('creates a receipt already read without IVA for its total', function () {
+    odooDeFacturas();
+    // Como quedó la subida #4, leída antes del arreglo.
+    $bel = electrosol(['tipo' => '39', 'folio' => '12772', 'neto' => 500.0, 'iva' => null, 'total' => 500.0,
+        'lineas' => [['detalle' => 'Compra', 'cantidad' => null, 'precio' => 420.0]]]);
+    $factura = subida($bel);
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Las líneas vienen sin IVA (suman $420): en una boleta van con IVA, así que se llevan al total $500.')
+        ->assertSee('<option value="39" selected>', false)
+        ->assertDontSee('<option value="33" selected>', false)
+        ->assertDontSee('falta o sobra algo');
+
+    $this->put(route('odoo.invoice_uploads.update', $factura), [...$bel, 'accion' => 'crear'])->assertSessionHas('success');
+
+    expect(mandado('account.move', 'create')[0]['invoice_line_ids'])->toBe([[0, 0, [
+        'name' => 'Compra (Boleta N° 12772)', 'quantity' => 1.0, 'price_unit' => 500.0, 'tax_ids' => [[6, 0, []]],
+    ]]]);
+});

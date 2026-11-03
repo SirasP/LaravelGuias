@@ -233,9 +233,12 @@
                         lineas: @js($lineas), accion: 'guardar', enviando: false,
                         neto: @js($factura->dato('neto')), exento: @js($factura->dato('exento')), total: @js($factura->dato('total')),
                         num(v) { return parseFloat(v) || 0 },
-                        suma() { return this.lineas.reduce((s, l) => s + this.num(l.cantidad) * this.num(l.precio), 0) },
+                        {{-- Sin cantidad es 1, como la toma Odoo. --}}
+                        cant(l) { return l.cantidad === null || l.cantidad === '' ? 1 : this.num(l.cantidad) },
+                        suma() { return this.lineas.reduce((s, l) => s + this.cant(l) * this.num(l.precio), 0) },
                         peso(v) { return '$' + Math.round(v).toLocaleString('es-CL') },
-                        cuadra() { const s = this.suma(); return Math.abs(s - this.num(this.neto) - this.num(this.exento)) < 6 || Math.abs(s - this.num(this.total)) < 6 },
+                        {{-- Con IVA: una boleta que trajo las líneas sin IVA también cuadra, se lleva al total al crearla. --}}
+                        cuadra() { const s = this.suma(); return Math.abs(s - this.num(this.neto) - this.num(this.exento)) < 6 || Math.abs(s - this.num(this.total)) < 6 || Math.abs(s * 1.19 - this.num(this.total)) < 6 },
                     }" @submit="enviando = true"
                     class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     @csrf @method('PUT')
@@ -248,7 +251,7 @@
                         @endif
 
                         <div class="space-y-3 p-5">
-                            <p class="text-sm font-extrabold text-slate-900 dark:text-white">Datos de la factura</p>
+                            <p class="text-sm font-extrabold text-slate-900 dark:text-white">Datos de la {{ $factura->dato('tipo') === '39' ? 'boleta' : 'factura' }}</p>
                             <div class="grid grid-cols-2 gap-3 sm:grid-cols-6">
                                 <label class="col-span-2 sm:col-span-4"><span class="{{ $etiqueta }}">Proveedor{!! $origen('razon_social') !!}</span>
                                     <input name="razon_social" value="{{ old('razon_social', $factura->dato('razon_social')) }}" class="{{ $campo }}"></label>
@@ -257,7 +260,7 @@
                                 <label class="col-span-2 sm:col-span-3"><span class="{{ $etiqueta }}">Tipo</span>
                                     <select name="tipo" class="{{ $campo }}">
                                         @foreach(\App\Models\SupplierInvoiceUpload::TIPOS as $codigo => $nombre)
-                                            <option value="{{ $codigo }}" @selected(old('tipo', $factura->dato('tipo') ?? '33') === $codigo)>({{ $codigo }}) {{ $nombre }}</option>
+                                            <option value="{{ $codigo }}" @selected((string) old('tipo', $factura->dato('tipo') ?? '33') === (string) $codigo)>({{ $codigo }}) {{ $nombre }}</option>
                                         @endforeach
                                     </select></label>
                                 <label class="col-span-2 sm:col-span-3"><span class="{{ $etiqueta }}">Folio{!! $origen('folio') !!}</span>
@@ -292,7 +295,7 @@
                                         <div class="col-span-2 grid grid-cols-3 gap-2 sm:contents">
                                             <input :name="`lineas[${i}][cantidad]`" x-model="l.cantidad" type="number" step="any" min="0" placeholder="Cant." aria-label="Cantidad" class="{{ $campo }} !mt-0 text-right tabular-nums">
                                             <input :name="`lineas[${i}][precio]`" x-model="l.precio" type="number" step="any" placeholder="Precio" aria-label="Precio unitario" class="{{ $campo }} !mt-0 text-right tabular-nums">
-                                            <span class="self-center text-right text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200" x-text="peso(num(l.cantidad) * num(l.precio))"></span>
+                                            <span class="self-center text-right text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200" x-text="peso(cant(l) * num(l.precio))"></span>
                                         </div>
                                         <button type="button" @click="lineas.splice(i, 1)" x-show="lineas.length > 1 && @js($editable)"
                                             class="hidden h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 sm:flex" title="Quitar línea">✕</button>

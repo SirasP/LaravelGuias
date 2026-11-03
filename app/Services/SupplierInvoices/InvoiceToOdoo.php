@@ -460,6 +460,7 @@ class InvoiceToOdoo
             $cual = $this->sinIva($factura) ? 'el total' : 'el neto';
 
             $r[] = match (true) {
+                $this->boletaSinIva($factura) => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las líneas vienen sin IVA (suman %s): en una boleta van con IVA, así que se llevan al total %s.', $peso($this->sumaDeLineas($factura, false)), $peso($base))],
                 $this->preciosConIva($factura) => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Los precios de las líneas traen el IVA incluido (suman %s, el total): van a Odoo divididos por 1,19, y dan el neto %s.', $peso($this->sumaDeLineas($factura, false)), $peso($base))],
                 abs($suma - $base) < 0.5 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s, %s.', count($lineas), $peso($suma), $cual)],
                 $ajuste !== 0.0 => ['ok' => true, 'bloquea' => false, 'texto' => sprintf('Las %d líneas suman %s y %s es %s: va una línea de ajuste de redondeo de %s.', count($lineas), $peso($suma), $cual, $peso($base), ($ajuste < 0 ? '−' : '').$peso(abs($ajuste)))],
@@ -495,7 +496,23 @@ class InvoiceToOdoo
     }
 
     /**
-     * El precio que va a Odoo, siempre sin IVA. Con IVA incluido se divide
+     * ¿La boleta trae el precio sin IVA? La 12772 de Distribuidora Mundial
+     * imprime neto $420, IVA $80 y total $500, y la línea vino en $420. La
+     * boleta va a Odoo sin impuesto, así que la línea tiene que dar el total.
+     */
+    private function boletaSinIva(SupplierInvoiceUpload $factura): bool
+    {
+        $total = (float) $factura->dato('total');
+        $tolerancia = max((int) config('supplier_invoices.tolerancia', 5), count($factura->lineas()));
+        $tal = $this->sumaDeLineas($factura, false);
+
+        return $factura->dato('tipo') === '39' && $tal > 0
+            && abs($tal * 1.19 - $total) <= $tolerancia && abs($tal - $total) > $tolerancia;
+    }
+
+    /**
+     * El precio que va a Odoo: sin IVA en una factura, y en una boleta lo que
+     * suma el total. Con IVA incluido se divide
      * por 1,19 sin redondear, como lo hace Contabilidad (el remache a 33,613):
      * Odoo calcula el IVA de cada línea sobre ese precio y el total da el del
      * papel, sin ajuste.
@@ -505,6 +522,11 @@ class InvoiceToOdoo
     private function precioNeto(SupplierInvoiceUpload $factura, array $linea): float
     {
         $precio = (float) ($linea['precio'] ?? 0);
+
+        if ($this->boletaSinIva($factura)) {
+            // Por la proporción y no por 1,19: así las líneas dan justo el total.
+            return round($precio * (float) $factura->dato('total') / $this->sumaDeLineas($factura, false), 6);
+        }
 
         return $this->preciosConIva($factura) ? round($precio / 1.19, 6) : $precio;
     }
