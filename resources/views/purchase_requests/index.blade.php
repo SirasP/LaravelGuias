@@ -77,7 +77,7 @@
             </div>
         @endif
 
-        <section class="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Resumen de solicitudes">
+        <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Resumen de solicitudes">
             <a href="{{ route('purchase_requests.index') }}"
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
                 <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Activas</p>
@@ -116,6 +116,12 @@
                 <p class="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">Terminadas</p>
                 <p class="mt-2 text-2xl font-black tabular-nums text-violet-800 dark:text-violet-200">{{ $countFor('completed') }}</p>
                 <p class="mt-1 text-xs font-semibold text-violet-700 dark:text-violet-300">compra cerrada</p>
+            </a>
+            <a href="{{ route('purchase_requests.index', ['status' => 'cancelled']) }}"
+                class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900/60">
+                <p class="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Anuladas</p>
+                <p class="mt-2 text-2xl font-black tabular-nums text-zinc-700 dark:text-zinc-200">{{ $countFor('cancelled') }}</p>
+                <p class="mt-1 text-xs font-semibold text-zinc-600 dark:text-zinc-400">sin efecto</p>
             </a>
         </section>
 

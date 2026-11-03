@@ -162,6 +162,23 @@ it('keeps a corrected request visible in the pending-review counter', function (
         ->and($counts['resubmitted'])->toBe(1);
 });
 
+it('counts the cancelled ones in their own card, linked to their filter', function () {
+    $admin = User::factory()->admin()->create();
+    $anulada = PurchaseRequest::factory()->forUser($admin)->create(['status' => PurchaseRequestStatus::CANCELLED]);
+    PurchaseRequest::factory()->forUser($admin)->create(['status' => PurchaseRequestStatus::CANCELLED]);
+    $viva = PurchaseRequest::factory()->forUser($admin)->approved()->create();
+
+    $html = $this->actingAs($admin)->get(route('purchase_requests.index'))->assertOk()->getContent();
+    $tarjeta = substr($html, strpos($html, 'status=cancelled'), 600);
+
+    expect($tarjeta)->toContain('Anuladas')->toMatch('/>\s*2\s*</');
+
+    $this->actingAs($admin)->get(route('purchase_requests.index', ['status' => 'cancelled']))
+        ->assertOk()
+        ->assertSee($anulada->folio)
+        ->assertDontSee($viva->folio);
+});
+
 it('lists both submitted and resubmitted under the pending-review filter', function () {
     $admin = User::factory()->admin()->create();
     $enviada = User::factory()->create();
