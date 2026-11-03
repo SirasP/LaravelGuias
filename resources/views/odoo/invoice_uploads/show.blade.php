@@ -20,6 +20,23 @@
         $estados = ['draft' => 'en borrador', 'posted' => 'confirmada', 'cancel' => 'anulada'];
         $fecha = fn ($v) => $v ? \Illuminate\Support\Carbon::parse($v)->format('d-m-Y') : '—';
         $etiqueta = 'text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400';
+        $sugerido = $editable ? $factura->proveedorPorConfirmar() : null;
+        // De dónde salió cada dato, al lado de su nombre: leído, inferido o confirmado.
+        $origen = function (string $campo) use ($factura): string {
+            $o = $factura->origen($campo);
+
+            if ($o === null) {
+                return '';
+            }
+
+            [$texto, $color] = match ($o['tipo']) {
+                'inferido' => ['inferido', 'bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-200'],
+                'confirmado' => ['confirmado', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200'],
+                default => ['leído', 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'],
+            };
+
+            return '<span title="'.e(ucfirst($o['fuente'])).'" class="ml-1 cursor-help rounded-full px-1.5 py-0.5 align-middle text-[10px] font-bold normal-case tracking-normal '.$color.'">'.$texto.'</span>';
+        };
         $campo = 'mt-1 block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-cyan-500 focus:ring-cyan-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white disabled:border-transparent disabled:bg-slate-50 disabled:shadow-none dark:disabled:bg-slate-900';
     @endphp
 
@@ -132,6 +149,36 @@
             </div>
         @endif
 
+        @if($sugerido)
+            {{-- Inferido no es leído: hasta que alguien diga «es este», no se crea. --}}
+            <div class="rounded-2xl border-2 border-violet-300 bg-violet-50 p-5 dark:border-violet-800 dark:bg-violet-950/30">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-xl font-black text-white" aria-hidden="true">?</div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-lg font-black text-violet-900 dark:text-violet-100">{{ ($sugerido['debil'] ?? false) ? 'Pista débil, sólo por productos: ¿será '.$sugerido['name'].'?' : '¿El proveedor es '.$sugerido['name'].'?' }}</p>
+                        <p class="mt-0.5 text-sm text-violet-900 dark:text-violet-200">
+                            No se leyó en la factura{{ $sugerido['vat'] ? ' (RUT '.\App\Support\Rut::format($sugerido['vat']).')' : '' }}: se dedujo porque
+                        </p>
+                        <ul class="mt-1 list-disc space-y-0.5 pl-5 text-sm text-violet-900 dark:text-violet-200">
+                            @foreach($sugerido['razones'] as $razon)
+                                <li>{{ $razon }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <div class="flex shrink-0 flex-wrap gap-2">
+                        <form method="POST" action="{{ route('odoo.invoice_uploads.supplier.confirm', $factura) }}">
+                            @csrf
+                            <button class="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">Sí, es este</button>
+                        </form>
+                        <form method="POST" action="{{ route('odoo.invoice_uploads.supplier.reject', $factura) }}">
+                            @csrf @method('DELETE')
+                            <button class="inline-flex min-h-10 items-center rounded-xl border border-violet-300 bg-white px-4 text-sm font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">No es este</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- La factura de un vistazo. --}}
         @if($factura->data)
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -199,9 +246,9 @@
                         <div class="space-y-3 p-5">
                             <p class="text-sm font-extrabold text-slate-900 dark:text-white">Datos de la factura</p>
                             <div class="grid grid-cols-2 gap-3 sm:grid-cols-6">
-                                <label class="col-span-2 sm:col-span-4"><span class="{{ $etiqueta }}">Proveedor</span>
+                                <label class="col-span-2 sm:col-span-4"><span class="{{ $etiqueta }}">Proveedor{!! $origen('razon_social') !!}</span>
                                     <input name="razon_social" value="{{ old('razon_social', $factura->dato('razon_social')) }}" class="{{ $campo }}"></label>
-                                <label class="col-span-2"><span class="{{ $etiqueta }}">RUT</span>
+                                <label class="col-span-2"><span class="{{ $etiqueta }}">RUT{!! $origen('rut') !!}</span>
                                     <input name="rut" value="{{ old('rut', \App\Support\Rut::format($factura->dato('rut')) ?? $factura->dato('rut')) }}" class="{{ $campo }} tabular-nums"></label>
                                 <label class="col-span-2 sm:col-span-3"><span class="{{ $etiqueta }}">Tipo</span>
                                     <select name="tipo" class="{{ $campo }}">
@@ -209,18 +256,18 @@
                                             <option value="{{ $codigo }}" @selected(old('tipo', $factura->dato('tipo') ?? '33') === $codigo)>({{ $codigo }}) {{ $nombre }}</option>
                                         @endforeach
                                     </select></label>
-                                <label class="col-span-2 sm:col-span-3"><span class="{{ $etiqueta }}">Folio</span>
+                                <label class="col-span-2 sm:col-span-3"><span class="{{ $etiqueta }}">Folio{!! $origen('folio') !!}</span>
                                     <input name="folio" inputmode="numeric" value="{{ old('folio', $factura->dato('folio')) }}" class="{{ $campo }} tabular-nums"></label>
-                                <label class="sm:col-span-3"><span class="{{ $etiqueta }}">Emisión</span>
+                                <label class="sm:col-span-3"><span class="{{ $etiqueta }}">Emisión{!! $origen('fecha') !!}</span>
                                     <input type="date" name="fecha" value="{{ old('fecha', $factura->dato('fecha')) }}" class="{{ $campo }}"></label>
-                                <label class="sm:col-span-3"><span class="{{ $etiqueta }}">Vencimiento</span>
+                                <label class="sm:col-span-3"><span class="{{ $etiqueta }}">Vencimiento{!! $origen('vencimiento') !!}</span>
                                     <input type="date" name="vencimiento" value="{{ old('vencimiento', $factura->dato('vencimiento')) }}" class="{{ $campo }}"></label>
                             </div>
                         </div>
 
                         <div class="p-5">
                             <div class="flex items-baseline justify-between gap-2">
-                                <p class="text-sm font-extrabold text-slate-900 dark:text-white">Detalle</p>
+                                <p class="text-sm font-extrabold text-slate-900 dark:text-white">Detalle{!! $origen('lineas') !!}</p>
                                 <p class="text-xs text-slate-500 dark:text-slate-400">precio unitario tal como viene en la factura</p>
                             </div>
                             <div class="mt-2 hidden grid-cols-[minmax(0,1fr)_5rem_7.5rem_6.5rem_2rem] gap-2 px-1 sm:grid">
@@ -266,7 +313,7 @@
                             <div class="space-y-2">
                                 @foreach(['neto' => 'Neto', 'exento' => 'Exento', 'iva' => 'IVA 19%', 'total' => 'Total'] as $clave => $nombre)
                                     <label class="flex items-center justify-between gap-3 {{ $clave === 'total' ? 'border-t border-slate-200 pt-2 dark:border-slate-700' : '' }}">
-                                        <span class="whitespace-nowrap text-sm {{ $clave === 'total' ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300' }}">{{ $nombre }}</span>
+                                        <span class="whitespace-nowrap text-sm {{ $clave === 'total' ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-300' }}">{{ $nombre }}{!! $origen($clave) !!}</span>
                                         <input type="number" step="any" min="0" name="{{ $clave }}" value="{{ old($clave, $factura->dato($clave)) }}"
                                             @if($clave !== 'iva') x-model="{{ $clave }}" @endif
                                             class="{{ $campo }} !mt-0 !w-36 shrink-0 text-right tabular-nums {{ $clave === 'total' ? 'font-black' : '' }}">

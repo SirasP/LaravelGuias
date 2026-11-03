@@ -825,6 +825,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'show'])->name('invoice_uploads.show');
         Route::put('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'update'])->name('invoice_uploads.update');
         Route::post('/facturas-subidas/{factura}/leer', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'reread'])->name('invoice_uploads.reread');
+        Route::post('/facturas-subidas/{factura}/proveedor', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'confirmSupplier'])->name('invoice_uploads.supplier.confirm');
+        Route::delete('/facturas-subidas/{factura}/proveedor', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'rejectSupplier'])->name('invoice_uploads.supplier.reject');
         Route::get('/facturas-subidas/{factura}/archivo', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'file'])->name('invoice_uploads.file');
         Route::delete('/facturas-subidas/{factura}', [\App\Http\Controllers\Odoo\InvoiceUploadController::class, 'destroy'])->name('invoice_uploads.destroy');
     });

@@ -5,6 +5,7 @@ namespace App\Services\SupplierInvoices;
 use App\Models\SupplierInvoiceUpload;
 use App\Services\PurchaseRequests\Odoo\OdooClient;
 use App\Support\Rut;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -147,6 +148,189 @@ class InvoiceToOdoo
     }
 
     /**
+     * Quién emitió la factura cuando no se leyó su RUT, por coincidencias con
+     * lo que ya existe.
+     *
+     * La 286429 de Carlos Rodríguez Soto llegó con el encabezado tapado por el
+     * comprobante de Transbank, pero se leía «Av. Re… 2407» —en Odoo está
+     * «AV. RENE SORIANO 2407»—, el código 21RT, que sólo aparece en sus
+     * facturas, y $120.000, el total de su FAC 286429.
+     *
+     * Pesan más los datos de contacto (correo, teléfono, dirección) que los
+     * productos, que sólo apoyan. Hace falta un puntaje mínimo y sacarle
+     * ventaja al segundo; si no, no se sugiere nadie. Lo que sale es una
+     * sugerencia: la confirma una persona.
+     *
+     * @return array{id: int, name: string, vat: ?string, puntaje: int, debil: bool, razones: list<string>}|null
+     */
+    public function sugerirProveedor(SupplierInvoiceUpload $factura): ?array
+    {
+        if (! $this->isEnabled()) {
+            return null;
+        }
+
+        $pistas = (array) $factura->dato('pistas');
+        $descartados = array_map('intval', (array) $factura->dato('proveedores_descartados'));
+        $puntos = [];
+        $razones = [];
+        $sumar = function (array $partners, int $peso, string $razon) use (&$puntos, &$razones, $descartados): void {
+            foreach (array_unique($partners) as $id) {
+                if ($id > 0 && ! in_array($id, $descartados, true)) {
+                    $puntos[$id] = ($puntos[$id] ?? 0) + $peso;
+                    $razones[$id][] = $razon;
+                }
+            }
+        };
+        $empresas = fn (array $socios): array => array_map(
+            fn (array $p): int => is_array($p['commercial_partner_id'] ?? null) ? (int) $p['commercial_partner_id'][0] : (int) $p['id'], $socios);
+        $buscar = fn (array $dominio): array => $empresas($this->client()->execute('res.partner', 'search_read', [$dominio], ['fields' => ['id', 'commercial_partner_id'], 'limit' => 10]));
+
+        // Correo: el dominio si es propio de la empresa, y si no, los trozos legibles del usuario.
+        if (filled($correo = $pistas['correo'] ?? null)) {
+            [$usuario, $dominio] = array_pad(explode('@', (string) $correo, 2), 2, '');
+            $dominio = preg_replace('/[^a-z0-9.-]/', '', $dominio);
+            $trozos = array_filter(preg_split('/[^a-z0-9]+/', $usuario) ?: [], fn (string $t): bool => strlen($t) >= 4);
+            $propio = $dominio !== '' && str_contains($dominio, '.') && ! preg_match('/gmail|hotmail|yahoo|outlook|live\./', $dominio);
+
+            foreach ([...($propio ? ['@'.$dominio] : []), ...$trozos] as $trozo) {
+                $sumar($buscar([['email', 'ilike', $trozo]]), 3, sprintf('el correo «%s» coincide', $correo));
+            }
+        }
+
+        // Teléfono: los últimos seis dígitos, que no dependen de cómo se escriba el código de área.
+        if (strlen($telefono = (string) ($pistas['telefono'] ?? '')) >= 6) {
+            $cola = substr($telefono, -6);
+            $sumar($buscar(['|', ['phone', 'ilike', $cola], ['mobile', 'ilike', $cola]]), 3, sprintf('el teléfono %s coincide', $telefono));
+        }
+
+        // Dirección: el número de la calle, y si además coincide una palabra, más.
+        if (filled($direccion = $pistas['direccion'] ?? null) && preg_match_all('/\b\d{3,5}\b/', (string) $direccion, $numeros)) {
+            $palabras = array_filter(preg_split('/[^\p{L}]+/u', Str::upper(Str::ascii((string) $direccion))) ?: [], fn (string $w): bool => strlen($w) >= 2 && ! in_array($w, ['AV', 'AVDA', 'CALLE', 'PJE'], true));
+
+            foreach (array_unique($numeros[0]) as $numero) {
+                foreach ($this->client()->execute('res.partner', 'search_read', [[['street', 'ilike', $numero]]], ['fields' => ['id', 'commercial_partner_id', 'street'], 'limit' => 10]) as $p) {
+                    $calle = Str::upper(Str::ascii((string) $p['street']));
+                    $palabra = collect($palabras)->first(fn (string $w) => preg_match('/\b'.preg_quote($w, '/').'/', $calle));
+                    // Un número solo apenas apoya: muchas calles tienen un «1000».
+                    $sumar($empresas([$p]), $palabra ? 3 : 1, sprintf('la dirección «%s» coincide con «%s»', $direccion, $p['street']));
+                }
+            }
+        }
+
+        // Lo que ya se subió aquí: Odoo no guarda el teléfono de muchos
+        // proveedores, pero sus facturas sí lo traen. Una vez confirmado el
+        // proveedor de una foto, la siguiente con el mismo teléfono, correo o
+        // dirección lo reconoce. Laravel aprende; Odoo no.
+        foreach ($this->yaSubidas($factura) as [$otra, $coincide]) {
+            if (($p = $this->proveedor($otra->dato('rut'))) !== null) {
+                $sumar([$p['id']], 3, sprintf('%s es el de su factura N° %s, ya subida aquí', $coincide, $otra->dato('folio') ?: '—'));
+            }
+        }
+
+        // Productos, como apoyo: el código en sus facturas de Odoo y en los XML
+        // del SII. También los que quedaron dentro de la descripción: en la
+        // foto de los remaches el 21RT vino como «REMA 21RT · A 4.8X20».
+        $enLasLineas = collect($factura->lineas())->flatMap(fn (array $l) => preg_match_all(
+            '/(?<![\w.])(?=[A-Z0-9-]*\d)(?=[A-Z0-9-]*[A-Z])[A-Z0-9-]{3,12}(?![\w.])/', Str::upper((string) $l['detalle']), $m) ? $m[0] : []);
+        $codigos = collect((array) ($pistas['codigos'] ?? []))->merge($enLasLineas)->unique()->take(6)->all();
+
+        foreach ($codigos as $codigo) {
+            $grupos = $this->client()->execute('account.move.line', 'read_group',
+                [[['move_id.move_type', '=', 'in_invoice'], ['name', 'ilike', $codigo]], ['partner_id'], ['partner_id']], []);
+
+            // Un código que aparece en muchos proveedores no distingue a nadie.
+            if ($grupos !== [] && count($grupos) <= 2) {
+                $sumar(array_map(fn (array $g): int => is_array($g['partner_id'] ?? null) ? (int) $g['partner_id'][0] : 0, $grupos), 1,
+                    sprintf('el código %s aparece en sus facturas', $codigo));
+            }
+
+            try {
+                $ruts = \Illuminate\Support\Facades\DB::connection('fuelcontrol')->table('gmail_dte_document_lines as l')
+                    ->join('gmail_dte_documents as d', 'd.id', '=', 'l.document_id')
+                    ->where('l.codigo', $codigo)->distinct()->limit(3)->pluck('d.proveedor_rut')->filter()->all();
+            } catch (\Throwable) {
+                $ruts = [];
+            }
+
+            if ($ruts !== [] && count($ruts) <= 2) {
+                foreach ($ruts as $rut) {
+                    if (($rut = Rut::normalize($rut)) !== null && ($p = $this->proveedor($rut)) !== null) {
+                        $sumar([$p['id']], 1, sprintf('el código %s aparece en sus facturas XML', $codigo));
+                    }
+                }
+            }
+        }
+
+        // El total, si coincide con una factura suya.
+        foreach ($this->posibles($factura) as $posible) {
+            $id = $this->client()->execute('account.move', 'read', [[$posible['id']]], ['fields' => ['commercial_partner_id']])[0]['commercial_partner_id'][0] ?? 0;
+            $sumar([(int) $id], 2, sprintf('su %s tiene el mismo total', $posible['name']));
+        }
+
+        arsort($puntos);
+        $ids = array_keys($puntos);
+
+        // Con 3 o más hay al menos un dato de contacto; con 2, sólo productos
+        // o el total: se ofrece igual, pero como pista débil.
+        if ($ids === [] || $puntos[$ids[0]] < 2 || (isset($ids[1]) && $puntos[$ids[1]] >= $puntos[$ids[0]] - 1)) {
+            return null;
+        }
+
+        $p = $this->client()->execute('res.partner', 'read', [[$ids[0]]], ['fields' => ['name', 'vat']])[0] ?? null;
+
+        return $p === null ? null : [
+            'id' => $ids[0],
+            'name' => (string) $p['name'],
+            'vat' => Rut::normalize((string) ($p['vat'] ?: '')),
+            'puntaje' => $puntos[$ids[0]],
+            'debil' => $puntos[$ids[0]] < 3,
+            'razones' => array_values(array_unique($razones[$ids[0]])),
+        ];
+    }
+
+    /**
+     * Las facturas ya subidas, de proveedor conocido, que comparten con ésta
+     * el teléfono, el correo o la dirección.
+     *
+     * @return list<array{0: SupplierInvoiceUpload, 1: string}>
+     */
+    private function yaSubidas(SupplierInvoiceUpload $factura): array
+    {
+        $pistas = (array) $factura->dato('pistas');
+        $tel = substr((string) ($pistas['telefono'] ?? ''), -6);
+        $correo = (string) ($pistas['correo'] ?? '');
+        $calle = Str::upper(Str::ascii((string) ($pistas['direccion'] ?? '')));
+
+        if (strlen($tel) < 6 && $correo === '' && $calle === '') {
+            return [];
+        }
+
+        $encontradas = [];
+
+        foreach (SupplierInvoiceUpload::query()->whereKeyNot($factura->getKey())->whereNotNull('data')->latest()->limit(500)->get() as $otra) {
+            $suyas = (array) $otra->dato('pistas');
+            $conocido = filled($otra->dato('rut')) && ($otra->isSent() || in_array($otra->origen('rut')['tipo'] ?? null, ['leido', 'confirmado'], true));
+
+            if (! $conocido) {
+                continue;
+            }
+
+            $coincide = match (true) {
+                strlen($tel) >= 6 && str_ends_with((string) ($suyas['telefono'] ?? ''), $tel) => 'el teléfono '.$pistas['telefono'],
+                $correo !== '' && $correo === ($suyas['correo'] ?? null) => 'el correo '.$correo,
+                $calle !== '' && $calle === Str::upper(Str::ascii((string) ($suyas['direccion'] ?? ''))) => 'la dirección «'.$pistas['direccion'].'»',
+                default => null,
+            };
+
+            if ($coincide !== null) {
+                $encontradas[] = [$otra, $coincide];
+            }
+        }
+
+        return $encontradas;
+    }
+
+    /**
      * Crea el borrador. Vuelve a revisar justo antes: entre la pantalla y el
      * botón alguien pudo crearla en Odoo a mano.
      *
@@ -221,6 +405,10 @@ class InvoiceToOdoo
     private function revisionesLocales(SupplierInvoiceUpload $factura): array
     {
         $r = [];
+
+        if (($sugerido = $factura->proveedorPorConfirmar()) !== null) {
+            $r[] = ['ok' => false, 'bloquea' => true, 'texto' => sprintf('El proveedor %s es inferido, no leído: confírmalo con «Sí, es este» antes de crearla.', $sugerido['name'])];
+        }
         $peso = fn (?float $v): string => '$'.number_format((float) $v, 0, ',', '.');
         $rut = Rut::normalize((string) $factura->dato('rut'));
 

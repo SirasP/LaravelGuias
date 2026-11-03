@@ -372,3 +372,183 @@ it('creates it only once even if the button is pressed twice', function () {
 
     expect(mandado('account.move', 'create'))->toBeNull();
 });
+
+/**
+ * Odoo con Carlos Rodríguez Soto como lo tiene producción: sin teléfono ni
+ * correo, en AV. RENE SORIANO 2407, con el código 21RT en sus facturas y una
+ * FAC 286429 de $120.000.
+ */
+function odooConCarlos(): void
+{
+    config([
+        'supplier_invoices.odoo.enabled' => true, 'supplier_invoices.odoo.url' => 'https://agricolaehe.ejemplo.cl',
+        'supplier_invoices.odoo.db' => 'x', 'supplier_invoices.odoo.user' => 'x', 'supplier_invoices.odoo.password' => 'x',
+    ]);
+
+    Http::preventStrayRequests();
+    Http::fake(['*/jsonrpc' => function ($request) {
+        $p = $request['params'];
+        $r = fn ($x) => Http::response(['jsonrpc' => '2.0', 'result' => $x]);
+
+        if ($p['service'] === 'common') {
+            return $r(7);
+        }
+
+        [, , , $modelo, $metodo, $args] = $p['args'];
+        $dominio = json_encode($args[0] ?? []);
+        $carlos = ['id' => 3182, 'commercial_partner_id' => [3182, 'CARLOS RODRIGUEZ SOTO'], 'street' => 'AV. RENE SORIANO 2407'];
+
+        return $r(match (true) {
+            "$modelo.$metodo" === 'res.partner.search_read' && str_contains($dominio, '"street","ilike","2407"') => [$carlos],
+            "$modelo.$metodo" === 'res.partner.search_read' && str_contains($dominio, '"vat"') => str_contains($dominio, '8835834-1') ? [$carlos + ['name' => 'CARLOS RODRIGUEZ SOTO']] : [],
+            "$modelo.$metodo" === 'res.partner.search_read' => [],
+            "$modelo.$metodo" === 'account.move.line.read_group' => str_contains($dominio, '21RT') ? [['partner_id' => [3182, 'CARLOS RODRIGUEZ SOTO'], 'partner_id_count' => 2]] : [],
+            "$modelo.$metodo" === 'account.move.search_read' && str_contains($dominio, 'amount_total') => str_contains($dominio, '119999')
+                ? [['id' => 14802, 'name' => 'FAC 286429', 'state' => 'draft', 'partner_id' => [3182, 'CARLOS RODRIGUEZ SOTO'], 'invoice_date' => '2026-10-26']]
+                : [],
+            "$modelo.$metodo" === 'account.move.search_read' => str_contains($dominio, 'amount_total')
+                ? [['id' => 14802, 'name' => 'FAC 286429', 'state' => 'draft', 'partner_id' => [3182, 'CARLOS RODRIGUEZ SOTO'], 'invoice_date' => '2026-10-26']]
+                : [['id' => 14802, 'name' => 'FAC 286429', 'state' => 'draft', 'l10n_latam_document_number' => '286429']],
+            "$modelo.$metodo" === 'account.move.read' => [['id' => 14802, 'commercial_partner_id' => [3182, 'CARLOS RODRIGUEZ SOTO']]],
+            "$modelo.$metodo" === 'account.move.line.search_read' => [],
+            "$modelo.$metodo" === 'res.partner.read' => [['id' => 3182, 'name' => 'CARLOS RODRIGUEZ SOTO', 'vat' => '8835834-1']],
+            default => throw new RuntimeException("Odoo de prueba no sabe contestar $modelo.$metodo"),
+        });
+    }]);
+}
+
+/** La foto de los remaches: encabezado tapado, pero se leen la dirección, el código y los totales. */
+function remaches(): SupplierInvoiceUpload
+{
+    return subida([
+        'tipo' => '33', 'rut' => null, 'razon_social' => null, 'folio' => null, 'fecha' => '2026-10-26',
+        'neto' => 100840.0, 'exento' => 0.0, 'iva' => 19160.0, 'total' => 120000.0,
+        'lineas' => [['detalle' => 'REMACHE ALA ANCHA 4.8X20 · 21RT', 'cantidad' => 3000.0, 'precio' => 33.613]],
+        'pistas' => ['direccion' => 'Av. Re 2407', 'codigos' => ['21RT']],
+        'origen' => ['total' => ['tipo' => 'leido', 'fuente' => 'leído de la foto']],
+    ], SupplierInvoiceUpload::QUEUED);
+}
+
+it('infers the supplier from the address, a product code and the total, and asks to confirm it', function () {
+    odooConCarlos();
+    $factura = remaches();
+
+    $sugerido = (new InvoiceToOdoo)->sugerirProveedor($factura);
+
+    expect($sugerido)->toMatchArray(['id' => 3182, 'name' => 'CARLOS RODRIGUEZ SOTO', 'vat' => '8835834-1'])
+        ->and($sugerido['razones'])->toContain(
+            'la dirección «Av. Re 2407» coincide con «AV. RENE SORIANO 2407»',
+            'el código 21RT aparece en sus facturas',
+            'su FAC 286429 tiene el mismo total',
+        );
+
+    $factura->sugerirProveedor($sugerido);
+    $factura->forceFill(['status' => SupplierInvoiceUpload::READ])->save();
+    $admin = User::factory()->admin()->create();
+
+    // Inferido no es leído: se dice, y no se puede crear hasta confirmarlo.
+    $this->actingAs($admin)->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('¿El proveedor es CARLOS RODRIGUEZ SOTO?')
+        ->assertSee('Sí, es este')
+        ->assertSee('El proveedor CARLOS RODRIGUEZ SOTO es inferido, no leído')
+        ->assertSee('>inferido<', false);
+    expect((new InvoiceToOdoo)->revisar($factura->refresh())['se_puede'])->toBeFalse();
+
+    $this->actingAs($admin)->post(route('odoo.invoice_uploads.supplier.confirm', $factura))->assertSessionHas('success');
+
+    expect($factura->refresh()->proveedorPorConfirmar())->toBeNull()
+        ->and($factura->origen('rut')['tipo'])->toBe('confirmado')
+        ->and($factura->origen('total')['tipo'])->toBe('leido');
+});
+
+it('forgets a rejected supplier and does not suggest it again', function () {
+    odooConCarlos();
+    $factura = remaches();
+    $factura->sugerirProveedor((new InvoiceToOdoo)->sugerirProveedor($factura));
+    $factura->forceFill(['status' => SupplierInvoiceUpload::READ])->save();
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->delete(route('odoo.invoice_uploads.supplier.reject', $factura))
+        ->assertSessionHas('success');
+
+    expect($factura->refresh()->dato('rut'))->toBeNull()
+        ->and($factura->origen('rut'))->toBeNull()
+        ->and((new InvoiceToOdoo)->sugerirProveedor($factura))->toBeNull();
+});
+
+it('marks what the person corrects as confirmed and keeps the origin of the rest', function () {
+    odooDeFacturas();
+    $factura = subida([...electrosol(), 'origen' => ['folio' => ['tipo' => 'leido', 'fuente' => 'leído de la foto'], 'total' => ['tipo' => 'leido', 'fuente' => 'leído de la foto']]]);
+    $admin = User::factory()->admin()->create(['name' => 'Sebastián']);
+
+    $this->actingAs($admin)->put(route('odoo.invoice_uploads.update', $factura), [...electrosol(), 'folio' => '3749', 'accion' => 'guardar']);
+
+    expect($factura->refresh()->origen('folio'))->toMatchArray(['tipo' => 'confirmado'])
+        ->and($factura->origen('folio')['fuente'])->toStartWith('corregido por Sebastián')
+        ->and($factura->origen('total')['tipo'])->toBe('leido');
+});
+
+it('drops a folio that is really the phone number', function () {
+    [$data, $avisos] = (new LocalInvoiceReader)->verificar(
+        ['folio' => '642312', 'telefono' => '642312', 'total' => '120000', 'lineas' => []],
+        "Teléfono: 642312\nTOTAL A PAGAR 120.000",
+    );
+
+    expect($data['folio'])->toBeNull()
+        ->and($avisos)->toContain('El folio 642312 que leyó la IA es el teléfono del proveedor: se descartó.')
+        ->and($data['pistas']['telefono'])->toBe('642312');
+});
+
+it('learns the supplier from a photo already confirmed, by its phone', function () {
+    odooConCarlos();
+    // La primera foto de Carlos: su proveedor ya se confirmó, y traía su teléfono.
+    $primera = remaches();
+    $primera->forceFill(['sha256' => str_repeat('c', 64), 'data' => [...$primera->data, 'rut' => '8835834-1', 'folio' => '286429',
+        'pistas' => ['telefono' => '642312'], 'origen' => ['rut' => ['tipo' => 'confirmado', 'fuente' => 'confirmado por Sebastián']]]])->save();
+
+    // La segunda: otro total, sin dirección ni códigos. Sólo el teléfono.
+    $segunda = SupplierInvoiceUpload::query()->create([
+        'disk' => 'local', 'path' => 'facturas-subidas/f.pdf', 'original_name' => 'otra.jpg', 'mime_type' => 'image/jpeg',
+        'size' => 1, 'sha256' => str_repeat('d', 64), 'status' => SupplierInvoiceUpload::READ,
+        'data' => ['rut' => null, 'total' => 55000.0, 'lineas' => [], 'pistas' => ['telefono' => '64 2312']],
+    ]);
+    $segunda->forceFill(['data' => [...$segunda->data, 'pistas' => ['telefono' => '642312']]])->save();
+
+    $sugerido = (new InvoiceToOdoo)->sugerirProveedor($segunda);
+
+    expect($sugerido)->toMatchArray(['name' => 'CARLOS RODRIGUEZ SOTO', 'debil' => false])
+        ->and($sugerido['razones'])->toContain('el teléfono 642312 es el de su factura N° 286429, ya subida aquí');
+});
+
+it('offers only a weak hint without contact data, and nothing with a lone product', function () {
+    odooConCarlos();
+    $factura = remaches();
+
+    // Sólo el código 21RT: un punto, ni siquiera pista.
+    $factura->forceFill(['data' => [...$factura->data, 'total' => 55000.0, 'lineas' => [], 'pistas' => ['codigos' => ['21RT']]]])->save();
+    expect((new InvoiceToOdoo)->sugerirProveedor($factura))->toBeNull();
+
+    // El código y el total de una factura suya, sin ningún dato de contacto: pista débil.
+    $factura->forceFill(['data' => [...$factura->data, 'total' => 120000.0]])->save();
+    $sugerido = (new InvoiceToOdoo)->sugerirProveedor($factura);
+    expect($sugerido)->toMatchArray(['name' => 'CARLOS RODRIGUEZ SOTO', 'debil' => false]);
+
+    $factura->forceFill(['data' => [...$factura->data, 'pistas' => []]])->save();
+    $sugerido = (new InvoiceToOdoo)->sugerirProveedor($factura);
+    expect($sugerido)->toMatchArray(['name' => 'CARLOS RODRIGUEZ SOTO', 'debil' => true]);
+
+    $factura->sugerirProveedor($sugerido);
+    $factura->forceFill(['status' => SupplierInvoiceUpload::READ])->save();
+    $this->actingAs(User::factory()->admin()->create())->get(route('odoo.invoice_uploads.show', $factura))
+        ->assertSee('Pista débil, sólo por productos: ¿será CARLOS RODRIGUEZ SOTO?');
+});
+
+it('puts back the decimal comma the AI lost when the lines then add up to the net', function () {
+    [$data, $avisos] = (new LocalInvoiceReader)->verificar(
+        ['neto' => '100840', 'iva' => '19160', 'total' => '120000', 'lineas' => [['detalle' => 'REMACHE ALA ANCHA 4.8X20', 'cantidad' => '3000', 'precio' => '3361333']]],
+        null,
+    );
+
+    expect($data['lineas'][0]['precio'])->toBe(33.61333)
+        ->and($avisos)->toContain('El precio de «REMACHE ALA ANCHA 4.8X20» venía como 3.361.333 y se corrigió a 33,61333: la IA perdió la coma decimal. Revísalo.');
+});

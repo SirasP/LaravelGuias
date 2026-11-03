@@ -161,6 +161,55 @@ class SupplierInvoiceUpload extends Model
         $this->forceFill(['data' => $data])->save();
     }
 
+    /** De dónde salió un dato: `{tipo: leido|inferido|confirmado, fuente}`. */
+    public function origen(string $campo): ?array
+    {
+        return $this->data['origen'][$campo] ?? null;
+    }
+
+    /** El proveedor inferido que todavía nadie confirmó, si lo hay. */
+    public function proveedorPorConfirmar(): ?array
+    {
+        return ($this->data['proveedor_por_confirmar'] ?? false) ? ($this->data['proveedor_sugerido'] ?? null) : null;
+    }
+
+    /**
+     * Pone el proveedor inferido, marcado como tal y pendiente de confirmar.
+     *
+     * @param  array{id: int, name: string, vat: ?string, razones: list<string>}  $sugerido
+     */
+    public function sugerirProveedor(array $sugerido): void
+    {
+        $data = $this->data ?? [];
+        $fuente = 'inferido: '.implode('; ', $sugerido['razones']);
+        $data['rut'] = $sugerido['vat'];
+        $data['razon_social'] = $sugerido['name'];
+        $data['origen']['rut'] = $data['origen']['razon_social'] = ['tipo' => 'inferido', 'fuente' => $fuente];
+        $data['proveedor_sugerido'] = $sugerido;
+        $data['proveedor_por_confirmar'] = true;
+        $this->forceFill(['data' => $data])->save();
+    }
+
+    /** «Sí, es este». */
+    public function confirmarProveedor(string $quien): void
+    {
+        $data = $this->data ?? [];
+        $data['origen']['rut'] = $data['origen']['razon_social'] = ['tipo' => 'confirmado', 'fuente' => 'confirmado por '.$quien.' el '.now()->format('d-m-Y H:i')];
+        $data['proveedor_por_confirmar'] = false;
+        $this->forceFill(['data' => $data])->save();
+    }
+
+    /** «No es este»: se quita y no se vuelve a sugerir para esta factura. */
+    public function descartarProveedor(): void
+    {
+        $data = $this->data ?? [];
+        $data['proveedores_descartados'][] = (int) ($data['proveedor_sugerido']['id'] ?? 0);
+        $data['rut'] = $data['razon_social'] = null;
+        unset($data['origen']['rut'], $data['origen']['razon_social'], $data['proveedor_sugerido']);
+        $data['proveedor_por_confirmar'] = false;
+        $this->forceFill(['data' => $data])->save();
+    }
+
     public function isImage(): bool
     {
         return str_starts_with($this->mime_type, 'image/');

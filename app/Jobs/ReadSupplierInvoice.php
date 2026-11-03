@@ -73,6 +73,13 @@ class ReadSupplierInvoice implements ShouldQueue
         // revisión. Si Odoo no contesta, se sabrá al abrirla.
         if ($factura->status === SupplierInvoiceUpload::READ) {
             try {
+                // Sin RUT, se busca quién es entre los proveedores y facturas
+                // que ya existen. Queda como sugerencia hasta que alguien diga
+                // «Sí, es este».
+                if (blank($factura->dato('rut')) && ($sugerido = $odoo->sugerirProveedor($factura)) !== null) {
+                    $factura->sugerirProveedor($sugerido);
+                }
+
                 $revision = $odoo->revisar($factura);
 
                 if ($revision['error'] === null) {

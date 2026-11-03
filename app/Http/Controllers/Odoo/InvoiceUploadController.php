@@ -107,7 +107,8 @@ class InvoiceUploadController extends Controller
             'accion' => ['nullable', 'in:guardar,crear'],
         ], ['folio.regex' => 'El folio son sólo números.']);
 
-        $factura->forceFill(['data' => [
+        $antes = $factura->data ?? [];
+        $nuevos = [
             'tipo' => $datos['tipo'],
             'rut' => Rut::normalize($datos['rut'] ?? null) ?? ($datos['rut'] ?? null),
             'razon_social' => $datos['razon_social'] ?? null,
@@ -122,7 +123,21 @@ class InvoiceUploadController extends Controller
                     'cantidad' => isset($l['cantidad']) ? (float) $l['cantidad'] : null,
                     'precio' => isset($l['precio']) ? (float) $l['precio'] : null,
                 ])->values()->all(),
-        ]])->save();
+        ];
+
+        // Lo que la persona cambió pasa a «confirmado» por ella; lo demás
+        // conserva su origen. Cambiar el RUT también decide el proveedor.
+        $origen = (array) ($antes['origen'] ?? []);
+        $quien = 'corregido por '.$request->user()->name.' el '.now()->format('d-m-Y H:i');
+
+        foreach ($nuevos as $campo => $valor) {
+            if ($campo !== 'tipo' && $valor != ($antes[$campo] ?? null)) {
+                $origen[$campo] = ['tipo' => 'confirmado', 'fuente' => $quien];
+            }
+        }
+
+        $porConfirmar = ($antes['proveedor_por_confirmar'] ?? false) && $nuevos['rut'] === ($antes['rut'] ?? null);
+        $factura->forceFill(['data' => [...$antes, ...$nuevos, 'origen' => $origen, 'proveedor_por_confirmar' => $porConfirmar]])->save();
 
         if (($datos['accion'] ?? 'guardar') !== 'crear') {
             return to_route('odoo.invoice_uploads.show', $factura)->with('success', 'Cambios guardados.');
@@ -168,6 +183,24 @@ class InvoiceUploadController extends Controller
         }
 
         return to_route('odoo.invoice_uploads.show', $factura)->with('success', $mensaje);
+    }
+
+    /** «Sí, es este»: el proveedor inferido pasa a confirmado. */
+    public function confirmSupplier(Request $request, SupplierInvoiceUpload $factura): RedirectResponse
+    {
+        abort_unless($factura->isEditable() && $factura->proveedorPorConfirmar() !== null, 409);
+        $factura->confirmarProveedor($request->user()->name);
+
+        return to_route('odoo.invoice_uploads.show', $factura)->with('success', 'Proveedor confirmado: '.$factura->dato('razon_social').'.');
+    }
+
+    /** «No es este»: se quita la sugerencia y queda para escribirlo a mano. */
+    public function rejectSupplier(SupplierInvoiceUpload $factura): RedirectResponse
+    {
+        abort_unless($factura->isEditable() && $factura->proveedorPorConfirmar() !== null, 409);
+        $factura->descartarProveedor();
+
+        return to_route('odoo.invoice_uploads.show', $factura)->with('success', 'Se quitó la sugerencia. Escribe el RUT del proveedor a mano.');
     }
 
     /** Vuelve a pasarla por la IA, por ejemplo cuando el modelo no estaba. */

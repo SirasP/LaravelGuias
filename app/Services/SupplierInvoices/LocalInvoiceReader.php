@@ -91,6 +91,13 @@ class LocalInvoiceReader
             }
         }
 
+        $fuente = match (true) {
+            isset($crudo['transcripcion']) => 'la transcripción de la foto (poco confiable)',
+            $imagen !== null => 'la foto',
+            default => 'el PDF',
+        };
+        $data['origen'] = $this->origenes($data, $fuente);
+
         return [
             'ok' => true, 'unreachable' => false, 'error' => null,
             'data' => $data, 'warnings' => $avisos, 'raw' => $crudo,
@@ -130,6 +137,15 @@ class LocalInvoiceReader
         }
 
         $folio = $folio !== null ? (ltrim($folio, '0') ?: '0') : $folioDelTexto;
+        $telefono = preg_replace('/\D/', '', (string) ($crudo['telefono'] ?? '')) ?: null;
+
+        // En la 286429 de Carlos Rodríguez Soto, con el encabezado tapado, la
+        // IA tomó como folio el teléfono: «Teléfono: 642312…».
+        if ($folio !== null && (($telefono !== null && str_contains($telefono, $folio))
+            || preg_match('/(?:tel[eé]fono|fono|tel\.?)\s*:?\s*[+\d\s().-]*'.preg_quote($folio, '/').'/iu', $texto))) {
+            $avisos[] = sprintf('El folio %s que leyó la IA es el teléfono del proveedor: se descartó.', $folio);
+            $folio = null;
+        }
 
         if ($folio === null) {
             $avisos[] = 'No se encontró el folio de la factura.';
@@ -176,6 +192,16 @@ class LocalInvoiceReader
             $avisos[] = 'No se reconoció ninguna línea de detalle.';
         }
 
+        // La IA a veces pierde la coma de un precio con decimales: en la foto
+        // de los remaches, 3.000 a $33,61333 vino como 3361333 y la línea
+        // sumaba diez mil millones. Si moviendo la coma las líneas dan justo
+        // el neto (o el total), se corrige y se avisa; si no, se deja.
+        [$lineas, $avisoComa] = $this->conLaComaEnSuLugar($lineas, (float) ($montos['neto'] ?? 0) + (float) ($montos['exento'] ?? 0), (float) ($montos['total'] ?? 0));
+
+        if ($avisoComa !== null) {
+            $avisos[] = $avisoComa;
+        }
+
         return [[
             'tipo' => $exenta ? '34' : '33',
             'rut' => $rut,
@@ -185,7 +211,70 @@ class LocalInvoiceReader
             'vencimiento' => $this->fecha((string) ($crudo['vencimiento'] ?? '')),
             ...$montos,
             'lineas' => $lineas,
+            // Lo que identifica al emisor aunque no se lea su RUT: con esto se
+            // busca quién es entre los proveedores y facturas que ya existen.
+            'pistas' => array_filter([
+                'telefono' => $telefono,
+                'correo' => Str::lower(trim((string) ($crudo['correo'] ?? ''))) ?: null,
+                'direccion' => trim((string) ($crudo['direccion'] ?? '')) ?: null,
+                'codigos' => collect([...(array) ($crudo['codigos'] ?? []), ...array_column((array) ($crudo['lineas'] ?? []), 'codigo')])
+                    ->map(fn ($c) => trim((string) $c))->filter(fn (string $c) => mb_strlen($c) >= 3)->unique()->values()->all(),
+            ]),
         ], $avisos];
+    }
+
+    /**
+     * De dónde salió cada dato. Al leer, todo es «leído»; después puede pasar
+     * a «inferido» (por coincidencias con otros documentos) o a «confirmado»
+     * (lo aprobó o lo corrigió una persona).
+     *
+     * @return array<string, array{tipo: string, fuente: string}>
+     */
+    private function origenes(array $data, string $fuente): array
+    {
+        $origen = [];
+
+        foreach (['rut', 'razon_social', 'folio', 'fecha', 'vencimiento', 'neto', 'exento', 'iva', 'total', 'lineas'] as $campo) {
+            if (filled($data[$campo] ?? null)) {
+                $origen[$campo] = ['tipo' => 'leido', 'fuente' => 'leído de '.$fuente];
+            }
+        }
+
+        return $origen;
+    }
+
+    /**
+     * @param  list<array{detalle: string, cantidad: ?float, precio: ?float}>  $lineas
+     * @return array{0: list<array<string, mixed>>, 1: ?string}
+     */
+    private function conLaComaEnSuLugar(array $lineas, float $base, float $total): array
+    {
+        $suma = fn (array $ls): float => array_sum(array_map(fn (array $l): float => (float) ($l['cantidad'] ?? 1) * (float) ($l['precio'] ?? 0), $ls));
+        $cuadra = fn (float $v): bool => ($base > 0 && abs($v - $base) <= max(5, count($lineas))) || ($total > 0 && abs($v - $total) <= max(5, count($lineas)));
+
+        if ($lineas === [] || $cuadra($suma($lineas)) || $suma($lineas) <= max($base, $total) * 1.5) {
+            return [$lineas, null];
+        }
+
+        foreach ($lineas as $i => $linea) {
+            $subtotal = (float) ($linea['cantidad'] ?? 1) * (float) ($linea['precio'] ?? 0);
+
+            if ($subtotal <= max($base, $total)) {
+                continue;
+            }
+
+            for ($ceros = 1; $ceros <= 6; $ceros++) {
+                $prueba = $lineas;
+                $prueba[$i]['precio'] = round((float) $linea['precio'] / 10 ** $ceros, 6);
+
+                if ($cuadra($suma($prueba))) {
+                    return [$prueba, sprintf('El precio de «%s» venía como %s y se corrigió a %s: la IA perdió la coma decimal. Revísalo.',
+                        Str::limit($linea['detalle'], 40), number_format((float) $linea['precio'], 0, ',', '.'), rtrim(rtrim(number_format($prueba[$i]['precio'], 6, ',', '.'), '0'), ','))];
+                }
+            }
+        }
+
+        return [$lineas, null];
     }
 
     /** Sin RUT, sin total y sin líneas: el modelo no sacó nada útil. */
@@ -338,6 +427,9 @@ class LocalInvoiceReader
         - "folio" es el número de la factura: «FACTURA ELECTRÓNICA N° 3748» → "3748".
         - "fecha" es la fecha de emisión, como AAAA-MM-DD: «3 de Noviembre de 2026» → "2026-11-03".
         - "vencimiento" es la fecha de vencimiento, igual que la fecha. Si no aparece, vacía.
+        - "telefono", "correo" y "direccion" son los del EMISOR (no los del cliente), tal como
+          se lean, aunque estén incompletos.
+        - "codigos" son los códigos de producto que se lean, aunque la línea esté incompleta.
         - "tipo" es el nombre del documento tal como aparece: «FACTURA ELECTRÓNICA», «FACTURA EXENTA»…
         - Montos sin puntos de miles ni signo peso: «$ 3.338.500» → "3338500".
           "neto" es el monto neto o afecto, "exento" el monto exento, "iva" el IVA 19%, "total" el total.
@@ -349,6 +441,7 @@ class LocalInvoiceReader
 
         Responde SOLO este objeto JSON, sin texto alrededor y sin ```:
         {"tipo":"","proveedor":"","rut":"","folio":"","fecha":"","vencimiento":"","neto":"","exento":"","iva":"","total":"",
+         "telefono":"","correo":"","direccion":"","codigos":[],
          "lineas":[{"detalle":"","codigo":"","cantidad":"","precio":""}]}
         TXT;
 
