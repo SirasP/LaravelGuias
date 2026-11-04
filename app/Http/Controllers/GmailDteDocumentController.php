@@ -20,7 +20,9 @@ class GmailDteDocumentController extends Controller
 
     private const GUIA_TYPES = [52];
 
-    private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado'];
+    // «cancelado» es la factura que Odoo canceló: la importación nocturna la
+    // trae igual y aparecía al lado de la buena, como la 7676 de Riego Bueno.
+    private const EXCLUDED_WORKFLOW_STATUSES = ['anulado', 'rechazado', 'cancelado'];
 
     private const BODEGA_TALLER_MECANICO = 2;
 
