@@ -588,3 +588,17 @@ it('takes the VAT out of invoice lines that add up to the total instead of the n
         ->assertJsonPath('references.0.price.invoiced_unit', 5983.2)
         ->assertJsonPath('references.0.price.change', 0);
 });
+
+it('links by itself an invoice that writes the unit as «C/U»', function () {
+    // Corsud facturó así las 6 aspas de la SC-2026-000111, pedidas en «Unidades».
+    $aspa = referenceItem(null, ['product_service' => 'ASPA VENTILADOR', 'specification' => '2485C547', 'quantity' => 6]);
+    [$factura] = referenceInvoice(['proveedor_nombre' => 'Corsud SpA.'], ['descripcion' => 'ASPA VENTILADOR', 'codigo' => '2485C547', 'cantidad' => 6, 'unidad' => 'C/U']);
+    $this->artisan('dtes:auto-link-purchases')->assertSuccessful();
+    expect(DtePurchaseReference::sole())
+        ->purchase_request_item_id->toBe($aspa->id)
+        ->document_id->toBe($factura);
+});
+
+it('reads the units the invoices bring as the same unit', function (string $factura, string $solicitud) {
+    expect(\App\Services\DtePurchases\Quantity::sameUnit($factura, $solicitud))->toBeTrue();
+})->with([['C/U', 'Unidades'], ['CU', 'un'], ['UNI', 'Unidad'], ['PC', 'u'], ['LITR', 'Litros'], ['METR', 'mts'], ['MT.', 'Metros']]);

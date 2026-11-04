@@ -21,11 +21,14 @@ final class Quantity
     {
         $unit = mb_strtolower(trim((string) $unit));
 
+        // «C/U» es «cada uno»: así facturó Corsud las 6 aspas de la SC-2026-000111.
+        // El XML corta la unidad a cuatro letras: «LITR», «METR».
         return match ($unit) {
-            'u', 'un', 'un.', 'und', 'unds', 'unid', 'unid.', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds', 'pza', 'pzas' => 'un',
+            'u', 'un', 'un.', 'und', 'unds', 'unid', 'unid.', 'uni', 'unidad', 'unidades', 'unit', 'units', 'units.', 'ud', 'uds',
+            'c/u', 'cu', 'pza', 'pzas', 'pc', 'pcs', 'pieza', 'piezas' => 'un',
             'kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos' => 'kg',
-            'l', 'lt', 'lts', 'litro', 'litros' => 'l',
-            'm', 'mt', 'mts', 'metro', 'metros' => 'm',
+            'l', 'lt', 'lts', 'litr', 'litro', 'litros' => 'l',
+            'm', 'mt', 'mt.', 'mts', 'metr', 'metro', 'metros' => 'm',
             default => $unit,
         };
     }
