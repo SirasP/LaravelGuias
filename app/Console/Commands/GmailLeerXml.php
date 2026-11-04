@@ -725,14 +725,18 @@ class GmailLeerXml extends Command
         }
 
         // La misma factura pudo entrar antes desde Odoo, que guarda el RUT sin
-        // puntos ni guion (789240302 y no 78924030-2): no se registra dos veces.
+        // puntos ni guion (789240302 y no 78924030-2) y el folio sin ceros
+        // adelante (6996896 y no 06996896, como lo manda Prodalam): no se
+        // registra dos veces.
         if (! $existing && $folio && $proveedorRut) {
             $plainRut = fn (?string $rut): string => strtoupper((string) preg_replace('/[^0-9k]/i', '', (string) $rut));
+            $sinCeros = fn (?string $f): string => ltrim(trim((string) $f), '0');
             $existing = $db->table('gmail_dte_documents')
                 ->where('tipo_dte', $tipoDte ?: null)
-                ->where('folio', $folio)
+                ->where('folio', 'like', '%'.$sinCeros($folio))
                 ->get()
-                ->first(fn ($document) => $plainRut($document->proveedor_rut) === $plainRut($proveedorRut));
+                ->first(fn ($document) => $sinCeros($document->folio) === $sinCeros($folio)
+                    && $plainRut($document->proveedor_rut) === $plainRut($proveedorRut));
         }
 
         if ($existing) {

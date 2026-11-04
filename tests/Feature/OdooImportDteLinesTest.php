@@ -92,3 +92,19 @@ it('subtracts the withholding of a fee receipt instead of adding it as VAT', fun
         ->and($line->impuesto_label)->toBe('15.25% Ret. 2da 2026')
         ->and($move->odoo_id)->toBe(500);
 });
+
+it('links an invoice whose XML brought the folio with leading zeros instead of adding it again', function () {
+    // Prodalam manda «06996896»; Odoo lo guarda como 6996896.
+    $id = DB::connection('fuelcontrol')->table('gmail_dte_documents')->insertGetId([
+        'xml_filename' => 'DTE_33_3914.xml', 'xml_raw' => '<DTE/>', 'hash_unico' => 'gmail', 'tipo_dte' => 33, 'folio' => '0003914',
+        'proveedor_rut' => '77118278-K', 'proveedor_nombre' => 'ELECTROSOL', 'fecha_factura' => '2026-10-19', 'payment_status' => 'sin_pagar',
+        'monto_neto' => 138487, 'monto_iva' => 26313, 'monto_total' => 164800, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    odooInvoice();
+    $this->artisan('odoo:import-dte')->assertSuccessful();
+
+    $document = DB::connection('fuelcontrol')->table('gmail_dte_documents')->sole();
+    expect($document->id)->toBe($id)
+        ->and($document->hash_unico)->toBe('odoo_14426')
+        ->and($document->payment_status)->toBe('pagado');
+});

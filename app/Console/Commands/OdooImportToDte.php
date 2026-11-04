@@ -311,7 +311,8 @@ class OdooImportToDte extends Command
 
     private function documentKey(mixed $folio, ?string $rut): ?string
     {
-        $folio = trim((string) $folio);
+        // Sin ceros adelante: el XML de Prodalam dice «06996896» y Odoo 6996896.
+        $folio = ltrim(trim((string) $folio), '0');
         $rut = $this->normalizeRut($rut);
 
         return $folio !== '' && $rut !== '' ? "{$folio}|{$rut}" : null;

@@ -52,3 +52,25 @@ it('does not register again an invoice that came in from Odoo with the RUT unfor
     expect(DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('folio', '7100545')->count())->toBe(1)
         ->and(envelopeLines('7100539'))->toBe([15.0]);
 });
+
+it('does not register again an invoice that came in from Odoo without the leading zeros of its folio', function () {
+    DB::connection('fuelcontrol')->table('gmail_dte_documents')->insert([
+        'xml_filename' => 'odoo', 'hash_unico' => 'odoo_14494', 'tipo_dte' => 33, 'folio' => '7100545',
+        'proveedor_rut' => '789240302', 'proveedor_nombre' => 'Implementos S.A.', 'fecha_factura' => '2026-10-28',
+        'monto_neto' => 34849, 'monto_iva' => 6621, 'monto_total' => 41470, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    // Como Prodalam: el XML trae el folio con un cero adelante.
+    $fixture = str_replace('<Folio>7100545</Folio>', '<Folio>07100545</Folio>', file_get_contents(base_path('tests/Fixtures/dte/implementos-dos-facturas.xml')));
+    expect($fixture)->toContain('<Folio>07100545</Folio>');
+    $command = app(GmailLeerXml::class);
+    $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput));
+    $persist = new ReflectionMethod($command, 'persistNonFuelDte');
+    foreach (DteEnvelope::documents($fixture) as $document) {
+        $xml = simplexml_load_string($document);
+        $xml->registerXPathNamespace('sii', DteEnvelope::NAMESPACE);
+        $persist->invoke($command, DB::connection('fuelcontrol'), 'mensaje', 'EnvioDTE.xml', $xml, Carbon::parse('2026-10-28'), false, $document);
+    }
+
+    expect(DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('proveedor_rut', 'like', '%789240302%')->orWhere('proveedor_rut', '78924030-2')->count())->toBe(2)
+        ->and(DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('folio', 'like', '%7100545')->count())->toBe(1);
+});
