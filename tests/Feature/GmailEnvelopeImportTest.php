@@ -74,3 +74,20 @@ it('does not register again an invoice that came in from Odoo without the leadin
     expect(DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('proveedor_rut', 'like', '%789240302%')->orWhere('proveedor_rut', '78924030-2')->count())->toBe(2)
         ->and(DB::connection('fuelcontrol')->table('gmail_dte_documents')->where('folio', 'like', '%7100545')->count())->toBe(1);
 });
+
+it('takes the product from DscItem when NmbItem only says «Item», as Salinas y Fabres sends it', function () {
+    $fixture = str_replace('<NmbItem>GRASA BLANCA LUBRICANTE MULTIUSO SPRAY 300ML</NmbItem>',
+        '<NmbItem>Item</NmbItem><DscItem>SMF 31-850 100AH 830CCA (BORNE)</DscItem>', file_get_contents(base_path('tests/Fixtures/dte/implementos-dos-facturas.xml')));
+    expect($fixture)->toContain('<DscItem>');
+    $command = app(GmailLeerXml::class);
+    $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput));
+    $persist = new ReflectionMethod($command, 'persistNonFuelDte');
+    foreach (DteEnvelope::documents($fixture) as $document) {
+        $xml = simplexml_load_string($document);
+        $xml->registerXPathNamespace('sii', DteEnvelope::NAMESPACE);
+        $persist->invoke($command, DB::connection('fuelcontrol'), 'mensaje', 'EnvioDTE.xml', $xml, Carbon::parse('2026-10-28'), false, $document);
+    }
+
+    $lines = DB::connection('fuelcontrol')->table('gmail_dte_document_lines')->pluck('descripcion')->all();
+    expect($lines)->toContain('SMF 31-850 100AH 830CCA (BORNE)')->not->toContain('Item');
+});

@@ -674,6 +674,20 @@ class GmailLeerXml extends Command
     /**
      * Guardar DTE no combustible para módulo administrativo.
      */
+    /**
+     * El nombre del producto de una línea. Salinas y Fabres manda en NmbItem
+     * sólo «Item» y el producto en DscItem («SMF 31-850 100AH 830CCA
+     * (BORNE)»): cuando el nombre es genérico, va la descripción.
+     */
+    public static function itemName(\SimpleXMLElement $line): ?string
+    {
+        $nombre = trim((string) ($line->NmbItem ?? ''));
+        $descripcion = trim((string) ($line->DscItem ?? ''));
+        $generico = in_array(mb_strtolower($nombre), ['', 'item', 'items', 'producto', 'productos', 'articulo', 'artículo', '-', '.'], true);
+
+        return ($generico && $descripcion !== '' ? $descripcion : $nombre) ?: null;
+    }
+
     private function persistNonFuelDte($db, string $messageId, string $filename, \SimpleXMLElement $xml, Carbon $fechaEmision, bool $refreshExisting = false, ?string $xmlRaw = null, string $inventoryStatus = 'pendiente'): bool
     {
         $get = function (string $path) use ($xml): ?string {
@@ -815,7 +829,7 @@ class GmailLeerXml extends Command
                 'document_id' => $docId,
                 'nro_linea' => $nroLinea,
                 'codigo' => trim((string) ($line->CdgItem->VlrCodigo ?? '')) ?: null,
-                'descripcion' => trim((string) ($line->NmbItem ?? '')) ?: null,
+                'descripcion' => self::itemName($line),
                 'cantidad' => (float) ((string) ($line->QtyItem ?? 0)),
                 'unidad' => trim((string) ($line->UnmdItem ?? '')) ?: null,
                 'precio_unitario' => (float) ((string) ($line->PrcItem ?? 0)),
