@@ -677,12 +677,13 @@ class GmailLeerXml extends Command
     /**
      * El nombre del producto de una línea. Salinas y Fabres manda en NmbItem
      * sólo «Item» y el producto en DscItem («SMF 31-850 100AH 830CCA
-     * (BORNE)»): cuando el nombre es genérico, va la descripción.
+     * (BORNE)»): cuando el nombre es genérico, va la descripción. Sin su
+     * marca de «** Oferta **», que no es parte del producto.
      */
     public static function itemName(\SimpleXMLElement $line): ?string
     {
         $nombre = trim((string) ($line->NmbItem ?? ''));
-        $descripcion = trim((string) ($line->DscItem ?? ''));
+        $descripcion = trim((string) preg_replace('/\s*\*+\s*oferta\s*\*+/iu', '', (string) ($line->DscItem ?? '')));
         $generico = in_array(mb_strtolower($nombre), ['', 'item', 'items', 'producto', 'productos', 'articulo', 'artículo', '-', '.'], true);
 
         return ($generico && $descripcion !== '' ? $descripcion : $nombre) ?: null;

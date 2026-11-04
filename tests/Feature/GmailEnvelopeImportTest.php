@@ -77,7 +77,7 @@ it('does not register again an invoice that came in from Odoo without the leadin
 
 it('takes the product from DscItem when NmbItem only says «Item», as Salinas y Fabres sends it', function () {
     $fixture = str_replace('<NmbItem>GRASA BLANCA LUBRICANTE MULTIUSO SPRAY 300ML</NmbItem>',
-        '<NmbItem>Item</NmbItem><DscItem>SMF 31-850 100AH 830CCA (BORNE)</DscItem>', file_get_contents(base_path('tests/Fixtures/dte/implementos-dos-facturas.xml')));
+        '<NmbItem>Item</NmbItem><DscItem>SMF 31-850 100AH 830CCA (BORNE)  ** Oferta **</DscItem>', file_get_contents(base_path('tests/Fixtures/dte/implementos-dos-facturas.xml')));
     expect($fixture)->toContain('<DscItem>');
     $command = app(GmailLeerXml::class);
     $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput));
