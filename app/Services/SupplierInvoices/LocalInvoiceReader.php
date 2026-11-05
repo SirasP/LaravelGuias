@@ -454,7 +454,8 @@ class LocalInvoiceReader
         $texto = $this->correr([(string) config('purchase_requests.reader.pdftotext'), '-layout', '-f', '1',
             '-l', (string) config('purchase_requests.reader.max_pages'), $ruta, '-']);
 
-        if ($texto !== null && mb_strlen(trim($texto)) >= 80) {
+        // Mismo criterio que las cotizaciones: letras y números, no espacios.
+        if (\App\Services\PurchaseRequests\Reading\LocalQuotationReader::tieneTextoUtil($texto)) {
             return [PurchaseRequestSourceKind::PDF_TEXT, $texto, null];
         }
 

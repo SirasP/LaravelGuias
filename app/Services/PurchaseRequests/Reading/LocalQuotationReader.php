@@ -238,7 +238,7 @@ class LocalQuotationReader implements QuotationReader
         // PDF: primero se busca su capa de texto.
         $texto = $this->extraerTexto($ruta);
 
-        if ($texto !== null && mb_strlen(trim($texto)) >= 80) {
+        if (self::tieneTextoUtil($texto)) {
             return [PurchaseRequestSourceKind::PDF_TEXT, $texto, null];
         }
 
@@ -246,6 +246,18 @@ class LocalQuotationReader implements QuotationReader
         $png = $this->primeraPaginaComoImagen($ruta);
 
         return [PurchaseRequestSourceKind::PDF_SCAN, null, $png];
+    }
+
+    /**
+     * ¿El PDF trae texto de verdad? Se cuentan letras y números, no
+     * caracteres: la cotización de Climent de la SC-2026-000114, hecha con
+     * «Microsoft Print to PDF», tenía una capa de texto de 3.088 espacios y
+     * símbolos sin ninguna letra. Pasaba por texto, y el verificador borraba
+     * cada cantidad y precio que la IA había leído de la imagen.
+     */
+    public static function tieneTextoUtil(?string $texto): bool
+    {
+        return $texto !== null && preg_match_all('/[\p{L}\p{N}]/u', $texto) >= 40;
     }
 
     private function extraerTexto(string $ruta): ?string
