@@ -240,6 +240,13 @@ class PurchaseIngestionController extends Controller
 
         ReadQuotationDocument::dispatch($ingestion);
 
+        // La cotización de un proveedor se vuelve a leer desde su solicitud,
+        // y ahí aparece la comparación: se vuelve a ella, no a esta lectura.
+        if ($ingestion->compared_request_id !== null && ($solicitud = \App\Models\PurchaseRequest::find($ingestion->compared_request_id)) !== null) {
+            return to_route('purchase_requests.show', $solicitud)
+                ->with('success', 'Estamos leyendo «'.$ingestion->original_name.'» otra vez. La comparación aparece aquí al terminar.');
+        }
+
         return to_route('purchase_requests.ingestions.show', $ingestion)
             ->with('success', 'Estamos leyendo el documento otra vez. Te avisamos al terminar.');
     }

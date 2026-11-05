@@ -1070,6 +1070,12 @@
                                                             <span class="font-bold text-amber-600 dark:text-amber-400">Leyéndola…</span>
                                                         @elseif($resultado->elDocumentoNoAporto())
                                                             <span class="font-bold text-rose-700 dark:text-rose-400">No se pudo leer</span>
+                                                            @if($lectura->isFinished() && ($lectura->user_id === auth()->id() || auth()->user()->isPurchaseReviewer()))
+                                                                <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $lectura) }}" class="mt-1.5">
+                                                                    @csrf
+                                                                    <button type="submit" class="inline-flex min-h-8 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-extrabold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300">Leer de nuevo</button>
+                                                                </form>
+                                                            @endif
                                                         @else
                                                             <span class="font-bold text-slate-700 dark:text-slate-200">{{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} cruzadas</span>
                                                             <span class="block text-slate-500 dark:text-slate-400">{{ $resultado->resumen() }}</span>
@@ -1821,6 +1827,12 @@
                                                 <p class="mt-2 text-xs font-bold text-rose-700 dark:text-rose-400">
                                                     No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
                                                 </p>
+                                                @if($lectura->isFinished() && ($lectura->user_id === auth()->id() || auth()->user()->isPurchaseReviewer()))
+                                                    <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $lectura) }}" class="mt-1.5">
+                                                        @csrf
+                                                        <button type="submit" class="inline-flex min-h-8 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-extrabold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300">Leer de nuevo</button>
+                                                    </form>
+                                                @endif
                                             @else
                                                 <p class="mt-2 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : ($resultado->porConfirmar() > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-400') }}">
                                                     {{ $resultado->estadoCorto() }}
