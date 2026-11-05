@@ -179,6 +179,9 @@
                                 <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
                                 {{ $purchaseRequest->folio ?: 'BOR-'.$purchaseRequest->id }}
                             </span>
+                            @if($purchaseRequest->isFromOdoo())
+                                <span class="inline-flex items-center rounded-xl bg-violet-100 px-3 py-1 text-xs font-extrabold text-violet-800 ring-1 ring-violet-200 dark:bg-violet-950/60 dark:text-violet-200 dark:ring-violet-900" title="Se hizo como cotización directo en Odoo y Laravel la trajo para recibir aquí las cotizaciones.">Creada en Odoo</span>
+                            @endif
                             
                             <span class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold ring-1 shadow-sm {{ $statusClasses }}">
                                 <span>{{ $statusIcon }}</span>

@@ -121,9 +121,11 @@ class OdooPurchaseOrderController extends Controller
         $boughtWith = $order->isQuotation() ? $group->filter(fn (OdooPurchaseOrder $o): bool => in_array($o->state, OdooPurchaseOrder::CONFIRMED_STATES, true)) : collect();
 
         $requestLinks = $this->requestLinks($group);
+        // La solicitud que Laravel armó con este grupo, si nació en Odoo.
+        $adopted = \App\Models\PurchaseRequest::whereIn('odoo_order_id', $group->pluck('odoo_id'))->first();
 
         return response()->view('purchase_requests.odoo_show', [
-            'requestLinks' => $requestLinks,
+            'requestLinks' => $requestLinks, 'adopted' => $adopted,
             'order' => $order, 'group' => $group, 'products' => $products, 'boughtWith' => $boughtWith,
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($group->pluck('odoo_id')->all()),
         ]);

@@ -66,7 +66,8 @@ class PurchaseRequestController extends Controller
 
         $query = PurchaseRequest::query()
             ->visibleTo($request->user())
-            ->with('requester');
+            ->with('requester')
+            ->withExists(['events as creada_en_odoo' => fn ($q) => $q->where('event_type', \App\Models\PurchaseRequestEvent::ADOPTED_FROM_ODOO)]);
 
         // Los contadores reflejan los filtros activos salvo el de estado, para
         // que las pestañas sigan mostrando cuánto hay en cada uno.

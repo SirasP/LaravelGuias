@@ -331,6 +331,7 @@
                             <div class="min-w-0">
                                 <p class="truncate font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
                                     {{ $purchaseRequest->folio ?? ('Borrador #' . $purchaseRequest->id) }}
+                                    @if($purchaseRequest->isFromOdoo())<span class="ml-1 rounded-full bg-violet-100 px-1.5 py-0.5 font-sans text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>@endif
                                 </p>
                                 <h3 class="mt-1 line-clamp-2 font-bold text-slate-900 dark:text-white">
                                     {{ $purchaseRequest->reason }}
@@ -424,6 +425,9 @@
                                         class="font-mono text-xs font-bold text-blue-600 hover:underline focus:outline-none focus-visible:underline dark:text-blue-400">
                                         {{ $purchaseRequest->folio ?? ('BOR-' . $purchaseRequest->id) }}
                                     </a>
+                                    @if($purchaseRequest->isFromOdoo())
+                                        <span class="mt-1 block w-fit rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-4">
                                     <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">

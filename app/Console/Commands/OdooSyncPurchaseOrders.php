@@ -140,6 +140,11 @@ class OdooSyncPurchaseOrders extends Command
         // Con las órdenes al día, las facturas recientes que sin duda son de una de ellas.
         $linked = app(\App\Services\DtePurchases\OdooOrderLinks::class)->linkRecent();
         $this->info("✓ {$linked} facturas vinculadas con su orden.");
+        // Las cotizaciones hechas en Odoo sin solicitud pasan a ser una, para
+        // subir ahí lo que respondan los proveedores.
+        foreach (app(\App\Services\PurchaseRequests\Odoo\AdoptOdooQuotations::class)->adoptar() as $adoptada) {
+            $this->info("✓ {$adoptada->folio}: {$adoptada->odoo_reference} creada en Odoo, traída a Laravel.");
+        }
 
         return self::SUCCESS;
     }

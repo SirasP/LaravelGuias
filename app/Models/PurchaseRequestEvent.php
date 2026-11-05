@@ -49,6 +49,9 @@ class PurchaseRequestEvent extends Model
     /** Y alguien la volvió a abrir. */
     public const REOPENED = 'reopened';
 
+    /** Nació en Odoo, sin solicitud, y Laravel la trajo. */
+    public const ADOPTED_FROM_ODOO = 'adopted_from_odoo';
+
     protected $fillable = [
         'purchase_request_id',
         'actor_id',
@@ -110,6 +113,7 @@ class PurchaseRequestEvent extends Model
             self::AI_DRAFTED => 'Borrador sugerido por el asistente',
             self::COMPLETED => 'Compra terminada',
             self::REOPENED => 'Vuelta a abrir',
+            self::ADOPTED_FROM_ODOO => 'Creada en Odoo y traída a Laravel',
             default => \Illuminate\Support\Str::headline((string) $this->event_type),
         };
     }
@@ -121,7 +125,7 @@ class PurchaseRequestEvent extends Model
             self::APPROVED => 'bg-emerald-500',
             self::REJECTED, self::CANCELLED => 'bg-rose-500',
             self::CHANGES_REQUESTED, self::CANCELLATION_REQUESTED => 'bg-amber-500',
-            self::EXPORTED => 'bg-violet-500',
+            self::EXPORTED, self::ADOPTED_FROM_ODOO => 'bg-violet-500',
             self::COMPLETED => 'bg-emerald-600',
             self::REOPENED => 'bg-violet-400',
             self::CANCELLATION_WITHDRAWN => 'bg-slate-400',

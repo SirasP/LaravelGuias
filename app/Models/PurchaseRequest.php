@@ -87,6 +87,18 @@ class PurchaseRequest extends Model
         });
     }
 
+    /** Nació como cotización en Odoo y Laravel la adoptó. */
+    public function isFromOdoo(): bool
+    {
+        if (array_key_exists('creada_en_odoo', $this->attributes)) {
+            return (bool) $this->attributes['creada_en_odoo'];
+        }
+
+        return $this->relationLoaded('events')
+            ? $this->events->contains('event_type', PurchaseRequestEvent::ADOPTED_FROM_ODOO)
+            : $this->events()->where('event_type', PurchaseRequestEvent::ADOPTED_FROM_ODOO)->exists();
+    }
+
     public function getRouteKeyName(): string
     {
         return 'public_id';

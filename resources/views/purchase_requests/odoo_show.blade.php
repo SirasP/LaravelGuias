@@ -74,6 +74,9 @@
                         @endif
                         @if(($folio = $order->requestFolio()) && isset($requestLinks[$folio]))
                             <a href="{{ $requestLinks[$folio] }}" class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900">{{ $folio }}</a>
+                        @elseif($adopted)
+                            <a href="{{ route('purchase_requests.show', $adopted) }}" title="Laravel la trajo: sube ahí las cotizaciones de los proveedores"
+                               class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900">{{ $adopted->folio }} · creada en Odoo</a>
                         @endif
                     </div>
                     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">

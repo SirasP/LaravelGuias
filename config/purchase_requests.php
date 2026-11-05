@@ -115,6 +115,16 @@ return [
         // «RUT» y el país. Comprobados iguales en pruebas y en producción.
         'rut_type_id' => (int) env('PURCHASE_REQUESTS_ODOO_RUT_TYPE', 4),
         'country_id' => (int) env('PURCHASE_REQUESTS_ODOO_COUNTRY', 46),
+
+        /*
+         * Adoptar como solicitud las cotizaciones hechas directo en Odoo sin
+         * solicitud detrás (la P00380 de Entre Riegos y sus alternativas):
+         * desde qué fecha de creación en Odoo —las anteriores ya se
+         * resolvieron sin Laravel—, y a quién le quedan en «Mis solicitudes»
+         * (vacío: el primer administrador). Fecha vacía lo apaga.
+         */
+        'adopt_since' => env('PURCHASE_REQUESTS_ODOO_ADOPT_SINCE', '2026-11-05'),
+        'adopt_user_id' => env('PURCHASE_REQUESTS_ODOO_ADOPT_USER_ID') ? (int) env('PURCHASE_REQUESTS_ODOO_ADOPT_USER_ID') : null,
     ],
 
     /*
