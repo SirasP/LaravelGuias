@@ -66,8 +66,7 @@ class PurchaseRequestController extends Controller
 
         $query = PurchaseRequest::query()
             ->visibleTo($request->user())
-            ->with('requester')
-            ->withExists(['events as creada_en_odoo' => fn ($q) => $q->where('event_type', \App\Models\PurchaseRequestEvent::ADOPTED_FROM_ODOO)]);
+            ->with('requester');
 
         // Los contadores reflejan los filtros activos salvo el de estado, para
         // que las pestañas sigan mostrando cuánto hay en cada uno.
@@ -115,6 +114,9 @@ class PurchaseRequestController extends Controller
                 'receivedQuotes',
                 'items as items_sin_precio_count' => fn ($query) => $query->whereNull('unit_price'),
             ])
+            // Aquí y no en la consulta base: ésa también cuenta por estado con
+            // GROUP BY, y MySQL no acepta la columna extra (sí SQLite, en las pruebas).
+            ->withExists(['events as creada_en_odoo' => fn ($q) => $q->where('event_type', \App\Models\PurchaseRequestEvent::ADOPTED_FROM_ODOO)])
             ->latest('created_at')
             ->paginate(20)
             ->withQueryString();
