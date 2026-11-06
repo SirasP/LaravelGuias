@@ -129,6 +129,25 @@
             }
         }
 
+        // Lo más barato que llegó para cada partida, para verlo en la tabla sin cambiar de pestaña.
+        $mejorPorPartida = [];
+        if (isset($resumenCmp)) {
+            foreach ($resumenCmp['filas'] as $i => $f) {
+                $conPrecioCmp = array_filter($f['celdas'], fn ($c) => ($c['total'] ?? null) !== null);
+                $j = $f['mejor'] ?? (count($conPrecioCmp) > 0 ? array_keys($conPrecioCmp, collect($conPrecioCmp)->sortBy('precio')->first())[0] : null);
+                $mejorPorPartida[$i] = ['nombre' => $f['nombre'], 'cotizaron' => count($conPrecioCmp), 'gana' => $f['mejor'] !== null]
+                    + ($j === null ? [] : ['proveedor' => $resumenCmp['columnas'][$j]['nombre'], 'unitario' => $f['celdas'][$j]['unitario'], 'total' => $f['celdas'][$j]['total'], 'piezas' => $f['celdas'][$j]['piezas'] ?? 0]);
+            }
+        } elseif ($comparables->count() === 1) {
+            $unica = $comparables[0];
+            foreach (array_values(array_filter($unica['resultado']->filas, fn ($f) => $f->pedida !== null)) as $i => $f) {
+                $monto = $unica['resultado']->montoDe($f);
+                $mejorPorPartida[$i] = ['nombre' => (string) $f->pedida->product_service, 'cotizaron' => $monto['total'] !== null ? 1 : 0, 'gana' => false]
+                    + ($monto['total'] === null ? [] : ['proveedor' => $unica['ingestion']->supplier_name ?: 'Sin identificar', 'unitario' => (float) \App\Support\ChileanMoney::parse((string) ($f->cotizada['unit_price'] ?? '')), 'total' => $monto['total'], 'piezas' => $monto['piezas']]);
+            }
+        }
+        $hayCotizado = $mejorPorPartida !== [];
+
         // Para cuándo, en palabras.
         $diasRequerida = $purchaseRequest->required_date ? (int) now()->startOfDay()->diffInDays($purchaseRequest->required_date->copy()->startOfDay(), false) : null;
         $requeridaVencida = $diasRequerida !== null && $diasRequerida < 0 && ! in_array($rawStatus, ['completed', 'cancelled', 'rejected'], true);
@@ -747,7 +766,7 @@
             <div class="grid gap-6 xl:grid-cols-12">
 
                 {{-- COLUMNA PRINCIPAL (TABLA DE PARTIDAS Y COMPARADOR) --}}
-                <div class="space-y-6" :class="vista === 'solicitud' ? 'xl:col-span-8 2xl:col-span-9' : 'xl:col-span-12'">
+                <div class="min-w-0 space-y-6" :class="vista === 'solicitud' ? 'xl:col-span-8 2xl:col-span-9' : 'xl:col-span-12'">
 
                     {{-- ── VISTA 1: PARTIDAS DE LA SOLICITUD ── --}}
                     <div x-show="vista === 'solicitud'" class="space-y-6">
@@ -794,102 +813,104 @@
                                 </div>
                             @endif
 
-                            {{-- Vista móvil (Tarjetas estructuradas) --}}
-                            <div class="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
+                            @php
+                                $cantidadDe = fn ($item) => rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',');
+                                $filtroDe = fn ($item) => "!itemFilter || '".addslashes(mb_strtolower($item->product_service))."'.includes(itemFilter.toLowerCase()) || '".addslashes(mb_strtolower($item->specification ?? ''))."'.includes(itemFilter.toLowerCase())";
+                                $mejorDe = function (int $index, $item) use ($mejorPorPartida): ?array {
+                                    $m = $mejorPorPartida[$index] ?? null;
+
+                                    return $m !== null && $m['nombre'] === (string) $item->product_service ? $m : null;
+                                };
+                            @endphp
+
+                            {{-- Teléfono: una tarjeta por partida --}}
+                            <div class="space-y-2 bg-slate-50/70 p-3 md:hidden dark:bg-slate-950/40">
                                 @foreach($purchaseRequest->items as $index => $item)
-                                    <article class="p-4 transition hover:bg-blue-50/30 dark:hover:bg-slate-800/40"
-                                        x-show="!itemFilter || '{{ addslashes(mb_strtolower($item->product_service)) }}'.includes(itemFilter.toLowerCase()) || '{{ addslashes(mb_strtolower($item->specification ?? '')) }}'.includes(itemFilter.toLowerCase())">
+                                    @php $m = $mejorDe($index, $item); @endphp
+                                    <article class="rounded-2xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900" x-show="{{ $filtroDe($item) }}">
                                         <div class="flex gap-3">
-                                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-mono text-xs font-black text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 shadow-sm">
-                                                {{ $index + 1 }}
-                                            </span>
-                                            <div class="min-w-0 flex-1 space-y-1.5">
-                                                <p class="font-bold text-slate-900 dark:text-white leading-snug">{{ $item->product_service }}</p>
-                                                @if(filled($item->specification))
-                                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>
-                                                @endif
-                                                <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                                                    <span class="inline-flex items-center rounded-xl bg-slate-100 px-3 py-1 font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
-                                                        {{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }} {{ $item->unit }}
-                                                    </span>
-                                                    @if(filled($item->quantity_note))
-                                                        <span class="text-xs text-slate-500 dark:text-slate-400">({{ $item->quantity_note }})</span>
-                                                    @endif
-                                                    @if(filled($item->unit_price))
-                                                        <span class="rounded-xl bg-emerald-50 px-3 py-1 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                            $ {{ number_format((float) $item->unit_price, 0, ',', '.') }} c/u · Total $ {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}
+                                            <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{{ $index + 1 }}</span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="font-bold leading-snug text-slate-900 dark:text-white">{{ $item->product_service }}</p>
+                                                @if(filled($item->specification))<p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $item->specification }}</p>@endif
+                                                <div class="mt-2 flex items-end justify-between gap-2">
+                                                    <span class="font-mono text-sm font-black text-slate-800 dark:text-slate-100">{{ $cantidadDe($item) }} <span class="font-sans text-xs font-semibold text-slate-400">{{ $item->unit }}</span></span>
+                                                    @if($m && isset($m['proveedor']))
+                                                        <span class="text-right">
+                                                            <span class="block font-mono text-sm font-bold text-emerald-700 dark:text-emerald-400">${{ number_format($m['unitario'], 0, ',', '.') }} <span class="font-sans text-[10px] font-normal text-slate-400">c/u</span></span>
+                                                            <span class="block text-[10px] text-slate-500">{{ \Illuminate\Support\Str::limit($m['proveedor'], 22) }}@if($m['piezas'] > 0) <span class="font-bold text-sky-700">+ piezas</span>@endif</span>
                                                         </span>
+                                                    @elseif($hayCotizado)
+                                                        <span class="text-xs italic text-slate-400">sin cotizar</span>
                                                     @endif
                                                 </div>
-                                                @if(filled($item->destination))
-                                                    <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Destino: {{ $item->destination }}</p>
-                                                @endif
+                                                @if(filled($item->destination))<p class="mt-1 text-[11px] text-slate-500">Destino: {{ $item->destination }}</p>@endif
                                             </div>
                                         </div>
                                     </article>
                                 @endforeach
                             </div>
 
-                            {{-- Vista Desktop (Data Grid Full Width con alta legibilidad) --}}
+                            {{-- Escritorio: la misma tabla que «Quién conviene», con lo mejor cotizado a la vista --}}
                             <div class="hidden overflow-x-auto md:block">
-                                <table class="w-full text-left text-sm border-collapse">
-                                    <thead class="border-b border-slate-200 bg-slate-50/90 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
-                                        <tr>
-                                            <th class="w-14 px-6 py-3.5 text-center">N°</th>
-                                            <th class="px-6 py-3.5">Producto / Servicio</th>
-                                            @if($hayEspecificacion)
-                                                <th class="px-6 py-3.5">Especificación Técnica</th>
-                                            @endif
-                                            <th class="w-40 px-6 py-3.5 text-right">Cantidad</th>
+                                <table class="w-full border-separate border-spacing-0 text-left text-sm">
+                                    <thead>
+                                        <tr class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                            <th class="border-b border-slate-200 bg-slate-50 py-3 pl-6 pr-4 dark:border-slate-800 dark:bg-slate-950">Partida</th>
+                                            <th class="w-32 border-b border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-950">Cantidad</th>
                                             @if($hayPrecio)
-                                                <th class="w-40 px-6 py-3.5 text-right">Precio unit.</th>
-                                                <th class="w-40 px-6 py-3.5 text-right">Total</th>
+                                                <th class="w-40 border-b border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-950">Precio solicitud</th>
+                                            @endif
+                                            @if($hayCotizado)
+                                                <th class="w-56 border-b border-l border-slate-200 bg-emerald-50/60 px-5 py-3 text-right text-emerald-800 dark:border-slate-800 dark:bg-emerald-950/30 dark:text-emerald-300">Mejor cotizado</th>
                                             @endif
                                             @if($hayDestino)
-                                                <th class="px-6 py-3.5">Destino</th>
+                                                <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">Destino</th>
                                             @endif
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                    <tbody>
                                         @foreach($purchaseRequest->items as $index => $item)
-                                            <tr class="transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20"
-                                                x-show="!itemFilter || '{{ addslashes(mb_strtolower($item->product_service)) }}'.includes(itemFilter.toLowerCase()) || '{{ addslashes(mb_strtolower($item->specification ?? '')) }}'.includes(itemFilter.toLowerCase())">
-                                                <td class="px-6 py-4 text-center">
-                                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                                        {{ $index + 1 }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <div class="font-bold text-slate-900 dark:text-white leading-snug">
-                                                        {{ $item->product_service }}
+                                            @php $m = $mejorDe($index, $item); @endphp
+                                            <tr class="group" x-show="{{ $filtroDe($item) }}">
+                                                <td class="border-b border-slate-100 py-3.5 pl-6 pr-4 group-hover:bg-slate-50 dark:border-slate-800 dark:group-hover:bg-slate-800/60">
+                                                    <div class="flex items-start gap-3">
+                                                        <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{{ $index + 1 }}</span>
+                                                        <div class="min-w-0">
+                                                            <p class="font-semibold leading-snug text-slate-900 dark:text-white">{{ $item->product_service }}</p>
+                                                            @if(filled($item->specification) || filled($item->quantity_note))
+                                                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ collect([$item->specification, $item->quantity_note])->filter()->join(' · ') }}</p>
+                                                            @endif
+                                                        </div>
                                                     </div>
-                                                    @if(filled($item->quantity_note))
-                                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $item->quantity_note }}</p>
-                                                    @endif
                                                 </td>
-                                                @if($hayEspecificacion)
-                                                    <td class="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
-                                                        {{ $item->specification ?: '—' }}
-                                                    </td>
-                                                @endif
-                                                <td class="px-6 py-4 text-right whitespace-nowrap font-mono">
-                                                    <span class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100">
-                                                        <span>{{ rtrim(rtrim(number_format((float) $item->quantity, 3, ',', '.'), '0'), ',') }}</span>
-                                                        <span class="font-sans font-semibold text-slate-500 dark:text-slate-400">{{ $item->unit }}</span>
-                                                    </span>
+                                                <td class="whitespace-nowrap border-b border-slate-100 px-4 py-3.5 text-right font-mono group-hover:bg-slate-50 dark:border-slate-800 dark:group-hover:bg-slate-800/60">
+                                                    <span class="text-sm font-black text-slate-800 dark:text-slate-100">{{ $cantidadDe($item) }}</span>
+                                                    <span class="font-sans text-xs font-semibold text-slate-400">{{ $item->unit }}</span>
                                                 </td>
                                                 @if($hayPrecio)
-                                                    <td class="px-6 py-4 text-right font-mono text-xs text-slate-600 tabular-nums dark:text-slate-300">
-                                                        {{ filled($item->unit_price) ? '$ '.number_format((float) $item->unit_price, 0, ',', '.') : '—' }}
+                                                    <td class="whitespace-nowrap border-b border-slate-100 px-4 py-3.5 text-right font-mono tabular-nums group-hover:bg-slate-50 dark:border-slate-800 dark:group-hover:bg-slate-800/60">
+                                                        @if(filled($item->unit_price))
+                                                            <span class="block text-sm font-bold text-slate-900 dark:text-white">$ {{ number_format((float) $item->lineTotal(), 0, ',', '.') }}</span>
+                                                            <span class="block text-[11px] text-slate-500">{{ $cantidadDe($item) }} × $ {{ number_format((float) $item->unit_price, 0, ',', '.') }}</span>
+                                                        @else
+                                                            <span class="text-slate-300 dark:text-slate-600">—</span>
+                                                        @endif
                                                     </td>
-                                                    <td class="px-6 py-4 text-right font-mono text-xs font-black text-slate-900 tabular-nums dark:text-white">
-                                                        {{ filled($item->unit_price) ? '$ '.number_format((float) $item->lineTotal(), 0, ',', '.') : '—' }}
+                                                @endif
+                                                @if($hayCotizado)
+                                                    <td class="whitespace-nowrap border-b border-l border-slate-100 bg-emerald-50/30 px-5 py-3.5 text-right font-mono tabular-nums group-hover:bg-emerald-50/70 dark:border-slate-800 dark:bg-emerald-950/10">
+                                                        @if($m && isset($m['proveedor']))
+                                                            <span class="block text-sm font-bold text-emerald-700 dark:text-emerald-400">$ {{ number_format($m['total'], 0, ',', '.') }}</span>
+                                                            <span class="block text-[11px] text-slate-500 dark:text-slate-400">{{ $cantidadDe($item) }} × $ {{ number_format($m['unitario'], 0, ',', '.') }}@if($m['piezas'] > 0) <span class="font-sans font-bold text-sky-700">+ piezas</span>@endif</span>
+                                                            <span class="block truncate font-sans text-[11px] font-bold text-slate-700 dark:text-slate-200" title="{{ $m['proveedor'] }}">{{ \Illuminate\Support\Str::limit($m['proveedor'], 26) }} <span class="font-normal text-slate-400">· {{ $m['cotizaron'] === 1 ? 'único' : 'de '.$m['cotizaron'] }}</span></span>
+                                                        @else
+                                                            <span class="font-sans text-xs italic text-slate-400">nadie la cotizó</span>
+                                                        @endif
                                                     </td>
                                                 @endif
                                                 @if($hayDestino)
-                                                    <td class="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
-                                                        {{ $item->destination ?: '—' }}
-                                                    </td>
+                                                    <td class="border-b border-slate-100 px-4 py-3.5 text-xs text-slate-600 group-hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-800/60">{{ $item->destination ?: '—' }}</td>
                                                 @endif
                                             </tr>
                                         @endforeach
@@ -897,17 +918,19 @@
                                 </table>
                             </div>
 
-                            {{-- Footer resumen de partidas --}}
-                            <div class="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/80 px-6 py-4 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                <div class="flex items-center gap-2">
-                                    <span>Mostrando {{ $itemsCount }} partidas de la solicitud</span>
-                                </div>
-                                @if($hayPrecio && $hasTotal)
-                                    <div class="font-mono text-sm font-black text-slate-900 dark:text-white">
-                                        Total Solicitud: {{ $simbolo }}{{ number_format($totalAmount, 0, ',', '.') }}
-                                    </div>
+                            {{-- Pie: lo que suma --}}
+                            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/80 px-6 py-3.5 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                                <span>{{ $itemsCount }} {{ \Illuminate\Support\Str::plural('partida', $itemsCount) }}</span>
+                                @if($mejorCotizacion)
+                                    <span class="font-mono tabular-nums">
+                                        Mejor cotización <span class="font-sans font-bold text-slate-700 dark:text-slate-200">{{ $mejorCotizacion['nombre'] }}</span>:
+                                        <span class="font-black text-slate-900 dark:text-white">${{ number_format($mejorCotizacion['neto'], 0, ',', '.') }}</span> neto ·
+                                        <span class="font-black text-emerald-700 dark:text-emerald-400">${{ number_format($mejorCotizacion['total'], 0, ',', '.') }}</span> con IVA
+                                    </span>
+                                @elseif($hayPrecio && $hasTotal)
+                                    <span class="font-mono font-black text-slate-900 dark:text-white">Total solicitud: {{ $simbolo }}{{ number_format($totalAmount, 0, ',', '.') }}</span>
                                 @else
-                                    <span class="italic text-slate-400">Precios pendientes de valorización por proveedor</span>
+                                    <span class="italic text-slate-400">Los precios llegan con las cotizaciones</span>
                                 @endif
                             </div>
                         </section>
@@ -1552,59 +1575,50 @@
                 </div>
 
                 {{-- COLUMNA LATERAL (CARDS DE GESTIÓN Y DETALLE) ── --}}
-                <aside x-show="vista === 'solicitud'" class="space-y-6 xl:col-span-4 2xl:col-span-3">
+                <aside x-show="vista === 'solicitud'" class="min-w-0 space-y-6 xl:col-span-4 2xl:col-span-3">
 
-                    {{-- Card: Información de la solicitud --}}
-                    <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="border-b border-slate-100 p-5 dark:border-slate-800">
-                            <div class="flex items-center gap-2.5">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                </div>
-                                <h2 class="text-sm font-black text-slate-900 dark:text-white">Información de la solicitud</h2>
-                            </div>
+                    {{-- Información: sólo lo que tiene dato; lo vacío, en una línea. --}}
+                    @php
+                        $datos = [
+                            'Departamento' => $purchaseRequest->department,
+                            'Fecha requerida' => filled($purchaseRequest->required_date) ? $formatDate($purchaseRequest->required_date).($requeridaCuando ? ' · '.($requeridaVencida ? 'vencida '.$requeridaCuando : $requeridaCuando) : '') : null,
+                            'Solicitante' => $requesterName,
+                            'Solicitado para' => $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for,
+                            'Centro de costo' => $purchaseRequest->cost_center,
+                            'Lugar de entrega' => $purchaseRequest->delivery_location,
+                        ];
+                        $vacios = array_keys(array_filter($datos, fn ($v) => blank($v)));
+                    @endphp
+                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div class="flex items-center gap-2.5 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </span>
+                            <h2 class="text-sm font-black text-slate-900 dark:text-white">Información de la solicitud</h2>
                         </div>
-
-                        <dl class="grid gap-x-4 gap-y-4 p-5 text-sm sm:grid-cols-2">
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Departamento</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->department ?: '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Fecha requerida</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $formatDate($purchaseRequest->required_date) }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Solicitante</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $requesterName }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Solicitado para</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->requested_for_name ?: $purchaseRequest->requested_for ?: '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Centro de costo</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->cost_center ?: '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-[11px] font-black uppercase tracking-wider text-slate-400">Lugar de entrega o uso</dt>
-                                <dd class="mt-1 font-bold text-slate-800 dark:text-slate-100">{{ $purchaseRequest->delivery_location ?: '—' }}</dd>
-                            </div>
-
-                            @if(filled($purchaseRequest->urgent_reason))
-                                <div class="sm:col-span-2 rounded-2xl bg-rose-50/70 p-3.5 dark:bg-rose-950/30">
-                                    <dt class="text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">Justificación de urgencia</dt>
-                                    <dd class="mt-1 whitespace-pre-line text-xs font-medium text-rose-900 dark:text-rose-100">{{ $purchaseRequest->urgent_reason }}</dd>
+                        <dl class="divide-y divide-slate-100 px-5 text-sm dark:divide-slate-800">
+                            @foreach(array_filter($datos, fn ($v) => filled($v)) as $etiqueta => $valor)
+                                <div class="flex items-baseline justify-between gap-4 py-2.5">
+                                    <dt class="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $etiqueta }}</dt>
+                                    <dd class="text-right font-bold {{ $etiqueta === 'Fecha requerida' && $requeridaVencida ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-100' }}">{{ $valor }}</dd>
                                 </div>
-                            @endif
-
-                            @if(filled($purchaseRequest->internal_notes ?? $purchaseRequest->notes))
-                                <div class="sm:col-span-2 rounded-2xl bg-slate-50 p-3.5 dark:bg-slate-800/60">
-                                    <dt class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Observaciones internas</dt>
-                                    <dd class="mt-1 whitespace-pre-line text-xs font-medium text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</dd>
-                                </div>
-                            @endif
+                            @endforeach
                         </dl>
+                        @if($vacios !== [])
+                            <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400 dark:border-slate-800">Sin dato: {{ mb_strtolower(implode(', ', $vacios)) }}</p>
+                        @endif
+                        @if(filled($purchaseRequest->urgent_reason))
+                            <div class="mx-5 mb-4 mt-1 rounded-xl bg-rose-50/70 p-3 dark:bg-rose-950/30">
+                                <p class="text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">Justificación de urgencia</p>
+                                <p class="mt-1 whitespace-pre-line text-xs font-medium text-rose-900 dark:text-rose-100">{{ $purchaseRequest->urgent_reason }}</p>
+                            </div>
+                        @endif
+                        @if(filled($purchaseRequest->internal_notes ?? $purchaseRequest->notes))
+                            <div class="mx-5 mb-4 mt-1 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                                <p class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Observaciones internas</p>
+                                <p class="mt-1 whitespace-pre-line text-xs font-medium text-slate-700 dark:text-slate-200">{{ $purchaseRequest->internal_notes ?? $purchaseRequest->notes }}</p>
+                            </div>
+                        @endif
                     </section>
 
                     {{-- Anulación pendiente solicitada --}}
@@ -1737,16 +1751,16 @@
                     @endif
 
                     {{-- Card: Cotizaciones Recibidas y Comparador --}}
-                    <section class="overflow-hidden rounded-3xl border border-sky-200/80 bg-sky-50/70 p-5 shadow-sm dark:border-sky-900/60 dark:bg-sky-950/30">
+                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600 text-white">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                 </div>
-                                <h2 class="text-sm font-black text-sky-950 dark:text-sky-100">Cotizaciones</h2>
+                                <h2 class="text-sm font-black text-slate-900 dark:text-white">Cotizaciones</h2>
                             </div>
                             @if(count($comparaciones) > 0)
-                                <span class="rounded-full bg-sky-200/80 px-2.5 py-0.5 text-xs font-black text-sky-900 dark:bg-sky-900 dark:text-sky-200">{{ count($comparaciones) }}</span>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ count($comparaciones) }}</span>
                             @endif
                         </div>
 
@@ -1758,16 +1772,38 @@
                                     $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
                                 @endphp
 
-                                <div class="rounded-2xl border border-sky-100 bg-white/95 p-4 shadow-sm dark:border-sky-900/50 dark:bg-slate-900/90">
+                                @php
+                                    $fallo = ! $leyendo && $resultado->elDocumentoNoAporto();
+                                    $sumaLat = ($leyendo || $fallo) ? 0 : $resultado->sumaCotizada();
+                                    $esLaMejor = $mejorCotizacion && $mejorCotizacion['de'] > 1 && $mejorCotizacion['nombre'] === $lectura->supplier_name;
+                                    $bordeLat = match (true) {
+                                        $leyendo => 'border-l-amber-400',
+                                        $fallo => 'border-l-rose-500',
+                                        $resultado->cuadra() => 'border-l-emerald-500',
+                                        default => 'border-l-amber-500',
+                                    };
+                                @endphp
+                                {{-- Cada cotización con el borde de su estado: verde coincide, ámbar con diferencias, rojo ilegible. --}}
+                                <div class="rounded-2xl border border-l-[5px] border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 {{ $bordeLat }} {{ $esLaMejor ? 'ring-2 ring-emerald-200 dark:ring-emerald-900' : '' }}">
                                     <div class="flex items-start justify-between gap-2">
                                         <div class="min-w-0 flex-1">
+                                            <p class="flex items-center gap-1.5">
+                                                <span class="truncate text-sm font-black text-slate-900 dark:text-white" title="{{ $lectura->supplier_name }}">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</span>
+                                                @if($esLaMejor)
+                                                    <span class="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Más conveniente</span>
+                                                @endif
+                                            </p>
                                             <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                                class="block truncate text-xs font-black text-sky-900 hover:text-sky-700 hover:underline dark:text-sky-200 dark:hover:text-sky-300">
+                                                class="mt-0.5 block truncate text-[11px] text-slate-500 hover:text-sky-700 hover:underline dark:text-slate-400 dark:hover:text-sky-300">
                                                 {{ $lectura->original_name }}
                                             </a>
-                                            <p class="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
-                                                {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
-                                            </p>
+                                            @if($sumaLat > 0)
+                                                <p class="mt-2 font-mono text-sm tabular-nums">
+                                                    <span class="font-black text-slate-900 dark:text-white">${{ number_format($sumaLat, 0, ',', '.') }}</span> <span class="font-sans text-[11px] text-slate-400">neto</span>
+                                                    <span class="font-sans text-[11px] text-slate-400">·</span>
+                                                    <span class="text-xs font-bold text-slate-600 dark:text-slate-300">${{ number_format($sumaLat + round($sumaLat * 0.19), 0, ',', '.') }}</span> <span class="font-sans text-[11px] text-slate-400">con IVA</span>
+                                                </p>
+                                            @endif
 
                                             @if($leyendo)
                                                 <div class="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">

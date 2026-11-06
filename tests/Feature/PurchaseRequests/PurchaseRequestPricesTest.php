@@ -209,8 +209,7 @@ it('hides the columns that are empty in every line', function () {
     $this->actingAs($owner)->get(route('purchase_requests.show', $solicitud))
         ->assertOk()
         ->assertSee('Guante Cabretilla')
-        ->assertDontSee('Especificación')
-        ->assertDontSee('Precio unit.')
+        ->assertDontSee('Precio solicitud')
         ->assertDontSee('Destino');
 });
 
@@ -230,7 +229,8 @@ it('shows those columns as soon as one line uses them', function () {
 
     $this->actingAs($owner)->get(route('purchase_requests.show', $solicitud->fresh()))
         ->assertOk()
-        ->assertSee('Especificación')
-        ->assertSee('Precio unit.')
+        // La especificación va bajo el nombre de la partida, no en una columna aparte.
+        ->assertSee('V-GARD')
+        ->assertSee('Precio solicitud')
         ->assertSee('Destino');
 });
