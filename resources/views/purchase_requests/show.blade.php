@@ -624,6 +624,11 @@
                         if (guardada) this.vista = guardada;
                     } catch (e) {}
 
+                    // Una pestaña que ya no existe —la cotización se quitó, o
+                    // la de facturas, que sólo ve un administrador— no deja
+                    // la ficha en blanco: se vuelve a la solicitud.
+                    if (! this.$refs.riel?.querySelector('[data-pestana=' + JSON.stringify(this.vista) + ']')) this.vista = 'solicitud';
+
                     this.$watch('vista', valor => {
                         try { sessionStorage.setItem(this.clave, valor); } catch (e) {}
                         this.$nextTick(() => this.centrar(true));
@@ -671,6 +676,18 @@
                             @if(count($comparaciones) > 0)<span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200">{{ count($comparaciones) }}</span>@endif
                             <span x-show="vista === 'cotizaciones'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-sky-600 dark:bg-sky-400" aria-hidden="true"></span>
                         </button>
+
+                    {{-- Las facturas que llegaron para esta solicitud. Antes iban al fondo de «Solicitud». --}}
+                    @if(count($invoiceReferences ?? []) > 0)
+                        <button type="button" data-pestana="facturas" @click="vista = 'facturas'"
+                            class="relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-bold transition-all"
+                            :class="vista === 'facturas' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-white dark:ring-slate-700' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900/40 dark:hover:text-white'">
+                            <svg class="h-4 w-4 shrink-0" :class="vista === 'facturas' ? 'text-indigo-600 dark:text-indigo-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                            <span>Facturas</span>
+                            <span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200">{{ count($invoiceReferences) }}</span>
+                            <span x-show="vista === 'facturas'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400" aria-hidden="true"></span>
+                        </button>
+                    @endif
 
                     @if($comparables->isNotEmpty())
                         <span class="mx-1 h-6 w-px bg-slate-300 dark:bg-slate-700" aria-hidden="true"></span>
@@ -775,6 +792,9 @@
                     <p class="mt-0.5 truncate text-xs text-slate-400" title="{{ $requesterName }}">Por {{ $requesterName }}@if(filled($purchaseRequest->requested_for_name)) para {{ $purchaseRequest->requested_for_name }}@endif</p>
                 </div>
             </section>
+            </div>
+
+            <div x-show="vista === 'facturas'" x-cloak class="mb-6">
                 @include('purchase_requests.partials.invoice-references')
             </div>
 
