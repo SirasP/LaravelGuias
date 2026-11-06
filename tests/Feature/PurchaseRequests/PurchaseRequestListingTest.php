@@ -469,3 +469,16 @@ it('offers the revisions button once there is more than one', function () {
 
     expect($encabezado)->toContain("panel === 'revisiones'");
 });
+
+it('marks the tab being looked at and keeps the new request as its own button', function () {
+    $admin = User::factory()->admin()->create();
+    PurchaseRequest::factory()->forUser($admin)->create(['status' => PurchaseRequestStatus::COMPLETED]);
+
+    $html = $this->actingAs($admin)->get(route('purchase_requests.index', ['status' => 'completed']))->assertOk()->getContent();
+    $nav = substr($html, strpos($html, 'Navegación de solicitudes de compra'), 12000);
+
+    // Sólo la pestaña de terminadas lleva aria-current, con su número.
+    expect(substr_count($nav, 'aria-current="page"'))->toBe(1)
+        ->and($nav)->toMatch('/aria-current="page"[^>]*>(?:(?!<\/a>).)*Terminadas(?:(?!<\/a>).)*compras cerradas/s')
+        ->and($nav)->toContain('title="Nueva solicitud"');
+});
