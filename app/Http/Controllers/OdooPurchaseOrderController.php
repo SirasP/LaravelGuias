@@ -154,8 +154,13 @@ class OdooPurchaseOrderController extends Controller
             $cell = ['qty' => ($cell['qty'] ?? 0.0) + $line->product_qty, 'subtotal' => ($cell['subtotal'] ?? 0.0) + $line->price_subtotal, 'uom' => $line->uom_name, 'pieces' => $cell['pieces'] ?? 0.0];
             $products[$key]['cells'][$member->odoo_id] = $cell;
         }
-        // En el orden de la solicitud.
-        $products = collect(array_keys($pedidas))->filter(fn ($k) => isset($products[$k]['name']))->mapWithKeys(fn ($k) => [$k => $products[$k]])->all();
+        // De la A a la Z, para encontrar un producto de un vistazo: el orden de
+        // la solicitud es el de quien la escribió, y con treinta y tantas
+        // partidas no ayuda. Sin tildes ni mayúsculas, y con los números en su
+        // orden natural: «2"» antes que «10"».
+        $products = collect(array_keys($pedidas))->filter(fn ($k) => isset($products[$k]['name']))->mapWithKeys(fn ($k) => [$k => $products[$k]])
+            ->sortBy(fn (array $p): string => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(trim((string) $p['name']))), SORT_NATURAL)
+            ->all();
 
         // El más barato de cada producto, con sus piezas, entre las que no se cancelaron y en una misma moneda.
         $sameCurrency = $group->pluck('currency')->unique()->count() === 1;

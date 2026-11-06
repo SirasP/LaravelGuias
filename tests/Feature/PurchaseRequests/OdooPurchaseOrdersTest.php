@@ -210,3 +210,19 @@ it('shows which request a quote made in Odoo came from', function () {
         ->assertSee('de la '.$request->folio)->assertSee(route('purchase_requests.show', $request));
     $this->get(route('purchase_requests.odoo.show', 371))->assertSee(route('purchase_requests.show', $request));
 });
+
+it('lists the products of a group from A to Z', function () {
+    // «Producto por producto» seguía el orden en que se escribió la solicitud;
+    // con treinta y tantas partidas, buscar una era leerlas todas.
+    $group = ['purchase_group_id' => 40, 'currency' => 'CLP', 'state' => 'sent', 'synced_at' => now()];
+    $a = OdooPurchaseOrder::create($group + ['odoo_id' => 501, 'name' => 'P00501', 'partner_odoo_id' => 1, 'partner_name' => 'AUSTRAL RIEGO SPA', 'amount_untaxed' => 0]);
+    $b = OdooPurchaseOrder::create($group + ['odoo_id' => 502, 'name' => 'P00502', 'partner_odoo_id' => 2, 'partner_name' => 'COMERCIAL CLIMENT SPA', 'amount_untaxed' => 0]);
+    foreach (['Válvula de pie 10"', 'bridas de fierro 10"', 'Bridas de fierro 2"', 'Empaquetadura 8"'] as $i => $nombre) {
+        foreach ([$a, $b] as $j => $orden) {
+            $orden->lines()->create(['odoo_id' => 100 + $i * 2 + $j, 'name' => $nombre, 'product_odoo_id' => 900 + $i, 'product_qty' => 1, 'price_unit' => 1000 + $j, 'price_subtotal' => 1000 + $j]);
+        }
+    }
+
+    $this->actingAs(User::factory()->admin()->create())->get(route('purchase_requests.odoo.show', 501))->assertOk()
+        ->assertSeeInOrder(['Bridas de fierro 2&quot;', 'bridas de fierro 10&quot;', 'Empaquetadura 8&quot;', 'Válvula de pie 10&quot;'], false);
+});
