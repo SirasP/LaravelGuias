@@ -63,54 +63,36 @@
 
         // Lo que dice cada fila, igual en la tabla y en las tarjetas del teléfono.
         $resumen = function ($purchaseRequest) use ($statusMeta, $priorityMeta): array {
-                $meta = $statusMeta($purchaseRequest->status);
-                [$priorityLabel, $priorityClasses] = $priorityMeta($purchaseRequest->priority ?? null);
-                [$paso, $pendiente] = $purchaseRequest->siguientePaso();
-                $estado = $purchaseRequest->status->value;
-                $cotizaciones = (int) ($purchaseRequest->received_quotes_count ?? 0);
-                $sinPrecio = (int) ($purchaseRequest->items_sin_precio_count ?? 0);
+            $meta = $statusMeta($purchaseRequest->status);
+            [$priorityLabel, $priorityClasses] = $priorityMeta($purchaseRequest->priority ?? null);
+            [$paso, $pendiente] = $purchaseRequest->siguientePaso();
+            $estado = $purchaseRequest->status->value;
+            $cotizaciones = (int) ($purchaseRequest->received_quotes_count ?? 0);
+            $sinPrecio = (int) ($purchaseRequest->items_sin_precio_count ?? 0);
 
-                // En qué va: cinco pasos, del envío a tener todos los precios.
-                $pasos = ['Revisión', 'Aprobada', 'En Odoo', 'Cotizada', 'Con precios'];
-                $hecho = match (true) {
-                    $estado === 'draft' => 0,
-                    in_array($estado, ['submitted', 'resubmitted', 'changes_requested'], true) => 1,
-                    $estado === 'completed' => 5,
-                    in_array($estado, ['cancelled', 'rejected'], true) => 0,
-                    ! $purchaseRequest->hasBeenExportedToOdoo() => 2,
-                    $cotizaciones === 0 => 3,
-                    $sinPrecio > 0 => 4,
-                    default => 5,
-                };
-                $apagada = in_array($estado, ['cancelled', 'rejected'], true);
-                $etapa = match (true) {
-                    $estado === 'completed' => 'Terminada',
-                    $apagada => $meta['label'],
-                    $estado === 'draft' => 'Borrador',
-                    $estado === 'changes_requested' => 'Con correcciones',
-                    default => $pasos[max(0, $hecho - 1)],
-                };
-                [$franja, $relleno] = match (true) {
-                    $estado === 'completed' => ['border-l-violet-500', 'bg-violet-500'],
-                    $apagada => ['border-l-slate-300 dark:border-l-slate-600', 'bg-slate-300 dark:bg-slate-700'],
-                    $estado === 'changes_requested' => ['border-l-amber-500', 'bg-amber-500'],
-                    $pendiente => ['border-l-blue-500', 'bg-blue-500'],
-                    default => ['border-l-emerald-500', 'bg-emerald-500'],
-                };
-                $celda = 'border-y border-slate-200 bg-white transition-colors group-hover:border-slate-300 group-hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-slate-800/60';
+            // En qué va: el mismo avance que la ficha.
+            ['pasos' => $pasos, 'hecho' => $hecho, 'etapa' => $etapa, 'apagada' => $apagada, 'tono' => $tono] = $purchaseRequest->avance();
+            [$franja, $relleno] = [
+                'violet' => ['border-l-violet-500', 'bg-violet-500'],
+                'slate' => ['border-l-slate-300 dark:border-l-slate-600', 'bg-slate-300 dark:bg-slate-700'],
+                'amber' => ['border-l-amber-500', 'bg-amber-500'],
+                'blue' => ['border-l-blue-500', 'bg-blue-500'],
+                'emerald' => ['border-l-emerald-500', 'bg-emerald-500'],
+            ][$tono];
+            $celda = 'border-y border-slate-200 bg-white transition-colors group-hover:border-slate-300 group-hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-slate-800/60';
 
-                // Cuándo se necesita, en palabras.
-                $requerida = $purchaseRequest->required_date;
-                $dias = $requerida ? (int) now()->startOfDay()->diffInDays($requerida->copy()->startOfDay(), false) : null;
-                $vencida = $dias !== null && $dias < 0 && ! in_array($estado, ['completed', 'cancelled', 'rejected'], true);
-                $cuando = match (true) {
-                    $dias === null => null,
-                    $dias === 0 => 'hoy',
-                    $dias === 1 => 'mañana',
-                    $dias > 1 => 'en '.$dias.' días',
-                    $dias === -1 => 'ayer',
-                    default => 'hace '.abs($dias).' días',
-                };
+            // Cuándo se necesita, en palabras.
+            $requerida = $purchaseRequest->required_date;
+            $dias = $requerida ? (int) now()->startOfDay()->diffInDays($requerida->copy()->startOfDay(), false) : null;
+            $vencida = $dias !== null && $dias < 0 && ! in_array($estado, ['completed', 'cancelled', 'rejected'], true);
+            $cuando = match (true) {
+                $dias === null => null,
+                $dias === 0 => 'hoy',
+                $dias === 1 => 'mañana',
+                $dias > 1 => 'en '.$dias.' días',
+                $dias === -1 => 'ayer',
+                default => 'hace '.abs($dias).' días',
+            };
 
             return compact('meta', 'priorityLabel', 'priorityClasses', 'paso', 'pendiente', 'estado', 'cotizaciones', 'sinPrecio',
                 'pasos', 'hecho', 'apagada', 'etapa', 'franja', 'relleno', 'celda', 'requerida', 'dias', 'vencida', 'cuando');

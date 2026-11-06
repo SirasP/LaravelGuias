@@ -102,6 +102,44 @@
         $conOdooDeVerdad = $exportador instanceof \App\Services\PurchaseRequests\Odoo\OdooPurchaseRequestExporter;
         $proveedorDeOdoo = $conOdooDeVerdad ? $exportador->proveedorConocido($purchaseRequest) : null;
         $faltaProveedor = $conOdooDeVerdad && ! $yaEnOdoo && $proveedorDeOdoo === null;
+
+        // En qué va, como en la lista.
+        $avance = $purchaseRequest->avance();
+        $tonos = [
+            'violet' => ['border-l-violet-500', 'bg-violet-500', 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400'],
+            'slate' => ['border-l-slate-300 dark:border-l-slate-600', 'bg-slate-300 dark:bg-slate-700', 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'],
+            'amber' => ['border-l-amber-500', 'bg-amber-500', 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'],
+            'blue' => ['border-l-blue-500', 'bg-blue-500', 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400'],
+            'emerald' => ['border-l-emerald-500', 'bg-emerald-500', 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'],
+        ][$avance['tono']];
+        [$siguientePaso, $hayPendiente] = $purchaseRequest->siguientePaso();
+
+        // Lo que cuesta: la mejor cotización si ya llegaron, si no lo que dice la solicitud.
+        $mejorCotizacion = null;
+        if ($cuadricula) {
+            $resumenCmp = $cuadricula->paraVista();
+            if ($resumenCmp['mejor'] !== null) {
+                $t = $resumenCmp['totales'][$resumenCmp['mejor']];
+                $mejorCotizacion = ['nombre' => $resumenCmp['columnas'][$resumenCmp['mejor']]['nombre'], 'neto' => $t['neto'], 'total' => $t['total'], 'de' => count($resumenCmp['columnas'])];
+            }
+        } elseif ($comparables->count() === 1) {
+            $suma = $comparables[0]['resultado']->sumaCotizada();
+            if ($suma > 0) {
+                $mejorCotizacion = ['nombre' => $comparables[0]['ingestion']->supplier_name ?: 'Sin identificar', 'neto' => $suma, 'total' => $suma + round($suma * 0.19), 'de' => 1];
+            }
+        }
+
+        // Para cuándo, en palabras.
+        $diasRequerida = $purchaseRequest->required_date ? (int) now()->startOfDay()->diffInDays($purchaseRequest->required_date->copy()->startOfDay(), false) : null;
+        $requeridaVencida = $diasRequerida !== null && $diasRequerida < 0 && ! in_array($rawStatus, ['completed', 'cancelled', 'rejected'], true);
+        $requeridaCuando = match (true) {
+            $diasRequerida === null => null,
+            $diasRequerida === 0 => 'hoy',
+            $diasRequerida === 1 => 'mañana',
+            $diasRequerida > 1 => 'en '.$diasRequerida.' días',
+            $diasRequerida === -1 => 'ayer',
+            default => 'hace '.abs($diasRequerida).' días',
+        };
     @endphp
 
     {{-- ── CONTEXT HEADER STICKY ────────────────────────────────────────── --}}
@@ -207,7 +245,7 @@
                         </div>
 
                         {{-- Nombre / Motivo de la solicitud --}}
-                        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl lg:text-4xl leading-tight">
+                        <h1 class="line-clamp-2 text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-3xl dark:text-white" title="{{ $purchaseRequest->reason }}">
                             {{ $purchaseRequest->reason }}
                         </h1>
 
@@ -543,95 +581,79 @@
             @endcan
         </section>
 
-        {{-- ── FULL WIDTH METRICS RIBBON (4 KPI Cards) ──────────────────── --}}
+        {{-- Resumen: las mismas tarjetas que la lista, con el borde del color de su estado. --}}
+        @php $tarjeta = 'relative flex flex-col rounded-2xl border border-l-[5px] border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900'; @endphp
         <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen ejecutivo">
-            {{-- KPI 1: Estado del flujo --}}
-            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Estado del flujo</span>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm {{ $statusClasses }}">{{ $statusIcon }}</span>
+            {{-- En qué va --}}
+            <div class="{{ $tarjeta }} {{ $tonos[0] }}">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Avance</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl text-sm {{ $tonos[2] }}">{{ $statusIcon }}</span>
                 </div>
-                <div class="mt-3">
-                    <p class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{{ $statusLabel }}</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        @if($rawStatus === 'approved')
-                            Autorizada · Lista para cotizaciones y Odoo
-                        @elseif($rawStatus === 'draft')
-                            Borrador interno · No enviada a revisión
-                        @elseif($rawStatus === 'submitted')
-                            Esperando resolución de Compras
-                        @elseif($rawStatus === 'completed')
-                            Compra cerrada · No queda nada pendiente
-                        @elseif($rawStatus === 'cancelled')
-                            Anulada · No sigue su curso
-                        @elseif($rawStatus === 'rejected')
-                            Rechazada · No sigue su curso
-                        @else
-                            Ciclo de revisión en curso (v{{ $purchaseRequest->revision_number }})
-                        @endif
-                    </p>
+                <p class="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{{ $avance['etapa'] }}</p>
+                <div class="mt-2 flex gap-1" title="{{ implode(' → ', $avance['pasos']) }}">
+                    @foreach($avance['pasos'] as $i => $nombrePaso)
+                        <span class="h-1.5 flex-1 rounded-full {{ $i < $avance['hecho'] ? $tonos[1] : 'bg-slate-200 dark:bg-slate-700' }}" title="{{ $nombrePaso }}"></span>
+                    @endforeach
                 </div>
+                <p class="mt-2 text-xs {{ $hayPendiente ? 'font-bold text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400' }}">
+                    {{ $hayPendiente ? 'Falta: '.mb_strtolower(mb_substr($siguientePaso, 0, 1)).mb_substr($siguientePaso, 1) : $statusLabel.' · '.$avance['hecho'].'/5' }}
+                </p>
             </div>
 
-            {{-- KPI 2: Total partidas --}}
-            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Volumen de ítems</span>
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-950/60 dark:text-blue-400">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                    </div>
+            {{-- Partidas --}}
+            @php $conPrecio = $purchaseRequest->items->filter(fn ($i) => filled($i->unit_price))->count(); @endphp
+            <div class="{{ $tarjeta }} border-l-sky-500">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Partidas</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                    </span>
                 </div>
-                <div class="mt-3">
-                    <p class="text-2xl font-black tracking-tight tabular-nums text-slate-900 dark:text-white">{{ $itemsCount }} {{ \Illuminate\Support\Str::plural('partida', $itemsCount) }}</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {{ $hayPrecio ? 'Partidas con valorización ingresada' : 'Líneas pendientes de precio del proveedor' }}
-                    </p>
-                </div>
+                <p class="mt-1 text-2xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white">{{ $itemsCount }} <span class="text-base font-bold text-slate-400">{{ \Illuminate\Support\Str::plural('partida', $itemsCount) }}</span></p>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    {{ $conPrecio === $itemsCount && $itemsCount > 0 ? 'Todas con precio' : $conPrecio.' con precio · '.($itemsCount - $conPrecio).' sin precio' }}
+                </p>
+                <p class="mt-0.5 text-xs {{ count($comparaciones) > 0 ? 'font-bold text-sky-700 dark:text-sky-300' : 'text-slate-400' }}">
+                    {{ count($comparaciones) === 0 ? 'Sin cotizaciones aún' : count($comparaciones).' '.(count($comparaciones) === 1 ? 'cotización recibida' : 'cotizaciones recibidas') }}
+                </p>
             </div>
 
-            {{-- KPI 3: Área / Solicitante --}}
-            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Área requirente</span>
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600 shadow-sm dark:bg-violet-950/60 dark:text-violet-400">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                    </div>
+            {{-- Lo que cuesta --}}
+            <div class="{{ $tarjeta }} border-l-emerald-500">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ $mejorCotizacion ? ($mejorCotizacion['de'] > 1 ? 'Mejor cotización' : 'Cotización') : 'Valor estimado' }}</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </span>
                 </div>
-                <div class="mt-3">
-                    <p class="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white" title="{{ $purchaseRequest->department ?: 'General' }}">
-                        {{ $purchaseRequest->department ?: 'General' }}
-                    </p>
-                    <p class="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400" title="{{ $requesterName }}">
-                        Por {{ $requesterName }}
-                    </p>
-                </div>
+                @if($mejorCotizacion)
+                    <p class="mt-1 text-2xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white">${{ number_format($mejorCotizacion['neto'], 0, ',', '.') }} <span class="text-base font-bold text-slate-400">neto</span></p>
+                    <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Total con IVA <span class="font-bold text-slate-700 dark:text-slate-200">${{ number_format($mejorCotizacion['total'], 0, ',', '.') }}</span></p>
+                    <p class="mt-0.5 truncate text-xs font-bold text-emerald-700 dark:text-emerald-400" title="{{ $mejorCotizacion['nombre'] }}">{{ $mejorCotizacion['nombre'] }}@if($mejorCotizacion['de'] > 1) <span class="font-normal text-slate-400">· de {{ $mejorCotizacion['de'] }}</span>@endif</p>
+                @elseif($hasTotal && $totalAmount > 0)
+                    <p class="mt-1 text-2xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white">{{ $simbolo }}{{ number_format($neto, 0, ',', '.') }} <span class="text-base font-bold text-slate-400">neto</span></p>
+                    <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Total con IVA <span class="font-bold text-slate-700 dark:text-slate-200">{{ $simbolo }}{{ number_format($neto * (1 + $tasa), 0, ',', '.') }}</span></p>
+                    <p class="mt-0.5 text-xs text-slate-400">con los precios de la solicitud</p>
+                @else
+                    <p class="mt-1 text-xl font-black tracking-tight text-slate-400">Sin precios aún</p>
+                    <p class="mt-2 text-xs text-slate-400">Aparece al llegar la primera cotización</p>
+                @endif
             </div>
 
-            {{-- KPI 4: Valorización total --}}
-            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-widest text-slate-400">Valor estimado</span>
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 shadow-sm dark:bg-emerald-950/60 dark:text-emerald-400">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
+            {{-- Para quién y para cuándo --}}
+            <div class="{{ $tarjeta }} {{ $requeridaVencida ? 'border-l-rose-500' : 'border-l-indigo-400' }}">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Área y plazo</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl {{ $requeridaVencida ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400' }}">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </span>
                 </div>
-                <div class="mt-3">
-                    @if($hasTotal && $totalAmount > 0)
-                        <p class="text-2xl font-black tracking-tight tabular-nums text-slate-900 dark:text-white">
-                            {{ $simbolo }}{{ number_format($totalAmount, 0, ',', '.') }}
-                        </p>
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Neto {{ $simbolo }}{{ number_format($neto, 0, ',', '.') }} + IVA ({{ number_format($tasa * 100) }}%)
-                        </p>
-                    @else
-                        <p class="text-xl font-black tracking-tight text-slate-500 dark:text-slate-400">
-                            Sin precios aún
-                        </p>
-                        <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                            Se actualiza con la cotización recibida
-                        </p>
-                    @endif
-                </div>
+                <p class="mt-1 truncate text-2xl font-black tracking-tight text-slate-900 dark:text-white" title="{{ $purchaseRequest->department ?: 'General' }}">{{ $purchaseRequest->department ?: 'General' }}</p>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Para el {{ $formatDate($purchaseRequest->required_date) }}@if($requeridaCuando) · <span class="{{ $requeridaVencida ? 'font-bold text-rose-600 dark:text-rose-400' : '' }}">{{ $requeridaVencida ? 'vencida '.$requeridaCuando : $requeridaCuando }}</span>@endif
+                </p>
+                <p class="mt-0.5 truncate text-xs text-slate-400" title="{{ $requesterName }}">Por {{ $requesterName }}@if(filled($purchaseRequest->requested_for_name)) para {{ $purchaseRequest->requested_for_name }}@endif</p>
             </div>
         </section>
 
@@ -664,57 +686,43 @@
                 },
             }">
             
-            {{-- Barra de pestañas tipo Segmented Control --}}
-            <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex flex-wrap items-center gap-1.5">
-                    {{-- Tab Solicitud --}}
-                    <button type="button" @click="vista = 'solicitud'"
-                        class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
-                        :class="vista === 'solicitud'
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0m-7 7h8m-8 4h5" /></svg>
-                        <span>Solicitud</span>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-black"
-                              :class="vista === 'solicitud' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'">
-                            {{ $itemsCount }}
-                        </span>
-                    </button>
+            {{-- Las pestañas sobre un riel, como las del módulo: la activa, blanca y en relieve. En el teléfono se desliza de lado. --}}
+            <div class="mb-6 overflow-x-auto rounded-2xl bg-slate-100 p-1 [scrollbar-width:none] dark:bg-slate-800/70 [&::-webkit-scrollbar]:hidden">
+                <div class="flex min-w-max items-center gap-0.5">
+                        <button type="button" @click="vista = 'solicitud'"
+                            class="relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-bold transition-all"
+                            :class="vista === 'solicitud' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-white dark:ring-slate-700' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900/40 dark:hover:text-white'">
+                            <svg class="h-4 w-4 shrink-0" :class="vista === 'solicitud' ? 'text-blue-600 dark:text-blue-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0m-7 7h8m-8 4h5" /></svg>
+                            <span>Solicitud</span>
+                            <span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200">{{ $itemsCount }}</span>
+                            <span x-show="vista === 'solicitud'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" aria-hidden="true"></span>
+                        </button>
 
-                    {{-- Tab Quién conviene --}}
                     @if($cuadricula)
                         <button type="button" @click="vista = 'comparar'"
-                            class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
-                            :class="vista === 'comparar'
-                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
-                            <svg class="h-4 w-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            class="relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-bold transition-all"
+                            :class="vista === 'comparar' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-white dark:ring-slate-700' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900/40 dark:hover:text-white'">
+                            <svg class="h-4 w-4 shrink-0" :class="vista === 'comparar' ? 'text-amber-500 dark:text-amber-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             <span>Quién conviene</span>
-                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
-                                  :class="vista === 'comparar' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-                                  title="{{ count($cuadricula->filas) }} partidas comparadas">
-                                {{ count($cuadricula->filas) }}
-                            </span>
+                            <span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200" title="{{ count($cuadricula->filas) }} partidas comparadas">{{ count($cuadricula->filas) }}</span>
+                            <span x-show="vista === 'comparar'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-amber-500 dark:bg-amber-400" aria-hidden="true"></span>
                         </button>
                     @endif
 
-                    {{-- Tab Cotizaciones: donde entran, subidas o dictadas --}}
-                    <button type="button" @click="vista = 'cotizaciones'"
-                        class="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-black transition-all"
-                        :class="vista === 'cotizaciones'
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                        <span>Cotizaciones</span>
-                        @if(count($comparaciones) > 0)
-                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
-                                  :class="vista === 'cotizaciones' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'">
-                                {{ count($comparaciones) }}
-                            </span>
-                        @endif
-                    </button>
+                        <button type="button" @click="vista = 'cotizaciones'"
+                            class="relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-bold transition-all"
+                            :class="vista === 'cotizaciones' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-white dark:ring-slate-700' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900/40 dark:hover:text-white'">
+                            <svg class="h-4 w-4 shrink-0" :class="vista === 'cotizaciones' ? 'text-sky-600 dark:text-sky-400' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            <span>Cotizaciones</span>
+                            @if(count($comparaciones) > 0)<span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200">{{ count($comparaciones) }}</span>@endif
+                            <span x-show="vista === 'cotizaciones'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-sky-600 dark:bg-sky-400" aria-hidden="true"></span>
+                        </button>
 
-                    {{-- Tabs por cotización recibida --}}
+                    @if($comparables->isNotEmpty())
+                        <span class="mx-1 h-6 w-px bg-slate-300 dark:bg-slate-700" aria-hidden="true"></span>
+                    @endif
+
+                    {{-- Una pestaña por cotización recibida --}}
                     @foreach ($comparables as $indice => $comparacion)
                         @php
                             $lectura = $comparacion['ingestion'];
@@ -722,29 +730,16 @@
                             $cantCot = $resultado->cruzadas();
                         @endphp
                         <button type="button" @click="vista = 'cot{{ $indice }}'"
-                            class="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-1 text-left transition-all"
-                            :class="vista === 'cot{{ $indice }}'
-                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'">
-                            <div class="flex flex-col">
-                                <span class="text-xs font-black leading-tight">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 20) }}</span>
-                                <span class="text-[10px] font-bold opacity-80">{{ $resultado->estadoCorto() }}</span>
-                            </div>
-                            <span class="rounded-full px-2 py-0.5 text-xs font-black"
-                                  :class="vista === 'cot{{ $indice }}' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-                                  title="{{ $cantCot }} de {{ $resultado->partidas() }} partidas cruzadas">
-                                {{ $cantCot }}
+                            class="relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-left transition-all"
+                            :class="vista === 'cot{{ $indice }}' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:text-white dark:ring-slate-700' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900/40 dark:hover:text-white'">
+                            <span class="flex flex-col leading-tight">
+                                <span class="text-xs font-black">{{ \Illuminate\Support\Str::limit($lectura->supplier_name ?: 'Sin identificar', 22) }}</span>
+                                <span class="text-[10px] font-bold {{ $resultado->cuadra() ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">{{ $resultado->estadoCorto() }}</span>
                             </span>
+                            <span class="inline-flex min-w-5 justify-center rounded-full bg-slate-200 px-1.5 py-px text-[11px] font-black tabular-nums text-slate-700 dark:bg-slate-700 dark:text-slate-200" title="{{ $cantCot }} de {{ $resultado->partidas() }} partidas cruzadas">{{ $cantCot }}</span>
+                            <span x-show="vista === 'cot{{ $indice }}'" class="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-sky-600 dark:bg-sky-400" aria-hidden="true"></span>
                         </button>
                     @endforeach
-                </div>
-
-                {{-- Status rápido en el header de tabs --}}
-                <div class="hidden items-center gap-3 pr-2 sm:flex text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                        {{ $itemsCount }} partidas cargadas
-                    </span>
                 </div>
             </div>
 
@@ -778,7 +773,7 @@
                                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                         </div>
-                                        <input type="text" x-model="itemFilter" placeholder="Buscar en las 19 partidas..."
+                                        <input type="text" x-model="itemFilter" placeholder="Buscar en {{ $itemsCount === 1 ? 'la partida' : 'las '.$itemsCount.' partidas' }}..."
                                             class="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-10 pr-3.5 text-xs font-medium text-slate-900 placeholder-slate-400 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900">
                                     </div>
 
