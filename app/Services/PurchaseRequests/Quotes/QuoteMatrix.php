@@ -19,6 +19,11 @@ namespace App\Services\PurchaseRequests\Quotes;
  * Las filas son las partidas de la solicitud, en su orden. Lo que un proveedor
  * agregó por su cuenta va aparte: mezclarlo hacía que las demás columnas
  * dijeran «no cotizó» sobre algo que nadie les pidió.
+ *
+ * Las piezas sí van dentro de su partida: Climent cotizó la válvula de la
+ * SC-2026-000114 en $61.716 y aparte las dos flanges volantes que lleva, a
+ * $12.879. Sin sumarlas, su válvula parecía la más barata por $25.758 menos
+ * de lo que de verdad cuesta, y su total quedaba corto en lo mismo.
  */
 class QuoteMatrix
 {
@@ -68,7 +73,7 @@ class QuoteMatrix
                     'ofertas' => array_fill(0, $cuantas, null),
                 ];
 
-                $porPartida[$orden]['ofertas'][$columna] = self::oferta($fila);
+                $porPartida[$orden]['ofertas'][$columna] = self::oferta($fila, $comparacion['resultado']->piezasDe((int) $fila->pedida->getKey()));
             }
 
             foreach ($comparacion['resultado']->sobrantes as $fila) {
@@ -123,18 +128,34 @@ class QuoteMatrix
     /**
      * Lo que ese proveedor ofreció para esa partida, o nada si no la cotizó.
      *
-     * @return array{cantidad: ?float, unitario: ?float, total: ?float, porConfirmar: bool}|null
+     * Con sus piezas: el total las suma, y el unitario es lo que cuesta cada
+     * unidad de la partida con ellas, que es lo que se compara entre
+     * proveedores. `piezas` es lo que suman, para decirlo en la celda.
+     *
+     * @param  list<array{linea: array<string, mixed>}>  $piezas
+     * @return array{cantidad: ?float, unitario: ?float, total: ?float, piezas: float, porConfirmar: bool}|null
      */
-    private static function oferta(QuotationComparisonRow $fila): ?array
+    private static function oferta(QuotationComparisonRow $fila, array $piezas = []): ?array
     {
         if ($fila->cotizada === null) {
             return null;
         }
 
+        $cantidad = self::numero($fila->cotizada['quantity'] ?? null);
+        $unitario = self::numero($fila->cotizada['unit_price'] ?? null);
+        $total = self::total($fila->cotizada);
+        $dePiezas = (float) array_sum(array_map(fn (array $p): float => self::total($p['linea']) ?? 0.0, $piezas));
+
+        if ($dePiezas > 0 && $total !== null) {
+            $total += $dePiezas;
+            $unitario = $cantidad > 0 ? $total / $cantidad : $total;
+        }
+
         return [
-            'cantidad' => self::numero($fila->cotizada['quantity'] ?? null),
-            'unitario' => self::numero($fila->cotizada['unit_price'] ?? null),
-            'total' => self::total($fila->cotizada),
+            'cantidad' => $cantidad,
+            'unitario' => $unitario,
+            'total' => $total,
+            'piezas' => $dePiezas,
             'porConfirmar' => $fila->esPropuesta(),
         ];
     }

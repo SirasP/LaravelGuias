@@ -103,8 +103,8 @@ it('shows quantity, unit price and line total in every cell', function () {
     // La cantidad del total es la que cotizó el proveedor, no la que se pidió:
     // CONSTRUMART ofrece ocho de las diez, y su total es de ocho.
     expect($m->filas[0]['cantidad'])->toBe(10.0)
-        ->and($m->filas[0]['ofertas'][0])->toBe(['cantidad' => 10.0, 'unitario' => 4500.0, 'total' => 45000.0, 'porConfirmar' => false])
-        ->and($m->filas[0]['ofertas'][1])->toBe(['cantidad' => 8.0, 'unitario' => 3900.0, 'total' => 31200.0, 'porConfirmar' => false]);
+        ->and($m->filas[0]['ofertas'][0])->toBe(['cantidad' => 10.0, 'unitario' => 4500.0, 'total' => 45000.0, 'piezas' => 0.0, 'porConfirmar' => false])
+        ->and($m->filas[0]['ofertas'][1])->toBe(['cantidad' => 8.0, 'unitario' => 3900.0, 'total' => 31200.0, 'piezas' => 0.0, 'porConfirmar' => false]);
 });
 
 it('marks nobody when two suppliers tie', function () {
@@ -141,4 +141,32 @@ it('includes what a supplier added on its own', function () {
     expect($m->totales[0]['faltan'])->toBe(0)
         ->and($m->totales[1]['faltan'])->toBe(0)
         ->and($m->totales[1]['total'])->toBe(39000.0);
+});
+
+it('adds the pieces a supplier quoted apart to their item, in the cell and in the total', function () {
+    // SC-2026-000114: Climent cotizó la válvula y aparte las 2 flanges volantes que lleva.
+    $owner = User::factory()->create();
+    $solicitud = test()->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $valvula = $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'Válvula mariposa con volante de 200 mm', 'quantity' => 1, 'unit' => 'Unidades']);
+    $comparador = app(QuotationComparison::class);
+    $lectura = fn (int $i, string $proveedor) => PurchaseRequestIngestion::query()->create([
+        'user_id' => $owner->getKey(), 'uploader_name_snapshot' => $owner->name, 'compared_request_id' => $solicitud->getKey(),
+        'disk' => 'local', 'path' => "q{$i}.pdf", 'original_name' => "q{$i}.pdf", 'mime_type' => 'application/pdf', 'size' => 10,
+        'sha256' => str_repeat((string) $i, 64), 'status' => PurchaseRequestIngestion::COMPLETED, 'supplier_name' => $proveedor,
+    ]);
+
+    $matriz = QuoteMatrix::de([
+        ['ingestion' => $lectura(1, 'AUSTRAL'), 'resultado' => $comparador->comparar($solicitud->fresh(), [linea('VALVULA MARIPOSA CON VOLANTE 8"', 80000)])],
+        ['ingestion' => $lectura(2, 'CLIMENT'), 'resultado' => $comparador->comparar($solicitud->fresh(),
+            [linea('VALVULA DE MARIPOSA 200MM', 61716), linea('FLANGE VOLANTE PVC-H 200MM', 12879, '2')], null, [0 => $valvula->id], [], [1 => $valvula->id])],
+    ]);
+
+    $climent = $matriz->filas[0]['ofertas'][1];
+    expect($climent['total'])->toBe(87474.0)
+        ->and($climent['piezas'])->toBe(25758.0)
+        ->and($climent['unitario'])->toBe(87474.0)
+        ->and($matriz->totales[1]['total'])->toBe(87474.0)
+        // Con las flanges, Climent ya no es el más barato: lo es Austral.
+        ->and($matriz->filas[0]['masBarato'])->toBe(0);
 });

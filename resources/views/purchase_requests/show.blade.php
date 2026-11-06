@@ -1196,6 +1196,9 @@
                                                                 <span class="block text-[11px] text-slate-500 dark:text-slate-400">
                                                                     {{ $numero($oferta['cantidad']) }} × {{ $plata($oferta['unitario']) }}
                                                                 </span>
+                                                                @if(($oferta['piezas'] ?? 0) > 0)
+                                                                    <span class="block font-sans text-[10px] font-bold text-sky-700 dark:text-sky-300" title="El proveedor cotizó aparte piezas que van en esta partida; ya están sumadas.">incluye piezas {{ $plata($oferta['piezas']) }}</span>
+                                                                @endif
                                                                 @if($fila['masBarato'] === $i)
                                                                     <span class="mt-1 inline-flex items-center rounded-lg bg-emerald-100 px-2 py-0.5 font-sans text-[10px] font-black uppercase text-emerald-800 shadow-sm dark:bg-emerald-950/80 dark:text-emerald-300">más barato</span>
                                                                 @endif
