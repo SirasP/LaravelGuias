@@ -91,24 +91,80 @@ class OdooPurchaseOrderController extends Controller
             ? OdooPurchaseOrder::with('lines')->where('purchase_group_id', $order->purchase_group_id)->get()
             : collect([$order]))->sortBy(fn (OdooPurchaseOrder $o): array => [$rank($o), $o->name])->values();
 
-        // Una fila por producto (el de Odoo, o el nombre si la línea no tiene) y una columna por proveedor.
-        $products = [];
-        foreach ($group as $member) {
-            foreach ($member->lines->reject->isNote() as $line) {
-                $key = $line->product_odoo_id ? 'p'.$line->product_odoo_id : 'n'.\App\Models\PurchaseProductLink::normalizar((string) $line->name);
-                $products[$key]['name'] ??= (string) $line->name;
-                $cell = $products[$key]['cells'][$member->odoo_id] ?? ['qty' => 0.0, 'subtotal' => 0.0, 'uom' => $line->uom_name];
-                $cell['qty'] += $line->product_qty;
-                $cell['subtotal'] += $line->price_subtotal;
-                $products[$key]['cells'][$member->odoo_id] = $cell;
+        $requestLinks = $this->requestLinks($group);
+        // La solicitud que Laravel armó con este grupo, si nació en Odoo.
+        $adopted = \App\Models\PurchaseRequest::whereIn('odoo_order_id', $group->pluck('odoo_id'))->first();
+        $solicitud = $adopted ?? \App\Models\PurchaseRequest::with('items')
+            ->where('company_code', \App\Models\PurchaseRequest::COMPANY_CODE)
+            ->whereIn('folio', $group->map->requestFolio()->filter()->unique())->first();
+
+        $keyOf = fn ($line): string => $line->product_odoo_id ? 'p'.$line->product_odoo_id : 'n'.\App\Models\PurchaseProductLink::normalizar((string) $line->name);
+        $lineas = $group->flatMap(fn (OdooPurchaseOrder $m) => $m->lines->reject->isNote()->map(fn ($l) => [$m, $l]));
+
+        // Las filas son lo que se pidió: las partidas de la solicitud, con su
+        // nombre, y no el texto de un proveedor («CODO PVC 200MM x 90░»).
+        $pedidas = [];
+        $partidaDe = [];
+        foreach ($solicitud?->items ?? [] as $item) {
+            $base = $lineas->first(fn ($par) => (int) $par[1]->odoo_id === (int) $item->odoo_line_id);
+            if ($base !== null) {
+                $pedidas[$keyOf($base[1])] = (string) $item->product_service;
+                $partidaDe[(int) $item->id] = $keyOf($base[1]);
             }
         }
-        // El más barato de cada producto, entre las que no se cancelaron y en una misma moneda.
+        if ($pedidas === []) {
+            // Sin solicitud: lo que cotizó más de uno; con una sola orden, todo.
+            $porProducto = $lineas->groupBy(fn ($par) => $keyOf($par[1]))->map(fn ($pares) => $pares->map(fn ($par) => $par[0]->odoo_id)->unique()->count());
+            foreach ($porProducto as $key => $cuantas) {
+                if ($cuantas > 1 || $group->count() === 1) {
+                    $pedidas[$key] = null;
+                }
+            }
+        }
+
+        // Lo que un proveedor cotizó aparte como pieza de una partida (la
+        // flange volante de Climent, de la válvula de la SC-2026-000114) va
+        // dentro de esa partida, como en la solicitud.
+        $piezas = [];
+        foreach (\App\Models\PurchaseRequestIngestion::where('compared_request_id', $solicitud?->id ?? 0)->get() as $lectura) {
+            foreach ($lectura->piezasConfirmadas() as $renglon => $itemId) {
+                $nombre = $lectura->extracted['items'][$renglon]['product_service'] ?? null;
+                if ($nombre !== null && isset($partidaDe[$itemId])) {
+                    $piezas[\App\Models\PurchaseProductLink::normalizar((string) $nombre)] = $partidaDe[$itemId];
+                }
+            }
+        }
+
+        // Una fila por producto pedido y una columna por proveedor; lo demás, aparte.
+        $products = [];
+        $extras = [];
+        foreach ($lineas as [$member, $line]) {
+            $key = $keyOf($line);
+            $pieza = $piezas[\App\Models\PurchaseProductLink::normalizar((string) $line->name)] ?? null;
+            if (! array_key_exists($key, $pedidas) && $pieza !== null) {
+                $products[$pieza]['cells'][$member->odoo_id]['pieces'] = ($products[$pieza]['cells'][$member->odoo_id]['pieces'] ?? 0.0) + $line->price_subtotal;
+                continue;
+            }
+            if (! array_key_exists($key, $pedidas)) {
+                $extras[] = ['order' => $member, 'name' => (string) $line->name, 'qty' => $line->product_qty, 'uom' => $line->uom_name, 'price' => $line->price_unit, 'subtotal' => $line->price_subtotal];
+                continue;
+            }
+            $products[$key]['name'] ??= $pedidas[$key] ?? (string) $line->name;
+            $cell = $products[$key]['cells'][$member->odoo_id] ?? [];
+            $cell = ['qty' => ($cell['qty'] ?? 0.0) + $line->product_qty, 'subtotal' => ($cell['subtotal'] ?? 0.0) + $line->price_subtotal, 'uom' => $line->uom_name, 'pieces' => $cell['pieces'] ?? 0.0];
+            $products[$key]['cells'][$member->odoo_id] = $cell;
+        }
+        // En el orden de la solicitud.
+        $products = collect(array_keys($pedidas))->filter(fn ($k) => isset($products[$k]['name']))->mapWithKeys(fn ($k) => [$k => $products[$k]])->all();
+
+        // El más barato de cada producto, con sus piezas, entre las que no se cancelaron y en una misma moneda.
         $sameCurrency = $group->pluck('currency')->unique()->count() === 1;
         foreach ($products as &$product) {
             $prices = [];
             foreach ($product['cells'] as $id => &$cell) {
-                $cell['price'] = $cell['qty'] > 0 ? $cell['subtotal'] / $cell['qty'] : 0.0;
+                $cell += ['qty' => 0.0, 'subtotal' => 0.0, 'uom' => null, 'pieces' => 0.0];
+                $cell['base_price'] = $cell['qty'] > 0 ? $cell['subtotal'] / $cell['qty'] : 0.0;
+                $cell['price'] = $cell['qty'] > 0 ? ($cell['subtotal'] + $cell['pieces']) / $cell['qty'] : 0.0;
                 if ($cell['price'] > 0 && $group->firstWhere('odoo_id', $id)?->state !== 'cancel') {
                     $prices[$id] = $cell['price'];
                 }
@@ -120,13 +176,9 @@ class OdooPurchaseOrderController extends Controller
 
         $boughtWith = $order->isQuotation() ? $group->filter(fn (OdooPurchaseOrder $o): bool => in_array($o->state, OdooPurchaseOrder::CONFIRMED_STATES, true)) : collect();
 
-        $requestLinks = $this->requestLinks($group);
-        // La solicitud que Laravel armó con este grupo, si nació en Odoo.
-        $adopted = \App\Models\PurchaseRequest::whereIn('odoo_order_id', $group->pluck('odoo_id'))->first();
-
         return response()->view('purchase_requests.odoo_show', [
             'requestLinks' => $requestLinks, 'adopted' => $adopted,
-            'order' => $order, 'group' => $group, 'products' => $products, 'boughtWith' => $boughtWith,
+            'order' => $order, 'group' => $group, 'products' => $products, 'extras' => $extras, 'boughtWith' => $boughtWith,
             'invoices' => app(\App\Services\DtePurchases\OdooOrderLinks::class)->invoicesFor($group->pluck('odoo_id')->all()),
         ]);
     }

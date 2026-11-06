@@ -86,3 +86,32 @@ it('does nothing when the date is cleared', function () {
     expect(app(AdoptOdooQuotations::class)->adoptar())->toBe([])
         ->and(PurchaseRequestEvent::count())->toBe(0);
 });
+
+it('compares the Odoo orders by the request items, with a quoted piece inside its item', function () {
+    $sebastian = User::factory()->admin()->create();
+    grupoDeLuis();
+    $solicitud = app(AdoptOdooQuotations::class)->adoptar()[0];
+    $codo = $solicitud->items->firstWhere('odoo_line_id', 3800);
+    // Los precios ya en Odoo: cada proveedor con sus nombres; Climent cotizó aparte la flange del codo.
+    foreach ([3800 => 26377, 3801 => 52700, 3810 => 23429, 3811 => 15232, 3820 => 24237, 3821 => 18553] as $linea => $precio) {
+        App\Models\OdooPurchaseOrderLine::where('odoo_id', $linea)->update(['price_unit' => $precio, 'price_subtotal' => $precio * ($linea % 10 === 0 ? 4 : 2), 'product_odoo_id' => 9000 + $linea % 10]);
+    }
+    App\Models\OdooPurchaseOrderLine::where('odoo_id', 3800)->update(['name' => 'CODO PVC 200MM x 90░ CEMENTAR']);
+    OdooPurchaseOrder::where('odoo_id', 381)->first()->lines()->create(['odoo_id' => 3812, 'sequence' => 3, 'name' => 'FLANGE VOLANTE PVC-H 200MM', 'product_odoo_id' => 9100, 'product_qty' => 2, 'uom_name' => 'Units', 'price_unit' => 12879, 'price_subtotal' => 25758]);
+    OdooPurchaseOrder::where('odoo_id', 382)->first()->lines()->create(['odoo_id' => 3822, 'sequence' => 3, 'name' => 'FLETE', 'product_odoo_id' => 9200, 'product_qty' => 1, 'uom_name' => 'Units', 'price_unit' => 5000, 'price_subtotal' => 5000]);
+    App\Models\PurchaseRequestIngestion::create([
+        'company_code' => 'EHE', 'user_id' => $sebastian->id, 'uploader_name_snapshot' => 'S', 'compared_request_id' => $solicitud->id,
+        'disk' => 'local', 'path' => 'c.pdf', 'original_name' => 'climent.pdf', 'mime_type' => 'application/pdf', 'size' => 1,
+        'sha256' => str_repeat('d', 64), 'status' => 'needs_review', 'supplier_name' => 'COMERCIAL CLIMENT SPA',
+        'extracted' => ['items' => [['product_service' => 'CODO PVC-H', 'quantity' => '4', 'unit_price' => '23429'], ['product_service' => 'FLANGE VOLANTE PVC-H 200MM', 'quantity' => '2', 'unit_price' => '12879']]],
+        'confirmed_pairings' => ['pares' => [], 'piezas' => [1 => $codo->id]],
+    ]);
+
+    $page = $this->actingAs($sebastian)->get(route('purchase_requests.odoo.show', 380))->assertOk();
+
+    // Las filas llevan el nombre de la partida, no el del proveedor; la flange va dentro del codo.
+    $page->assertSee('CODO PVC 200 MM X 90° CEMENTAR')->assertDontSee('90░')
+        ->assertSee('incluye piezas $25.758')
+        ->assertSee('Líneas que agregó un proveedor y no se pidieron')->assertSee('FLETE')
+        ->assertDontSee('Cotizó 2 de 3')->assertDontSee('Cotizó 2 de 4');
+});

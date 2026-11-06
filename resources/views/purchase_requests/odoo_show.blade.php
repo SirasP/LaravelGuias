@@ -48,7 +48,8 @@
         $masBarataCompleta = $completas->sortBy('amount_untaxed')->first();
 
         // Comprando cada producto al más barato.
-        $combinada = $products->sum(fn ($p) => $p['best'] !== null ? $p['cells'][$p['best']]['subtotal'] : 0);
+        $combinada = $products->sum(fn ($p) => $p['best'] !== null ? $p['cells'][$p['best']]['subtotal'] + $p['cells'][$p['best']]['pieces'] : 0);
+        $extrasDe = collect($extras)->groupBy(fn ($e) => $e['order']->odoo_id);
         $cubiertos = $products->filter(fn ($p) => $p['best'] !== null)->count();
         $comparar = $group->count() > 1 && $conPrecio->isNotEmpty();
         $ganadores = $products->countBy('best');
@@ -193,15 +194,18 @@
                                 @endif
                             </div>
                             <p class="font-mono text-[11px] text-slate-400">{{ $m->name }} · {{ $m->stateLabel() }}</p>
-                            <p class="mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Total con IVA</p>
-                            <p class="text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $money($m->amount_total, $m->currency) }}</p>
-                            <p class="text-sm tabular-nums text-slate-500 dark:text-slate-400">{{ $money($m->amount_untaxed, $m->currency) }} + IVA</p>
+                            <p class="mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Neto</p>
+                            <p class="text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $money($m->amount_untaxed, $m->currency) }}</p>
+                            <p class="text-sm tabular-nums text-slate-500 dark:text-slate-400">Total con IVA <span class="font-bold text-slate-700 dark:text-slate-200">{{ $money($m->amount_total, $m->currency) }}</span></p>
                             <div class="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">
                                 <span class="rounded-md px-1.5 py-0.5 {{ $n === $total ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' }}">
                                     {{ $n === $total ? ($confirmed($m) ? 'Se compró todo' : 'Cotizó todo') : ($confirmed($m) ? 'Se le compró ' : 'Cotizó ').$n.' de '.$total }}
                                 </span>
                                 @if($gana > 0)
                                     <span class="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Más barato en {{ $gana }}</span>
+                                @endif
+                                @if(($e = count($extrasDe[$m->odoo_id] ?? [])) > 0)
+                                    <span class="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">+{{ $e }} {{ $e === 1 ? 'línea extra' : 'líneas extra' }}</span>
                                 @endif
                                 @if($diff !== null && $diff > 0)
                                     <span class="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{{ $money($diff, $m->currency) }} más cara</span>
@@ -212,28 +216,28 @@
                 </div>
                 @if($masBarataCompleta && $cubiertos === $total && $combinada < $masBarataCompleta->amount_untaxed - 1)
                     <p class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900">
-                        Comprando cada producto donde está más barato serían <span class="font-black tabular-nums">{{ $money($combinada, 'CLP') }} + IVA</span>:
-                        {{ $money($masBarataCompleta->amount_untaxed - $combinada, 'CLP') }} + IVA menos que todo con {{ $short($masBarataCompleta->partner_name) }}.
+                        Comprando cada producto donde está más barato serían <span class="font-black tabular-nums">{{ $money($combinada, 'CLP') }} neto</span>:
+                        {{ $money($masBarataCompleta->amount_untaxed - $combinada, 'CLP') }} menos que todo con {{ $short($masBarataCompleta->partner_name) }}.
                     </p>
                 @endif
             </section>
 
-            {{-- La comparación, producto por producto --}}
+            {{-- La comparación, producto por producto: como «Quién conviene» de la solicitud --}}
             <section id="comparacion" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div class="border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+                <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                     <h2 class="text-sm font-extrabold text-slate-900 dark:text-white">Producto por producto</h2>
-                    <p class="text-xs text-slate-500">Precio unitario sin IVA. En verde el más barato; debajo, cuánto más caro es cada uno.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Lo que suma cada línea y, debajo, cantidad por precio unitario neto. En verde el más barato; en rojo, cuánto más caro es cada uno.</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
-                        <thead>
-                            <tr class="text-left align-bottom">
-                                <th class="sticky left-0 z-10 min-w-[16rem] bg-white px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:bg-slate-900">Producto</th>
-                                <th class="px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Cant.</th>
+                        <thead class="bg-slate-50/80 dark:bg-slate-950/60">
+                            <tr class="align-bottom">
+                                <th class="sticky left-0 z-10 min-w-[16rem] bg-slate-50 px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-950">Producto</th>
+                                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Pediste</th>
                                 @foreach($columnas as $m)
-                                    <th class="min-w-[8.5rem] px-3 py-3 text-right {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
-                                        <a href="{{ route('purchase_requests.odoo.show', $m->odoo_id) }}#comparacion" class="block truncate text-xs font-bold text-slate-800 hover:underline dark:text-slate-100" title="{{ $m->partner_name }}">{{ \Illuminate\Support\Str::limit($short($m->partner_name), 20) }}</a>
-                                        <span class="font-mono text-[11px] text-slate-400">{{ $m->name }}</span>
+                                    <th class="min-w-[10rem] px-5 py-3 text-right {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
+                                        <a href="{{ route('purchase_requests.odoo.show', $m->odoo_id) }}#comparacion" class="block truncate text-xs font-black uppercase tracking-wide text-slate-800 hover:underline dark:text-slate-100" title="{{ $m->partner_name }}">{{ \Illuminate\Support\Str::limit($short($m->partner_name), 22) }}</a>
+                                        <span class="font-mono text-[11px] font-normal text-slate-400">{{ $m->name }}</span>
                                     </th>
                                 @endforeach
                             </tr>
@@ -246,24 +250,31 @@
                                     $u = $uom($cells->first()['uom'] ?? '');
                                     $min = $product['best'] !== null ? $product['cells'][$product['best']]['price'] : null;
                                 @endphp
-                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                                    <td class="sticky left-0 z-10 bg-white px-5 py-2.5 text-slate-700 dark:bg-slate-900 dark:text-slate-200">{{ $product['name'] }}</td>
-                                    <td class="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-500">{{ $qty($q) }} <span class="text-xs">{{ $u }}</span></td>
+                                <tr class="align-top">
+                                    <td class="sticky left-0 z-10 bg-white px-5 py-4 font-semibold text-slate-800 dark:bg-slate-900 dark:text-slate-100">{{ $product['name'] }}</td>
+                                    <td class="whitespace-nowrap px-4 py-4 text-right tabular-nums text-slate-500">{{ $qty($q) }} <span class="block text-[10px] text-slate-400">{{ $u }}</span></td>
                                     @foreach($columnas as $m)
-                                        @php $cell = $product['cells'][$m->odoo_id] ?? null; @endphp
-                                        <td class="whitespace-nowrap px-3 py-2.5 text-right tabular-nums {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
+                                        @php
+                                            $cell = $product['cells'][$m->odoo_id] ?? null;
+                                            $best = $product['best'] === $m->odoo_id;
+                                        @endphp
+                                        <td class="whitespace-nowrap px-5 py-4 text-right font-mono text-xs tabular-nums {{ $best ? 'bg-emerald-50/70 dark:bg-emerald-950/20' : '' }} {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
                                             @if(! $cell || $cell['price'] <= 0)
-                                                <span class="text-xs text-slate-300 dark:text-slate-600">no cotizó</span>
-                                            @elseif($product['best'] === $m->odoo_id)
-                                                <span class="rounded-md bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">{{ $money($cell['price'], $m->currency) }}</span>
+                                                <span class="font-sans italic text-slate-300 dark:text-slate-600">no cotizó</span>
                                             @else
-                                                <span class="text-slate-700 dark:text-slate-200">{{ $money($cell['price'], $m->currency) }}</span>
-                                                @if($min)
-                                                    <span class="block text-[11px] font-semibold text-rose-500">+{{ round(($cell['price'] / $min - 1) * 100) }} %</span>
+                                                <span class="block text-sm font-black {{ $best ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white' }}">{{ $money($cell['subtotal'] + $cell['pieces'], $m->currency) }}</span>
+                                                <span class="block text-[11px] text-slate-500 dark:text-slate-400">{{ $qty($cell['qty']) }} × {{ $money($cell['base_price'], $m->currency) }}</span>
+                                                @if($cell['pieces'] > 0)
+                                                    <span class="block font-sans text-[10px] font-bold text-sky-700 dark:text-sky-300" title="Lo cotizó aparte y va en esta partida; ya está sumado.">incluye piezas {{ $money($cell['pieces'], $m->currency) }}</span>
                                                 @endif
-                                            @endif
-                                            @if($cell && $cell['price'] > 0 && abs($cell['qty'] - $q) > 0.0001)
-                                                <span class="block text-[11px] font-bold text-amber-600">ojo: {{ $qty($cell['qty']) }} {{ $u }}</span>
+                                                @if($best)
+                                                    <span class="mt-1 inline-flex rounded-md bg-emerald-100 px-1.5 py-0.5 font-sans text-[10px] font-black uppercase text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">más barato</span>
+                                                @elseif($min)
+                                                    <span class="mt-0.5 block font-sans text-[11px] font-semibold text-rose-500">+{{ round(($cell['price'] / $min - 1) * 100) }} %</span>
+                                                @endif
+                                                @if(abs($cell['qty'] - $q) > 0.0001)
+                                                    <span class="block font-sans text-[11px] font-bold text-amber-600">ojo: {{ $qty($cell['qty']) }} {{ $u }}</span>
+                                                @endif
                                             @endif
                                         </td>
                                     @endforeach
@@ -271,23 +282,45 @@
                             @endforeach
                         </tbody>
                         <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
-                            <tr>
-                                <td class="sticky left-0 z-10 bg-white px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-900" colspan="2">Total sin IVA</td>
+                            <tr class="align-top">
+                                <td colspan="2" class="sticky left-0 z-10 bg-slate-50 px-5 py-4 dark:bg-slate-950">
+                                    <p class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Total de la orden</p>
+                                    <div class="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                        <div class="flex h-5 items-center">Neto</div>
+                                        <div class="flex h-5 items-center">IVA</div>
+                                        <div class="flex h-9 items-center border-t border-dashed border-slate-200 pt-1.5 font-black uppercase tracking-wider text-slate-700 dark:border-slate-700 dark:text-slate-200">Total con IVA</div>
+                                    </div>
+                                </td>
                                 @foreach($columnas as $m)
-                                    <td class="whitespace-nowrap px-3 py-3 text-right text-base font-black tabular-nums {{ $masBarataCompleta?->odoo_id === $m->odoo_id ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white' }} {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
-                                        {{ $money($m->amount_untaxed, $m->currency) }}
+                                    @php $gana = $masBarataCompleta?->odoo_id === $m->odoo_id; @endphp
+                                    <td class="whitespace-nowrap px-5 py-4 text-right font-mono tabular-nums {{ $gana ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-slate-50/80 dark:bg-slate-950/60' }} {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">
+                                        <p class="h-4 font-sans text-[10px] font-black uppercase tracking-wider {{ $gana ? 'text-emerald-700 dark:text-emerald-400' : 'text-transparent' }}">{{ $gana ? 'Más conveniente' : '·' }}</p>
+                                        <div class="mt-3 space-y-1.5">
+                                            <div class="flex h-5 items-center justify-end text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $money($m->amount_untaxed, $m->currency) }}</div>
+                                            <div class="flex h-5 items-center justify-end text-xs text-slate-400 dark:text-slate-500">+ {{ $money($m->amount_total - $m->amount_untaxed, $m->currency) }}</div>
+                                            <div class="flex h-9 items-center justify-end border-t border-dashed pt-1.5 text-lg font-black {{ $gana ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400' : 'border-slate-200 text-slate-900 dark:border-slate-700 dark:text-white' }}">{{ $money($m->amount_total, $m->currency) }}</div>
+                                        </div>
                                     </td>
-                                @endforeach
-                            </tr>
-                            <tr>
-                                <td class="sticky left-0 z-10 bg-white px-5 pb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-900" colspan="2">Total con IVA</td>
-                                @foreach($columnas as $m)
-                                    <td class="whitespace-nowrap px-3 pb-3 text-right font-bold tabular-nums text-slate-600 dark:text-slate-300 {{ $m->state === 'cancel' ? 'opacity-50' : '' }}">{{ $money($m->amount_total, $m->currency) }}</td>
                                 @endforeach
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+                @if($extras !== [])
+                    {{-- Lo que un solo proveedor agregó y no se sabe de qué partida es: está en su total, no en una fila. --}}
+                    <div class="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Líneas que agregó un proveedor y no se pidieron</p>
+                        <ul class="mt-2 space-y-1 text-xs">
+                            @foreach($extras as $e)
+                                <li class="flex flex-wrap items-baseline justify-between gap-2">
+                                    <span class="text-slate-600 dark:text-slate-300"><span class="font-semibold">{{ $short($e['order']->partner_name) }}</span> · {{ $e['name'] }}</span>
+                                    <span class="font-mono tabular-nums text-slate-500">{{ $qty($e['qty']) }} × {{ $money($e['price'], $e['order']->currency) }} = <span class="font-bold text-slate-800 dark:text-slate-100">{{ $money($e['subtotal'], $e['order']->currency) }}</span></span>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <p class="mt-2 text-[11px] text-slate-400">Están sumadas en el total de su orden, pero no en una fila. Si es pieza de una partida, márcalo en la cotización de la solicitud y aparece dentro de esa fila.</p>
+                    </div>
+                @endif
             </section>
         @endif
 

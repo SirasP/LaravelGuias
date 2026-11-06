@@ -178,7 +178,8 @@ it('opens each order on its own page, with the prices of its group side by side'
     $page = $this->actingAs(User::factory()->admin()->create())->get(route('purchase_requests.odoo.show', 353))->assertOk()
         ->assertSeeInOrder(['Cotizada a 3 proveedores', 'Canceladas:', 'Coagra', 'COPEVAL', 'MARTINEZ']);
     // Per unit, Martínez is the cheapest even though its order is the largest.
-    expect($page->getContent())->toMatch('/bg-emerald-100[^"]*">USD 50,11</');
+    expect($page->getContent())->toMatch('/text-emerald-700[^"]*">USD 20\.043,00</')
+        ->and($page->getContent())->toContain('400 × USD 50,11');
     $this->get(route('purchase_requests.odoo.show', 999))->assertNotFound();
 });
 
