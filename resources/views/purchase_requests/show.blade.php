@@ -1211,40 +1211,40 @@
                                                 </tr>
                                             @endforeach
                                         </tbody>
-                                        <tfoot class="border-t-2 border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-950/60">
-                                            <tr>
-                                                <td colspan="3" class="px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                                    Suma de lo cotizado
+                                        {{-- Los precios cotizados son netos: cada proveedor con su neto, el IVA y lo que sale de verdad. --}}
+                                        <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
+                                            <tr class="align-top">
+                                                <td colspan="3" class="bg-slate-50/80 px-6 py-5 dark:bg-slate-950/60">
+                                                    <p class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Suma de lo cotizado</p>
+                                                    <dl class="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                                        <div class="flex h-5 items-center">Neto</div>
+                                                        <div class="flex h-5 items-center">IVA 19%</div>
+                                                        <div class="flex h-9 items-center border-t border-dashed border-slate-200 pt-1.5 font-black uppercase tracking-wider text-slate-700 dark:border-slate-700 dark:text-slate-200">Total con IVA</div>
+                                                    </dl>
                                                 </td>
                                                 @foreach ($cuadricula->totales as $total)
-                                                    <td class="whitespace-nowrap px-6 py-4 text-right font-mono tabular-nums">
-                                                        <span class="block text-base font-black {{ $mejorTotal !== null && abs($total['total'] - $mejorTotal) < 0.005 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white' }}">
-                                                            {{ $plata($total['total']) }}
-                                                        </span>
+                                                    @php
+                                                        $gana = $mejorTotal !== null && abs($total['total'] - $mejorTotal) < 0.005;
+                                                        $iva = round($total['total'] * 0.19);
+                                                    @endphp
+                                                    <td class="whitespace-nowrap px-6 py-5 text-right font-mono tabular-nums {{ $gana ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-slate-50/80 dark:bg-slate-950/60' }}">
+                                                        <p class="h-4 font-sans text-[10px] font-black uppercase tracking-wider {{ $gana ? 'text-emerald-700 dark:text-emerald-400' : 'text-transparent' }}">{{ $gana ? 'Más conveniente' : '·' }}</p>
+                                                        <dl class="mt-3 space-y-1.5">
+                                                            <div class="flex h-5 items-center justify-end text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $plata($total['total']) }}</div>
+                                                            <div class="flex h-5 items-center justify-end text-xs text-slate-400 dark:text-slate-500">+ {{ $plata($iva) }}</div>
+                                                            <div class="flex h-9 items-center justify-end border-t border-dashed pt-1.5 text-lg font-black {{ $gana ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400' : 'border-slate-200 text-slate-900 dark:border-slate-700 dark:text-white' }}">{{ $plata($total['total'] + $iva) }}</div>
+                                                        </dl>
                                                         @if($total['faltan'] > 0)
-                                                            <span class="block font-sans text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                                                            <span class="mt-2 block font-sans text-[11px] font-bold text-amber-700 dark:text-amber-400">
                                                                 sin cotizar: {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
                                                             </span>
                                                         @endif
                                                         @if($total['porConfirmar'] > 0)
-                                                            <span class="block font-sans text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                                                            <span class="mt-1 block font-sans text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
                                                                 incluye {{ $total['porConfirmar'] }} {{ \Illuminate\Support\Str::plural('pareja', $total['porConfirmar']) }} por confirmar
                                                             </span>
                                                         @endif
                                                     </td>
-                                                @endforeach
-                                            </tr>
-                                            {{-- Los precios cotizados son netos: el IVA y el total, para saber cuánto sale de verdad. --}}
-                                            <tr>
-                                                <td colspan="3" class="px-6 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">+ IVA 19%</td>
-                                                @foreach ($cuadricula->totales as $total)
-                                                    <td class="whitespace-nowrap px-6 py-2 text-right font-mono text-sm tabular-nums text-slate-600 dark:text-slate-300">{{ $plata(round($total['total'] * 0.19)) }}</td>
-                                                @endforeach
-                                            </tr>
-                                            <tr class="border-t border-slate-200 dark:border-slate-700">
-                                                <td colspan="3" class="px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Total con IVA</td>
-                                                @foreach ($cuadricula->totales as $total)
-                                                    <td class="whitespace-nowrap px-6 py-3 text-right font-mono text-base font-black tabular-nums {{ $mejorTotal !== null && abs($total['total'] - $mejorTotal) < 0.005 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white' }}">{{ $plata($total['total'] + round($total['total'] * 0.19)) }}</td>
                                                 @endforeach
                                             </tr>
                                         </tfoot>
@@ -1547,27 +1547,33 @@
                                             @endforeach
                                         </tbody>
                                         <tfoot class="border-t border-slate-200/80 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/60">
+                                            {{-- Como «Quién conviene»: tus partidas con sus piezas, sin lo que el proveedor agregó. --}}
+                                            @php $suma = $resultado->sumaCotizada(); $iva = round($suma * 0.19); @endphp
                                             <tr>
-                                                <td colspan="5" class="px-6 py-3.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                                    Tus {{ $totalPartidasCot }} {{ \Illuminate\Support\Str::plural('partida', $totalPartidasCot) }}, una por fila
+                                                <td colspan="5" class="px-6 py-4">
+                                                    <div class="flex flex-wrap items-end justify-between gap-4">
+                                                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                                            Tus {{ $totalPartidasCot }} {{ \Illuminate\Support\Str::plural('partida', $totalPartidasCot) }}, una por fila
+                                                        </p>
+                                                        @if($suma > 0)
+                                                            <dl class="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-4 font-mono text-sm tabular-nums shadow-sm sm:w-72 dark:border-slate-700 dark:bg-slate-900">
+                                                                <div class="flex items-center justify-between gap-4">
+                                                                    <dt class="font-sans text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Neto</dt>
+                                                                    <dd class="font-semibold text-slate-800 dark:text-slate-100">$ {{ number_format($suma, 0, ',', '.') }}</dd>
+                                                                </div>
+                                                                <div class="mt-1.5 flex items-center justify-between gap-4">
+                                                                    <dt class="font-sans text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">IVA 19%</dt>
+                                                                    <dd class="text-slate-500 dark:text-slate-400">+ $ {{ number_format($iva, 0, ',', '.') }}</dd>
+                                                                </div>
+                                                                <div class="mt-3 flex items-center justify-between gap-4 border-t border-dashed border-slate-200 pt-3 dark:border-slate-700">
+                                                                    <dt class="font-sans text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">Total con IVA</dt>
+                                                                    <dd class="text-lg font-black text-slate-900 dark:text-white">$ {{ number_format($suma + $iva, 0, ',', '.') }}</dd>
+                                                                </div>
+                                                            </dl>
+                                                        @endif
+                                                    </div>
                                                 </td>
                                             </tr>
-                                            {{-- Como «Quién conviene»: tus partidas con sus piezas, sin lo que el proveedor agregó. --}}
-                                            @php $suma = $resultado->sumaCotizada(); @endphp
-                                            @if($suma > 0)
-                                                <tr class="border-t border-slate-200/80 dark:border-slate-800">
-                                                    <td colspan="3" class="px-6 pt-3 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
-                                                    <td colspan="2" class="whitespace-nowrap px-6 pt-3 text-right font-mono text-sm font-black tabular-nums text-slate-900 dark:text-white">$ {{ number_format($suma, 0, ',', '.') }}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td colspan="3" class="px-6 py-1 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">+ IVA 19%</td>
-                                                    <td colspan="2" class="whitespace-nowrap px-6 py-1 text-right font-mono text-sm tabular-nums text-slate-600 dark:text-slate-300">$ {{ number_format(round($suma * 0.19), 0, ',', '.') }}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td colspan="3" class="px-6 pb-3.5 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Total con IVA</td>
-                                                    <td colspan="2" class="whitespace-nowrap px-6 pb-3.5 text-right font-mono text-base font-black tabular-nums text-slate-900 dark:text-white">$ {{ number_format($suma + round($suma * 0.19), 0, ',', '.') }}</td>
-                                                </tr>
-                                            @endif
                                         </tfoot>
                                     </table>
                                 </div>
