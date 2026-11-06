@@ -322,8 +322,8 @@ it('shows who asked for each request when there is more than one person', functi
     $admin = User::factory()->admin()->create();
     $tabla = tablaDeLaBandeja($this->actingAs($admin)->get(route('purchase_requests.index'))->getContent());
 
-    // Sin esta columna no había forma de comprobar que el filtro hizo algo.
-    expect($tabla)->toContain('Solicitante')
+    // Sin esto no había forma de comprobar que el filtro hizo algo.
+    expect($tabla)->toContain('pedida por Paola Jara para Luis Silva')
         ->toContain('Paola Jara')
         ->toContain('Jose Ancacura')
         ->toContain('Luis Silva');

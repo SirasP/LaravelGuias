@@ -393,77 +393,137 @@
 
             {{-- Tabla para escritorio --}}
             <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                        <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                            <th class="whitespace-nowrap px-5 py-3">Folio</th>
-                            <th class="min-w-72 px-5 py-3">Solicitud</th>
-                            <th class="whitespace-nowrap px-5 py-3 text-right">Partidas</th>
-                            {{-- Solicitante sólo cuando hay más de uno: con una sola
-                                 persona era la misma línea repetida en cada fila. --}}
-                            @if($variosSolicitantes)
-                                <th class="whitespace-nowrap px-5 py-3">Solicitante</th>
-                            @endif
-                            <th class="whitespace-nowrap px-5 py-3">Departamento</th>
-                            <th class="whitespace-nowrap px-5 py-3">Requerida</th>
-                            <th class="whitespace-nowrap px-5 py-3">Estado</th>
+                <table class="min-w-full border-separate border-spacing-0 text-sm">
+                    <thead>
+                        <tr class="text-left text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <th class="border-b border-slate-200 bg-slate-50 py-3 pl-6 pr-5 dark:border-slate-800 dark:bg-slate-950/60">Solicitud</th>
+                            <th class="w-56 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Avance</th>
+                            <th class="w-32 border-b border-slate-200 bg-slate-50 px-5 py-3 text-right dark:border-slate-800 dark:bg-slate-950/60">Partidas</th>
+                            <th class="w-40 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Requerida</th>
                             {{-- Lo que de verdad hacía falta: qué espera cada una. --}}
-                            <th class="whitespace-nowrap px-5 py-3">Siguiente paso</th>
+                            <th class="w-56 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Siguiente paso</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/70">
+                    <tbody>
                         @forelse($requests as $purchaseRequest)
                             @php
                                 $meta = $statusMeta($purchaseRequest->status);
                                 [$priorityLabel, $priorityClasses] = $priorityMeta($purchaseRequest->priority ?? null);
+                                [$paso, $pendiente] = $purchaseRequest->siguientePaso();
+                                $estado = $purchaseRequest->status->value;
+                                $cotizaciones = (int) ($purchaseRequest->received_quotes_count ?? 0);
+                                $sinPrecio = (int) ($purchaseRequest->items_sin_precio_count ?? 0);
+
+                                // En qué va: cinco pasos, del envío a tener todos los precios.
+                                $pasos = ['Revisión', 'Aprobada', 'En Odoo', 'Cotizada', 'Con precios'];
+                                $hecho = match (true) {
+                                    $estado === 'draft' => 0,
+                                    in_array($estado, ['submitted', 'resubmitted', 'changes_requested'], true) => 1,
+                                    $estado === 'completed' => 5,
+                                    in_array($estado, ['cancelled', 'rejected'], true) => 0,
+                                    ! $purchaseRequest->hasBeenExportedToOdoo() => 2,
+                                    $cotizaciones === 0 => 3,
+                                    $sinPrecio > 0 => 4,
+                                    default => 5,
+                                };
+                                $apagada = in_array($estado, ['cancelled', 'rejected'], true);
+                                $etapa = match (true) {
+                                    $estado === 'completed' => 'Terminada',
+                                    $apagada => $meta['label'],
+                                    $estado === 'draft' => 'Borrador',
+                                    $estado === 'changes_requested' => 'Con correcciones',
+                                    default => $pasos[max(0, $hecho - 1)],
+                                };
+                                [$franja, $relleno] = match (true) {
+                                    $estado === 'completed' => ['bg-violet-500', 'bg-violet-500'],
+                                    $apagada => ['bg-slate-300 dark:bg-slate-700', 'bg-slate-300 dark:bg-slate-700'],
+                                    $estado === 'changes_requested' => ['bg-amber-500', 'bg-amber-500'],
+                                    $pendiente => ['bg-blue-500', 'bg-blue-500'],
+                                    default => ['bg-emerald-500', 'bg-emerald-500'],
+                                };
+
+                                // Cuándo se necesita, en palabras.
+                                $requerida = $purchaseRequest->required_date;
+                                $dias = $requerida ? (int) now()->startOfDay()->diffInDays($requerida->copy()->startOfDay(), false) : null;
+                                $vencida = $dias !== null && $dias < 0 && ! in_array($estado, ['completed', 'cancelled', 'rejected'], true);
+                                $cuando = match (true) {
+                                    $dias === null => null,
+                                    $dias === 0 => 'hoy',
+                                    $dias === 1 => 'mañana',
+                                    $dias > 1 => 'en '.$dias.' días',
+                                    $dias === -1 => 'ayer',
+                                    default => 'hace '.abs($dias).' días',
+                                };
                             @endphp
-                            <tr class="cursor-pointer transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
-                                data-row-href="{{ route('purchase_requests.show', $purchaseRequest) }}">
-                                <td class="whitespace-nowrap px-5 py-4">
-                                    {{-- Enlace de verdad: se puede tabular, copiar y abrir en otra pestaña --}}
-                                    <a href="{{ route('purchase_requests.show', $purchaseRequest) }}"
-                                        class="font-mono text-xs font-bold text-blue-600 hover:underline focus:outline-none focus-visible:underline dark:text-blue-400">
-                                        {{ $purchaseRequest->folio ?? ('BOR-' . $purchaseRequest->id) }}
-                                    </a>
-                                    @if($purchaseRequest->isFromOdoo())
-                                        <span class="mt-1 block w-fit rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>
-                                    @endif
-                                </td>
-                                <td class="px-5 py-4">
-                                    <p class="line-clamp-2 font-semibold text-slate-900 dark:text-white">
+                            <tr class="group cursor-pointer" data-row-href="{{ route('purchase_requests.show', $purchaseRequest) }}">
+                                <td class="relative border-b border-slate-100 py-4 pl-6 pr-5 transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    <span class="absolute inset-y-3 left-0 w-1 rounded-r-full {{ $franja }}" aria-hidden="true"></span>
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        {{-- Enlace de verdad: se puede tabular, copiar y abrir en otra pestaña --}}
+                                        <a href="{{ route('purchase_requests.show', $purchaseRequest) }}"
+                                            class="font-mono text-xs font-bold text-blue-600 hover:underline focus:outline-none focus-visible:underline dark:text-blue-400">
+                                            {{ $purchaseRequest->folio ?? ('BOR-' . $purchaseRequest->id) }}
+                                        </a>
                                         @if(($purchaseRequest->priority ?? null) !== 'normal')
-                                            <span class="mr-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[11px] font-extrabold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">{{ $priorityLabel }}</span>
+                                            <span class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold {{ $priorityClasses }}">{{ $priorityLabel }}</span>
                                         @endif
-                                        {{ $purchaseRequest->reason }}
+                                        @if($purchaseRequest->isFromOdoo())
+                                            <span class="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>
+                                        @endif
+                                    </div>
+                                    <p class="mt-1 line-clamp-2 max-w-2xl font-bold text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ $purchaseRequest->reason }}</p>
+                                    <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-slate-500 dark:text-slate-400">
+                                        <span>{{ $purchaseRequest->department ?: 'Sin departamento' }}</span>
+                                        @if($variosSolicitantes)
+                                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                                            <span>pedida por {{ $purchaseRequest->requester_name_snapshot ?: '—' }}@if(filled($purchaseRequest->requested_for_name)) para {{ $purchaseRequest->requested_for_name }}@endif</span>
+                                        @endif
+                                        <span class="text-slate-300 dark:text-slate-600">·</span>
+                                        <span>creada {{ $formatDate($purchaseRequest->request_date) }}</span>
                                     </p>
                                 </td>
-                                <td class="whitespace-nowrap px-5 py-4 text-right tabular-nums text-slate-600 dark:text-slate-300">
-                                    {{ $purchaseRequest->items_count }}
+                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    <div class="flex gap-1" title="{{ implode(' → ', $pasos) }}">
+                                        @foreach($pasos as $i => $nombrePaso)
+                                            <span class="h-1.5 flex-1 rounded-full {{ $i < $hecho ? $relleno : 'bg-slate-200 dark:bg-slate-700' }}" title="{{ $nombrePaso }}"></span>
+                                        @endforeach
+                                    </div>
+                                    <p class="mt-1.5 flex items-center justify-between text-xs">
+                                        <span class="font-bold {{ $apagada ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200' }}">{{ $etapa }}</span>
+                                        <span class="font-mono text-[10px] text-slate-400">{{ $hecho }}/5</span>
+                                    </p>
                                 </td>
-                                @if($variosSolicitantes)
-                                    <td class="whitespace-nowrap px-5 py-4">
-                                        <p class="text-slate-700 dark:text-slate-200">{{ $purchaseRequest->requester_name_snapshot ?: '—' }}</p>
-                                        @if (filled($purchaseRequest->requested_for_name))
-                                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Para {{ $purchaseRequest->requested_for_name }}</p>
-                                        @endif
-                                    </td>
-                                @endif
-                                <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $purchaseRequest->department ?: '—' }}</td>
-                                <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-300">{{ $formatDate($purchaseRequest->required_date) }}</td>
-                                <td class="whitespace-nowrap px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $meta['classes'] }}">{{ $meta['label'] }}</span></td>
+                                <td class="border-b border-slate-100 px-5 py-4 text-right align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    <p class="font-mono text-base font-black tabular-nums text-slate-800 dark:text-slate-100">{{ $purchaseRequest->items_count }}</p>
+                                    <p class="whitespace-nowrap text-[11px] {{ $cotizaciones > 0 ? 'font-bold text-sky-700 dark:text-sky-300' : 'text-slate-400' }}">
+                                        {{ $cotizaciones === 0 ? 'sin cotizaciones' : $cotizaciones.' '.($cotizaciones === 1 ? 'cotización' : 'cotizaciones') }}
+                                    </p>
+                                </td>
+                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    <p class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ $formatDate($requerida) }}</p>
+                                    @if($cuando)
+                                        <p class="text-[11px] {{ $vencida ? 'font-bold text-rose-600 dark:text-rose-400' : 'text-slate-400' }}">{{ $vencida ? 'vencida '.$cuando : $cuando }}</p>
+                                    @endif
+                                </td>
                                 {{-- Qué espera cada una: sin esto la bandeja decía lo que la
                                      solicitud es, nunca lo que falta hacerle. --}}
-                                @php([$paso, $pendiente] = $purchaseRequest->siguientePaso())
-                                <td class="whitespace-nowrap px-5 py-4">
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-bold {{ $pendiente ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500' }}">
-                                        @if($pendiente)<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>@endif
-                                        {{ $paso }}
-                                    </span>
+                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    @if($pendiente)
+                                        <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-extrabold text-amber-800 ring-1 ring-amber-200 group-hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900">
+                                            {{ $paso }}
+                                            <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-slate-500">
+                                            @if($estado === 'completed' || $paso === 'Lista')<svg class="h-3.5 w-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>@endif
+                                            {{ $paso }}
+                                        </span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                <td colspan="{{ $variosSolicitantes ? 7 : 6 }}" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+                            <tr>
+                                <td colspan="5" class="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No hay solicitudes para mostrar.
                                 </td>
                             </tr>
