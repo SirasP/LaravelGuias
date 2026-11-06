@@ -215,10 +215,49 @@
                     @endforeach
                 </div>
                 @if($masBarataCompleta && $cubiertos === $total && $combinada < $masBarataCompleta->amount_untaxed - 1)
-                    <p class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900">
-                        Comprando cada producto donde está más barato serían <span class="font-black tabular-nums">{{ $money($combinada, 'CLP') }} neto</span>:
-                        {{ $money($masBarataCompleta->amount_untaxed - $combinada, 'CLP') }} menos que todo con {{ $short($masBarataCompleta->partner_name) }}.
-                    </p>
+                    @php
+                        // A quién le tocaría cada producto si se compra cada uno donde está más barato.
+                        $reparto = $products->groupBy('best')->map(fn ($ps, $id) => [
+                            'orden' => $group->firstWhere('odoo_id', $id),
+                            'productos' => $ps->count(),
+                            'neto' => $ps->sum(fn ($p) => $p['cells'][$id]['subtotal'] + $p['cells'][$id]['pieces']),
+                        ])->sortByDesc('neto')->values();
+                        $ahorro = $masBarataCompleta->amount_untaxed - $combinada;
+                    @endphp
+                    <div class="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-extrabold text-emerald-900 dark:text-emerald-100">¿Y si repartes la compra?</p>
+                                <p class="text-xs text-emerald-800/80 dark:text-emerald-200/80">Comprándole a cada proveedor sólo lo que tiene más barato. Serían {{ $reparto->count() }} órdenes de compra en vez de una.</p>
+                            </div>
+                            <span class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-black text-white">Ahorras {{ $money($ahorro, 'CLP') }} neto</span>
+                        </div>
+                        <div class="mt-3 grid gap-4 lg:grid-cols-2">
+                            <ul class="divide-y divide-emerald-100 rounded-xl bg-white text-sm dark:divide-emerald-900/50 dark:bg-slate-900">
+                                @foreach($reparto as $r)
+                                    <li class="flex items-center justify-between gap-3 px-3 py-2">
+                                        <span class="min-w-0 truncate"><span class="font-bold text-slate-800 dark:text-slate-100">{{ $short($r['orden']?->partner_name) }}</span> <span class="text-xs text-slate-500">· {{ $r['productos'] }} {{ $r['productos'] === 1 ? 'producto' : 'productos' }}</span></span>
+                                        <span class="shrink-0 font-mono tabular-nums text-slate-700 dark:text-slate-200">{{ $money($r['neto'], 'CLP') }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            <dl class="rounded-xl bg-white p-3 font-mono text-sm tabular-nums dark:bg-slate-900">
+                                <div class="flex justify-between gap-3">
+                                    <dt class="font-sans text-xs font-bold uppercase tracking-wider text-slate-500">Repartida</dt>
+                                    <dd class="font-black text-emerald-700 dark:text-emerald-400">{{ $money($combinada, 'CLP') }}</dd>
+                                </div>
+                                <div class="mt-1.5 flex justify-between gap-3">
+                                    <dt class="font-sans text-xs font-bold uppercase tracking-wider text-slate-500">Todo a {{ $short($masBarataCompleta->partner_name) }}</dt>
+                                    <dd class="text-slate-700 dark:text-slate-200">{{ $money($masBarataCompleta->amount_untaxed, 'CLP') }}</dd>
+                                </div>
+                                <div class="mt-2 flex justify-between gap-3 border-t border-dashed border-slate-200 pt-2 dark:border-slate-700">
+                                    <dt class="font-sans text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Diferencia</dt>
+                                    <dd class="font-black text-slate-900 dark:text-white">{{ $money($ahorro, 'CLP') }} <span class="font-sans text-xs font-bold text-emerald-700 dark:text-emerald-400">({{ round($ahorro * 100 / $masBarataCompleta->amount_untaxed) }} %)</span></dd>
+                                </div>
+                                <p class="mt-2 font-sans text-[11px] text-slate-400">Montos netos. {{ $short($masBarataCompleta->partner_name) }} es la más barata de las que cotizaron todo.</p>
+                            </dl>
+                        </div>
+                    </div>
                 @endif
             </section>
 
