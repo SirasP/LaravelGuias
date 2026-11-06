@@ -392,16 +392,17 @@
             </div>
 
             {{-- Tabla para escritorio --}}
-            <div class="hidden overflow-x-auto md:block">
-                <table class="min-w-full border-separate border-spacing-0 text-sm">
+            <div class="hidden overflow-x-auto bg-slate-50/70 px-4 pb-3 md:block dark:bg-slate-950/40">
+                {{-- Cada fila es una tarjeta redondeada con el borde izquierdo del color de su estado. --}}
+                <table class="min-w-full border-separate border-spacing-x-0 border-spacing-y-2 text-sm">
                     <thead>
                         <tr class="text-left text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            <th class="border-b border-slate-200 bg-slate-50 py-3 pl-7 pr-5 dark:border-slate-800 dark:bg-slate-950/60">Solicitud</th>
-                            <th class="w-56 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Avance</th>
-                            <th class="w-32 border-b border-slate-200 bg-slate-50 px-5 py-3 text-right dark:border-slate-800 dark:bg-slate-950/60">Partidas</th>
-                            <th class="w-40 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Requerida</th>
+                            <th class="pb-1 pl-6 pr-5 pt-4">Solicitud</th>
+                            <th class="w-56 px-5 pb-1 pt-4">Avance</th>
+                            <th class="w-32 px-5 pb-1 pt-4 text-right">Partidas</th>
+                            <th class="w-40 px-5 pb-1 pt-4">Requerida</th>
                             {{-- Lo que de verdad hacía falta: qué espera cada una. --}}
-                            <th class="w-56 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Siguiente paso</th>
+                            <th class="w-56 px-5 pb-1 pt-4">Siguiente paso</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -435,12 +436,13 @@
                                     default => $pasos[max(0, $hecho - 1)],
                                 };
                                 [$franja, $relleno] = match (true) {
-                                    $estado === 'completed' => ['bg-violet-500', 'bg-violet-500'],
-                                    $apagada => ['bg-slate-300 dark:bg-slate-700', 'bg-slate-300 dark:bg-slate-700'],
-                                    $estado === 'changes_requested' => ['bg-amber-500', 'bg-amber-500'],
-                                    $pendiente => ['bg-blue-500', 'bg-blue-500'],
-                                    default => ['bg-emerald-500', 'bg-emerald-500'],
+                                    $estado === 'completed' => ['border-l-violet-500', 'bg-violet-500'],
+                                    $apagada => ['border-l-slate-300 dark:border-l-slate-600', 'bg-slate-300 dark:bg-slate-700'],
+                                    $estado === 'changes_requested' => ['border-l-amber-500', 'bg-amber-500'],
+                                    $pendiente => ['border-l-blue-500', 'bg-blue-500'],
+                                    default => ['border-l-emerald-500', 'bg-emerald-500'],
                                 };
+                                $celda = 'border-y border-slate-200 bg-white transition-colors group-hover:border-slate-300 group-hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-slate-800/60';
 
                                 // Cuándo se necesita, en palabras.
                                 $requerida = $purchaseRequest->required_date;
@@ -456,8 +458,7 @@
                                 };
                             @endphp
                             <tr class="group cursor-pointer" data-row-href="{{ route('purchase_requests.show', $purchaseRequest) }}">
-                                <td class="relative border-b border-slate-100 py-4 pl-7 pr-5 transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
-                                    <span class="absolute inset-y-2.5 left-2 w-1.5 rounded-full {{ $franja }}" aria-hidden="true"></span>
+                                <td class="{{ $celda }} rounded-l-2xl border-l-[5px] py-4 pl-5 pr-5 {{ $franja }}">
                                     <div class="flex flex-wrap items-center gap-1.5">
                                         {{-- Enlace de verdad: se puede tabular, copiar y abrir en otra pestaña --}}
                                         <a href="{{ route('purchase_requests.show', $purchaseRequest) }}"
@@ -482,7 +483,7 @@
                                         <span>creada {{ $formatDate($purchaseRequest->request_date) }}</span>
                                     </p>
                                 </td>
-                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                <td class="{{ $celda }} px-5 py-4 align-middle">
                                     <div class="flex gap-1" title="{{ implode(' → ', $pasos) }}">
                                         @foreach($pasos as $i => $nombrePaso)
                                             <span class="h-1.5 flex-1 rounded-full {{ $i < $hecho ? $relleno : 'bg-slate-200 dark:bg-slate-700' }}" title="{{ $nombrePaso }}"></span>
@@ -493,13 +494,13 @@
                                         <span class="font-mono text-[10px] text-slate-400">{{ $hecho }}/5</span>
                                     </p>
                                 </td>
-                                <td class="border-b border-slate-100 px-5 py-4 text-right align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                <td class="{{ $celda }} px-5 py-4 text-right align-middle">
                                     <p class="font-mono text-base font-black tabular-nums text-slate-800 dark:text-slate-100">{{ $purchaseRequest->items_count }}</p>
                                     <p class="whitespace-nowrap text-[11px] {{ $cotizaciones > 0 ? 'font-bold text-sky-700 dark:text-sky-300' : 'text-slate-400' }}">
                                         {{ $cotizaciones === 0 ? 'sin cotizaciones' : $cotizaciones.' '.($cotizaciones === 1 ? 'cotización' : 'cotizaciones') }}
                                     </p>
                                 </td>
-                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                <td class="{{ $celda }} px-5 py-4 align-middle">
                                     <p class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ $formatDate($requerida) }}</p>
                                     @if($cuando)
                                         <p class="text-[11px] {{ $vencida ? 'font-bold text-rose-600 dark:text-rose-400' : 'text-slate-400' }}">{{ $vencida ? 'vencida '.$cuando : $cuando }}</p>
@@ -507,7 +508,7 @@
                                 </td>
                                 {{-- Qué espera cada una: sin esto la bandeja decía lo que la
                                      solicitud es, nunca lo que falta hacerle. --}}
-                                <td class="border-b border-slate-100 px-5 py-4 align-middle transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                <td class="{{ $celda }} rounded-r-2xl border-r px-5 py-4 align-middle">
                                     @if($pendiente)
                                         <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-extrabold text-amber-800 ring-1 ring-amber-200 group-hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900">
                                             {{ $paso }}
