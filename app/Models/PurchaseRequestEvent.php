@@ -52,6 +52,14 @@ class PurchaseRequestEvent extends Model
     /** Nació en Odoo, sin solicitud, y Laravel la trajo. */
     public const ADOPTED_FROM_ODOO = 'adopted_from_odoo';
 
+    /**
+     * Las partidas las armó el asistente con lo que la persona escribió en el
+     * formulario. Distinto de AI_DRAFTED, que es una solicitud nacida de un
+     * documento leído: aquí no hay documento, sólo el texto, que queda en el
+     * comentario para poder volver a leerlo.
+     */
+    public const DICTATED = 'dictated_to_ai';
+
     protected $fillable = [
         'purchase_request_id',
         'actor_id',
@@ -114,6 +122,7 @@ class PurchaseRequestEvent extends Model
             self::COMPLETED => 'Compra terminada',
             self::REOPENED => 'Vuelta a abrir',
             self::ADOPTED_FROM_ODOO => 'Creada en Odoo y traída a Laravel',
+            self::DICTATED => 'Dictada al asistente',
             default => \Illuminate\Support\Str::headline((string) $this->event_type),
         };
     }

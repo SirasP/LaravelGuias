@@ -99,6 +99,18 @@ class PurchaseRequest extends Model
             : $this->events()->where('event_type', PurchaseRequestEvent::ADOPTED_FROM_ODOO)->exists();
     }
 
+    /** Sus partidas las armó el asistente con lo que alguien le escribió. */
+    public function isDictated(): bool
+    {
+        if (array_key_exists('dictada', $this->attributes)) {
+            return (bool) $this->attributes['dictada'];
+        }
+
+        return $this->relationLoaded('events')
+            ? $this->events->contains('event_type', PurchaseRequestEvent::DICTATED)
+            : $this->events()->where('event_type', PurchaseRequestEvent::DICTATED)->exists();
+    }
+
     public function getRouteKeyName(): string
     {
         return 'public_id';

@@ -89,6 +89,13 @@
     {{-- Lo que se concluyó al leer la cotización. Nadie lo escribe a mano: si
          el documento declara IVA aparte, los precios van netos y punto. --}}
     <input type="hidden" name="prices_include_tax" x-model="pricesIncludeTax">
+    @unless($isEditing)
+        {{-- Lo que se le dictó al asistente y el proveedor que reconoció. Al
+             guardar dejan la marca de «dictada» y, si traen proveedor y
+             precios, también la cotización escrita de ese proveedor. --}}
+        <input type="hidden" name="drafted_text" id="drafted_text" value="{{ old('drafted_text') }}">
+        <input type="hidden" name="drafted_supplier" id="drafted_supplier" value="{{ old('drafted_supplier') }}">
+    @endunless
 
     @if($errors->any())
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
@@ -178,6 +185,12 @@
                                     if (d.requested_for_name || d.delivery_location || d.supplier || d.priority === 'urgent') {
                                         $dispatch('abrir-detalles');
                                     }
+
+                                    // Se guarda lo dictado, sumando si se dicta más de una vez.
+                                    const dictado = document.getElementById('drafted_text');
+                                    if (dictado) { dictado.value = (dictado.value ? dictado.value + '\n\n' : '') + texto.trim(); }
+                                    const dictadoProveedor = document.getElementById('drafted_supplier');
+                                    if (dictadoProveedor && d.supplier && !dictadoProveedor.value) { dictadoProveedor.value = d.supplier; }
 
                                     motivo = d.reason ?? '';
                                     paraQuien = d.requested_for_name ?? '';

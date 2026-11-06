@@ -52,6 +52,11 @@ abstract class PurchaseRequestDataRequest extends FormRequest
                 }
             }],
             'prices_include_tax' => ['nullable', 'boolean'],
+            // Lo que se le escribió al asistente y el proveedor que reconoció.
+            // Sólo cuentan al crear: dejan la marca de «dictada» y, si traen
+            // proveedor y precios, también una cotización escrita.
+            'drafted_text' => ['nullable', 'string', 'max:20000'],
+            'drafted_supplier' => ['nullable', 'string', 'max:255'],
             'items' => ['nullable', 'array', 'max:200'],
             'items.*.sort_order' => ['required', 'integer', 'min:1'],
             'items.*.product_service' => ['required', 'string', 'max:1000'],

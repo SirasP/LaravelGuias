@@ -117,6 +117,7 @@ class PurchaseRequestController extends Controller
             // Aquí y no en la consulta base: ésa también cuenta por estado con
             // GROUP BY, y MySQL no acepta la columna extra (sí SQLite, en las pruebas).
             ->withExists(['events as creada_en_odoo' => fn ($q) => $q->where('event_type', \App\Models\PurchaseRequestEvent::ADOPTED_FROM_ODOO)])
+            ->withExists(['events as dictada' => fn ($q) => $q->where('event_type', \App\Models\PurchaseRequestEvent::DICTATED)])
             ->latest('created_at')
             ->paginate(20)
             ->withQueryString();
@@ -276,6 +277,7 @@ class PurchaseRequestController extends Controller
                     'attachment_count' => count($data['attachments'] ?? []),
                 ]);
                 $this->storeAttachments($purchaseRequest, $data['attachments'] ?? [], $user, $storedPaths);
+                $this->recordDictation($purchaseRequest, $data, $user, $request, $storedPaths);
 
                 return $purchaseRequest;
             });
@@ -1423,6 +1425,85 @@ class PurchaseRequestController extends Controller
     }
 
     /** @param array<string, mixed> $metadata */
+    /**
+     * Deja dicho que la solicitud se dictó y, si lo dictado era una cotización,
+     * la guarda también como tal.
+     *
+     * La SC-2026-000111 se escribió así: «6 aspas de ventilador a Corsud, a
+     * 49.594». Eso es una cotización de Corsud, pero quedó sólo como solicitud:
+     * el precio vivía en la partida, sin respaldo, y la pestaña Cotizaciones
+     * estaba vacía. Con proveedor y algún precio, ahora queda además una
+     * cotización «escrita a mano» de ese proveedor, con el texto tal cual —lo
+     * mismo que hace «Escribirla tú» en la ficha—. Sin proveedor o sin precios
+     * es lo que se necesita, no lo que alguien ofreció, y no se inventa nada.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<string>  $storedPaths
+     */
+    private function recordDictation(PurchaseRequest $purchaseRequest, array $data, User $user, Request $request, array &$storedPaths): void
+    {
+        $texto = trim((string) ($data['drafted_text'] ?? ''));
+
+        if ($texto === '') {
+            return;
+        }
+
+        $proveedor = trim((string) ($data['drafted_supplier'] ?? '')) ?: null;
+
+        $this->recordEvent($purchaseRequest, $user, PurchaseRequestEvent::DICTATED, null, null, $request, array_filter([
+            'proveedor' => $proveedor,
+        ]), Str::limit($texto, 5000));
+
+        $conPrecio = $purchaseRequest->items()->where('unit_price', '>', 0)->orderBy('sort_order')->get();
+
+        if ($proveedor === null || $conPrecio->isEmpty()) {
+            return;
+        }
+
+        $hash = hash('sha256', $texto);
+
+        // El mismo texto ya está guardado como documento: no se duplica.
+        if (PurchaseRequestIngestion::query()->where('company_code', 'EHE')->where('sha256', $hash)->exists()) {
+            return;
+        }
+
+        $path = 'purchase-requests/ingestions/'.$user->getKey().'/'.Str::uuid().'.txt';
+        Storage::disk('local')->put($path, $texto);
+        $storedPaths[] = $path;
+
+        $numero = fn ($v): string => rtrim(rtrim(number_format((float) $v, 6, '.', ''), '0'), '.');
+
+        PurchaseRequestIngestion::query()->create([
+            'user_id' => $user->getKey(),
+            'uploader_name_snapshot' => $user->name,
+            'compared_request_id' => $purchaseRequest->getKey(),
+            'disk' => 'local',
+            'path' => $path,
+            'original_name' => 'Cotización dictada al crear la solicitud.txt',
+            'mime_type' => 'text/plain',
+            'size' => strlen($texto),
+            'sha256' => $hash,
+            'status' => PurchaseRequestIngestion::COMPLETED,
+            'source_kind' => \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT,
+            'supplier_name' => $proveedor,
+            'extracted' => [
+                'items' => $conPrecio->map(fn (PurchaseRequestItem $item): array => [
+                    'product_service' => $item->product_service,
+                    'specification' => $item->specification,
+                    'quantity' => $numero($item->quantity),
+                    'unit' => $item->unit,
+                    'unit_price' => $numero($item->unit_price),
+                ])->all(),
+                'supplier' => $proveedor,
+                'source_kind' => \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT,
+                'document_number' => null,
+                'already_purchased' => false,
+                'successful' => true,
+            ],
+            'warnings' => [],
+        ]);
+    }
+
     private function recordEvent(
         PurchaseRequest $purchaseRequest,
         User $actor,

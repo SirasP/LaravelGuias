@@ -239,6 +239,12 @@
                             @if($purchaseRequest->isFromOdoo())
                                 <span class="inline-flex items-center rounded-xl bg-violet-100 px-3 py-1 text-xs font-extrabold text-violet-800 ring-1 ring-violet-200 dark:bg-violet-950/60 dark:text-violet-200 dark:ring-violet-900" title="Se hizo como cotización directo en Odoo y Laravel la trajo para recibir aquí las cotizaciones.">Creada en Odoo</span>
                             @endif
+                            @if($purchaseRequest->isDictated())
+                                <span class="inline-flex items-center gap-1 rounded-xl bg-fuchsia-100 px-3 py-1 text-xs font-extrabold text-fuchsia-800 ring-1 ring-fuchsia-200 dark:bg-fuchsia-950/60 dark:text-fuchsia-200 dark:ring-fuchsia-900" title="Las partidas las armó el asistente con lo que se le escribió. El texto queda en el historial.">
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    Dictada
+                                </span>
+                            @endif
                             
                             <span class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold ring-1 shadow-sm {{ $statusClasses }}">
                                 <span>{{ $statusIcon }}</span>

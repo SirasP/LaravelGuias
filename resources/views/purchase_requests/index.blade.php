@@ -391,6 +391,9 @@
                                 @if($purchaseRequest->isFromOdoo())
                                     <span class="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>
                                 @endif
+                                @if($purchaseRequest->isDictated())
+                                    <span class="rounded-full bg-fuchsia-100 px-1.5 py-0.5 text-[10px] font-extrabold text-fuchsia-700 dark:bg-fuchsia-950/60 dark:text-fuchsia-300" title="Las partidas las armó el asistente con lo que se le escribió.">Dictada</span>
+                                @endif
                             </div>
                             <span class="shrink-0 text-right">
                                 <span class="block font-mono text-sm font-black tabular-nums text-slate-800 dark:text-slate-100">{{ $purchaseRequest->items_count }}</span>
@@ -465,6 +468,9 @@
                                         @endif
                                         @if($purchaseRequest->isFromOdoo())
                                             <span class="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Creada en Odoo</span>
+                                        @endif
+                                        @if($purchaseRequest->isDictated())
+                                            <span class="rounded-full bg-fuchsia-100 px-1.5 py-0.5 text-[10px] font-extrabold text-fuchsia-700 dark:bg-fuchsia-950/60 dark:text-fuchsia-300" title="Las partidas las armó el asistente con lo que se le escribió.">Dictada</span>
                                         @endif
                                     </div>
                                     <p class="mt-1 line-clamp-2 max-w-2xl font-bold text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">{{ $purchaseRequest->reason }}</p>
