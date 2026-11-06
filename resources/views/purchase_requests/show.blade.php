@@ -762,6 +762,157 @@
                 </div>
             </div>
 
+            {{-- Las cotizaciones, arriba y a lo ancho, bajo las pestañas: lo primero que se mira de una solicitud
+                 aprobada es qué respondieron los proveedores. Antes eran una columna larga a la derecha. --}}
+            <section x-show="vista === 'solicitud'" class="mb-6" aria-label="Cotizaciones recibidas">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </span>
+                        <h2 class="text-sm font-black text-slate-900 dark:text-white">Cotizaciones</h2>
+                        @if(count($comparaciones) > 0)
+                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ count($comparaciones) }}</span>
+                        @endif
+                    </div>
+                    {{-- Cargar una lleva a su pestaña, que es donde está el formulario entero. --}}
+                    <button type="button" @click="vista = 'cotizaciones'; window.scrollTo({ top: 0, behavior: 'smooth' })"
+                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-sm shadow-sky-500/25 transition hover:bg-sky-700 active:scale-95">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                        {{ count($comparaciones) ? 'Agregar otra' : 'Agregar una cotización' }}
+                    </button>
+                </div>
+
+                @if(count($comparaciones) === 0)
+                    <p class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                        Todavía no llega ninguna cotización. Cuando el proveedor responda, súbela aquí y Laravel la compara con lo pedido.
+                    </p>
+                @else
+                    {{-- Tantas columnas como cotizaciones, hasta cuatro: con cuatro quedaba una sola abajo. --}}
+                    @php
+                        $columnasCot = match (min(count($comparaciones), 4)) {
+                            1 => 'sm:grid-cols-2 xl:grid-cols-3',
+                            2 => 'sm:grid-cols-2',
+                            3 => 'sm:grid-cols-2 xl:grid-cols-3',
+                            default => 'sm:grid-cols-2 xl:grid-cols-4',
+                        };
+                    @endphp
+                    <div class="grid gap-3 {{ $columnasCot }}">
+                        @foreach ($comparaciones as $comparacion)
+                            @php
+                                $lectura = $comparacion['ingestion'];
+                                $resultado = $comparacion['resultado'];
+                                $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
+                                $fallo = ! $leyendo && $resultado->elDocumentoNoAporto();
+                                $sumaLat = ($leyendo || $fallo) ? 0 : $resultado->sumaCotizada();
+                                $esLaMejor = $mejorCotizacion && $mejorCotizacion['de'] > 1 && $mejorCotizacion['nombre'] === $lectura->supplier_name;
+                                $bordeLat = match (true) {
+                                    $leyendo => 'border-l-amber-400',
+                                    $fallo => 'border-l-rose-500',
+                                    $resultado->cuadra() => 'border-l-emerald-500',
+                                    default => 'border-l-amber-500',
+                                };
+                            @endphp
+                            {{-- Cada cotización con el borde de su estado: verde coincide, ámbar con diferencias, rojo ilegible. --}}
+                            <div class="flex flex-col rounded-2xl border border-l-[5px] border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 {{ $bordeLat }} {{ $esLaMejor ? 'ring-2 ring-emerald-200 dark:ring-emerald-900' : '' }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0 flex-1">
+                                        @if($esLaMejor)
+                                            <span class="mb-1 inline-flex rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Más conveniente</span>
+                                        @endif
+                                        <p class="truncate text-sm font-black text-slate-900 dark:text-white" title="{{ $lectura->supplier_name }}">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</p>
+                                        <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                            class="mt-0.5 block truncate text-[11px] text-slate-500 hover:text-sky-700 hover:underline dark:text-slate-400 dark:hover:text-sky-300">{{ $lectura->original_name }}</a>
+                                    </div>
+                                    <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800" title="Quitar">
+                                            <span class="sr-only">Quitar</span>
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </form>
+                                </div>
+
+                                @if($sumaLat > 0)
+                                    <p class="mt-3 font-mono tabular-nums">
+                                        <span class="text-lg font-black text-slate-900 dark:text-white">${{ number_format($sumaLat, 0, ',', '.') }}</span>
+                                        <span class="font-sans text-[11px] text-slate-400">neto</span>
+                                    </p>
+                                    <p class="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">${{ number_format($sumaLat + round($sumaLat * 0.19), 0, ',', '.') }} <span class="font-sans">con IVA</span></p>
+                                @endif
+
+                                @if($leyendo)
+                                    <p class="mt-3 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                        <svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                        Leyéndola…
+                                    </p>
+                                @elseif($fallo)
+                                    <p class="mt-3 text-xs font-bold text-rose-700 dark:text-rose-400">No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.</p>
+                                    @if($lectura->isFinished() && ($lectura->user_id === auth()->id() || auth()->user()->isPurchaseReviewer()))
+                                        <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $lectura) }}" class="mt-2">
+                                            @csrf
+                                            <button type="submit" class="inline-flex min-h-8 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-extrabold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300">Leer de nuevo</button>
+                                        </form>
+                                    @endif
+                                @else
+                                    <p class="mt-2 text-xs">
+                                        <span class="font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : ($resultado->porConfirmar() > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-400') }}">{{ $resultado->estadoCorto() }}</span>
+                                        <span class="text-slate-400">· {{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} cruzadas</span>
+                                    </p>
+                                @endif
+
+                                @can('exportToOdoo', $purchaseRequest)
+                                    @if(! $leyendo && ! $fallo)
+                                        @php
+                                            $rutLat = \App\Support\Rut::normalize($lectura->supplier_tax_id);
+                                            $provLat = $rutLat === null ? null : \App\Models\PurchaseSupplier::query()
+                                                ->whereNotNull('odoo_partner_id')->where('tax_id', $rutLat)->first();
+                                            $firmesLat = $resultado->cruzadas() - $resultado->porConfirmar();
+                                            $esperaLat = $resultado->partidas() - $firmesLat;
+                                        @endphp
+                                        <div class="mt-auto space-y-2 pt-3">
+                                            {{-- El aviso importa más que el botón: una vez que la orden se confirma en Odoo,
+                                                 el nombre genérico con que nació queda ahí para siempre. Este programa aprende; Odoo no. --}}
+                                            @if(filled($purchaseRequest->odoo_order_id) && $resultado->conNombreReal() > 0)
+                                                <p class="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900/60"
+                                                    title="Llévalo antes de confirmar la orden en Odoo: después el nombre ya no se puede cambiar.">
+                                                    {{ $resultado->conNombreReal() }} {{ $resultado->conNombreReal() === 1 ? 'partida trae' : 'partidas traen' }} el nombre real del proveedor: <span class="font-black">llévalo antes de confirmar</span>
+                                                </p>
+                                            @endif
+                                            @if(filled($purchaseRequest->odoo_order_id))
+                                                <a href="{{ route('purchase_requests.quotes.prices.preview', [$purchaseRequest, $lectura]) }}"
+                                                    title="A la orden de este proveedor: precio, nombre real y cantidad, línea por línea. Primero ves qué cambia y eliges."
+                                                    class="flex min-h-9 w-full items-center justify-center rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 transition hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40">
+                                                    Revisar y llevar a Odoo
+                                                </a>
+                                            @endif
+                                            {{-- Comprarle a éste: su propia orden en Odoo, con lo que cotizó firme. --}}
+                                            @if($firmesLat > 0 && $provLat !== null)
+                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
+                                                    onsubmit="return confirm('Se le comprará a {{ addslashes($provLat->name) }}, en su propia orden de Odoo, {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} con el precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        title="Su propia orden en Odoo, con {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} al precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera.' : '' }}"
+                                                        class="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-violet-700">
+                                                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                        <span class="truncate">Comprarle a {{ \Illuminate\Support\Str::limit($provLat->name, 24) }}</span>
+                                                    </button>
+                                                </form>
+                                            @elseif($firmesLat > 0)
+                                                <button type="button" @click="vista = 'cot{{ $tabDe[$lectura->getKey()] ?? 0 }}'"
+                                                    class="w-full text-left text-[11px] font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:text-amber-400">
+                                                    Para comprarle sólo a éste, falta decir quién es en Odoo
+                                                </button>
+                                            @endif
+                                        </div>
+                                    @endif
+                                @endcan
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+
             {{-- ── GRID LAYOUT FULL WIDTH (8 COLS IZQUIERDA / 4 COLS DERECHA) ─ --}}
             <div class="grid gap-6 xl:grid-cols-12">
 
@@ -1749,165 +1900,6 @@
                             </form>
                         </section>
                     @endif
-
-                    {{-- Card: Cotizaciones Recibidas y Comparador --}}
-                    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2.5">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
-                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                </div>
-                                <h2 class="text-sm font-black text-slate-900 dark:text-white">Cotizaciones</h2>
-                            </div>
-                            @if(count($comparaciones) > 0)
-                                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ count($comparaciones) }}</span>
-                            @endif
-                        </div>
-
-                        <div class="mt-3.5 space-y-3">
-                            @foreach ($comparaciones as $comparacion)
-                                @php
-                                    $lectura = $comparacion['ingestion'];
-                                    $resultado = $comparacion['resultado'];
-                                    $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
-                                @endphp
-
-                                @php
-                                    $fallo = ! $leyendo && $resultado->elDocumentoNoAporto();
-                                    $sumaLat = ($leyendo || $fallo) ? 0 : $resultado->sumaCotizada();
-                                    $esLaMejor = $mejorCotizacion && $mejorCotizacion['de'] > 1 && $mejorCotizacion['nombre'] === $lectura->supplier_name;
-                                    $bordeLat = match (true) {
-                                        $leyendo => 'border-l-amber-400',
-                                        $fallo => 'border-l-rose-500',
-                                        $resultado->cuadra() => 'border-l-emerald-500',
-                                        default => 'border-l-amber-500',
-                                    };
-                                @endphp
-                                {{-- Cada cotización con el borde de su estado: verde coincide, ámbar con diferencias, rojo ilegible. --}}
-                                <div class="rounded-2xl border border-l-[5px] border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 {{ $bordeLat }} {{ $esLaMejor ? 'ring-2 ring-emerald-200 dark:ring-emerald-900' : '' }}">
-                                    <div class="flex items-start justify-between gap-2">
-                                        <div class="min-w-0 flex-1">
-                                            <p class="flex items-center gap-1.5">
-                                                <span class="truncate text-sm font-black text-slate-900 dark:text-white" title="{{ $lectura->supplier_name }}">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</span>
-                                                @if($esLaMejor)
-                                                    <span class="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Más conveniente</span>
-                                                @endif
-                                            </p>
-                                            <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                                class="mt-0.5 block truncate text-[11px] text-slate-500 hover:text-sky-700 hover:underline dark:text-slate-400 dark:hover:text-sky-300">
-                                                {{ $lectura->original_name }}
-                                            </a>
-                                            @if($sumaLat > 0)
-                                                <p class="mt-2 font-mono text-sm tabular-nums">
-                                                    <span class="font-black text-slate-900 dark:text-white">${{ number_format($sumaLat, 0, ',', '.') }}</span> <span class="font-sans text-[11px] text-slate-400">neto</span>
-                                                    <span class="font-sans text-[11px] text-slate-400">·</span>
-                                                    <span class="text-xs font-bold text-slate-600 dark:text-slate-300">${{ number_format($sumaLat + round($sumaLat * 0.19), 0, ',', '.') }}</span> <span class="font-sans text-[11px] text-slate-400">con IVA</span>
-                                                </p>
-                                            @endif
-
-                                            @if($leyendo)
-                                                <div class="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                                                    <svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                                    <span>Leyéndola…</span>
-                                                </div>
-                                            @elseif($resultado->elDocumentoNoAporto())
-                                                <p class="mt-2 text-xs font-bold text-rose-700 dark:text-rose-400">
-                                                    No se pudo leer. El archivo está guardado; ábrelo y compáralo a mano.
-                                                </p>
-                                                @if($lectura->isFinished() && ($lectura->user_id === auth()->id() || auth()->user()->isPurchaseReviewer()))
-                                                    <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $lectura) }}" class="mt-1.5">
-                                                        @csrf
-                                                        <button type="submit" class="inline-flex min-h-8 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-extrabold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300">Leer de nuevo</button>
-                                                    </form>
-                                                @endif
-                                            @else
-                                                <p class="mt-2 text-xs font-bold {{ $resultado->cuadra() ? 'text-emerald-700 dark:text-emerald-400' : ($resultado->porConfirmar() > 0 ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-400') }}">
-                                                    {{ $resultado->estadoCorto() }}
-                                                </p>
-                                                <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                                                    {{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} partidas cruzadas
-                                                </p>
-                                            @endif
-                                        </div>
-                                        <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 transition" title="Quitar">
-                                                <span class="sr-only">Quitar</span>
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
-                                        </form>
-                                    </div>
-
-                                    @can('exportToOdoo', $purchaseRequest)
-                                        @if(filled($purchaseRequest->odoo_order_id) && ! $leyendo && ! $resultado->elDocumentoNoAporto())
-                                            <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                                                {{-- El aviso importa más que el botón: una vez que la
-                                                     orden se confirma en Odoo, el nombre genérico con
-                                                     que nació queda ahí para siempre. Este programa
-                                                     aprende de cada cotización; Odoo no. --}}
-                                                @if($resultado->conNombreReal() > 0)
-                                                    <p class="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                                                        {{ $resultado->conNombreReal() }} {{ $resultado->conNombreReal() === 1 ? 'partida trae' : 'partidas traen' }} el nombre real del proveedor.
-                                                        Llévalo <span class="font-black">antes de confirmar la orden en Odoo</span>: después ya no se puede cambiar.
-                                                    </p>
-                                                @endif
-                                                <a href="{{ route('purchase_requests.quotes.prices.preview', [$purchaseRequest, $lectura]) }}"
-                                                    class="flex min-h-10 w-full items-center justify-center rounded-xl border border-violet-300 bg-white px-3 text-xs font-extrabold text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-violet-950/40 transition">
-                                                    Revisar y llevar a Odoo
-                                                </a>
-                                                <p class="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                                                    A la orden de este proveedor: precio, nombre real y cantidad, línea por línea. Primero ves qué cambia y eliges.
-                                                </p>
-                                            </div>
-                                        @endif
-
-                                        {{-- Comprarle a éste. Existe también en la pestaña
-                                             Cotizaciones, que es donde nadie lo encontró:
-                                             aquí queda pegado al botón que ya se aprieta,
-                                             y esta tarjeta es la primera pantalla. --}}
-                                        @if(! $leyendo && ! $resultado->elDocumentoNoAporto())
-                                            @php
-                                                $rutLat = \App\Support\Rut::normalize($lectura->supplier_tax_id);
-                                                $provLat = $rutLat === null ? null : \App\Models\PurchaseSupplier::query()
-                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutLat)->first();
-                                                $firmesLat = $resultado->cruzadas() - $resultado->porConfirmar();
-                                                $esperaLat = $resultado->partidas() - $firmesLat;
-                                            @endphp
-                                            @if($firmesLat > 0 && $provLat !== null)
-                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
-                                                    class="mt-3 border-t border-slate-100 pt-2.5 dark:border-slate-800"
-                                                    onsubmit="return confirm('Se le comprará a {{ addslashes($provLat->name) }}, en su propia orden de Odoo, {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} con el precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
-                                                    @csrf
-                                                    <button type="submit"
-                                                        class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-violet-700 transition">
-                                                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                        <span class="truncate">Comprarle a {{ \Illuminate\Support\Str::limit($provLat->name, 22) }}</span>
-                                                    </button>
-                                                    <p class="mt-1 text-[11px] text-violet-800 dark:text-violet-300">
-                                                        Su propia orden en Odoo, con {{ $firmesLat }} {{ \Illuminate\Support\Str::plural('partida', $firmesLat) }} al precio que cotizó.{{ $esperaLat > 0 ? ' Las otras '.$esperaLat.' quedan en espera.' : '' }}
-                                                    </p>
-                                                </form>
-                                            @elseif($firmesLat > 0)
-                                                <button type="button" @click="vista = 'cot{{ $tabDe[$lectura->getKey()] ?? 0 }}'"
-                                                    class="mt-3 w-full border-t border-slate-100 pt-2.5 text-left text-[11px] font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:border-slate-800 dark:text-amber-400">
-                                                    Para comprarle sólo a éste, falta decir quién es en Odoo
-                                                </button>
-                                            @endif
-                                        @endif
-                                    @endcan
-                                </div>
-                            @endforeach
-                        </div>
-
-                        {{-- Cargar una lleva a su pestaña, que es donde está el
-                             formulario entero. Tenerlo también aquí eran dos
-                             sitios para hacer lo mismo. --}}
-                        <button type="button" @click="vista = 'cotizaciones'; window.scrollTo({ top: 0, behavior: 'smooth' })"
-                            class="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-md shadow-sky-500/25 transition hover:bg-sky-700 active:scale-95">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                            {{ count($comparaciones) ? 'Agregar otra cotización' : 'Agregar una cotización' }}
-                        </button>
-                    </section>
 
                     {{-- Card: Integración ERP Odoo --}}
                     @can('exportToOdoo', $purchaseRequest) @if($odooActivo)
