@@ -126,6 +126,46 @@ class QuoteMatrix
     }
 
     /**
+     * Lo que dibuja la comparación compartida (<x-compras.comparacion>), con
+     * la misma forma que la de la orden de Odoo. El más conveniente es el más
+     * barato de los que cotizaron todo: uno al que le faltan partidas suma
+     * menos sin ser más barato.
+     *
+     * @return array{columnas: list<array<string, mixed>>, filas: list<array<string, mixed>>, totales: list<array<string, mixed>>, mejor: ?int}
+     */
+    public function paraVista(): array
+    {
+        $totales = array_map(function (array $t): array {
+            $iva = round($t['total'] * 0.19);
+            $notas = [];
+            if ($t['faltan'] > 0) {
+                $notas[] = 'sin cotizar: '.$t['faltan'].' '.($t['faltan'] === 1 ? 'partida' : 'partidas');
+            }
+            if ($t['porConfirmar'] > 0) {
+                $notas[] = 'incluye '.$t['porConfirmar'].' '.($t['porConfirmar'] === 1 ? 'pareja' : 'parejas').' por confirmar';
+            }
+
+            return ['neto' => $t['total'], 'iva' => $iva, 'total' => $t['total'] + $iva, 'notas' => $notas];
+        }, $this->totales);
+
+        $completas = array_filter(array_keys($this->totales), fn (int $i): bool => $this->totales[$i]['faltan'] === 0 && $this->totales[$i]['total'] > 0);
+        $mejor = collect($completas)->sortBy(fn (int $i): float => $this->totales[$i]['total'])->first();
+
+        return [
+            'columnas' => array_map(fn (array $p): array => ['nombre' => $p['nombre'], 'detalle' => $p['archivo']], $this->proveedores),
+            'filas' => array_map(fn (array $f): array => [
+                'nombre' => $f['partida'], 'cantidad' => $f['cantidad'], 'unidad' => $f['unidad'], 'mejor' => $f['masBarato'],
+                'celdas' => array_map(fn (?array $o): ?array => $o === null ? null : [
+                    'cantidad' => $o['cantidad'], 'unitario' => $o['unitarioLinea'], 'total' => $o['total'],
+                    'piezas' => $o['piezas'], 'precio' => $o['unitario'], 'porConfirmar' => $o['porConfirmar'],
+                ], $f['ofertas']),
+            ], $this->filas),
+            'totales' => $totales,
+            'mejor' => $mejor,
+        ];
+    }
+
+    /**
      * Lo que ese proveedor ofreció para esa partida, o nada si no la cotizó.
      *
      * Con sus piezas: el total las suma, y el unitario es lo que cuesta cada
@@ -133,7 +173,7 @@ class QuoteMatrix
      * proveedores. `piezas` es lo que suman, para decirlo en la celda.
      *
      * @param  list<array{linea: array<string, mixed>}>  $piezas
-     * @return array{cantidad: ?float, unitario: ?float, total: ?float, piezas: float, porConfirmar: bool}|null
+     * @return array{cantidad: ?float, unitario: ?float, unitarioLinea: ?float, total: ?float, piezas: float, porConfirmar: bool}|null
      */
     private static function oferta(QuotationComparisonRow $fila, array $piezas = []): ?array
     {
@@ -154,6 +194,7 @@ class QuoteMatrix
         return [
             'cantidad' => $cantidad,
             'unitario' => $unitario,
+            'unitarioLinea' => self::numero($fila->cotizada['unit_price'] ?? null),
             'total' => $total,
             'piezas' => $dePiezas,
             'porConfirmar' => $fila->esPropuesta(),

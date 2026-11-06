@@ -1141,6 +1141,9 @@
                             $plata = fn (?float $v) => $v === null ? '—' : '$ '.number_format($v, 0, ',', '.');
                             $numero = fn (?float $v) => $v === null ? '—' : rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');
                             $mejorTotal = collect($cuadricula->totales)->pluck('total')->filter(fn ($t) => $t > 0)->min();
+                            // La misma tabla que la orden de Odoo: lo que se mejora en una se ve en las dos.
+                            $vista = $cuadricula->paraVista();
+                            $reparto = \App\Services\PurchaseRequests\Quotes\CompraRepartida::de($vista['columnas'], $vista['filas'], array_map(fn ($t) => ['neto' => $t['neto']], $vista['totales']));
                         @endphp
                         <div x-show="vista === 'comparar'" x-cloak class="space-y-4">
                             <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -1153,108 +1156,18 @@
                                         </span>
                                     </div>
                                     <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                        Tus partidas contra cada proveedor: cantidad cotizada, precio unitario y lo que suma esa línea. El unitario más barato va marcado.
+                                        Lo que suma cada línea y, debajo, cantidad × precio unitario neto. En verde el más barato de cada partida; en rojo, cuánto más caro es cada uno.
                                     </p>
                                 </div>
 
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-sm">
-                                        <thead class="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                            <tr>
-                                                <th class="w-14 px-6 py-3.5 text-center">N°</th>
-                                                <th class="px-6 py-3.5">Partida</th>
-                                                <th class="w-28 whitespace-nowrap px-6 py-3.5 text-right">Pediste</th>
-                                                @foreach ($cuadricula->proveedores as $proveedor)
-                                                    <th class="w-56 px-6 py-3.5 text-right font-black">
-                                                        <span class="block truncate text-slate-700 dark:text-slate-200">{{ $proveedor['nombre'] }}</span>
-                                                        <span class="block text-[10px] font-semibold normal-case tracking-normal text-slate-400">cant · unitario · total</span>
-                                                    </th>
-                                                @endforeach
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
-                                            @foreach ($cuadricula->filas as $fila)
-                                                <tr class="align-top transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                    <td class="px-6 py-4 text-center">
-                                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                                            {{ $loop->iteration }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{{ $fila['partida'] }}</td>
-                                                    <td class="whitespace-nowrap px-6 py-4 text-right font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
-                                                        {{ $numero($fila['cantidad']) }}
-                                                        <span class="block font-sans text-[10px] text-slate-400">{{ $fila['unidad'] }}</span>
-                                                    </td>
-                                                    @foreach ($fila['ofertas'] as $i => $oferta)
-                                                        <td class="whitespace-nowrap px-6 py-4 text-right font-mono text-xs tabular-nums {{ $fila['masBarato'] === $i ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : '' }}">
-                                                            @if($oferta === null)
-                                                                <span class="font-sans italic text-slate-300 dark:text-slate-600">no la cotizó</span>
-                                                            @else
-                                                                <span class="block font-black {{ $fila['masBarato'] === $i ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white' }}">
-                                                                    {{ $plata($oferta['total']) }}
-                                                                </span>
-                                                                <span class="block text-[11px] text-slate-500 dark:text-slate-400">
-                                                                    {{ $numero($oferta['cantidad']) }} × {{ $plata($oferta['unitario']) }}
-                                                                </span>
-                                                                @if(($oferta['piezas'] ?? 0) > 0)
-                                                                    <span class="block font-sans text-[10px] font-bold text-sky-700 dark:text-sky-300" title="El proveedor cotizó aparte piezas que van en esta partida; ya están sumadas.">incluye piezas {{ $plata($oferta['piezas']) }}</span>
-                                                                @endif
-                                                                @if($fila['masBarato'] === $i)
-                                                                    <span class="mt-1 inline-flex items-center rounded-lg bg-emerald-100 px-2 py-0.5 font-sans text-[10px] font-black uppercase text-emerald-800 shadow-sm dark:bg-emerald-950/80 dark:text-emerald-300">más barato</span>
-                                                                @endif
-                                                                @if($oferta['porConfirmar'])
-                                                                    <span class="mt-1 block font-sans text-[10px] font-bold text-indigo-600 dark:text-indigo-400">por confirmar</span>
-                                                                @endif
-                                                            @endif
-                                                        </td>
-                                                    @endforeach
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                        {{-- Los precios cotizados son netos: cada proveedor con su neto, el IVA y lo que sale de verdad. --}}
-                                        <tfoot class="border-t-2 border-slate-200 dark:border-slate-700">
-                                            <tr class="align-top">
-                                                <td colspan="3" class="bg-slate-50/80 px-6 py-5 dark:bg-slate-950/60">
-                                                    <p class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Suma de lo cotizado</p>
-                                                    <dl class="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-                                                        <div class="flex h-5 items-center">Neto</div>
-                                                        <div class="flex h-5 items-center">IVA 19%</div>
-                                                        <div class="flex h-9 items-center border-t border-dashed border-slate-200 pt-1.5 font-black uppercase tracking-wider text-slate-700 dark:border-slate-700 dark:text-slate-200">Total con IVA</div>
-                                                    </dl>
-                                                </td>
-                                                @foreach ($cuadricula->totales as $total)
-                                                    @php
-                                                        $gana = $mejorTotal !== null && abs($total['total'] - $mejorTotal) < 0.005;
-                                                        $iva = round($total['total'] * 0.19);
-                                                    @endphp
-                                                    <td class="whitespace-nowrap px-6 py-5 text-right font-mono tabular-nums {{ $gana ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-slate-50/80 dark:bg-slate-950/60' }}">
-                                                        <p class="h-4 font-sans text-[10px] font-black uppercase tracking-wider {{ $gana ? 'text-emerald-700 dark:text-emerald-400' : 'text-transparent' }}">{{ $gana ? 'Más conveniente' : '·' }}</p>
-                                                        <dl class="mt-3 space-y-1.5">
-                                                            <div class="flex h-5 items-center justify-end text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $plata($total['total']) }}</div>
-                                                            <div class="flex h-5 items-center justify-end text-xs text-slate-400 dark:text-slate-500">+ {{ $plata($iva) }}</div>
-                                                            <div class="flex h-9 items-center justify-end border-t border-dashed pt-1.5 text-lg font-black {{ $gana ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400' : 'border-slate-200 text-slate-900 dark:border-slate-700 dark:text-white' }}">{{ $plata($total['total'] + $iva) }}</div>
-                                                        </dl>
-                                                        @if($total['faltan'] > 0)
-                                                            <span class="mt-2 block font-sans text-[11px] font-bold text-amber-700 dark:text-amber-400">
-                                                                sin cotizar: {{ $total['faltan'] }} {{ \Illuminate\Support\Str::plural('partida', $total['faltan']) }}
-                                                            </span>
-                                                        @endif
-                                                        @if($total['porConfirmar'] > 0)
-                                                            <span class="mt-1 block font-sans text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                                                                incluye {{ $total['porConfirmar'] }} {{ \Illuminate\Support\Str::plural('pareja', $total['porConfirmar']) }} por confirmar
-                                                            </span>
-                                                        @endif
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
+                                <x-compras.comparacion :columnas="$vista['columnas']" :filas="$vista['filas']" :totales="$vista['totales']" :mejor="$vista['mejor']" />
 
                                 <p class="border-t border-slate-200/80 px-6 py-3.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
                                     Cada total usa la cantidad que ese proveedor cotizó, no la que pediste. Los totales no son comparables entre sí mientras a alguno le falten partidas.
                                 </p>
                             </section>
+
+                            <x-compras.reparto :reparto="$reparto" />
 
                             {{-- Lo que algún proveedor agregó por su cuenta. Fuera de
                                  la cuadrícula: dentro hacía que las otras columnas

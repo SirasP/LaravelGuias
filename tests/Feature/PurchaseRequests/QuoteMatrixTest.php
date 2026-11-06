@@ -103,8 +103,8 @@ it('shows quantity, unit price and line total in every cell', function () {
     // La cantidad del total es la que cotizó el proveedor, no la que se pidió:
     // CONSTRUMART ofrece ocho de las diez, y su total es de ocho.
     expect($m->filas[0]['cantidad'])->toBe(10.0)
-        ->and($m->filas[0]['ofertas'][0])->toBe(['cantidad' => 10.0, 'unitario' => 4500.0, 'total' => 45000.0, 'piezas' => 0.0, 'porConfirmar' => false])
-        ->and($m->filas[0]['ofertas'][1])->toBe(['cantidad' => 8.0, 'unitario' => 3900.0, 'total' => 31200.0, 'piezas' => 0.0, 'porConfirmar' => false]);
+        ->and($m->filas[0]['ofertas'][0])->toBe(['cantidad' => 10.0, 'unitario' => 4500.0, 'unitarioLinea' => 4500.0, 'total' => 45000.0, 'piezas' => 0.0, 'porConfirmar' => false])
+        ->and($m->filas[0]['ofertas'][1])->toBe(['cantidad' => 8.0, 'unitario' => 3900.0, 'unitarioLinea' => 3900.0, 'total' => 31200.0, 'piezas' => 0.0, 'porConfirmar' => false]);
 });
 
 it('marks nobody when two suppliers tie', function () {

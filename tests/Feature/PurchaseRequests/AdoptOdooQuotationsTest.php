@@ -111,7 +111,7 @@ it('compares the Odoo orders by the request items, with a quoted piece inside it
 
     // Las filas llevan el nombre de la partida, no el del proveedor; la flange va dentro del codo.
     $page->assertSee('CODO PVC 200 MM X 90° CEMENTAR')->assertDontSee('90░')
-        ->assertSee('incluye piezas $25.758')
+        ->assertSee('incl. piezas $25.758')
         ->assertSee('Líneas que agregó un proveedor y no se pidieron')->assertSee('FLETE')
         ->assertDontSee('Cotizó 2 de 3')->assertDontSee('Cotizó 2 de 4');
 });
