@@ -213,3 +213,32 @@ it('does not treat an arriving price as a difference', function () {
         // Pero el precio se dice, que para eso se subió el documento.
         ->and($r->filas[0]->diferencias[0])->toContain('4.500');
 });
+
+it('pairs every PPR fitting with its own kind and size', function () {
+    // La SC-2026-000109 tal cual: codos, tees y tiras de 20 y 25. Antes los
+    // codos salían con los tubos, la tee de 25 con el codo de 25 y las tiras
+    // con lo que sobraba.
+    $solicitud = solicitudCon([
+        ['CODO PPR 20mm', null, 20], ['T PPR 20mm', null, 20],
+        ['CODO PPR 25mm', null, 20], ['T PPR 25mm', null, 20],
+        ['PPR TIRA 32MM', null, 15], ['PPR TIRA 25 MM', null, 10], ['PPR TIRA 20MM', null, 20],
+    ]);
+
+    $r = comparar($solicitud, array_map(fn (array $l) => ['product_service' => $l[0], 'specification' => null,
+        'quantity' => (string) $l[1], 'unit' => 'Unidades', 'unit_price' => 1000], [
+            ['PPR TUBO 20MM 6MT PN20 1012-', 20], ['PPR TEE 20X20MM', 20], ['PPR TUBO 25MM 6MT PN20 1012-', 10],
+            ['PPR CODO 25MM 90°', 20], ['PPR TUBO 32MM 6MT PN20 1012-', 15], ['PPR TEE 25X25MM', 20], ['PPR CODO 20MM 90°', 20],
+        ]));
+
+    $pares = collect($r->filas)->mapWithKeys(fn ($f) => [$f->pedida->product_service => $f->cotizada['product_service'] ?? null])->all();
+
+    expect($pares)->toBe([
+        'CODO PPR 20mm' => 'PPR CODO 20MM 90°',
+        'T PPR 20mm' => 'PPR TEE 20X20MM',
+        'CODO PPR 25mm' => 'PPR CODO 25MM 90°',
+        'T PPR 25mm' => 'PPR TEE 25X25MM',
+        'PPR TIRA 32MM' => 'PPR TUBO 32MM 6MT PN20 1012-',
+        'PPR TIRA 25 MM' => 'PPR TUBO 25MM 6MT PN20 1012-',
+        'PPR TIRA 20MM' => 'PPR TUBO 20MM 6MT PN20 1012-',
+    ]);
+});

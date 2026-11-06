@@ -33,6 +33,20 @@ final class ProductSimilarity
         'xchico', 'chico', 'mediano', 'grande', 'xgrande',
     ];
 
+    /**
+     * Qué pieza es, en fittings y cañerías. Si los dos nombres la dicen y no
+     * coincide, son productos distintos por mucho que compartan el resto.
+     *
+     * En la SC-2026-000109 se pidieron codos, tees y tiras de PPR de 20 y 25,
+     * y S&M las cotizó todas. «CODO PPR 20mm» se parecía más a «PPR TUBO 20MM
+     * 6MT» que a «PPR CODO 20MM 90°» —comparten PPR y 20MM, y el resto es
+     * ruido—, la «T» no se reconocía como «TEE» ni la «TIRA» como «TUBO», y
+     * «Confirmar todas» dejó aprendidos un codo con un tubo y una tee con un codo.
+     *
+     * @var list<string>
+     */
+    private const PIEZAS = ['codo', 'tee', 'tubo', 'copla', 'terminal', 'tapon', 'niple'];
+
     public function score(string $izquierda, string $derecha): float
     {
         $a = $this->normalize($izquierda);
@@ -53,6 +67,7 @@ final class ProductSimilarity
         foreach ([
             fn (): bool => $this->difieren($tokensA, $tokensB, self::TALLAS),
             fn (): bool => $this->difierenMedidas($a, $b),
+            fn (): bool => $this->otraPieza($tokensA, $tokensB),
         ] as $descalifica) {
             if ($descalifica()) {
                 return 0.0;
@@ -95,6 +110,15 @@ final class ProductSimilarity
                 'mts', 'mt', 'metro', 'metros' => 'mt',
                 'cja', 'caja', 'cajas' => 'caja',
                 'pza', 'pzas', 'pieza', 'piezas' => 'pza',
+                // Cómo se escriben las piezas en ferretería: la «T» de PPR es una
+                // tee y la tira de seis metros es un tubo.
+                't', 'tees' => 'tee',
+                'tira', 'tiras', 'tubos' => 'tubo',
+                'codos' => 'codo',
+                'cupla', 'cuplas', 'coplas' => 'copla',
+                'terminales' => 'terminal',
+                'tapones' => 'tapon',
+                'niples' => 'niple',
                 default => $token,
             };
         }
@@ -123,6 +147,21 @@ final class ProductSimilarity
         // Si sólo uno declara talla no se puede afirmar que difieran: puede que
         // el otro simplemente no la mencione.
         return $enA !== [] && $enB !== [] && $enA !== $enB;
+    }
+
+    /**
+     * Los dos dicen qué pieza son y ninguna coincide: un codo no es un tubo.
+     * Si sólo uno lo dice no se concluye nada, como con las tallas.
+     *
+     * @param  list<string>  $a
+     * @param  list<string>  $b
+     */
+    private function otraPieza(array $a, array $b): bool
+    {
+        $enA = array_intersect($a, self::PIEZAS);
+        $enB = array_intersect($b, self::PIEZAS);
+
+        return $enA !== [] && $enB !== [] && array_intersect($enA, $enB) === [];
     }
 
     /**

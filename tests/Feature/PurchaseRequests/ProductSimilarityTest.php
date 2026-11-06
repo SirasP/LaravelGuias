@@ -47,3 +47,20 @@ it('is not fooled by long names that share half the letters', function () {
     expect(parecido()->score('Monomando Lavamano', 'MONOMANDO LAVATORIO ECO - TAUMM 010100102'))
         ->toBeLessThan(0.88);
 });
+
+it('knows a fitting by its kind: a codo is never a tubo', function () {
+    // SC-2026-000109: «CODO PPR 20mm» se parecía más al tubo que al codo de
+    // S&M, porque comparten PPR y 20MM. Que los dos digan qué pieza son y no
+    // coincida los descarta, como una talla distinta.
+    expect(parecido()->score('CODO PPR 20mm', 'PPR TUBO 20MM 6MT PN20 1012-'))->toBe(0.0)
+        ->and(parecido()->score('T PPR 25mm', 'PPR CODO 25MM 90°'))->toBe(0.0)
+        ->and(parecido()->score('PPR TIRA 25 MM', 'PPR TEE 25X25MM'))->toBe(0.0)
+        ->and(parecido()->score('CODO PPR 20mm', 'PPR CODO 20MM 90°'))->toBeGreaterThan(0.5);
+});
+
+it('reads the T of PPR as a tee and the tira as a tubo', function () {
+    expect(parecido()->normalize('T PPR 20mm'))->toBe('tee ppr 20mm')
+        ->and(parecido()->normalize('PPR TIRA 20MM'))->toBe('ppr tubo 20mm')
+        ->and(parecido()->score('T PPR 20mm', 'PPR TEE 20X20MM'))->toBeGreaterThan(parecido()->score('T PPR 20mm', 'PPR TEE 25X25MM'))
+        ->and(parecido()->score('PPR TIRA 20MM', 'PPR TUBO 20MM 6MT PN20 1012-'))->toBeGreaterThan(0.5);
+});
