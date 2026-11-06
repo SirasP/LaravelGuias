@@ -781,24 +781,6 @@
             {{-- Las cotizaciones, arriba y a lo ancho, bajo las pestañas: lo primero que se mira de una solicitud
                  aprobada es qué respondieron los proveedores. Antes eran una columna larga a la derecha. --}}
             <section x-show="vista === 'cotizaciones'" x-cloak class="mb-6" aria-label="Cotizaciones recibidas">
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2.5">
-                        <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        </span>
-                        <h2 class="text-sm font-black text-slate-900 dark:text-white">Cotizaciones</h2>
-                        @if(count($comparaciones) > 0)
-                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ count($comparaciones) }}</span>
-                        @endif
-                    </div>
-                    {{-- Cargar una lleva a su pestaña, que es donde está el formulario entero. --}}
-                    <button type="button" @click="document.getElementById('subir-cotizacion')?.scrollIntoView({ behavior: 'smooth', block: 'start' })"
-                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-sm shadow-sky-500/25 transition hover:bg-sky-700 active:scale-95">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                        {{ count($comparaciones) ? 'Agregar otra' : 'Agregar una cotización' }}
-                    </button>
-                </div>
-
                 @if(count($comparaciones) === 0)
                     <p class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                         Todavía no llega ninguna cotización. Cuando el proveedor responda, súbela aquí y Laravel la compara con lo pedido.
@@ -837,6 +819,16 @@
                                             <span class="mb-1 inline-flex rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Más conveniente</span>
                                         @endif
                                         <p class="truncate text-sm font-black text-slate-900 dark:text-white" title="{{ $lectura->supplier_name }}">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</p>
+                                        @if(($lectura->extracted['already_purchased'] ?? false) || $lectura->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT)
+                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                @if($lectura->extracted['already_purchased'] ?? false)
+                                                    <span class="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">ya comprado</span>
+                                                @endif
+                                                @if($lectura->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT)
+                                                    <span class="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300">escrita a mano</span>
+                                                @endif
+                                            </div>
+                                        @endif
                                         <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
                                             class="mt-0.5 block truncate text-[11px] text-slate-500 hover:text-sky-700 hover:underline dark:text-slate-400 dark:hover:text-sky-300">{{ $lectura->original_name }}</a>
                                     </div>
@@ -1123,7 +1115,7 @@
                     <div x-show="vista === 'cotizaciones'" x-cloak class="space-y-4">
                         <section id="subir-cotizacion" class="scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div class="border-b border-slate-200/80 p-6 dark:border-slate-800">
-                                <h2 class="text-lg font-black text-slate-900 dark:text-white">Cotizaciones de esta solicitud</h2>
+                                <h2 class="text-lg font-black text-slate-900 dark:text-white">Agregar una cotización</h2>
                                 <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                                     Lo que entre aquí se contrasta con tus {{ $itemsCount }} partidas y queda como respaldo del precio.
                                 </p>
@@ -1144,13 +1136,28 @@
                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                         El PDF o la foto que te mandó el proveedor. Lo leemos y lo dejamos comparado.
                                     </p>
-                                    <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
-                                        class="block w-full rounded-xl border border-slate-300 bg-white text-xs text-slate-600 file:mr-3 file:min-h-10 file:cursor-pointer file:border-0 file:bg-slate-100 file:px-4 file:text-xs file:font-bold file:text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:file:bg-slate-800 dark:file:text-slate-200">
+                                    {{-- Toda la caja recibe el archivo: se hace clic o se arrastra encima.
+                                         Antes era un campo chico arriba y un hueco vacío hasta el botón. --}}
+                                    <label x-data="{ nombre: '', encima: false }"
+                                        class="relative flex min-h-44 flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition"
+                                        :class="encima ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : (nombre ? 'border-emerald-400 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-950/20' : 'border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50/50 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-sky-700')"
+                                        @dragover="encima = true" @dragleave="encima = false" @drop="encima = false">
+                                        <input type="file" name="quote" accept=".pdf,.jpg,.jpeg,.png" required
+                                            @change="nombre = $event.target.files[0]?.name ?? ''"
+                                            class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl" :class="nombre ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400'">
+                                            <svg x-show="! nombre" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                            <svg x-show="nombre" x-cloak class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        </span>
+                                        <span x-show="! nombre" class="text-sm font-bold text-slate-700 dark:text-slate-200">Arrastra el archivo aquí <span class="font-semibold text-sky-700 dark:text-sky-400">o haz clic para elegirlo</span></span>
+                                        <span x-show="nombre" x-cloak class="max-w-full truncate text-sm font-black text-emerald-800 dark:text-emerald-300" x-text="nombre"></span>
+                                        <span class="text-[11px] text-slate-400" x-text="nombre ? 'Listo para subir · clic para cambiarlo' : 'PDF, JPG o PNG'">PDF, JPG o PNG</span>
+                                    </label>
                                     @error('quote')
                                         <p class="text-xs font-bold text-rose-600 dark:text-rose-400">{{ $message }}</p>
                                     @enderror
                                     <button type="submit"
-                                        class="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-sky-700">
+                                        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-sky-700">
                                         Subir y contrastar
                                     </button>
                                 </form>
@@ -1229,105 +1236,6 @@
                             </div>
                         </section>
 
-                        {{-- Lo que ya está cargado --}}
-                        @if(count($comparaciones) > 0)
-                            <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                <div class="border-b border-slate-200/80 px-6 py-4 dark:border-slate-800">
-                                    <h3 class="text-sm font-black text-slate-900 dark:text-white">
-                                        {{-- El pluralizador de Laravel es inglés: «cotización» le sale «cotizacións». --}}
-                                        {{ count($comparaciones) }} {{ count($comparaciones) === 1 ? 'cotización cargada' : 'cotizaciones cargadas' }}
-                                    </h3>
-                                </div>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-sm">
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
-                                            @foreach ($comparaciones as $comparacion)
-                                                @php
-                                                    $lectura = $comparacion['ingestion'];
-                                                    $resultado = $comparacion['resultado'];
-                                                    $dictada = $lectura->source_kind === \App\Services\PurchaseRequests\Reading\PurchaseRequestSourceKind::TEXT;
-                                                    $comprada = (bool) ($lectura->extracted['already_purchased'] ?? false);
-                                                    $leyendo = in_array($lectura->status, [\App\Models\PurchaseRequestIngestion::PENDING, \App\Models\PurchaseRequestIngestion::PROCESSING], true);
-                                                @endphp
-                                                <tr class="align-top hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                                    <td class="px-6 py-4">
-                                                        <div class="flex flex-wrap items-center gap-2">
-                                                            <span class="font-black text-slate-900 dark:text-white">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</span>
-                                                            @if($comprada)
-                                                                <span class="rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">ya comprado</span>
-                                                            @endif
-                                                            @if($dictada)
-                                                                <span class="rounded-lg bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300">escrita a mano</span>
-                                                            @endif
-                                                        </div>
-                                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }}</p>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-xs">
-                                                        @if($leyendo)
-                                                            <span class="font-bold text-amber-600 dark:text-amber-400">Leyéndola…</span>
-                                                        @elseif($resultado->elDocumentoNoAporto())
-                                                            <span class="font-bold text-rose-700 dark:text-rose-400">No se pudo leer</span>
-                                                            @if($lectura->isFinished() && ($lectura->user_id === auth()->id() || auth()->user()->isPurchaseReviewer()))
-                                                                <form method="POST" action="{{ route('purchase_requests.ingestions.reread', $lectura) }}" class="mt-1.5">
-                                                                    @csrf
-                                                                    <button type="submit" class="inline-flex min-h-8 items-center rounded-lg border border-rose-200 bg-white px-2.5 text-[11px] font-extrabold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-300">Leer de nuevo</button>
-                                                                </form>
-                                                            @endif
-                                                        @else
-                                                            <span class="font-bold text-slate-700 dark:text-slate-200">{{ $resultado->cruzadas() }} de {{ $resultado->partidas() }} cruzadas</span>
-                                                            <span class="block text-slate-500 dark:text-slate-400">{{ $resultado->resumen() }}</span>
-                                                        @endif
-                                                    </td>
-                                                    {{-- Comprarle a este proveedor vive también aquí.
-                                                         Estaba sólo dentro de la pestaña de cada
-                                                         cotización, que es donde nadie va a buscarlo:
-                                                         a gestionar las cotizaciones se entra por esta
-                                                         lista. --}}
-                                                    <td class="whitespace-nowrap px-6 py-4">
-                                                        @can('exportToOdoo', $purchaseRequest)
-                                                            @php
-                                                                $rutFila = \App\Support\Rut::normalize($lectura->supplier_tax_id);
-                                                                $provFila = $rutFila === null ? null : \App\Models\PurchaseSupplier::query()
-                                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutFila)->first();
-                                                                $firmes = $leyendo ? 0 : $resultado->cruzadas() - $resultado->porConfirmar();
-                                                            @endphp
-                                                            @if($firmes > 0 && $provFila !== null)
-                                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
-                                                                    onsubmit="return confirm('Se enviará a Odoo, a nombre de {{ addslashes($provFila->name) }}, lo que cotizó. ¿Seguimos?')">
-                                                                    @csrf
-                                                                    <button type="submit"
-                                                                        class="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-violet-700">
-                                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                                        Comprarle sus {{ $firmes }}
-                                                                    </button>
-                                                                </form>
-                                                            @elseif($firmes > 0)
-                                                                <button type="button" @click="vista = 'cot{{ $tabDe[$lectura->getKey()] ?? 0 }}'"
-                                                                    class="text-xs font-bold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 dark:text-amber-400">
-                                                                    Falta decir quién es en Odoo
-                                                                </button>
-                                                            @endif
-                                                        @endcan
-                                                    </td>
-                                                    <td class="w-40 whitespace-nowrap px-6 py-4 text-right">
-                                                        <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                                            class="text-xs font-bold text-sky-700 underline decoration-dotted underline-offset-2 hover:text-sky-900 dark:text-sky-400">
-                                                            {{ $dictada ? 'Ver lo escrito' : 'Ver documento' }}
-                                                        </a>
-                                                        <form method="POST" action="{{ route('purchase_requests.quotes.destroy', [$purchaseRequest, $lectura]) }}" class="mt-1">
-                                                            @csrf @method('DELETE')
-                                                            <button type="submit" class="text-xs font-bold text-slate-400 underline decoration-dotted underline-offset-2 hover:text-rose-600 dark:hover:text-rose-400">
-                                                                Quitar
-                                                            </button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
-                        @endif
                     </div>
                     {{-- ── VISTA 2: CUADRO COMPARATIVO («QUIÉN CONVIENE») ──
                          Cada celda dice cuánto cotizó, a qué precio y cuánto

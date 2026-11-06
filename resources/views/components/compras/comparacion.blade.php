@@ -20,16 +20,19 @@
         return $moneda && $moneda !== 'CLP' ? $moneda.' '.number_format($v, 2, ',', '.') : '$'.number_format($v, 0, ',', '.');
     };
     $numero = fn (?float $v): string => $v === null ? '—' : rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');
+    // Cada partida una tarjeta, como las filas de la lista de solicitudes: borde verde si tiene un más barato claro.
+    $tarjeta = 'border-y border-slate-200 bg-white transition-colors group-hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:group-hover:border-slate-700';
+    $ultima = count($columnas) - 1;
 @endphp
 
-<div class="overflow-x-auto">
-    <table class="w-full border-separate border-spacing-0 text-sm">
+<div class="overflow-x-auto bg-slate-50 px-4 pb-3 dark:bg-slate-950/60">
+    <table class="w-full border-separate border-spacing-x-0 border-spacing-y-2 text-sm">
         <thead>
             <tr class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <th class="sticky left-0 z-10 min-w-[17rem] border-b border-slate-200 bg-slate-50 px-5 py-3 text-left dark:border-slate-800 dark:bg-slate-950">Partida</th>
-                <th class="w-24 border-b border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-950">Pediste</th>
+                <th class="sticky left-0 z-10 min-w-[10rem] bg-slate-50 pb-1 pl-6 pr-3 pt-3 sm:min-w-[17rem] sm:pr-5 text-left dark:bg-slate-950">Partida</th>
+                <th class="hidden w-24 px-4 pb-1 pt-3 text-right sm:table-cell">Pediste</th>
                 @foreach ($columnas as $i => $c)
-                    <th class="min-w-[11rem] border-b border-l border-slate-200 bg-slate-50 px-5 py-3 text-right align-bottom dark:border-slate-800 dark:bg-slate-950 {{ ($c['apagada'] ?? false) ? 'opacity-50' : '' }}">
+                    <th class="min-w-[9rem] px-4 pb-1 pt-3 sm:min-w-[11rem] sm:px-5 text-right align-bottom {{ ($c['apagada'] ?? false) ? 'opacity-50' : '' }}">
                         @if(! empty($c['url']))
                             <a href="{{ $c['url'] }}" class="block truncate text-slate-800 hover:underline dark:text-slate-100" title="{{ $c['nombre'] }}">{{ $c['nombre'] }}</a>
                         @else
@@ -46,13 +49,16 @@
             @foreach ($filas as $n => $fila)
                 @php $min = $fila['mejor'] !== null ? ($fila['celdas'][$fila['mejor']]['precio'] ?? null) : null; @endphp
                 <tr class="group">
-                    <td class="sticky left-0 z-10 border-b border-slate-100 bg-white px-5 py-3 group-hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-slate-800/60">
+                    <td class="sticky left-0 z-10 rounded-l-2xl border-l-[5px] py-3.5 pl-3 pr-3 sm:pl-4 sm:pr-5 {{ $tarjeta }} {{ $fila['mejor'] !== null ? 'border-l-emerald-500' : 'border-l-slate-300 dark:border-l-slate-600' }}">
                         <div class="flex items-center gap-3">
-                            <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{{ $n + 1 }}</span>
-                            <span class="line-clamp-2 font-semibold text-slate-800 dark:text-slate-100">{{ $fila['nombre'] }}</span>
+                            <span class="hidden h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-[11px] sm:inline-flex font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{{ $n + 1 }}</span>
+                            <span class="min-w-0">
+                                <span class="line-clamp-3 text-[13px] font-semibold text-slate-800 sm:line-clamp-2 sm:text-sm dark:text-slate-100">{{ $fila['nombre'] }}</span>
+                                <span class="mt-0.5 block text-[11px] text-slate-500 sm:hidden dark:text-slate-400">Pediste <span class="font-mono font-bold text-slate-700 dark:text-slate-200">{{ $numero($fila['cantidad']) }}</span> {{ $fila['unidad'] }}</span>
+                            </span>
                         </div>
                     </td>
-                    <td class="whitespace-nowrap border-b border-slate-100 px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500 group-hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:group-hover:bg-slate-800/60">
+                    <td class="hidden whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs tabular-nums text-slate-500 sm:table-cell dark:text-slate-400 {{ $tarjeta }}">
                         {{ $numero($fila['cantidad']) }} <span class="font-sans text-[10px] text-slate-400">{{ $fila['unidad'] }}</span>
                     </td>
                     @foreach ($columnas as $i => $c)
@@ -61,7 +67,7 @@
                             $gana = $fila['mejor'] === $i;
                             $moneda = $c['moneda'] ?? null;
                         @endphp
-                        <td class="whitespace-nowrap border-b border-l border-slate-100 px-5 py-3 text-right font-mono tabular-nums dark:border-slate-800 {{ $gana ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60' }} {{ ($c['apagada'] ?? false) ? 'opacity-50' : '' }}">
+                        <td class="whitespace-nowrap border-y px-5 py-3.5 text-right font-mono tabular-nums transition-colors {{ $gana ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40' : 'border-slate-200 bg-white group-hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900' }} {{ $i === $ultima ? 'rounded-r-2xl border-r' : '' }} {{ ($c['apagada'] ?? false) ? 'opacity-50' : '' }}">
                             @if($celda === null || ($celda['total'] ?? null) === null)
                                 <span class="font-sans text-xs italic text-slate-300 dark:text-slate-600">no cotizó</span>
                             @else
@@ -92,20 +98,22 @@
         {{-- Neto, IVA y lo que sale de verdad, con el más conveniente en verde. --}}
         <tfoot>
             <tr class="align-top">
-                <td colspan="2" class="sticky left-0 z-10 bg-slate-50 px-5 py-4 dark:bg-slate-950">
-                    <p class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Suma de lo cotizado</p>
+                <td class="sticky left-0 z-10 rounded-l-2xl border-y border-l-[5px] border-slate-200 border-l-slate-700 bg-white py-4 pl-3 pr-3 sm:pl-4 sm:pr-5 dark:border-slate-800 dark:border-l-slate-400 dark:bg-slate-900">
+                    <p class="whitespace-nowrap text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200"><span class="sm:hidden">Suma</span><span class="hidden sm:inline">Suma de lo cotizado</span></p>
                     <div class="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
                         <div class="flex h-5 items-center">Neto</div>
                         <div class="flex h-5 items-center">IVA</div>
                         <div class="flex h-9 items-center border-t border-dashed border-slate-200 pt-1.5 font-black uppercase tracking-wider text-slate-700 dark:border-slate-700 dark:text-slate-200">Total con IVA</div>
                     </div>
                 </td>
+                {{-- Bajo «Pediste», que en el teléfono no se muestra: con un colspan el pie se corría una columna. --}}
+                <td class="hidden border-y border-slate-200 bg-white sm:table-cell dark:border-slate-800 dark:bg-slate-900"></td>
                 @foreach ($totales as $i => $t)
                     @php
                         $gana = $mejor === $i;
                         $moneda = $columnas[$i]['moneda'] ?? null;
                     @endphp
-                    <td class="whitespace-nowrap border-l border-slate-100 px-5 py-4 text-right font-mono tabular-nums dark:border-slate-800 {{ $gana ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-slate-50 dark:bg-slate-950' }} {{ ($columnas[$i]['apagada'] ?? false) ? 'opacity-50' : '' }}">
+                    <td class="whitespace-nowrap border-y px-5 py-4 text-right font-mono tabular-nums {{ $gana ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900' }} {{ $i === $ultima ? 'rounded-r-2xl border-r' : '' }} {{ ($columnas[$i]['apagada'] ?? false) ? 'opacity-50' : '' }}">
                         <p class="h-4 font-sans text-[10px] font-black uppercase tracking-wider {{ $gana ? 'text-emerald-700 dark:text-emerald-400' : 'text-transparent' }}">{{ $gana ? 'Más conveniente' : '·' }}</p>
                         <div class="mt-3 space-y-1.5">
                             <div class="flex h-5 items-center justify-end text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $plata($t['neto'], $moneda) }}</div>
