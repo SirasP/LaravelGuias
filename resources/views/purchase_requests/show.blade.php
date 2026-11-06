@@ -1003,8 +1003,13 @@
                                 $filtroDe = fn ($item) => "!itemFilter || '".addslashes(mb_strtolower($item->product_service))."'.includes(itemFilter.toLowerCase()) || '".addslashes(mb_strtolower($item->specification ?? ''))."'.includes(itemFilter.toLowerCase())";
                                 $mejorDe = function (int $index, $item) use ($mejorPorPartida): ?array {
                                     $m = $mejorPorPartida[$index] ?? null;
+                                    if ($m !== null && $m['nombre'] === (string) $item->product_service) {
+                                        return $m;
+                                    }
 
-                                    return $m !== null && $m['nombre'] === (string) $item->product_service ? $m : null;
+                                    // «Quién conviene» va de la A a la Z y esta tabla en el orden de la
+                                    // solicitud: si la posición no calza, se busca por nombre.
+                                    return collect($mejorPorPartida)->first(fn (array $x): bool => $x['nombre'] === (string) $item->product_service);
                                 };
                             @endphp
 

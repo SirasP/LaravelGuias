@@ -186,3 +186,15 @@ it('adds a piece to its item in the quote total too', function () {
     expect($r->montoDe($fila))->toBe(['linea' => 61716.0, 'piezas' => 25758.0, 'total' => 87474.0])
         ->and($r->sumaCotizada())->toBe(87474.0 + 93716.0);
 });
+
+it('lists the items of «Quién conviene» from A to Z', function () {
+    $vista = cuadricula(
+        [['válvula de pie 10"', 1], ['bridas fierro 10"', 5], ['Bridas fierro 8"', 3], ['Empaquetadura 8"', 2]],
+        [
+            ['AUSTRAL', [linea('válvula de pie 10"', 700000), linea('bridas fierro 10"', 17368, '5'), linea('Bridas fierro 8"', 16382, '3'), linea('Empaquetadura 8"', 2628, '2')]],
+            ['CLIMENT', [linea('válvula de pie 10"', 650000), linea('bridas fierro 10"', 18000, '5'), linea('Bridas fierro 8"', 16000, '3'), linea('Empaquetadura 8"', 2700, '2')]],
+        ],
+    )->paraVista();
+
+    expect(array_column($vista['filas'], 'nombre'))->toBe(['Bridas fierro 8"', 'bridas fierro 10"', 'Empaquetadura 8"', 'válvula de pie 10"']);
+});

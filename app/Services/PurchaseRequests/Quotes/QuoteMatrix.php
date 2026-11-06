@@ -159,10 +159,27 @@ class QuoteMatrix
                     'cantidad' => $o['cantidad'], 'unitario' => $o['unitarioLinea'], 'total' => $o['total'],
                     'piezas' => $o['piezas'], 'precio' => $o['unitario'], 'porConfirmar' => $o['porConfirmar'],
                 ], $f['ofertas']),
-            ], $this->filas),
+            ], self::deLaAaLaZ($this->filas)),
             'totales' => $totales,
             'mejor' => $mejor,
         ];
+    }
+
+    /**
+     * Las partidas de la A a la Z, como «Producto por producto» de la orden de
+     * Odoo: con treinta y tantas, el orden en que se escribió la solicitud no
+     * ayuda a encontrar una. Sin tildes ni mayúsculas y con los números en su
+     * orden natural: 8" antes que 10".
+     *
+     * @param  list<array<string, mixed>>  $filas
+     * @return list<array<string, mixed>>
+     */
+    private static function deLaAaLaZ(array $filas): array
+    {
+        $clave = fn (array $f): string => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(trim((string) $f['partida'])));
+        usort($filas, fn (array $a, array $b): int => strnatcmp($clave($a), $clave($b)));
+
+        return $filas;
     }
 
     /**
