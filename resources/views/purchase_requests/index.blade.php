@@ -396,7 +396,7 @@
                 <table class="min-w-full border-separate border-spacing-0 text-sm">
                     <thead>
                         <tr class="text-left text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            <th class="border-b border-slate-200 bg-slate-50 py-3 pl-6 pr-5 dark:border-slate-800 dark:bg-slate-950/60">Solicitud</th>
+                            <th class="border-b border-slate-200 bg-slate-50 py-3 pl-7 pr-5 dark:border-slate-800 dark:bg-slate-950/60">Solicitud</th>
                             <th class="w-56 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Avance</th>
                             <th class="w-32 border-b border-slate-200 bg-slate-50 px-5 py-3 text-right dark:border-slate-800 dark:bg-slate-950/60">Partidas</th>
                             <th class="w-40 border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60">Requerida</th>
@@ -456,8 +456,8 @@
                                 };
                             @endphp
                             <tr class="group cursor-pointer" data-row-href="{{ route('purchase_requests.show', $purchaseRequest) }}">
-                                <td class="relative border-b border-slate-100 py-4 pl-6 pr-5 transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
-                                    <span class="absolute inset-y-3 left-0 w-1 rounded-r-full {{ $franja }}" aria-hidden="true"></span>
+                                <td class="relative border-b border-slate-100 py-4 pl-7 pr-5 transition-colors group-hover:bg-slate-50/80 dark:border-slate-800 dark:group-hover:bg-slate-800/40">
+                                    <span class="absolute inset-y-2.5 left-2 w-1.5 rounded-full {{ $franja }}" aria-hidden="true"></span>
                                     <div class="flex flex-wrap items-center gap-1.5">
                                         {{-- Enlace de verdad: se puede tabular, copiar y abrir en otra pestaña --}}
                                         <a href="{{ route('purchase_requests.show', $purchaseRequest) }}"
