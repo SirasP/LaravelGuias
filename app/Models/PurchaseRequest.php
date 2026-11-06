@@ -176,6 +176,54 @@ class PurchaseRequest extends Model
     }
 
     /**
+     * En qué va: cinco pasos, del envío a tener todos los precios. Lo dibujan
+     * igual la lista y la ficha. «tono» es su color: azul si le falta algo,
+     * verde si está lista, morado terminada, ámbar con correcciones y gris
+     * anulada o rechazada.
+     *
+     * @return array{pasos: list<string>, hecho: int, etapa: string, apagada: bool, tono: string}
+     */
+    public function avance(): array
+    {
+        [, $pendiente] = $this->siguientePaso();
+        $estado = $this->status->value;
+        $cotizaciones = $this->received_quotes_count ?? $this->receivedQuotes()->count();
+        $sinPrecio = $this->items_sin_precio_count ?? $this->items()->whereNull('unit_price')->count();
+        $pasos = ['Revisión', 'Aprobada', 'En Odoo', 'Cotizada', 'Con precios'];
+        $apagada = in_array($estado, ['cancelled', 'rejected'], true);
+
+        $hecho = match (true) {
+            $estado === 'draft', $apagada => 0,
+            in_array($estado, ['submitted', 'resubmitted', 'changes_requested'], true) => 1,
+            $estado === 'completed' => 5,
+            ! $this->hasBeenExportedToOdoo() => 2,
+            $cotizaciones === 0 => 3,
+            $sinPrecio > 0 => 4,
+            default => 5,
+        };
+
+        return [
+            'pasos' => $pasos,
+            'hecho' => $hecho,
+            'apagada' => $apagada,
+            'etapa' => match (true) {
+                $estado === 'completed' => 'Terminada',
+                $apagada => $this->status->label(),
+                $estado === 'draft' => 'Borrador',
+                $estado === 'changes_requested' => 'Con correcciones',
+                default => $pasos[max(0, $hecho - 1)],
+            },
+            'tono' => match (true) {
+                $estado === 'completed' => 'violet',
+                $apagada => 'slate',
+                $estado === 'changes_requested' => 'amber',
+                $pendiente => 'blue',
+                default => 'emerald',
+            },
+        ];
+    }
+
+    /**
      * ¿Ya se creó la cotización en Odoo a partir de esta solicitud?
      *
      * Es la frontera del módulo: hasta aquí manda este programa, y desde
