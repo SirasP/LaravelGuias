@@ -26,6 +26,38 @@ class QuotationComparisonResult
         return array_values(array_filter($this->piezas, fn (array $p): bool => (int) $p['partida']->getKey() === $idPartida));
     }
 
+    /**
+     * Lo que suma una partida: su línea y aparte sus piezas. La válvula de
+     * Climent en la SC-2026-000114: $61.716 y 2 flanges a $12.879.
+     *
+     * @return array{linea: ?float, piezas: float, total: ?float}
+     */
+    public function montoDe(QuotationComparisonRow $fila): array
+    {
+        $linea = self::monto($fila->cotizada);
+        $piezas = $fila->pedida
+            ? (float) array_sum(array_map(fn (array $p): float => self::monto($p['linea']) ?? 0.0, $this->piezasDe((int) $fila->pedida->getKey())))
+            : 0.0;
+
+        return ['linea' => $linea, 'piezas' => $piezas, 'total' => $linea === null ? null : $linea + $piezas];
+    }
+
+    /** Lo cotizado de tus partidas, con sus piezas y sin lo que el proveedor agregó: como «Quién conviene». */
+    public function sumaCotizada(): float
+    {
+        return (float) array_sum(array_map(fn (QuotationComparisonRow $f): float => $f->pedida ? ($this->montoDe($f)['total'] ?? 0.0) : 0.0, $this->filas));
+    }
+
+    /** Precio por cantidad cotizada; sin cantidad, el precio. */
+    private static function monto(?array $linea): ?float
+    {
+        $numero = fn (mixed $v): ?float => is_int($v) || is_float($v) ? (float) $v : (is_string($v) ? \App\Support\ChileanMoney::parse($v) : null);
+        $precio = $numero($linea['unit_price'] ?? null);
+        $cantidad = $numero($linea['quantity'] ?? null);
+
+        return $precio === null ? null : ($cantidad === null ? $precio : $precio * $cantidad);
+    }
+
     /** @return list<QuotationComparisonRow> */
     public function todas(): array
     {

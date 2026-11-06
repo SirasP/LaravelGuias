@@ -1234,6 +1234,19 @@
                                                     </td>
                                                 @endforeach
                                             </tr>
+                                            {{-- Los precios cotizados son netos: el IVA y el total, para saber cuánto sale de verdad. --}}
+                                            <tr>
+                                                <td colspan="3" class="px-6 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">+ IVA 19%</td>
+                                                @foreach ($cuadricula->totales as $total)
+                                                    <td class="whitespace-nowrap px-6 py-2 text-right font-mono text-sm tabular-nums text-slate-600 dark:text-slate-300">{{ $plata(round($total['total'] * 0.19)) }}</td>
+                                                @endforeach
+                                            </tr>
+                                            <tr class="border-t border-slate-200 dark:border-slate-700">
+                                                <td colspan="3" class="px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Total con IVA</td>
+                                                @foreach ($cuadricula->totales as $total)
+                                                    <td class="whitespace-nowrap px-6 py-3 text-right font-mono text-base font-black tabular-nums {{ $mejorTotal !== null && abs($total['total'] - $mejorTotal) < 0.005 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white' }}">{{ $plata($total['total'] + round($total['total'] * 0.19)) }}</td>
+                                                @endforeach
+                                            </tr>
                                         </tfoot>
                                     </table>
                                 </div>
@@ -1468,6 +1481,11 @@
                                                             @if(filled($fila->cotizada['unit_price'] ?? null))
                                                                 <span class="block text-[11px] font-bold text-slate-800 dark:text-slate-200">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
                                                             @endif
+                                                            @php $monto = $resultado->montoDe($fila); @endphp
+                                                            @if($monto['piezas'] > 0 && $monto['total'] !== null)
+                                                                <span class="mt-1 block text-[11px] text-sky-800 dark:text-sky-300">+ piezas $ {{ number_format($monto['piezas'], 0, ',', '.') }}</span>
+                                                                <span class="block text-[11px] font-black text-slate-900 dark:text-white" title="La línea más sus piezas">= $ {{ number_format($monto['total'], 0, ',', '.') }}</span>
+                                                            @endif
                                                         @else
                                                             <span class="font-sans italic text-slate-400">no la cotizaron</span>
                                                         @endif
@@ -1534,6 +1552,22 @@
                                                     Tus {{ $totalPartidasCot }} {{ \Illuminate\Support\Str::plural('partida', $totalPartidasCot) }}, una por fila
                                                 </td>
                                             </tr>
+                                            {{-- Como «Quién conviene»: tus partidas con sus piezas, sin lo que el proveedor agregó. --}}
+                                            @php $suma = $resultado->sumaCotizada(); @endphp
+                                            @if($suma > 0)
+                                                <tr class="border-t border-slate-200/80 dark:border-slate-800">
+                                                    <td colspan="3" class="px-6 pt-3 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Suma de lo cotizado</td>
+                                                    <td colspan="2" class="whitespace-nowrap px-6 pt-3 text-right font-mono text-sm font-black tabular-nums text-slate-900 dark:text-white">$ {{ number_format($suma, 0, ',', '.') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3" class="px-6 py-1 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">+ IVA 19%</td>
+                                                    <td colspan="2" class="whitespace-nowrap px-6 py-1 text-right font-mono text-sm tabular-nums text-slate-600 dark:text-slate-300">$ {{ number_format(round($suma * 0.19), 0, ',', '.') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3" class="px-6 pb-3.5 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Total con IVA</td>
+                                                    <td colspan="2" class="whitespace-nowrap px-6 pb-3.5 text-right font-mono text-base font-black tabular-nums text-slate-900 dark:text-white">$ {{ number_format($suma + round($suma * 0.19), 0, ',', '.') }}</td>
+                                                </tr>
+                                            @endif
                                         </tfoot>
                                     </table>
                                 </div>

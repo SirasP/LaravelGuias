@@ -170,3 +170,19 @@ it('adds the pieces a supplier quoted apart to their item, in the cell and in th
         // Con las flanges, Climent ya no es el más barato: lo es Austral.
         ->and($matriz->filas[0]['masBarato'])->toBe(0);
 });
+
+it('adds a piece to its item in the quote total too', function () {
+    $owner = User::factory()->create();
+    $solicitud = test()->createPurchaseRequestDraft($owner);
+    $solicitud->items()->delete();
+    $valvula = $solicitud->items()->create(['sort_order' => 1, 'product_service' => 'Válvula mariposa con volante de 200 mm', 'quantity' => 1, 'unit' => 'Unidades']);
+    $solicitud->items()->create(['sort_order' => 2, 'product_service' => 'CODO PVC 200 MM X 90° CEMENTAR', 'quantity' => 4, 'unit' => 'Unidades']);
+
+    $r = app(QuotationComparison::class)->comparar($solicitud->fresh(), [
+        linea('VALVULA DE MARIPOSA 200MM', 61716), linea('FLANGE VOLANTE PVC-H 200MM', 12879, '2,00'), linea('CODO PVC-H CEM 200MM X 90º', 23429, '4,00'),
+    ], null, [0 => $valvula->id], [], [1 => $valvula->id]);
+
+    $fila = collect($r->filas)->first(fn ($f) => $f->pedida?->is($valvula));
+    expect($r->montoDe($fila))->toBe(['linea' => 61716.0, 'piezas' => 25758.0, 'total' => 87474.0])
+        ->and($r->sumaCotizada())->toBe(87474.0 + 93716.0);
+});
