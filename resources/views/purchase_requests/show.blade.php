@@ -1383,65 +1383,87 @@
                             $porConfirmar = $resultado->porConfirmar();
                         @endphp
                         <div x-show="vista === 'cot{{ $indice }}'" x-cloak class="space-y-4">
-                            <section class="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                <div class="flex flex-col gap-3 border-b border-slate-200/80 p-6 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <div class="flex flex-wrap items-center gap-3">
-                                            <h2 class="text-lg font-black text-slate-900 dark:text-white">
-                                                {{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}
-                                            </h2>
-                                            <span class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-sky-50 px-3 py-1 font-mono text-xs font-black text-sky-700 shadow-sm dark:border-sky-800/80 dark:bg-sky-950/60 dark:text-sky-300">
-                                                <span class="h-2 w-2 rounded-full bg-sky-500"></span>
-                                                <span>{{ $resultado->cruzadas() }} de {{ $totalPartidasCot }} cruzadas</span>
-                                            </span>
+                            @php
+                                $sumaCot = $resultado->sumaCotizada();
+                                $esLaMejorCot = $mejorCotizacion && $mejorCotizacion['de'] > 1 && $mejorCotizacion['nombre'] === $lectura->supplier_name;
+                                $bordeCot = $resultado->cuadra() ? 'border-l-emerald-500' : ($porConfirmar > 0 ? 'border-l-indigo-500' : 'border-l-amber-500');
+                            @endphp
+                            {{-- La cotización como tarjeta con el borde de su estado: quién es, cuánto suma y qué se puede hacer. --}}
+                            <section class="overflow-hidden rounded-2xl border border-l-[5px] border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 {{ $bordeCot }}">
+                                <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            @if($esLaMejorCot)
+                                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Más conveniente</span>
+                                            @endif
+                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $resultado->cuadra() ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' }}">{{ $resultado->estadoCorto() }}</span>
+                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ $resultado->cruzadas() }} de {{ $totalPartidasCot }} cruzadas</span>
                                         </div>
-                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $lectura->original_name }} · {{ $resultado->resumen() }}</p>
+                                        <h2 class="mt-1.5 truncate text-xl font-black text-slate-900 dark:text-white" title="{{ $lectura->supplier_name }}">{{ $lectura->supplier_name ?: 'Proveedor sin identificar' }}</h2>
+                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                            <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}" class="hover:text-sky-700 hover:underline">{{ $lectura->original_name }}</a>
+                                            · {{ $resultado->resumen() }}
+                                        </p>
                                     </div>
-                                    <div class="flex flex-wrap items-center gap-2.5">
-                                        @if($porConfirmar > 0)
-                                            <form method="POST" action="{{ route('purchase_requests.quotes.confirm', [$purchaseRequest, $lectura]) }}">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
-                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                                                    Confirmar {{ $porConfirmar }} {{ \Illuminate\Support\Str::plural('pareja', $porConfirmar) }}
-                                                </button>
-                                            </form>
-                                        @endif
 
-                                        {{-- Una compra se reparte: lo que cotizó este
-                                             proveedor se va en SU orden, y lo demás
-                                             queda esperando a quien lo venda. Sin esto,
-                                             Odoo recibía las nueve partidas a nombre de
-                                             uno solo y el stock salía torcido. --}}
-                                        @can('exportToOdoo', $purchaseRequest)
-                                            @php
-                                                $rutCot = \App\Support\Rut::normalize($lectura->supplier_tax_id);
-                                                $proveedorCot = $rutCot === null ? null : \App\Models\PurchaseSupplier::query()
-                                                    ->whereNotNull('odoo_partner_id')->where('tax_id', $rutCot)->first();
-                                                $firmesCot = $resultado->cruzadas() - $porConfirmar;
-                                                $enEsperaCot = $resultado->partidas() - $firmesCot;
-                                            @endphp
-                                            @if($firmesCot > 0 && $proveedorCot !== null)
-                                                <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
-                                                    onsubmit="return confirm('Se le comprará a {{ addslashes($proveedorCot->name) }}, en su propia orden de Odoo, {{ $firmesCot }} {{ \Illuminate\Support\Str::plural('partida', $firmesCot) }} con el precio que cotizó.{{ $enEsperaCot > 0 ? ' Las otras '.$enEsperaCot.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
+                                    <div class="flex flex-wrap items-center gap-4 lg:justify-end">
+                                        @if($sumaCot > 0)
+                                            <div class="text-right font-mono tabular-nums">
+                                                <p class="text-xl font-black text-slate-900 dark:text-white">${{ number_format($sumaCot, 0, ',', '.') }} <span class="font-sans text-xs font-normal text-slate-400">neto</span></p>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400">${{ number_format($sumaCot + round($sumaCot * 0.19), 0, ',', '.') }} <span class="font-sans">con IVA</span></p>
+                                            </div>
+                                        @endif
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            @if($porConfirmar > 0)
+                                                <form method="POST" action="{{ route('purchase_requests.quotes.confirm', [$purchaseRequest, $lectura]) }}">
                                                     @csrf
-                                                    <button type="submit"
-                                                        class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900 dark:text-violet-200">
-                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                        Comprarle a este proveedor {{ $enEsperaCot > 0 ? 'sus '.$firmesCot : ($firmesCot === 1 ? 'la partida' : 'las '.$firmesCot) }}
+                                                    <button type="submit" class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-sm hover:bg-indigo-700">
+                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                                        Confirmar {{ $porConfirmar }} {{ \Illuminate\Support\Str::plural('pareja', $porConfirmar) }}
                                                     </button>
                                                 </form>
-                                            @elseif($firmesCot > 0 && $proveedorCot === null)
-                                                {{-- Sin saber quién firma esta cotización no hay a
-                                                     nombre de quién crear su orden. El buscador de la
-                                                     tarjeta de Odoo resuelve el proveedor de la
-                                                     solicitud, que es otra cosa: una solicitud puede
-                                                     comprarse a dos. Y una dictada a mano no trae RUT. --}}
+                                            @endif
+
+                                            {{-- Una compra se reparte: lo que cotizó este proveedor se va en SU orden, y lo
+                                                 demás queda esperando a quien lo venda. Sin esto, Odoo recibía las nueve
+                                                 partidas a nombre de uno solo y el stock salía torcido. --}}
+                                            @can('exportToOdoo', $purchaseRequest)
+                                                @php
+                                                    $rutCot = \App\Support\Rut::normalize($lectura->supplier_tax_id);
+                                                    $proveedorCot = $rutCot === null ? null : \App\Models\PurchaseSupplier::query()
+                                                        ->whereNotNull('odoo_partner_id')->where('tax_id', $rutCot)->first();
+                                                    $firmesCot = $resultado->cruzadas() - $porConfirmar;
+                                                    $enEsperaCot = $resultado->partidas() - $firmesCot;
+                                                @endphp
+                                                @if($firmesCot > 0 && $proveedorCot !== null)
+                                                    <form method="POST" action="{{ route('purchase_requests.quotes.split', [$purchaseRequest, $lectura]) }}"
+                                                        onsubmit="return confirm('Se le comprará a {{ addslashes($proveedorCot->name) }}, en su propia orden de Odoo, {{ $firmesCot }} {{ \Illuminate\Support\Str::plural('partida', $firmesCot) }} con el precio que cotizó.{{ $enEsperaCot > 0 ? ' Las otras '.$enEsperaCot.' quedan en espera de otro proveedor.' : '' }} ¿Seguimos?')">
+                                                        @csrf
+                                                        <button type="submit" class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-700">
+                                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                            Comprarle a este proveedor {{ $enEsperaCot > 0 ? 'sus '.$firmesCot : ($firmesCot === 1 ? 'la partida' : 'las '.$firmesCot) }}
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+                                            <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
+                                                class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>
+                                                Ver documento original
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Sin saber quién firma esta cotización no hay a nombre de quién crear su orden.
+                                     El buscador de la tarjeta de Odoo resuelve el proveedor de la solicitud, que es
+                                     otra cosa: una solicitud puede comprarse a dos. Y una dictada a mano no trae RUT. --}}
+                                @can('exportToOdoo', $purchaseRequest)
+                                    @if($firmesCot > 0 && $proveedorCot === null)
                                                 @php
                                                     $candidatosCot = session('cot_candidatos.'.$lectura->getKey(), []);
                                                 @endphp
-                                                <div class="w-full rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                                <div class="border-t border-amber-200 bg-amber-50/80 px-5 py-4 dark:border-amber-900/60 dark:bg-amber-950/30"><div class="max-w-xl">
                                                     <p class="text-xs font-bold text-amber-900 dark:text-amber-200">
                                                         ¿Quién es «{{ $lectura->supplier_name ?: 'este proveedor' }}» en Odoo?
                                                     </p>
@@ -1477,51 +1499,43 @@
                                                         </form>
                                                     @endforeach
                                                 </div>
-                                            @endif
-                                        @endcan
-                                        <a href="{{ route('purchase_requests.ingestions.download', $lectura) }}"
-                                            class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                                            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v1a2 2 0 002 2zM7 4h10v6H7z" /></svg>
-                                            Ver documento original
-                                        </a>
-                                    </div>
-                                </div>
+                                                </div>
+                                    @endif
+                                @endcan
 
                                 @if($porConfirmar > 0)
-                                    <p class="border-b border-indigo-100 bg-indigo-50/70 px-6 py-3 text-xs font-semibold text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
+                                    <p class="border-t border-indigo-100 bg-indigo-50/70 px-5 py-3 text-xs font-semibold text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
                                         {{ $porConfirmar }} {{ \Illuminate\Support\Str::plural('pareja', $porConfirmar) }} en violeta {{ $porConfirmar === 1 ? 'la propone' : 'las propone' }} el programa por la cantidad y el orden de los renglones, porque el nombre no alcanza para afirmarlo. Revísalas y confírmalas: quedan aprendidas para las próximas cotizaciones de este proveedor.
                                     </p>
                                 @endif
 
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-sm">
-                                        <thead class="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                                            <tr>
-                                                <th class="w-14 px-6 py-3.5 text-center">N°</th>
-                                                <th class="px-6 py-3.5 font-bold">Partida</th>
-                                                <th class="w-40 whitespace-nowrap px-6 py-3.5 font-bold">Pediste</th>
-                                                <th class="w-40 whitespace-nowrap px-6 py-3.5 font-bold">Cotizaron</th>
-                                                <th class="hidden px-6 py-3.5 font-bold md:table-cell">Estado</th>
+                                    <table class="w-full border-separate border-spacing-0 text-left text-sm">
+                                        <thead>
+                                            <tr class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                <th class="border-y border-slate-200 bg-slate-50 py-3 pl-5 pr-4 dark:border-slate-800 dark:bg-slate-950">Partida</th>
+                                                <th class="w-32 whitespace-nowrap border-y border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-950">Pediste</th>
+                                                <th class="w-48 whitespace-nowrap border-y border-l border-slate-200 bg-slate-50 px-5 py-3 text-right dark:border-slate-800 dark:bg-slate-950">Cotizaron</th>
+                                                <th class="hidden w-72 border-y border-slate-200 bg-slate-50 px-5 py-3 md:table-cell dark:border-slate-800 dark:bg-slate-950">Estado</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                        <tbody>
                                             @foreach ($resultado->filas as $fila)
                                                 @php
                                                     $tono = match ($fila->estado) {
                                                         'propuesta' => 'bg-indigo-50/50 dark:bg-indigo-950/20',
                                                         'sin_cotizar' => 'bg-rose-50/40 dark:bg-rose-950/10',
                                                         'difiere' => 'bg-amber-50/40 dark:bg-amber-950/10',
-                                                        default => '',
+                                                        default => 'group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50',
                                                     };
+                                                    $celdaCot = 'border-b border-slate-100 dark:border-slate-800 '.$tono;
                                                 @endphp
-                                                <tr class="align-top transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 {{ $tono }}">
-                                                    <td class="px-6 py-4 text-center">
-                                                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                                            {{ $loop->iteration }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-slate-800 dark:text-slate-100">
-                                                        <span class="font-bold">{{ $fila->pedida?->product_service ?? '—' }}</span>
+                                                <tr class="group align-top">
+                                                    <td class="py-3.5 pl-5 pr-4 text-slate-800 dark:text-slate-100 {{ $celdaCot }}">
+                                                        <div class="flex items-start gap-3">
+                                                        <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{{ $loop->iteration }}</span>
+                                                        <div class="min-w-0">
+                                                        <span class="font-semibold">{{ $fila->pedida?->product_service ?? '—' }}</span>
                                                         @if($fila->cotizada)
                                                             <span class="mt-1 flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                                                                 <span class="mt-px shrink-0 {{ $fila->esPropuesta() ? 'text-indigo-500' : 'text-slate-400' }}">↳</span>
@@ -1548,31 +1562,35 @@
                                                         @foreach ($fila->diferencias as $diferencia)
                                                             <span class="mt-1 block text-xs font-semibold text-amber-800 md:hidden dark:text-amber-300">{{ $diferencia }}</span>
                                                         @endforeach
+                                                        </div>
+                                                        </div>
                                                     </td>
-                                                    <td class="whitespace-nowrap px-6 py-4 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                                                    <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono tabular-nums {{ $celdaCot }}">
                                                         @if($fila->pedida)
-                                                            {{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }} {{ $fila->pedida->unit }}
+                                                            <span class="text-sm font-black text-slate-800 dark:text-slate-100">{{ rtrim(rtrim(number_format((float) $fila->pedida->quantity, 2, ',', '.'), '0'), ',') }}</span>
+                                                            <span class="font-sans text-xs text-slate-400">{{ $fila->pedida->unit }}</span>
                                                             @if($fila->pedida->unit_price !== null)
-                                                                <span class="block text-[11px] text-slate-400">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }}</span>
+                                                                <span class="block text-[11px] text-slate-400">$ {{ number_format((float) $fila->pedida->unit_price, 0, ',', '.') }} c/u</span>
                                                             @endif
                                                         @endif
                                                     </td>
-                                                    <td class="whitespace-nowrap px-6 py-4 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                                                    <td class="whitespace-nowrap border-l px-5 py-3.5 text-right font-mono tabular-nums {{ $celdaCot }}">
                                                         @if($fila->cotizada)
-                                                            {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}
-                                                            @if(filled($fila->cotizada['unit_price'] ?? null))
-                                                                <span class="block text-[11px] font-bold text-slate-800 dark:text-slate-200">$ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}</span>
-                                                            @endif
                                                             @php $monto = $resultado->montoDe($fila); @endphp
+                                                            @if($monto['total'] !== null)
+                                                                <span class="block text-sm font-bold text-slate-900 dark:text-white">$ {{ number_format($monto['total'], 0, ',', '.') }}</span>
+                                                            @endif
+                                                            <span class="block text-[11px] text-slate-500 dark:text-slate-400">
+                                                                {{ $fila->cotizada['quantity'] ?? '—' }} {{ $fila->cotizada['unit'] ?? '' }}@if(filled($fila->cotizada['unit_price'] ?? null)) × $ {{ number_format((float) $fila->cotizada['unit_price'], 0, ',', '.') }}@endif
+                                                            </span>
                                                             @if($monto['piezas'] > 0 && $monto['total'] !== null)
-                                                                <span class="mt-1 block text-[11px] text-sky-800 dark:text-sky-300">+ piezas $ {{ number_format($monto['piezas'], 0, ',', '.') }}</span>
-                                                                <span class="block text-[11px] font-black text-slate-900 dark:text-white" title="La línea más sus piezas">= $ {{ number_format($monto['total'], 0, ',', '.') }}</span>
+                                                                <span class="block font-sans text-[10px] font-bold text-sky-700 dark:text-sky-300" title="Lo cotizó aparte y va en esta partida; ya está sumado.">incl. piezas $ {{ number_format($monto['piezas'], 0, ',', '.') }}</span>
                                                             @endif
                                                         @else
-                                                            <span class="font-sans italic text-slate-400">no la cotizaron</span>
+                                                            <span class="font-sans text-xs italic text-slate-400">no la cotizaron</span>
                                                         @endif
                                                     </td>
-                                                    <td class="hidden px-6 py-4 text-xs md:table-cell">
+                                                    <td class="hidden px-5 py-3.5 text-xs md:table-cell {{ $celdaCot }}">
                                                         @if($fila->esPropuesta())
                                                             <div class="flex flex-wrap items-center gap-2">
                                                                 <form method="POST" action="{{ route('purchase_requests.quotes.link', [$purchaseRequest, $lectura]) }}">
@@ -1602,12 +1620,12 @@
                                                                 </form>
                                                             </div>
                                                         @elseif($fila->estado === 'sin_cotizar')
-                                                            <span class="font-bold text-rose-700 dark:text-rose-300">No la cotizaron</span>
+                                                            <span class="inline-flex rounded-full bg-rose-50 px-2 py-0.5 font-bold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-900">No la cotizaron</span>
                                                         @else
                                                             @forelse ($fila->diferencias as $diferencia)
-                                                                <span class="block font-semibold {{ $fila->hayProblema ? 'text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">{{ $diferencia }}</span>
+                                                                <span class="mb-0.5 block font-semibold {{ $fila->hayProblema ? 'text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400' }}">{{ $diferencia }}</span>
                                                             @empty
-                                                                <span class="font-bold text-emerald-600 dark:text-emerald-400">✓ Coincide</span>
+                                                                <span class="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900">✓ Coincide</span>
                                                             @endforelse
 
                                                             {{-- Sólo donde hay algo guardado que borrar: un cruce
@@ -1628,11 +1646,11 @@
                                                 </tr>
                                             @endforeach
                                         </tbody>
-                                        <tfoot class="border-t border-slate-200/80 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/60">
+                                        <tfoot class="bg-slate-50/80 dark:bg-slate-950/60">
                                             {{-- Como «Quién conviene»: tus partidas con sus piezas, sin lo que el proveedor agregó. --}}
                                             @php $suma = $resultado->sumaCotizada(); $iva = round($suma * 0.19); @endphp
                                             <tr>
-                                                <td colspan="5" class="px-6 py-4">
+                                                <td colspan="4" class="px-5 py-4">
                                                     <div class="flex flex-wrap items-end justify-between gap-4">
                                                         <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">
                                                             Tus {{ $totalPartidasCot }} {{ \Illuminate\Support\Str::plural('partida', $totalPartidasCot) }}, una por fila
