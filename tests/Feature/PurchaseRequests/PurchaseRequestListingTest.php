@@ -169,7 +169,7 @@ it('counts the cancelled ones in their own card, linked to their filter', functi
     $viva = PurchaseRequest::factory()->forUser($admin)->approved()->create();
 
     $html = $this->actingAs($admin)->get(route('purchase_requests.index'))->assertOk()->getContent();
-    $tarjeta = substr($html, strpos($html, 'status=cancelled'), 600);
+    $tarjeta = substr($html, strpos($html, 'status=cancelled'), 1800);
 
     expect($tarjeta)->toContain('Anuladas')->toMatch('/>\s*2\s*</');
 

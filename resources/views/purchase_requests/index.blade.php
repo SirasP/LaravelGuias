@@ -77,52 +77,70 @@
             </div>
         @endif
 
+        @php
+            // Las casillas con el mismo lenguaje que la lista: tarjeta redondeada
+            // con el borde izquierdo del color de su estado.
+            $revisar = \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW;
+            $kpis = [
+                ['clave' => '', 'cuenta' => 'activas', 'titulo' => 'Activas', 'nota' => 'sin terminadas ni anuladas', 'href' => route('purchase_requests.index'),
+                    'borde' => 'border-l-blue-500', 'icono' => 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400', 'anillo' => 'ring-blue-300 dark:ring-blue-800',
+                    'svg' => 'M13 10V3L4 14h7v7l9-11h-7z'],
+                ['clave' => 'draft', 'cuenta' => 'draft', 'titulo' => 'Borradores', 'nota' => 'sin enviar a revisión', 'href' => route('purchase_requests.index', ['status' => 'draft']),
+                    'borde' => 'border-l-slate-400', 'icono' => 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400', 'anillo' => 'ring-slate-300 dark:ring-slate-700',
+                    'svg' => 'M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2.5 2.5 0 113.536 3.536L12.536 16.536H9v-3.536z'],
+                ['clave' => $revisar, 'cuenta' => $revisar, 'titulo' => 'Por revisar', 'href' => route('purchase_requests.index', ['status' => $revisar]),
+                    // Incluye las reenviadas: una corrección que volvió sigue esperando decisión.
+                    'nota' => $countFor('resubmitted') > 0 ? $countFor('resubmitted').' '.\Illuminate\Support\Str::plural('corregida', $countFor('resubmitted')) : 'esperan decisión',
+                    'borde' => 'border-l-amber-500', 'icono' => 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400', 'anillo' => 'ring-amber-300 dark:ring-amber-800',
+                    'svg' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                ['clave' => 'approved', 'cuenta' => 'approved', 'titulo' => 'Aprobadas', 'nota' => 'en marcha', 'href' => route('purchase_requests.index', ['status' => 'approved']),
+                    'borde' => 'border-l-emerald-500', 'icono' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400', 'anillo' => 'ring-emerald-300 dark:ring-emerald-800',
+                    'svg' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'],
+                // Lo cerrado, aparte: sin esta casilla una compra terminada seguía
+                // contando entre las aprobadas y no se sabía qué quedaba pendiente.
+                ['clave' => 'completed', 'cuenta' => 'completed', 'titulo' => 'Terminadas', 'nota' => 'compra cerrada', 'href' => route('purchase_requests.index', ['status' => 'completed']),
+                    'borde' => 'border-l-violet-500', 'icono' => 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400', 'anillo' => 'ring-violet-300 dark:ring-violet-800',
+                    'svg' => 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9'],
+                ['clave' => 'cancelled', 'cuenta' => 'cancelled', 'titulo' => 'Anuladas', 'nota' => 'sin efecto', 'href' => route('purchase_requests.index', ['status' => 'cancelled']),
+                    'borde' => 'border-l-zinc-400', 'icono' => 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400', 'anillo' => 'ring-zinc-300 dark:ring-zinc-700',
+                    'svg' => 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'],
+            ];
+            // De qué están hechas las activas.
+            $partes = array_filter([
+                ['Borrador', $countFor('draft') + $countFor('changes_requested'), 'bg-slate-400'],
+                ['En revisión', $countFor($revisar), 'bg-amber-500'],
+                ['Aprobadas', $countFor('approved'), 'bg-emerald-500'],
+            ], fn ($p) => $p[1] > 0);
+            $sumaPartes = max(1, array_sum(array_column($partes, 1)));
+        @endphp
         <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Resumen de solicitudes">
-            <a href="{{ route('purchase_requests.index') }}"
-                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Activas</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-slate-900 dark:text-white">{{ $countFor('activas') }}</p>
-                {{-- Cuenta lo que la lista muestra: si dijera el total y la
-                     lista no lo mostrara, el número estaría mintiendo. --}}
-                <p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">sin terminadas ni anuladas</p>
-            </a>
-            <a href="{{ route('purchase_requests.index', ['status' => 'draft']) }}"
-                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Borradores</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-slate-700 dark:text-slate-200">{{ $countFor('draft') }}</p>
-            </a>
-            <a href="{{ route('purchase_requests.index', ['status' => \App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW]) }}"
-                class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/50 dark:bg-amber-950/30">
-                <p class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Por revisar</p>
-                {{-- Incluye las reenviadas: una corrección que volvió sigue esperando decisión. --}}
-                <p class="mt-2 text-2xl font-black tabular-nums text-amber-800 dark:text-amber-200">{{ $countFor(\App\Enums\PurchaseRequestStatus::GROUP_AWAITING_REVIEW) }}</p>
-                @if($countFor('resubmitted') > 0)
-                    <p class="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                        {{ $countFor('resubmitted') }} {{ \Illuminate\Support\Str::plural('corregida', $countFor('resubmitted')) }}
-                    </p>
-                @endif
-            </a>
-            <a href="{{ route('purchase_requests.index', ['status' => 'approved']) }}"
-                class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Aprobadas</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-emerald-800 dark:text-emerald-200">{{ $countFor('approved') }}</p>
-                <p class="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">en marcha</p>
-            </a>
-            {{-- Lo cerrado, aparte. Sin esta casilla una compra terminada
-                 seguía contando entre las aprobadas y no se sabía qué
-                 quedaba pendiente de verdad. --}}
-            <a href="{{ route('purchase_requests.index', ['status' => 'completed']) }}"
-                class="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/50 dark:bg-violet-950/30">
-                <p class="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">Terminadas</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-violet-800 dark:text-violet-200">{{ $countFor('completed') }}</p>
-                <p class="mt-1 text-xs font-semibold text-violet-700 dark:text-violet-300">compra cerrada</p>
-            </a>
-            <a href="{{ route('purchase_requests.index', ['status' => 'cancelled']) }}"
-                class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900/60">
-                <p class="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Anuladas</p>
-                <p class="mt-2 text-2xl font-black tabular-nums text-zinc-700 dark:text-zinc-200">{{ $countFor('cancelled') }}</p>
-                <p class="mt-1 text-xs font-semibold text-zinc-600 dark:text-zinc-400">sin efecto</p>
-            </a>
+            @foreach($kpis as $k)
+                @php $viendo = (string) ($currentStatus ?? '') === $k['clave']; @endphp
+                <a href="{{ $k['href'] }}" @if($viendo) aria-current="page" @endif
+                    class="group relative flex flex-col rounded-2xl border border-l-[5px] border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 {{ $k['borde'] }} {{ $viendo ? 'ring-2 '.$k['anillo'] : '' }}">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ $k['titulo'] }}</p>
+                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl {{ $k['icono'] }}">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $k['svg'] }}"/></svg>
+                        </span>
+                    </div>
+                    <p class="mt-1 text-3xl font-black tabular-nums text-slate-900 dark:text-white">{{ $countFor($k['cuenta']) }}</p>
+                    {{-- Cuenta lo que la lista muestra: si dijera el total y la lista no lo mostrara, el número estaría mintiendo. --}}
+                    @if($k['clave'] === '' && $partes !== [])
+                        <div class="mt-2 flex h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" title="{{ collect($partes)->map(fn ($p) => $p[1].' '.mb_strtolower($p[0]))->join(' · ') }}">
+                            @foreach($partes as [$nombre, $n, $color])
+                                <span class="{{ $color }}" style="width: {{ round($n * 100 / $sumaPartes, 1) }}%"></span>
+                            @endforeach
+                        </div>
+                        <p class="mt-1.5 truncate text-[11px] text-slate-500 dark:text-slate-400">{{ collect($partes)->map(fn ($p) => $p[1].' '.mb_strtolower($p[0]))->join(' · ') }}</p>
+                    @else
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{{ $k['nota'] }}</p>
+                    @endif
+                    @if($viendo)
+                        <span class="absolute bottom-3 right-3 rounded-full bg-slate-900 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white dark:bg-white dark:text-slate-900">Viendo</span>
+                    @endif
+                </a>
+            @endforeach
         </section>
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
