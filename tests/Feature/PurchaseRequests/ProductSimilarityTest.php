@@ -64,3 +64,15 @@ it('reads the T of PPR as a tee and the tira as a tubo', function () {
         ->and(parecido()->score('T PPR 20mm', 'PPR TEE 20X20MM'))->toBeGreaterThan(parecido()->score('T PPR 20mm', 'PPR TEE 25X25MM'))
         ->and(parecido()->score('PPR TIRA 20MM', 'PPR TUBO 20MM 6MT PN20 1012-'))->toBeGreaterThan(0.5);
 });
+
+it('tells two flanges apart by how many holes they have', function () {
+    // SC-2026-000103: la brida de 8" de 12 perforaciones se parecía más a la de
+    // 8 de Entre Riegos que a la suya, y la comparación las cruzaba. Y la
+    // solicitud lo escribió pegado: «( 8perforaciones)».
+    expect(parecido()->normalize('bridas fierro 8" ( 8perforaciones)'))->toBe('bridas fierro 8 8 perf')
+        ->and(parecido()->score('bridas fierro 8" ( 12 perforaciones)', 'BRIDA/FLANGE SOLDAR 8" 12MM 8 PERFORACIONES'))->toBe(0.0)
+        ->and(parecido()->score('bridas fierro 8" ( 8perforaciones)', 'BRIDA/FLANGE SOLDAR 8" 12MM 12 PERFORACIONE'))->toBe(0.0)
+        ->and(parecido()->score('bridas fierro 8" ( 12 perforaciones)', 'BRIDA SOLDAR 8" X 12 PERF.'))->toBeGreaterThan(0.5)
+        // Las unidades cortas siguen pegadas, que es como se leen como medida.
+        ->and(parecido()->normalize('Tubo 75mm 5lts'))->toBe('tubo 75mm 5lts');
+});

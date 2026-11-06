@@ -95,6 +95,10 @@ final class ProductSimilarity
     {
         $texto = Str::of($valor)->ascii()->lower()->value();
         $texto = preg_replace('/[^a-z0-9]+/', ' ', $texto) ?? '';
+        // Un número pegado a una palabra larga son dos cosas: «( 8perforaciones)»
+        // es 8 perforaciones. Las unidades cortas («75mm», «5lts») siguen pegadas,
+        // que es como se leen como medida más abajo.
+        $texto = preg_replace('/\b(\d+)([a-z]{4,})\b/', '$1 $2', $texto) ?? $texto;
 
         $palabras = [];
 
@@ -119,6 +123,8 @@ final class ProductSimilarity
                 'terminales' => 'terminal',
                 'tapones' => 'tapon',
                 'niples' => 'niple',
+                // Cuántos agujeros tiene una brida: con eso se distinguen dos del mismo diámetro.
+                'perforaciones', 'perforacion', 'perforacione', 'perforac', 'perfs', 'perf' => 'perf',
                 default => $token,
             };
         }
@@ -208,6 +214,9 @@ final class ProductSimilarity
         $unidades = [
             'mm', 'cm', 'mt', 'km', 'lt', 'ml', 'cc', 'kg', 'gr', 'mg',
             'v', 'w', 'kw', 'hp', 'amp', 'psi', 'pulg', 'oz', 'lb',
+            // SC-2026-000103: la brida de 8" de 8 perforaciones y la de 12 se
+            // parecían más cruzadas que derechas, porque el texto es casi igual.
+            'perf',
         ];
 
         $tokens = array_values(array_filter(explode(' ', $normalizado), fn ($t) => $t !== ''));
